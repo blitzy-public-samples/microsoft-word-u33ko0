@@ -35,7 +35,7 @@ const Templates: React.FC = () => {
   const handleTemplateSelection = (templateId: string) => {
     setSelectedTemplate(templateId);
     // HUMAN ASSISTANCE NEEDED
-    // TODO: Implement navigation to template editing page or further actions
+    // TODO: Implement navigation to template editing page or next step in the process
   };
 
   return (
