@@ -10,7 +10,7 @@ client = TestClient(app)
 @pytest.fixture(scope="module")
 def db():
     # Setup test database
-    # HUMAN ASSISTANCE NEEDED: Configure test database connection
+    # HUMAN ASSISTANCE NEEDED: Implement proper test database setup
     pass
 
 @pytest.fixture(scope="module")
