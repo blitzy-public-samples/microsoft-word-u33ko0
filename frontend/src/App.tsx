@@ -1,13 +1,13 @@
 import React from 'react';
 import { BrowserRouter, Route, Switch } from 'react-router-dom';
-import { Provider } from '@/store';
-import { store } from '@/store/index';
+import { Provider } from 'react-redux';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import Home from '@/pages/Home';
 import Editor from '@/pages/Editor';
 import Templates from '@/pages/Templates';
 import Settings from '@/pages/Settings';
+import { store } from '@/store/index';
 
 const App: React.FC = () => {
   return (
