@@ -5,7 +5,6 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from backend.db.firestore_operations import FirestoreOperations
 from backend.db.sql_operations import SQLOperations
-from backend.models.user import User
 
 class TestDatabaseOperations(unittest.TestCase):
 
@@ -18,57 +17,42 @@ class TestDatabaseOperations(unittest.TestCase):
     def tearDown(self):
         patch.stopall()
 
-    def test_firestore_create_user(self):
+    def test_firestore_add_document(self):
         firestore_ops = FirestoreOperations()
-        user_data = {"id": "123", "name": "John Doe", "email": "john@example.com"}
-        
-        firestore_ops.create_user(user_data)
-        
-        self.firestore_mock.return_value.collection.assert_called_once_with('users')
-        self.firestore_mock.return_value.collection().document.assert_called_once_with('123')
-        self.firestore_mock.return_value.collection().document().set.assert_called_once_with(user_data)
+        collection_mock = self.firestore_mock.return_value.collection.return_value
+        collection_mock.add.return_value = MagicMock()
 
-    def test_firestore_get_user(self):
+        result = firestore_ops.add_document('test_collection', {'key': 'value'})
+
+        collection_mock.add.assert_called_once_with({'key': 'value'})
+        self.assertIsNotNone(result)
+
+    def test_firestore_get_document(self):
         firestore_ops = FirestoreOperations()
-        user_id = "123"
-        mock_user_data = {"id": "123", "name": "John Doe", "email": "john@example.com"}
-        
-        self.firestore_mock.return_value.collection().document().get().to_dict.return_value = mock_user_data
-        
-        result = firestore_ops.get_user(user_id)
-        
-        self.assertEqual(result, mock_user_data)
-        self.firestore_mock.return_value.collection.assert_called_once_with('users')
-        self.firestore_mock.return_value.collection().document.assert_called_once_with(user_id)
+        doc_mock = self.firestore_mock.return_value.collection.return_value.document.return_value
+        doc_mock.get.return_value.to_dict.return_value = {'key': 'value'}
 
-    def test_sql_create_user(self):
+        result = firestore_ops.get_document('test_collection', 'doc_id')
+
+        self.assertEqual(result, {'key': 'value'})
+
+    def test_sql_add_record(self):
         sql_ops = SQLOperations()
-        user_data = {"id": "123", "name": "John Doe", "email": "john@example.com"}
         
-        sql_ops.create_user(user_data)
-        
-        self.session_mock.add.assert_called_once()
+        sql_ops.add_record('test_table', {'column1': 'value1', 'column2': 'value2'})
+
+        self.session_mock.execute.assert_called_once()
         self.session_mock.commit.assert_called_once()
 
-    def test_sql_get_user(self):
+    def test_sql_get_record(self):
         sql_ops = SQLOperations()
-        user_id = "123"
-        mock_user = User(id="123", name="John Doe", email="john@example.com")
-        
-        self.session_mock.query().filter().first.return_value = mock_user
-        
-        result = sql_ops.get_user(user_id)
-        
-        self.assertEqual(result.id, mock_user.id)
-        self.assertEqual(result.name, mock_user.name)
-        self.assertEqual(result.email, mock_user.email)
-        self.session_mock.query.assert_called_once_with(User)
-        self.session_mock.query().filter.assert_called_once_with(User.id == user_id)
+        self.session_mock.execute.return_value.fetchone.return_value = ('value1', 'value2')
+
+        result = sql_ops.get_record('test_table', 'id', 1)
+
+        self.session_mock.execute.assert_called_once()
+        self.assertEqual(result, ('value1', 'value2'))
 
     # HUMAN ASSISTANCE NEEDED
-    # Additional test cases might be needed for update, delete, and other CRUD operations
-    # for both Firestore and SQL databases. Also, edge cases and error handling should be tested.
-    # Please review and add more test cases as needed.
-
-if __name__ == '__main__':
-    unittest.main()
+    # Additional test cases should be added to cover more scenarios and edge cases.
+    # Consider adding tests for update and delete operations, as well as error handling.
