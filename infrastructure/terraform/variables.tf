@@ -5,13 +5,13 @@ variable "project_id" {
 }
 
 variable "region" {
-  description = "The region to deploy resources"
+  description = "The default region for resources in the project"
   type        = string
   default     = "us-central1"
 }
 
 variable "zone" {
-  description = "The zone within the region to deploy resources"
+  description = "The default zone for resources in the project"
   type        = string
   default     = "us-central1-a"
 }
@@ -43,19 +43,19 @@ variable "environment" {
 }
 
 variable "dev_instance_count" {
-  description = "Number of instances for dev environment"
+  description = "Number of instances to deploy in dev environment"
   type        = number
   default     = 1
 }
 
 variable "staging_instance_count" {
-  description = "Number of instances for staging environment"
+  description = "Number of instances to deploy in staging environment"
   type        = number
   default     = 2
 }
 
 variable "prod_instance_count" {
-  description = "Number of instances for production environment"
+  description = "Number of instances to deploy in production environment"
   type        = number
   default     = 3
 }
