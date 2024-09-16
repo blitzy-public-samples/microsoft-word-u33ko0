@@ -4,14 +4,14 @@ import { Document } from '../schema/document';
 
 class CollaborationService {
   private socket: Socket;
-  private currentDocumentId: string | null = null;
+  private currentDocumentId: string = '';
 
   constructor() {
     this.socket = io(); // Assuming default connection to the server
     this.setupEventListeners();
   }
 
-  private setupEventListeners() {
+  private setupEventListeners(): void {
     // HUMAN ASSISTANCE NEEDED
     // Add event listeners for incoming collaboration events
     // Example:
@@ -28,7 +28,7 @@ class CollaborationService {
   async leaveDocument(): Promise<void> {
     if (this.currentDocumentId) {
       this.socket.emit('leave_document', this.currentDocumentId);
-      this.currentDocumentId = null;
+      this.currentDocumentId = '';
     }
   }
 
@@ -39,10 +39,10 @@ class CollaborationService {
         documentId: this.currentDocumentId,
         changes: changes
       });
-      // Consider adding error handling and confirmation from the server
     } else {
-      throw new Error('No active document to send changes to');
+      throw new Error('No active document to send changes for');
     }
+    // Consider adding error handling and confirmation from the server
   }
 }
 
