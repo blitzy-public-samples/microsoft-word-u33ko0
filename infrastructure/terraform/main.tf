@@ -39,46 +39,37 @@ resource "google_compute_firewall" "allow_internal" {
 resource "google_storage_bucket" "word_documents" {
   name     = "word-documents-${var.project_id}"
   location = var.region
-  
-  uniform_bucket_level_access = true
-  
-  versioning {
-    enabled = true
+}
+
+# Cloud SQL instance for metadata storage
+resource "google_sql_database_instance" "word_metadata" {
+  name             = "word-metadata-instance"
+  database_version = "POSTGRES_13"
+  region           = var.region
+
+  settings {
+    tier = "db-f1-micro"
   }
 }
 
 # Module imports for specific service configurations
-
-module "word_backend" {
-  source = "./modules/word_backend"
-
-  project_id = var.project_id
-  region     = var.region
-  network_id = google_compute_network.word_network.id
-  subnet_id  = google_compute_subnetwork.word_subnet.id
+module "word_editor_service" {
+  source = "./modules/word_editor"
+  # Add necessary variables
 }
 
-module "word_frontend" {
-  source = "./modules/word_frontend"
-
-  project_id = var.project_id
-  region     = var.region
-  network_id = google_compute_network.word_network.id
-  subnet_id  = google_compute_subnetwork.word_subnet.id
+module "word_collaboration_service" {
+  source = "./modules/word_collaboration"
+  # Add necessary variables
 }
 
-module "word_database" {
-  source = "./modules/word_database"
-
-  project_id = var.project_id
-  region     = var.region
-  network_id = google_compute_network.word_network.id
-  subnet_id  = google_compute_subnetwork.word_subnet.id
+module "word_auth_service" {
+  source = "./modules/word_auth"
+  # Add necessary variables
 }
 
 # HUMAN ASSISTANCE NEEDED
-# The following block may need adjustments based on specific requirements:
-# - Review and adjust the CIDR range for the subnet
-# - Confirm if additional firewall rules are needed
-# - Verify if the Cloud Storage bucket configuration meets all requirements
-# - Ensure that the module imports align with the actual module structures
+# The following block requires review and potential customization:
+# - Verify if additional core infrastructure components are needed
+# - Ensure that the module imports align with the actual module structure
+# - Review and adjust resource configurations based on specific requirements
