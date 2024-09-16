@@ -16,7 +16,7 @@ class ExportService:
         bucket = self.storage_client.bucket(settings.STORAGE_BUCKET_NAME)
         blob = bucket.blob(f"exports/{document.id}.pdf")
         # TODO: Replace with actual PDF content
-        blob.upload_from_string("PDF content", content_type="application/pdf")
+        blob.upload_from_string("PDF_CONTENT", content_type="application/pdf")
 
         # Generate signed URL for the PDF
         url = blob.generate_signed_url(
@@ -35,7 +35,7 @@ class ExportService:
         bucket = self.storage_client.bucket(settings.STORAGE_BUCKET_NAME)
         blob = bucket.blob(f"exports/{document.id}.docx")
         # TODO: Replace with actual DOCX content
-        blob.upload_from_string("DOCX content", content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+        blob.upload_from_string("DOCX_CONTENT", content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
         # Generate signed URL for the DOCX
         url = blob.generate_signed_url(
