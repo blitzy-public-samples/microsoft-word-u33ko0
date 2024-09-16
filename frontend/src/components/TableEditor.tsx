@@ -8,37 +8,36 @@ interface TableEditorProps {
 
 const TableEditor: React.FC<TableEditorProps> = ({ editorState }) => {
   // HUMAN ASSISTANCE NEEDED
-  // The following function needs review and potential improvements for production readiness
+  // The following function has a confidence level of 0.6 and may need refinement for production use
   const handleInsertTable = (rows: number, columns: number): EditorState => {
-    const contentState = editorState.getCurrentContent();
-    const selectionState = editorState.getSelection();
-    
+    const currentContent = editorState.getCurrentContent();
+    const selection = editorState.getSelection();
+
     // Create table structure
     const tableContent = insertTable(rows, columns);
-    
+
     // Insert table at current selection
-    const newContentState = Modifier.replaceText(
-      contentState,
-      selectionState,
+    const newContent = Modifier.replaceText(
+      currentContent,
+      selection,
       tableContent
     );
-    
-    // Create new EditorState with updated content
+
+    // Create new editor state with updated content
     const newEditorState = EditorState.push(
       editorState,
-      newContentState,
-      'insert-characters'
+      newContent,
+      'insert-fragment'
     );
-    
+
     return newEditorState;
   };
 
   // Additional table operations (delete, modify) should be implemented here
 
   return (
-    // Render table editing UI components here
     <div>
-      {/* Table editing controls */}
+      {/* Table editing UI components should be added here */}
     </div>
   );
 };
