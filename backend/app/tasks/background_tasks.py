@@ -44,18 +44,20 @@ def cleanup_expired_documents():
 
     for doc in expired_docs:
         doc_id = doc.id
+        user_id = doc.get('user_id')
+
         # Remove document data from Firestore
         db.collection('documents').document(doc_id).delete()
 
         # Delete associated files from Google Cloud Storage
         storage_client = Client()
         bucket = storage_client.bucket(settings.DOCUMENT_BUCKET_NAME)
-        blob = bucket.blob(f"documents/{doc_id}")
+        blob = bucket.blob(f"{user_id}/{doc_id}")
         blob.delete()
 
         # Remove any related metadata or permissions
-        db.collection('document_metadata').document(doc_id).delete()
         db.collection('document_permissions').where('document_id', '==', doc_id).get().delete()
+        db.collection('document_metadata').document(doc_id).delete()
 
 @celery_app.task
 def update_document_statistics(document_id: str):
@@ -66,7 +68,7 @@ def update_document_statistics(document_id: str):
 
     # Calculate statistics
     word_count = len(document.content.split())
-    page_count = len(document.content) // 500  # Rough estimate, adjust as needed
+    page_count = len(document.pages)
 
     # Update document metadata in Firestore
     db.collection('documents').document(document_id).update({
@@ -78,5 +80,10 @@ def update_document_statistics(document_id: str):
     })
 
     # Trigger any necessary analytics events
-    # This part would depend on your analytics setup, so it's left as a placeholder
-    # analytics_service.track_document_update(document_id, word_count, page_count)
+    # This part would depend on the specific analytics service being used
+    # For example:
+    # analytics_service.track_event('document_statistics_updated', {
+    #     'document_id': document_id,
+    #     'word_count': word_count,
+    #     'page_count': page_count
+    # })
