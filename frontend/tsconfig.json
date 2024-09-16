@@ -4,9 +4,8 @@
     "target": "ES6",
     "module": "ESNext",
     "moduleResolution": "node",
-    "jsx": "react-jsx",
     "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
+    "jsx": "react-jsx",
     "baseUrl": "src",
     "paths": {
       "@components/*": ["components/*"],
@@ -16,14 +15,16 @@
       "@services/*": ["services/*"]
     },
     "lib": ["DOM", "DOM.Iterable", "ESNext"],
-    "sourceMap": true,
-    "outDir": "dist",
+    "allowJs": true,
+    "skipLibCheck": true,
+    "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
+    "noFallthroughCasesInSwitch": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "noEmit": true
+    "noEmit": true,
+    "sourceMap": true
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"],
-  "exclude": ["node_modules", "build", "dist"],
-  "references": [{ "path": "./tsconfig.node.json" }]
+  "exclude": ["node_modules", "build", "dist", "scripts"]
 }
