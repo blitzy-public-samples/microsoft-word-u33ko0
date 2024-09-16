@@ -50,6 +50,7 @@ cd ..
 
 # Print setup completion message
 echo "Development environment setup complete!"
-echo "To start the development server, run:"
-echo "  Frontend: cd frontend && npm start"
-echo "  Backend: cd backend && source venv/bin/activate && python manage.py runserver"
+echo "To start the development server:"
+echo "1. Activate the virtual environment: source backend/venv/bin/activate"
+echo "2. Start the backend: cd backend && python manage.py runserver"
+echo "3. In a new terminal, start the frontend: cd frontend && npm start"
