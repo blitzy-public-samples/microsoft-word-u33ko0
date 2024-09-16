@@ -6,7 +6,7 @@ const TextEditor: React.FC = () => {
   const [editorState, setEditorState] = useState(EditorState.createEmpty());
 
   // HUMAN ASSISTANCE NEEDED
-  // The following function needs review and possibly more implementation details
+  // The following function needs review and potential improvements for production readiness
   const handleKeyCommand = (command: string, editorState: EditorState) => {
     let newState: EditorState | null = null;
 
