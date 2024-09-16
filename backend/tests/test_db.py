@@ -63,11 +63,12 @@ class TestDatabaseOperations(unittest.TestCase):
         self.assertEqual(result.name, mock_user.name)
         self.assertEqual(result.email, mock_user.email)
         self.session_mock.query.assert_called_once_with(User)
-        self.session_mock.query().filter.assert_called_once()
+        self.session_mock.query().filter.assert_called_once_with(User.id == user_id)
 
     # HUMAN ASSISTANCE NEEDED
-    # Additional test cases may be required for update, delete, and other CRUD operations
-    # for both Firestore and SQL databases. Also, consider adding edge cases and error handling tests.
+    # Additional test cases might be needed for update, delete, and other CRUD operations
+    # for both Firestore and SQL databases. Also, edge cases and error handling should be tested.
+    # Please review and add more test cases as needed.
 
 if __name__ == '__main__':
     unittest.main()
