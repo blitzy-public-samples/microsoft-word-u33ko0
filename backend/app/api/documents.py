@@ -189,15 +189,25 @@ async def update_document(document_id: str, document: DocumentUpdate, current_us
     Internal notes, which the form-feed marker above keeps out of the published
     route description.
 
-    The decorator sits at L30, the 403 at L35, and L37 returns the document. The
-    side effect is one write to the Firestore `documents` collection.
+    The decorator sits at L30, the 403 at L35, and L37 returns the document.
 
-    Three call sites disagree with their contracts. L33 passes one argument
-    where `app/services/document_service.py:L26` declares two. L34 reads
+    Side effects:
+        None run as committed. Writing the changed fields to the Firestore
+        `documents` collection is the intended effect, and the handler stops
+        before it. L33 calls `get_document` with one argument, and
+        `app/services/document_service.py:L26` declares two parameters after
+        `self`, so L33 raises `TypeError` for the missing `user_id`. The
+        ownership comparison at L34, the 403 at L35 and the write at L36 are all
+        unreachable. L36 would raise its own `TypeError` for the same reason if
+        control reached it, because it passes two arguments where
+        `app/services/document_service.py:L43` declares three. FastAPI converts
+        the uncaught `TypeError` into a 500 response, so a caller sees a server
+        error rather than a document. The decorator at L30 sets no `status_code`,
+        so the intended success response is HTTP 200.
+
+    The ownership comparison at L34 also disagrees with its contract. It reads
     `user_id` from a `Document`, and that contract declares `owner_id` at
-    `app/schema/document.py:L8`. L36 passes two arguments where
-    `app/services/document_service.py:L43` declares three, `document_id`,
-    `document` and `user_id`.
+    `app/schema/document.py:L8`.
     """
     document_service = DocumentService()
     existing_document = await document_service.get_document(document_id)
@@ -233,14 +243,25 @@ async def delete_document(document_id: str, current_user: User = Depends(get_cur
 
     The decorator sits at L39 and the 403 at L44. L46 returns the literal
     `{"message": "Document deleted successfully"}`, so the body reports nothing
-    about what the service did. The side effect is one delete against the
-    Firestore `documents` collection.
+    about what the service did.
 
-    Three call sites disagree with their contracts. L42 passes one argument
-    where `app/services/document_service.py:L26` declares two. L43 reads
+    Side effects:
+        None run as committed. Removing the document from the Firestore
+        `documents` collection is the intended effect, and the handler stops
+        before it. L42 calls `get_document` with one argument, and
+        `app/services/document_service.py:L26` declares two parameters after
+        `self`, so L42 raises `TypeError` for the missing `user_id`. The
+        ownership comparison at L43, the 403 at L44 and the delete at L45 are all
+        unreachable. L45 would raise its own `TypeError` for the same reason if
+        control reached it, because it passes one argument where
+        `app/services/document_service.py:L63` declares two. FastAPI converts the
+        uncaught `TypeError` into a 500 response, so a caller sees a server error
+        rather than the success message. The decorator at L39 sets no
+        `status_code`, so the intended success response is HTTP 200.
+
+    The ownership comparison at L43 also disagrees with its contract. It reads
     `user_id` from a `Document`, and that contract declares `owner_id` at
-    `app/schema/document.py:L8`. L45 passes one argument where
-    `app/services/document_service.py:L63` declares two.
+    `app/schema/document.py:L8`.
     """
     document_service = DocumentService()
     existing_document = await document_service.get_document(document_id)

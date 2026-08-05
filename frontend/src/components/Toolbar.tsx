@@ -56,20 +56,23 @@ import { updateDocument } from '@/store/documentSlice';
  * nothing, so the module does not load today. Repairing the imports does not make a dispatch
  * complete. Each of the six style buttons calls a formatting helper first, at L14 for the inline
  * buttons at L31-L33 and at L19 for the block buttons at L36-L38. Both calls pass a style string
- * into the `editorState` position, so the helper raises a `TypeError` on `getCurrentContent()`, at
- * `frontend/src/utils/formatting.ts:L4` and `:L17`. The dispatch at L15 and the dispatch at L20
- * are therefore never reached. The two insert buttons at L41 and L42 reach `console.log` at L25
- * and change no state.
+ * into the `editorState` position, so `frontend/src/utils/formatting.ts:L4` and `:L17` call
+ * `.getCurrentContent()` on that string and raise `TypeError`, because a string has no such
+ * method. The exception propagates out of the click handler, so the dispatch at L15 and the
+ * dispatch at L20 never run and the store never changes. The two insert buttons at L41 and L42
+ * do reach `console.log` at L25, and they change no state either.
  *
  * Both helper calls at L14 and L19 pass one argument where the signature declares two.
  * `frontend/src/utils/formatting.ts:L3` declares `applyInlineStyle(editorState, inlineStyle)` and
  * `:L16` declares `applyBlockStyle(editorState, blockType)`. Each call passes the style string into
  * the `editorState` position and supplies no second argument.
  *
- * Both helpers declare an `EditorState` return, per the `EditorState.push` returns at
- * `formatting.ts:L13` and `:L26`. L14 and L19 bind that declared type to `updatedContent`, and L15
- * and L20 pass it as a `content` value. Whether an `EditorState` is valid content for that action
- * cannot be determined, because `updateDocument` does not exist and declares no payload contract.
+ * A second type error sits on those same two lines, and the type checker reports it even though
+ * the runtime never gets there. Both helpers declare an `EditorState` return, per the
+ * `EditorState.push` returns at `formatting.ts:L13` and `:L26`. L14 and L19 bind that declared
+ * type to `updatedContent`, and L15 and L20 would pass it as a `content` value. Whether an
+ * `EditorState` is valid content for that action cannot be determined, because `updateDocument`
+ * does not exist and declares no payload contract.
  *
  * The style strings do not match Draft.js. L31, L32 and L33 pass `bold`, `italic` and `underline`,
  * where Draft.js inline styles are `BOLD`, `ITALIC` and `UNDERLINE`. L36, L37 and L38 pass

@@ -23,6 +23,14 @@
  * Clearing all five therefore takes three separate exported names, not one. The module
  * currently exports no type at all.
  *
+ * The server draws the same three-way distinction. `backend/app/schema/document.py` declares
+ * `DocumentCreate` at L10 and `DocumentUpdate` at L13 alongside `Document` at L17, and each
+ * carries a different field set. This module declares one schema value covering the full
+ * record and none for either write shape, so two of the three contracts have no schema to
+ * infer from.
+ *
+ * Adding exports would change the module surface, so this pass records the gap only.
+ *
  * The `zod` import at L1 resolves to nothing. `frontend/package.json:L6-L14` declares seven
  * runtime dependencies, `@reduxjs/toolkit`, `react`, `react-dom`, `react-redux`,
  * `react-router-dom`, `tailwindcss` and `typescript`, and omits `zod`. A type check reports

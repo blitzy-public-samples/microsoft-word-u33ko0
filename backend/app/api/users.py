@@ -100,7 +100,9 @@ def update_user(user_update: UserUpdate, current_user: User = Depends(get_curren
 
     Should a later implementation declare `update_user` as `async def`, L18
     would bind a coroutine object rather than a user. A coroutine object is
-    always truthy, so the L19 guard would never take its 400 branch.
+    always truthy, so the L19 guard would never take its 400 branch. Whether
+    the absent service can return a falsy value at all is equally unverified,
+    so the reachability of the L20 branch cannot be established either way.
 
     The decorator sits at L12 and the 400 at L20.
     `app/schema/user.py:L13-L17` declares the four request fields.

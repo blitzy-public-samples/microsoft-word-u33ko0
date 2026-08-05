@@ -85,6 +85,10 @@ import { serializeDocument, deserializeDocument } from '@/utils/documentUtils';
  *   `documentUtils.ts:L9` and `:L10`, then raises at `:L13`. L26 never dispatches
  *   `updateDocument`, so no per-keystroke write reaches the store.
  *
+ * As committed, no write reaches the Redux store from this component. A repaired path would
+ * replace the editor state when the document changes and dispatch a serialized document on every
+ * keystroke.
+ *
  * The two inverse type errors described above therefore sit behind that blocker as latent defects.
  * Both surface only once `documentUtils.ts` validates through a real Zod call.
  * @example
@@ -116,9 +120,10 @@ const DocumentCanvas: React.FC = () => {
    * Three statements run in order, and the third is unreachable. L24 replaces the local editor
    * state. L25 calls `serializeDocument`, which converts and stringifies the content at
    * `frontend/src/utils/documentUtils.ts:L9` and `:L10`, then raises a `TypeError` at `:L13`
-   * because `DocumentSchema.isValid` is not a Zod member. The dispatch at L26 never runs, so the
-   * handler writes nothing to the Redux store and never reaches the `throw` at
-   * `documentUtils.ts:L14` either.
+   * because `DocumentSchema.isValid` is not a Zod member, so that property is not a function. The
+   * dispatch at L26 never runs, so the handler writes nothing to the Redux store and never reaches
+   * the `throw` at `documentUtils.ts:L14` either. The local editor state set at L24 survives, so
+   * typing appears to work while nothing is ever persisted.
    *
    * L34 binds this handler to the editor's `onChange`, so the serialization cost is paid on every
    * keystroke while no store write follows it.
