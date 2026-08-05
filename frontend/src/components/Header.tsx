@@ -1,52 +1,24 @@
-/**
- * Top navigation bar. Renders branding, the primary link list, and either the signed-in user
- * or a login link. Every `L` reference numbers a file as committed, before any comment block.
+/** Render top navigation and the signed-in user summary.
  *
- * Four references in this file resolve to nothing:
- * - `useAppSelector` (L3). `frontend/src/store/index.ts` exports `RootState`, `AppDispatch`
- *   and a default `store`, and declares no such hook.
- * - `selectCurrentUser` (L4). `frontend/src/store/userSlice.ts` exports `setUser`,
- *   `clearUser`, `setLoading`, `setError` and a default reducer, and declares no selector.
- * - The logo at L13 does not load, because `frontend/public/` holds only `index.html`.
- * - `currentUser.avatar` and `currentUser.name` (L28, L29). No user contract declares either
- *   field; `frontend/src/schema/user.ts:L6-L7` declares `username` and optional `full_name`.
- *
- * Two of the four links go nowhere. `frontend/src/App.tsx:L20-L23` declares `/`, `/editor`,
- * `/templates` and `/settings`, so `/` (L19) and `/templates` (L21) resolve while
- * `/documents` (L20) and `/login` (L32) match no route.
- *
- * Every class name here is a Tailwind utility, and nothing compiles them.
- * `frontend/package.json:L12` declares `tailwindcss`, while the repository commits no
- * `tailwind.config.js`, no `postcss.config.js` and no stylesheet.
- *
- * `App.tsx:L4` imports the L42 default export correctly, while `pages/Editor.tsx:L2` imports
- * it as a named import. See `./README.md` for the directory register.
+ * useAppSelector, selectCurrentUser, and the logo asset are unresolved.
+ * The non-null Redux user is local profile state, not authenticated identity.
+ * App and Home import the default export. Editor, Settings, and Templates request a named
+ * Header export that this module does not provide.
+ * The rendered avatar and name fields exist on no user contract. The documents and login
+ * links also target routes that App does not declare.
  */
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAppSelector } from '@/store';
 import { selectCurrentUser } from '@/store/userSlice';
 
 /**
- * Render the application's top navigation bar.
+ * Render the application header.
  *
- * @returns A `header` element holding the branding block (L12-L15), the nav list (L17-L23),
- * and the conditional user block (L25-L36).
- *
- * @remarks
- * The selector call at L7 is the only external read, and no dispatch or network call runs here.
- *
- * The branch at L26 tests `currentUser`, then reads `.avatar` and `.name` at L28 and L29.
- * `store/userSlice.ts:L5` types that value `User | null`, which `schema/user.ts:L13` infers
- * from a schema declaring neither field.
+ * @returns The header element.
  *
  * @example
- *     <Provider store={store}>
- *       <Header />
- *     </Provider>
- * The snippet cannot run: `tsc` reports `TS2307` for `@/store` at `Header.tsx(3,32)`, so the
- * `useAppSelector` call at L7 never resolves.
+ * <Header />
  */
 const Header: React.FC = () => {
   const currentUser = useAppSelector(selectCurrentUser);

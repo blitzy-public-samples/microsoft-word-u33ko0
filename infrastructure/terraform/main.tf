@@ -29,9 +29,8 @@ resource "google_compute_subnetwork" "word_subnet" {
   network       = google_compute_network.word_network.id
 }
 
-# The allow block below opens every TCP port, 0 through 65535, to any source in
-# 10.0.0.0/24, the whole subnet range. This rule reaches the network by name
-# while the subnetwork above reaches it by id, and both forms are valid HCL.
+# The allow block opens every TCP port to the entire 10.0.0.0/24 subnet.
+# The firewall targets google_compute_network.word_network by name.
 # Firewall rule to allow internal communication
 resource "google_compute_firewall" "allow_internal" {
   name    = "allow-internal"

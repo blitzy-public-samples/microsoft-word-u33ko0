@@ -1,4 +1,4 @@
-# This file declares 14 outputs, and every value reads an Amazon Web Services (AWS) address.
+# The file declares 14 outputs, and every value reads an Amazon Web Services (AWS) address.
 # The 14 name 12 resources across 9 types: API Gateway deployment and stage, RDS, S3,
 # compute instance, Lambda, CloudFront, virtual private cloud and subnet. No file in this
 # folder declares any of them, and google in main.tf is the only provider configured.
@@ -69,7 +69,7 @@ output "cloudfront_distribution_domain" {
   value       = aws_cloudfront_distribution.main.domain_name
 }
 
-# This output reads aws_vpc.main.id, which no file declares. No output here exports
+# The output reads aws_vpc.main.id, which no file declares. No output here exports
 # google_compute_network.word_network, the network main.tf does declare.
 output "vpc_id" {
   description = "The ID of the main VPC"

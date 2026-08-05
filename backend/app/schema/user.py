@@ -1,19 +1,6 @@
-"""Define the Pydantic user contracts for the API boundary.
+"""Define Pydantic request and response models for users.
 
-Four models cover the shared field shape, the registration request body, the
-partial update patch, and the read model that the application programming
-interface (API) returns to callers. `User` carries a nested `Config` class.
-
-Every import here resolves and `import app.schema.user` succeeds. Only three of
-the fifteen modules under `backend/app/` import cleanly, and `app.schema.user`
-is one of them. `List` on the `typing` import line is imported and never used.
-`orm_mode = True` in the nested `Config` is the Pydantic 1.x spelling, so
-attribute-based construction here depends on Pydantic 1.x.
-
-`User` declares no field for the password hash that `app/api/auth.py:L48`
-computes, so the hash cannot appear in the response.
-`app/services/user_service.py` does not exist, though `app/api/auth.py:L8` and
-`app/api/users.py:L3` both import it.
+Callers reference app.services.user_service, which is not present.
 """
 
 from pydantic import BaseModel
@@ -42,9 +29,8 @@ class UserCreate(UserBase):
     """Carry a user registration request body.
 
     `UserCreate` extends `UserBase` and adds the required plaintext `password`
-    that `app/api/auth.py:L48` reads and hashes. `app/api/auth.py:L43`
-    annotates the `register_user` parameter with this model, and
-    `app/api/auth.py:L7` imports it.
+    submitted at registration. The field has no length, complexity, or
+    non-empty constraint, so empty and common passwords validate.
 
     Attributes:
         password: Required `str` plaintext password submitted at registration.
@@ -60,8 +46,7 @@ class UserUpdate(BaseModel):
 
     `UserUpdate` extends `BaseModel` rather than `UserBase`, so the model shares
     no field definition with the create path and redeclares `email`, `username`
-    and `full_name` locally. `app/api/users.py:L13` is the only consumer, and
-    `app/api/users.py:L2` imports it.
+    and `full_name` locally.
 
     Attributes:
         email: Optional `str` replacement contact address, default `None`.
@@ -79,19 +64,14 @@ class User(UserBase):
     """Represent a stored user returned to the caller.
 
     `User` extends `UserBase`, travels outward as a response model, and carries
-    the nested `Config` class below. `app/api/auth.py:L7`,
-    `app/api/users.py:L2`, `app/api/documents.py:L6` and
-    `app/api/templates.py:L6` import this model.
+    the nested `Config` class below. The model declares no password-hash field,
+    so a hash cannot appear in this response contract. Registration binds no
+    response model and returns an absent service's value, so that route cannot
+    guarantee the same filtering or even show where the hash is stored.
 
-    `User` declares no field for the password hash that `app/api/auth.py:L48`
-    computes and `app/api/auth.py:L49` passes to `UserService.create_user`, so
-    the hash cannot appear in this response contract. No code path reads
-    `is_active` or `is_superuser`, which appear only as declarations across
-    every `.py`, `.ts` and `.tsx` file in the repository.
-
-    `User` declares neither `name` nor `avatar`, and `updated_at` has no
-    counterpart in the client-side user contract. `docs/data-model.md` records
-    both divergences.
+    No committed path reads `is_active` or `is_superuser`. A valid token for an
+    inactive user therefore continues through the current authentication
+    dependency until the token expires.
 
     Attributes:
         id: Required `str` identifier of the stored user.

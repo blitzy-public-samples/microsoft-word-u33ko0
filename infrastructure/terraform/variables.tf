@@ -1,4 +1,4 @@
-# This file declares 13 variables. Only project_id and region are referenced
+# The file declares 13 variables. Only project_id and region are referenced
 # anywhere in this configuration; the other 11 have no consumer. No variable
 # declares a validation block, so Terraform checks nothing beyond the type.
 # Project-wide variables
