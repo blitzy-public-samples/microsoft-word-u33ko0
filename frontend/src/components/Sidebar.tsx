@@ -1,7 +1,20 @@
-/** Compose the editor sidebar from style, comment, and revision panels.
+/**
+ * Composes the editor sidebar from three panel modules, and `pages/Editor.tsx:L60` renders the
+ * component beside the document canvas.
  *
- * The three imported panel modules are unresolved.
- * The Editor page requests a named Sidebar export, but this module exports only a default.
+ * Line locators: every `Lnn` reference below numbers the tree at commit
+ * 06be74c7c88aa6bca652d465eaa00ad480a9e5c5, the frozen revision that precedes this documentation
+ * pass. A bare `Lnn` points into this file, and a `path:Lnn` points into the named file. Current
+ * HEAD numbers each documented file higher.
+ *
+ * The component cannot render. The three panel imports name `@/components/StylePanel` at L2,
+ * `@/components/CommentPanel` at L3 and `@/components/RevisionPanel` at L4. No such file exists
+ * under `frontend/src/components/`, which holds eight components and none of these three. L9
+ * through L11 render all three unconditionally, so one absent panel stops the whole subtree.
+ *
+ * The `@/` prefix does not resolve either, because `frontend/tsconfig.json:L10-L16` omits `@/*`.
+ * L2 through L4 also request named bindings, while all eight components in this directory export
+ * a default. See `./README.md` for the directory-level defect register.
  */
 import React from 'react';
 import { StylePanel } from '@/components/StylePanel';
@@ -9,9 +22,13 @@ import { CommentPanel } from '@/components/CommentPanel';
 import { RevisionPanel } from '@/components/RevisionPanel';
 
 /**
- * Render the sidebar panel container.
+ * Render a `div.sidebar` wrapping the style, comment and revision panels in that order.
  *
- * @returns The sidebar element.
+ * @returns A `div` element carrying class `sidebar` and holding the three panel elements.
+ * @remarks The render never completes, because L2 through L4 import modules that do not exist.
+ * Intended behavior per documentation/Technical Specifications.md, "USER INTERFACE DESIGN" heading:
+ * the sidebar composes `StylesPanel`, `CommentsPanel` and `VersionHistoryPanel` at
+ * `documentation/Technical Specifications.md:L474-L476`, none of them a name this module imports.
  */
 const Sidebar: React.FC = () => {
   return (
