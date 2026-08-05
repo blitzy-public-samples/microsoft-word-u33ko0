@@ -63,8 +63,6 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
     """Issue a bearer token for a valid username and password.
 
-    \N{FORM FEED}
-
     The route is public. The handler signs the token inline rather than
     calling the helper in app.core.security.
 
@@ -96,8 +94,6 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 @router.post('/register')
 async def register_user(user: UserCreate):
     """Register a user and return the created record.
-
-    \N{FORM FEED}
 
     The route is public. The User schema has no password-hash field, and
     persistence and response filtering cannot be verified because UserService

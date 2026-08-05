@@ -20,6 +20,9 @@ export const validateEmail = (email: string): boolean => {
  *
  * The policy requires at least eight characters and at least one lowercase letter,
  * one uppercase letter, one digit, and one character from `@$!%*?&`.
+ * The pattern also restricts the whole password to letters, digits and `@$!%*?&`, so any
+ * other symbol is rejected. `Passw0rd@#` satisfies all four class rules and still fails,
+ * because `#` falls outside the allowed set.
  *
  * @param password - The password to check.
  * @returns `true` when the password parses, and `false` otherwise. Both policy messages

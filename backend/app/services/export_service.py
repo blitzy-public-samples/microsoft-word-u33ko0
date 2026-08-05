@@ -42,6 +42,10 @@ class ExportService:
 
         Returns:
             A version 4 signed URL for the uploaded object, declared `str`.
+            Version 4 signing requires a service-account private key. Neither
+            the constructor nor this method supplies one, and Application
+            Default Credentials on a metadata server expose no private key, so
+            the signing call fails wherever the key is unavailable.
 
         Side effects:
             Writes one object under the `exports/` prefix of the configured
@@ -76,7 +80,9 @@ class ExportService:
             document: The Document whose identifier names the stored object.
 
         Returns:
-            A version 4 signed URL for the uploaded object, declared `str`.
+            A version 4 signed URL for the uploaded object, declared `str`. The
+            signing-credential requirement described on `export_to_pdf` applies
+            here without change.
 
         Side effects:
             Writes one object under the `exports/` prefix of the configured

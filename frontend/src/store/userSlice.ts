@@ -1,6 +1,8 @@
 /** Manage the signed-in user and session flags.
  *
- * Consumers expect updateUser and selectCurrentUser, which this module does not export.
+ * Consumers expect userReducer, updateUser and selectCurrentUser, none of which this
+ * module exports. store/index.ts imports the named userReducer, while this module exports
+ * only setUser, clearUser, setLoading, setError and a default reducer.
  * The assistance marker at the end of this file records the missing update action and
  * selectors.
  * The slice stores local user-interface state, not authenticated identity. Any caller can

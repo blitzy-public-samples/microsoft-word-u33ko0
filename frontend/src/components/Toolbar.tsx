@@ -1,6 +1,10 @@
 /** Provide the editor's formatting and insertion toolbar.
  *
- * The formatting helpers, useAppDispatch, and updateDocument are unresolved.
+ * useAppDispatch and updateDocument are unresolved, because neither store module exports
+ * those names. The formatting module does export applyInlineStyle and applyBlockStyle, so
+ * both helper names exist, and its own draft-js import is undeclared in
+ * frontend/package.json. The `@/` prefix is absent from the tsconfig paths as well, so
+ * every specifier below fails module resolution.
  * The Editor page requests a named Toolbar export, but this module exports only a default.
  * Each style helper receives a string in the EditorState position and throws on
  * getCurrentContent before dispatch. Any EditorState-as-content mismatch is therefore latent.

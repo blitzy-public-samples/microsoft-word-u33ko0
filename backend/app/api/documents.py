@@ -18,8 +18,6 @@ router = APIRouter()
 async def create_document(document: DocumentCreate, current_user: User = Depends(get_current_user)) -> Document:
     """Create a document for the authenticated caller.
 
-    \N{FORM FEED}
-
     Args:
         document: A DocumentCreate carrying the title and content to store.
         current_user: The authenticated User, injected by `get_current_user`.
@@ -39,8 +37,6 @@ async def create_document(document: DocumentCreate, current_user: User = Depends
 async def get_documents(current_user: User = Depends(get_current_user)) -> List[Document]:
     """List the documents belonging to the authenticated caller.
 
-    \N{FORM FEED}
-
     Args:
         current_user: The authenticated User, injected by `get_current_user`.
 
@@ -57,8 +53,6 @@ async def get_documents(current_user: User = Depends(get_current_user)) -> List[
 @router.get('/{document_id}')
 async def get_document(document_id: str, current_user: User = Depends(get_current_user)) -> Document:
     """Return one document after comparing its owner with the caller.
-
-    \N{FORM FEED}
 
     The comparison reads `user_id` from the result, while the Document
     contract declares `owner_id`.
@@ -83,8 +77,6 @@ async def get_document(document_id: str, current_user: User = Depends(get_curren
 @router.put('/{document_id}')
 async def update_document(document_id: str, document: DocumentUpdate, current_user: User = Depends(get_current_user)) -> Document:
     """Apply a partial change to a document the caller owns.
-
-    \N{FORM FEED}
 
     Args:
         document_id: Identifier of the document to change.
@@ -113,8 +105,6 @@ async def update_document(document_id: str, document: DocumentUpdate, current_us
 @router.delete('/{document_id}')
 async def delete_document(document_id: str, current_user: User = Depends(get_current_user)) -> dict:
     """Delete a document the caller owns.
-
-    \N{FORM FEED}
 
     Args:
         document_id: Identifier of the document to remove.

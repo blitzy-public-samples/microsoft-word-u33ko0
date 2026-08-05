@@ -15,8 +15,9 @@ class CollaborationService:
 
     The service derives one Pub/Sub topic name per document and creates one
     subscription per document-user pair. The service does not create the topic.
-`connect` and `broadcast_change` block on futures inside async methods.
-`disconnect` makes a synchronous deletion call and waits on no future.
+
+    `connect` and `broadcast_change` block on futures inside async methods.
+    `disconnect` makes a synchronous deletion call and waits on no future.
 
     Public methods:
         connect: Register a socket and subscribe it to a document's topic.

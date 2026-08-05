@@ -5,6 +5,11 @@ No backend manifest pins python-jose or passlib. The reviewed python-jose
 floor is 3.4.0 because earlier releases include CVE-2024-33663 and
 CVE-2024-33664. Passlib also requires a bcrypt backend.
 The `jwt.JWTError` exception name is valid for python-jose and is not a defect.
+
+No module imports this one. Every helper below is therefore dead code, and the
+routers reach for token handling, password hashing and the current-user
+dependency elsewhere. app.api.auth signs its own tokens and hashes its own
+passwords inline, and it defines a second get_current_user of its own.
 """
 from datetime import datetime, timedelta
 from jose import jwt
@@ -85,6 +90,11 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
     signature: the `User` model and the `UserService` lookup it describes are
     both unresolved here.
 
+    app.api.auth defines a second dependency with the same name, and the two
+    diverge on a missing user: the helper there returns 404, and this one
+    returns 401. No module imports this helper, so all twelve protected
+    handlers depend on the app.api.auth version instead.
+
     Args:
         token: Bearer token, declared `str`. FastAPI supplies the value
             through `Depends(oauth2_scheme)`.
@@ -97,7 +107,9 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
         HTTPException: Status 401 when the token carries no `sub` claim, when
             `jwt.decode` raises `jwt.JWTError`, or when the lookup returns
             `None`.
-        NameError: On the first call, because `UserService` is unresolved.
+        NameError: Unreachable as committed. `UserService` would raise it on
+            the first call, and the unresolved `Optional` annotation earlier in
+            the module raises during import, so no call happens.
 
         The custom 401 responses set no `WWW-Authenticate: Bearer` header, so
         clients receive no bearer challenge.

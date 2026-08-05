@@ -25,7 +25,9 @@ import { serializeDocument, deserializeDocument } from '@/utils/documentUtils';
  * TypeError before editor state replacement. The change path updates local state, then
  * serializeDocument calls getCurrentContent on ContentState and raises before dispatch.
  * Every keystroke reaches that failure. Passing EditorState to createWithContent remains
- * the inverse latent type mismatch.
+ * the inverse latent type mismatch. The load path also assumes Draft.js JSON, while the
+ * backend Document contract declares content as a free-form string. See the shape notes
+ * in utils/documentUtils.
  *
  * @example
  * <DocumentCanvas />

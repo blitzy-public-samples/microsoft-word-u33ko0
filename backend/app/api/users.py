@@ -15,8 +15,6 @@ router = APIRouter()
 def get_current_user_info(current_user: User = Depends(get_current_user)) -> User:
     """Return the authenticated caller's own profile.
 
-    \N{FORM FEED}
-
     Args:
         current_user: The authenticated User, injected by `get_current_user`.
 
@@ -28,8 +26,6 @@ def get_current_user_info(current_user: User = Depends(get_current_user)) -> Use
 @router.put('/me')
 def update_user(user_update: UserUpdate, current_user: User = Depends(get_current_user)) -> User:
     """Apply a profile patch for the authenticated caller.
-
-    \N{FORM FEED}
 
     See the assistance marker in the comment block below. UserService is
     unresolved, so update_user's return contract cannot be verified. The

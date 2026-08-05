@@ -21,6 +21,11 @@ class DocumentService:
     synchronous and blocking. Each call holds the event loop for a full network
     round trip, so declaring the methods as coroutines adds no concurrency.
 
+    The Document contract in app.schema.document requires `created_at` and
+    `updated_at`, and no method here writes either field. Every method that
+    builds a Document from a stored record therefore raises
+    `pydantic.ValidationError` rather than returning the document.
+
     Public methods:
         create_document: Write a new document to Firestore.
         get_document: Return one document after an ownership check.
@@ -51,11 +56,18 @@ class DocumentService:
 
         Raises:
             HTTPException: 400 if either the title or the content is empty.
+            pydantic.ValidationError: On the return construction, for every
+                request that passes the emptiness check. The Document contract
+                requires `created_at` and `updated_at`, and this write stores
+                neither, so no caller receives a document.
 
         Side effects:
             Writes one document to the `documents` collection. The write stores
             the owner under the key `user_id`, while the Document contract
-            declares `owner_id`.
+            declares `owner_id`. The write also persists the `owner_id` key
+            that `document.dict()` supplies, and DocumentCreate defaults that
+            field to `None`, so the stored `owner_id` is always null. The write
+            stores no `created_at` and no `updated_at`.
         """
         # Validate input data
         if not document.title or not document.content:
@@ -87,6 +99,9 @@ class DocumentService:
                 the stored owner.
             KeyError: If the stored record follows the Document contract and
                 has owner_id but no user_id key.
+            pydantic.ValidationError: If the stored record carries no
+                `created_at` and no `updated_at`, which is every record
+                `create_document` writes. The Document contract requires both.
 
         The 404 check runs before the 403 check, so callers can distinguish a
         missing identifier from another user's existing document.
@@ -127,10 +142,16 @@ class DocumentService:
             HTTPException: 404 if not found, 403 if user_id does not match the
                 stored owner.
             KeyError: If the stored record has no user_id key.
+            pydantic.ValidationError: On the re-read construction, whenever the
+                stored record carries no `created_at` and no `updated_at`. The
+                write sends only the fields the caller set, so a record that
+                reached Firestore without timestamps keeps none.
 
         Side effects:
             Missing and unauthorized paths stop after the first read. A
-            successful authorized update performs read, write, and read.
+            successful authorized update performs read, write, and read. The
+            write never maintains `updated_at`, so the stored modification
+            timestamp that the Document contract requires stays absent.
 
         The ownership check and write use no transaction or precondition. A
         concurrent ownership change can therefore make the decision stale.

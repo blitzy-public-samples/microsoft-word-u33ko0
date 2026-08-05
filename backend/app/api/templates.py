@@ -21,8 +21,6 @@ router = APIRouter()
 async def create_template(template: TemplateCreate, current_user: User = Depends(get_current_user)) -> Template:
     """Create a template for the authenticated caller.
 
-    \N{FORM FEED}
-
     Args:
         template: A TemplateCreate carrying the new template's fields.
         current_user: The authenticated User, injected by `get_current_user`.
@@ -41,8 +39,6 @@ async def create_template(template: TemplateCreate, current_user: User = Depends
 async def get_templates(current_user: User = Depends(get_current_user)) -> List[Template]:
     """List the templates available to the authenticated caller.
 
-    \N{FORM FEED}
-
     Args:
         current_user: The authenticated User, injected by `get_current_user`.
 
@@ -56,8 +52,6 @@ async def get_templates(current_user: User = Depends(get_current_user)) -> List[
 @router.get('/{template_id}')
 async def get_template(template_id: str, current_user: User = Depends(get_current_user)) -> Template:
     """Return one template belonging to the authenticated caller.
-
-    \N{FORM FEED}
 
     Args:
         template_id: Identifier of the template to read.
@@ -78,8 +72,6 @@ async def get_template(template_id: str, current_user: User = Depends(get_curren
 @router.put('/{template_id}')
 async def update_template(template_id: str, template: TemplateUpdate, current_user: User = Depends(get_current_user)) -> Template:
     """Apply a change to a template belonging to the authenticated caller.
-
-    \N{FORM FEED}
 
     Args:
         template_id: Identifier of the template to change.
@@ -105,8 +97,6 @@ async def update_template(template_id: str, template: TemplateUpdate, current_us
 @router.delete('/{template_id}')
 async def delete_template(template_id: str, current_user: User = Depends(get_current_user)) -> dict:
     """Delete a template belonging to the authenticated caller.
-
-    \N{FORM FEED}
 
     Args:
         template_id: Identifier of the template to remove.
