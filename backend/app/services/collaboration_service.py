@@ -106,6 +106,11 @@ class CollaborationService:
 
         No other exception leaves the method. L25 and L39 catch every exception
         their own blocks raise, and L27 and L41 print it.
+
+        Note:
+            See the human-assistance marker at L12-L13 directly above this
+            signature: the method carries a confidence level of 0.6 and is
+            flagged for production-readiness adjustments.
         """
         if document_id not in self.active_connections:
             self.active_connections[document_id] = {}
@@ -231,6 +236,11 @@ class CollaborationService:
         No other exception leaves the method. L65 catches every exception the body
         raises and L67 prints it, so a caller cannot tell a delivered change from a
         dropped one.
+
+        Note:
+            See the human-assistance marker at L57-L58 directly above this
+            signature: the method carries a confidence level of 0.7 and is
+            flagged for production-readiness adjustments.
         """
         topic_name = f"projects/{settings.PROJECT_ID}/topics/{document_id}"
         
