@@ -1,21 +1,15 @@
-"""Define the Celery background tasks for export, cleanup and statistics.
+"""Define the Celery application and its three background tasks.
 
-Three tasks live here. `process_document_export` converts one document and
-returns a download link. `cleanup_expired_documents` deletes documents past
-their retention date. `update_document_statistics` recounts words and pages and
-writes the totals back. All three read Google Cloud Firestore, and the first two
-also reach Google Cloud Storage.
+The Celery app is constructed at import time from `settings.REDIS_URL`. `settings` is
+requested from `app.core.config`, which never defines it, so importing this module
+raises `ImportError`. `REDIS_URL` is declared on the `Settings` model, while the two
+bucket names this module reads are not: `EXPORT_BUCKET_NAME` and `DOCUMENT_BUCKET_NAME`.
 
-Line locators: every `Lnn` reference below numbers the tree at commit
-06be74c7c88aa6bca652d465eaa00ad480a9e5c5, the frozen revision that precedes this
-documentation pass. A bare `Lnn` points into this file, and a `path:Lnn` points into
-the named file. Current HEAD numbers each documented file higher.
+`datetime` is used in all three tasks and never imported; the import line brings in
+`timedelta` alone, so each task raises `NameError` at the point it needs the class.
 
-Import state: the module fails at import. L3 imports `settings` from
-`app.core.config`. That module defines the `Settings` class and the
-`get_settings()` factory, and never creates a module-level `settings` instance,
-so the import raises ImportError. L9 reads `settings.REDIS_URL` at module level
-and builds the Celery application before any task runs.
+`@celery_app.periodic_task` on the cleanup task is not a Celery 5 API, so applying that
+decorator raises at import. Periodic work belongs in `beat_schedule`.
 
 Undefined and absent names:
 
@@ -53,20 +47,41 @@ none receives or checks a token. Two consequences follow:
 - `export_format` reaches the object key at L27 with no allow-list and no
   extension check, so the queued value decides the stored key's suffix.
 
-Whoever can write to the broker therefore acts with the worker's full authority.
-Adding validation or an identity check would change production logic, so this pass
-records the boundary only.
+Whoever can write to the broker therefore acts with the worker's full authority,
+and no line in this module narrows that. No committed file provisions that broker,
+so nothing records what may reach it.
+
+Resilience. The module configures none, and every absence below belongs to this
+module rather than to Celery or to the storage client. L9 builds the Celery
+application with a broker alone: no result backend, no `task_acks_late`, no
+`task_reject_on_worker_lost`, no `broker_transport_options` and no visibility
+timeout. The three `@celery_app.task` decorators at L11, L35 and L62 pass no
+argument, so no `autoretry_for`, no `max_retries`, no `retry_backoff`, no
+`retry_jitter`, no `acks_late`, no `time_limit` and no `soft_time_limit` applies,
+and no task body calls `self.retry`, because none is bound. No dead-letter queue
+and no error routing exists anywhere, so a failed task is recorded as failed and
+its work is dropped. No task holds a `try` block, so every error described below
+reaches the worker uncaught. On the storage side, `upload_from_file` at L28,
+`generate_signed_url` at L31 and `blob.delete()` at L56 pass no `timeout`, no
+`retry` and no `if_generation_match`, so no write precondition guards an upload
+and no compensating action reverses a partial pass. No backend dependency manifest
+is committed, so nothing pins Celery, `redis` or `google-cloud-storage`, and no
+committed file records which defaults the resolved releases would apply.
 
 Dependency limitation. The repository commits no backend dependency manifest, so
 nothing pins Celery and nothing excludes a vulnerable release. Reviewed secure
-floor: Celery 5.2.2 or later, because releases below it carry
-GHSA-q4xr-rc97-m4xx (CVE-2021-23727), a high-severity command-injection flaw in
-task handling. The `periodic_task` attribute L36 expects belongs to Celery 3, so
+floor: Celery 5.2.2 or later, the release that fixes GHSA-q4xr-rc97-m4xx
+(CVE-2021-23727). That advisory is conditional here rather than unconditional. It
+requires attacker-controlled task metadata read back from a configured result
+backend, and L9 passes a `broker` argument alone and no `backend` argument, so the
+committed configuration has no result backend for the precondition to hold
+against. Configuring one restores the precondition, which is why 5.2.2 remains the
+floor to install. The `periodic_task` attribute L36 expects belongs to Celery 3, so
 no release at or above that floor provides it. No broker client is declared
 either: L9 builds a Redis broker URL, and `redis` appears in no tracked file, so
-Celery cannot connect until that package is installed. Choosing versions and
-writing a manifest are dependency changes and stay outside this documentation
-pass.
+Celery cannot connect until that package is installed. No committed file names a
+version for any of the three, so nothing in the repository records which release
+each import resolves against.
 """
 from celery import Celery
 from google.cloud.storage import Client
@@ -80,62 +95,31 @@ celery_app = Celery('microsoft_word', broker=settings.REDIS_URL)
 
 @celery_app.task
 def process_document_export(document_id: str, export_format: str, user_id: str) -> str:
-    """Export one document to a requested format and return a download link.
-
-    The assistance marker at L13-L14 applies to this whole task.
+    """Export one document to Cloud Storage and return a signed download URL.
 
     Args:
-        document_id: Firestore identifier of the document to export. L20 passes
-            it to `DocumentService.get_document`, and L27 places it in the
-            storage object key.
-        export_format: Target format. L27 uses it as the object key suffix, and
-            L23 passes it to the absent `convert_document`. No allow-list
-            constrains the value, so the queued string determines the stored
-            key's suffix directly.
-        user_id: Identifier of the requesting user. L20 passes it as the
-            ownership argument, and L27 uses it as the object key prefix. The
-            value arrives from the broker and is not bound to an authenticated
-            session, so the task accepts whichever owner the queued message
-            named.
+        document_id: Document to export.
+        export_format: Target format, used as the object's file extension with no
+            allowed-value check, so any string becomes a suffix.
+        user_id: Requesting user, checked for ownership by the document service and used
+            as the first path segment of the object key.
 
     Returns:
-        A signed Uniform Resource Locator (URL) for the uploaded object,
-        generated at L31. No caller receives the declared `str`, because L23
-        raises first and the `return` at L33 never runs.
+        A signed URL valid for one hour.
 
     Raises:
-        AttributeError: At L23, because `ExportService` declares no
-            `convert_document`. The task raises no HTTPException of its own.
-
-    L23 raises before either side effect runs. L28 uploads the converted file to
-    the Google Cloud Storage bucket named by `settings.EXPORT_BUCKET_NAME`, and
-    L31 signs a link that expires one hour later.
+        AttributeError: First, from `ExportService.convert_document`, which that class
+            does not define.
 
     Note:
-        L20 does not await `DocumentService.get_document`, which
-        `app/services/document_service.py:L26` declares `async def`. `document`
-        binds to a coroutine object, not a `Document`, and Python reports a
-        RuntimeWarning when that coroutine is collected.
-
-        L31 omits `version="v4"`, while `app/services/export_service.py:L23` and
-        `:L42` pass it for the same kind of link.
-
-        L27 builds the object key
-        `exports/{user_id}/{document_id}.{export_format}`, while
-        `cleanup_expired_documents` deletes `{user_id}/{doc_id}` at L55, so
-        cleanup never reaches an object this task wrote. `ExportService` stores
-        the same artifact under a third layout, `exports/{document.id}.pdf` at
-        `app/services/export_service.py:L17` and `exports/{document.id}.docx` at
-        `:L36`. The three layouts do not agree, so no writer's key matches the
-        deleter's key, and a reached delete raises `NotFound` instead of removing
-        an export.
-
-        The bucket settings diverge the same way. `export_service` reads
-        `settings.STORAGE_BUCKET_NAME` at `app/services/export_service.py:L16`
-        and `:L35`, this task reads `settings.EXPORT_BUCKET_NAME` at L26, and
-        `cleanup_expired_documents` reads `settings.DOCUMENT_BUCKET_NAME` at L54.
-        All three name overlapping artifacts, and `Settings` declares none of
-        them.
+        Intended side effects are one Firestore read and one write to
+        `exports/{user_id}/{document_id}.{export_format}`. `ExportService` writes the
+        same artifact under `exports/{document_id}.{ext}` instead, so the two layouts
+        disagree on where an export lives. The document service call is synchronous here
+        and declared `async` there, so the returned coroutine would never be awaited.
+        The signed-URL call passes no `version`, so it defaults to V2 rather than the V4
+        used by the export service. The assistance marker below records the same review
+        need.
     """
     # HUMAN ASSISTANCE NEEDED
     # This function needs review for production readiness and error handling
@@ -166,19 +150,31 @@ def cleanup_expired_documents():
 
     The assistance marker at L38-L39 applies to this whole task.
 
-    L43 raises NameError before any deletion runs, so L50, L56, L59 and L60 are
-    unreachable. No schedule reaches this task either: `@celery_app.periodic_task`
-    at L36 is not a Celery 4 or 5 application attribute.
+    L43 raises NameError before any deletion runs, so L47, L50, L56, L59 and L60
+    are unreachable. No schedule reaches this task either:
+    `@celery_app.periodic_task` at L36 is not a Celery 4 or 5 application
+    attribute.
 
-    Returns:
-        Nothing. L37 declares no return annotation and the body holds no `return`
-        statement, so the task yields `None` on the path where it completes.
+    L37 declares no return annotation, and the body holds no `return` statement.
 
     Raises:
         NameError: At L43, where `datetime.now()` reads a name L7 never imports.
-        AttributeError: At L59, once L43 resolves.
-            `db.collection('document_permissions').where(...).get()` returns a
-            list of snapshots, and a list has no `delete` method.
+            Nothing has been deleted when this raises.
+        KeyError: At L47, once L43 resolves and the query matches a snapshot that
+            carries no `user_id` field. `DocumentSnapshot.get` raises for a field
+            path the snapshot data does not hold, and returns `None` only when the
+            document itself does not exist. The read sits above L50, so nothing is
+            deleted for that document.
+        AttributeError: At L54, once L43 resolves, because `Settings` declares no
+            `DOCUMENT_BUCKET_NAME` field. The read sits between the Firestore
+            delete at L50 and the blob delete at L56.
+        google.api_core.exceptions.NotFound: At L56, once a
+            `DOCUMENT_BUCKET_NAME` is supplied, because the key L55 builds is a key
+            no writer creates. `Blob.delete()` raises when the named object is
+            absent.
+        AttributeError: At L59, once L56 succeeds against a key that does exist,
+            because `db.collection('document_permissions').where(...).get()`
+            returns a list of snapshots and a list has no `delete` method.
 
     Each side effect below runs once per expired document, and none runs today.
     L43 queries the `documents` collection for an `expiration_date` at or before
@@ -187,20 +183,47 @@ def cleanup_expired_documents():
     and `document_metadata` records.
 
     The deletion sequence is partial, not atomic. The five deletes run one after
-    another with no transaction and no compensating action, and the `AttributeError`
-    at L59 lands in the middle of them. L50 and L56 have already committed by then,
-    so each iteration destroys the document record and the stored file while leaving
-    the `document_permissions` and `document_metadata` records behind. Once L43
-    resolves, retention therefore removes the content and keeps the metadata and the
-    access grants that describe it.
+    another with no transaction and no compensating action, and four separate
+    failures sit along the path. Each one stops the whole pass, because the loop
+    holds no `try` block and the task holds no error handler, so the first expired
+    document that fails is also the last document the pass touches. Layers 2 to 5
+    below describe the order for each document the query at L43 matches, and the
+    Note below records that no committed writer sets `expiration_date`, so the
+    query selects nothing until one does. In the order a repair uncovers them:
 
-    Three further stores survive a full pass:
+    1. As committed, L43 raises `NameError` before the loop starts. Nothing is
+       deleted, in Firestore or in Cloud Storage.
+    2. Once `datetime` is imported, L47 reads `user_id` from the snapshot through
+       `DocumentSnapshot.get`, which raises `KeyError` for a field the snapshot
+       data does not hold. `create_document` writes that key at
+       `app/services/document_service.py:L19`, so a record from that path passes,
+       and a record written by any other path stops the pass at L47 with nothing
+       deleted.
+    3. Once `user_id` is present, the iteration deletes the Firestore document at
+       L50, and then L54 raises `AttributeError` for the undeclared
+       `settings.DOCUMENT_BUCKET_NAME`. L56, L59 and L60 never run. Partial state:
+       the document record is gone, while the stored file, the
+       `document_permissions` records and the `document_metadata` record all
+       survive. Retention has removed the content and kept everything that
+       describes it, and nothing records which document was half-processed.
+    4. Once a `DOCUMENT_BUCKET_NAME` is supplied, L56 addresses the key L55 builds,
+       `{user_id}/{doc_id}`, and no writer creates that key.
+       `process_document_export` writes
+       `exports/{user_id}/{document_id}.{export_format}` at L27, and
+       `ExportService` writes `exports/{document.id}.pdf` and
+       `exports/{document.id}.docx` at `app/services/export_service.py:L17` and
+       `:L36`. `Blob.delete()` therefore raises `NotFound` before the permission
+       cleanup at L59. Partial state: the document record is gone and nothing else
+       changed, so both the exported artifacts and the two describing records
+       survive.
+    5. Only against an object key that does exist does L56 succeed, and L59 then
+       raises `AttributeError` on the list returned by the query. L60 never runs.
+       Partial state: the document record and that one stored object are gone,
+       while the `document_permissions` records and the `document_metadata` record
+       survive.
 
-    - The exported artifacts. L55 addresses the object key `{user_id}/{doc_id}`,
-      while `process_document_export` writes
-      `exports/{user_id}/{document_id}.{export_format}` at L27. L56 deletes a key
-      the export path never creates, so every exported copy of an expired document
-      remains in the bucket.
+    Two further stores survive even the layer-5 pass, where L56 succeeds:
+
     - Noncurrent object generations. L56 issues one `Blob.delete()` with no
       generation argument. On a bucket with object versioning enabled that call
       retains the noncurrent generations, so earlier content stays retrievable.
@@ -213,28 +236,24 @@ def cleanup_expired_documents():
     `expiration_date` extended after L43 runs is not observed, so a document whose
     retention was renewed mid-pass is still deleted. A document whose expiry passes
     during the same pass is missed until the next run, and no next run is scheduled,
-    because `@celery_app.periodic_task` at L36 raises. `L47` reads `user_id` from
-    each snapshot, so a record without that field yields `None` and L55 builds the
-    key `None/{doc_id}`.
+    because `@celery_app.periodic_task` at L36 raises.
 
     Note:
         L40 binds `document_service`, and no later line in the function reads
         it.
 
         L43 filters on `expiration_date`. No other line in the repository writes
-        that field, and `app/schema/document.py` does not declare it, so the
-        query matches nothing even after `datetime` resolves. Intended behavior
-        per `documentation/Technical Specifications.md`, Data Security Matrix:
+        that field, and `app/schema/document.py` does not declare it, so no
+        committed code path populates it. Which records the filter returns
+        depends on what the Firestore collection already holds, which this
+        repository does not describe. Intended behavior per
+        `documentation/Technical Specifications.md`, Data Security Matrix:
         document content carries a user-defined retention period that defaults
         to seven years.
 
-        L55 addresses the object key `{user_id}/{doc_id}`, while L27 in
-        `process_document_export` builds
-        `exports/{user_id}/{document_id}.{export_format}`. L56 therefore deletes
-        a key the export path never creates.
-
-        L54 reads `settings.DOCUMENT_BUCKET_NAME`, which `Settings` does not
-        declare.
+        L46 reads `doc.id`, which every snapshot carries, so only the `user_id`
+        read at L47 can raise for a matched document. L54 reads
+        `settings.DOCUMENT_BUCKET_NAME`, which `Settings` does not declare.
     """
     # HUMAN ASSISTANCE NEEDED
     # This function needs review for production readiness, error handling, and optimization
@@ -262,47 +281,24 @@ def cleanup_expired_documents():
 
 @celery_app.task
 def update_document_statistics(document_id: str):
-    """Recount a document's words and pages and store the totals in Firestore.
-
-    L67 raises TypeError before anything else runs. `get_document` receives one
-    argument, and `app/services/document_service.py:L26` declares two parameters
-    after `self`. `document` never binds, so L70, L71, L74 and L78 are
-    unreachable.
-
-    The task takes no authorization parameter. `document_id` is its only argument,
-    and it arrives from the broker, so nothing identifies who asked for the work and
-    nothing limits which document the write at L74 may touch. The other two tasks at
-    least accept a `user_id`; this one does not, so `get_document` at L67 has no
-    ownership value to pass and the missing argument is also the missing
-    authorization.
+    """Recount a document's words and pages and store the result.
 
     Args:
-        document_id: Firestore identifier of the document to measure. L67 passes
-            it to `DocumentService.get_document`, and L74 uses it to address the
-            record the update writes. The value arrives from the broker unchecked.
+        document_id: Document to measure.
 
-    Returns:
-        Nothing. L63 declares no return annotation and the body holds no `return`
-        statement, so the task yields `None` on the path where it completes.
+    L63 declares no return annotation, and the body holds no `return` statement.
 
     Raises:
-        TypeError: At L67, for the missing `user_id` argument. The task raises
-            no HTTPException of its own.
-
-    The one side effect sits at L74, and it does not run today. L74 writes a
-    `statistics` map holding `word_count`, `page_count` and `last_updated` onto
-    the Firestore document. No schema in the repository declares a `statistics`
-    field.
+        TypeError: First. The service method declares `(document_id, user_id)` and is
+            called with `document_id` alone.
 
     Note:
-        Three further defects sit behind L67 and surface in this order once the
-        call passes both arguments. L70 reads `document.content` on a coroutine
-        object, because `app/services/document_service.py:L26` declares
-        `get_document` `async def` and no line here awaits it. L71 reads
-        `document.pages`, which `app/schema/document.py:L17-L20` does not
-        declare. `Document` adds `id`, `created_at` and `updated_at` there, and
-        inherits `title`, `content` and `owner_id`. L78 reads `datetime`, which
-        L7 never imports.
+        Intended side effect is one write to the document's `statistics` field carrying
+        `word_count`, `page_count` and `last_updated`. The page count reads
+        `document.pages`, and the `Document` contract declares no such field. The task
+        takes no user identifier, so it cannot pass the ownership check the service
+        performs, and any caller could measure any document. The trailing commented-out
+        analytics call marks intended follow-up work.
     """
     document_service = DocumentService()
 

@@ -1,40 +1,22 @@
 /**
- * Render the routed document editor, and keep the edited content in step with the server.
+ * Routed document editor page: composes the shell, loads the open document and saves it on a timer.
  *
- * The page composes four child components at L55-L60 and owns two effects. The effect at L18-L33
- * loads a document, and the effect at L35-L47 saves it on a timer. The block above L35 documents
- * that timing.
+ * Unresolved imports, every one reported as TS2307 because the `@/` prefix is absent from the
+ * `paths` map in `frontend/tsconfig.json`:
+ * - `Header`, `Toolbar`, `DocumentCanvas` and `Sidebar` are imported as named bindings, and all
+ *   four modules export their component as a default only.
+ * - `getDocument` does not exist in `frontend/src/services/api.ts`, which exports `getDocuments`,
+ *   `createDocument` and `updateDocument`. The `updateDocument` beside it resolves.
+ * - `useAppSelector` and `useAppDispatch` do not exist in `frontend/src/store/index.ts`, which
+ *   exports `RootState`, `AppDispatch` and a default `store`.
+ * - `setCurrentDocument` resolves in `frontend/src/store/documentSlice.ts`.
  *
- * Unresolved imports and undefined symbols:
- * - L2-L5 name `Header`, `Toolbar`, `DocumentCanvas` and `Sidebar` as named exports. All four
- *   modules export their component as a default only, so none of the four names binds.
- * - `getDocument` at L6 does not exist. `frontend/src/services/api.ts` exports exactly three
- *   symbols: `getDocuments` at `services/api.ts:L38`, `createDocument` at `:L43` and
- *   `updateDocument` at `:L48`. The name L6 asks for is singular, and the name that exists is
- *   plural.
- * - `updateDocument` at L6 resolves, at `services/api.ts:L48`. One import specifier therefore
- *   names one binding that exists and one that does not.
- * - `useAppSelector` and `useAppDispatch` at L7 do not exist. `frontend/src/store/index.ts`
- *   exports `RootState` at `store/index.ts:L12`, `AppDispatch` at `:L13` and a default `store` at
- *   `:L15`, and nothing else.
- * - `setCurrentDocument` at L8 resolves, at `store/documentSlice.ts:L44`.
- * - The `@/` prefix is absent from the `paths` map at `frontend/tsconfig.json:L10-L16`, which
- *   declares `@components/*`, `@utils/*`, `@styles/*`, `@hooks/*` and `@services/*` only. `tsc`
- *   raises TS2307 for all seven specifiers at L2-L8, whatever each one names.
+ * The assistance marker below asks for a production-readiness review, and the two outstanding-work
+ * comments inside the effects record error handling and user notification as unfinished.
  *
- * The assistance marker at L10 records that the component needs review for production readiness.
- * The outstanding-work comment at L26 records that error handling is unfinished, and the one at
- * L41 records error handling and user notification as unfinished.
- *
- * Line locators: every `Lnn` reference below numbers the tree at commit
- * 06be74c7c88aa6bca652d465eaa00ad480a9e5c5, the frozen revision that precedes this documentation
- * pass. A bare `Lnn` points into this file, and a `path:Lnn` points into the named file. Current
- * HEAD numbers each documented file higher.
- *
- * See ./README.md for this directory's page register and for the auto-save interval recorded
- * against the requirements specification.
+ * @see ./README.md for the page register and for the auto-save interval recorded against the
+ * requirements specification.
  */
-
 import React, { useState, useEffect } from 'react';
 import { Header } from '@/components/Header';
 import { Toolbar } from '@/components/Toolbar';
@@ -50,22 +32,19 @@ import { setCurrentDocument } from '@/store/documentSlice';
 /**
  * Render the editor shell: a header, a toolbar, the document canvas and a sidebar.
  *
- * The component takes no props. React Router mounts it at `/editor` through `App.tsx:L21`, and it
- * reads the document it edits from the Redux store at L15.
- *
- * @returns The editor page element.
+ * @returns The editor page element. The component takes no props, and `App.tsx` mounts the page at
+ * `/editor`.
  * @remarks
- * Side effects, in the order they run: L21 requests the document from the server, and L23
- * dispatches `setCurrentDocument` into the Redux store. L45 then schedules the save timer, and L38
- * sends the save. L25 and L40 write failures to the console, and no other write leaves the page.
+ * Side effects: the load effect requests a document and dispatches `setCurrentDocument`, the save
+ * effect sends the content, and both report failures to the console only.
  *
- * L15 reads `state.document.currentDocument`, declared `Document | null` at
- * `store/documentSlice.ts:L5`. Every later read of `currentDocument.id` depends on that value
- * being present, and only the effect at L18-L33 tests it first, at L30.
+ * The load path is unreachable from initial state. `currentDocument` starts at `null` in
+ * `frontend/src/store/documentSlice.ts`, the effect runs only when `currentDocument?.id` is set,
+ * and the only `setCurrentDocument` dispatch in the committed source sits inside that same guarded
+ * effect. Nothing else dispatches it, so no path seeds the identifier the fetch needs.
  *
- * L59 passes `content` and `onContentChange` to `DocumentCanvas`, which declares no props at
- * `components/DocumentCanvas.tsx:L10` and reads `currentDocument` from the store itself at `:L12`.
- * Neither prop reaches the child, so nothing calls `handleContentChange`.
+ * Accessibility: the page renders no heading, and the Draft.js surface inside `DocumentCanvas`
+ * carries no accessible name, so assistive technology reaches an unlabelled text box.
  *
  * L55 renders a second `Header`. `App.tsx:L17` already renders one around every route, and
  * `App.tsx:L26` renders a `Footer` that this page does not repeat. The three sibling pages in this
@@ -74,13 +53,34 @@ import { setCurrentDocument } from '@/store/documentSlice';
  * The three class names at L54, L56 and L58 resolve to no style. The repository commits no `.css`
  * file, no `tailwind.config.js` and no `postcss.config.js`.
  * @example
- * <Route path="/editor" component={Editor} />
+ * <Route path="/editor" element={<Editor />} />
+ * // `frontend/package.json:L11` declares `react-router-dom` at `^6.11.1`, which takes an
+ * // `element` prop and dropped both the v5 `component` prop and `exact`. `App.tsx:L19-L24`
+ * // holds the committed route table, still written in the version 5 form, and `App.tsx:L2`
+ * // still imports `Switch`, which version 6 replaced with `Routes`.
+ * // Cannot run today: `tsc` raises TS2307 for all seven `@/` specifiers at L2-L8, and the four
+ * // named component imports at L2-L5, `getDocument` at L6 and both store hooks at L7 name
+ * // bindings that do not exist.
  */
 const Editor: React.FC = () => {
   const dispatch = useAppDispatch();
   const currentDocument = useAppSelector((state) => state.document.currentDocument);
   const [content, setContent] = useState('');
 
+  /**
+   * Fetch the current document whenever its identifier changes.
+   *
+   * @remarks Runs the fetch only when `currentDocument?.id` is truthy, then stores the content
+   * locally and publishes the document to Redux. Reads `currentDocument.id` unguarded inside
+   * the fetch, so a document that becomes null between the guard and the call raises. Failures
+   * reach the console only, per the outstanding-work note in the catch block.
+   *
+   * The load path is unreachable from initial state. `currentDocument` starts at `null` in
+   * `frontend/src/store/documentSlice.ts`, the effect runs only when `currentDocument?.id` is
+   * set, and the only `setCurrentDocument` dispatch in the committed source sits inside this same
+   * guarded effect. Nothing else dispatches it, so no committed path seeds the identifier the
+   * fetch needs.
+   */
   useEffect(() => {
     const fetchDocument = async () => {
       try {
@@ -99,42 +99,76 @@ const Editor: React.FC = () => {
   }, [currentDocument?.id, dispatch]);
 
   /**
-   * Persist the editor content five seconds after the last change to it.
+   * Persist the current editor content five seconds after the last edit.
    *
-   * @param content - Editor text held in state at L16 and listed first in the dependency array at
-   * L47. Every call to `handleContentChange` at L49 replaces it and restarts the delay.
-   * @param currentDocument.id - Identifier of the open document, read from the store at L15 and
-   * listed second at L47, where the array writes it `currentDocument?.id`. Opening another
-   * document restarts the delay as well.
    * @returns The cleanup function at L46, which clears the timer L45 scheduled.
    * @remarks
-   * The five-second delay comes from two lines working together, and no debounce library takes
-   * part. L45 schedules one `setTimeout` for 5000 milliseconds. L46 returns a cleanup that clears
-   * it. React runs that cleanup before every re-run of the effect, so a change to either
-   * dependency cancels the pending save and starts a fresh five-second wait. A burst of changes to
-   * `content` therefore saves once, five seconds after the last one.
+   * No debounce library takes part. L45 schedules one `setTimeout` for 5000 milliseconds and L46
+   * returns a cleanup that clears it. React stores that cleanup and runs it before every re-run of
+   * the effect, so a change to either dependency cancels the pending save and starts a fresh
+   * five-second wait. A burst of changes to `content` therefore saves once, five seconds after the
+   * last one.
    *
-   * The effect guards nothing, and the effect above it guards its own read. L30 tests
-   * `currentDocument?.id` before calling `fetchDocument`, so L21 dereferences a value known to
-   * exist. L35-L47 runs its timer on mount with no equivalent test. L38 therefore reads
+   * The effect declares no parameters, so its two inputs arrive as closure reads listed in the
+   * dependency array at L47. `content` is the state declared at L16, and every call to
+   * `handleContentChange` at L49 replaces it and restarts the delay. `currentDocument?.id` is read
+   * from the store at L15, so opening another document restarts the delay as well.
+   *
+   * The cleanup cancels a pending timer and nothing else. Once L45 fires and L38 starts its
+   * request, no line cancels that request, and `clearTimeout` has no effect on it. Two saves can
+   * therefore be in flight together: an edit five seconds after a slow save began schedules a
+   * second save while the first is still open. Nothing orders their completions. The server
+   * applies whichever arrives last, so a slow save carrying older content can land after a fast
+   * save carrying newer content and overwrite it. The module holds no request identifier, no
+   * abort signal, no version or revision field and no conditional-write precondition, so neither
+   * end can detect or reject the stale write. Losing the newer edit is silent, because the reader
+   * sees no error and the editor keeps showing the newer text that the server no longer holds.
+   *
+   * The load effect checks `currentDocument?.id`; the auto-save effect does not. On mount, the
+   * timer can dereference `null` after five seconds.
+   *
+   * L30 tests `currentDocument?.id` before calling `fetchDocument`, so L21 dereferences a value
+   * known to exist. L35-L47 schedules its timer with no equivalent test. L38 therefore reads
    * `currentDocument.id` while `currentDocument` is still `null`, and throws a `TypeError` five
-   * seconds after the page mounts. No empty-content test exists either, so a save fires even while
-   * `content` holds the empty string L16 sets.
+   * seconds after the page mounts. That read sits inside the `try` at L37-L42, so L39 catches the
+   * `TypeError` and L40 writes it to the console, and the promise `autoSave` returns resolves
+   * rather than rejecting. Nothing surfaces on the page and nothing reaches the server. No
+   * empty-content test exists either, so a save fires even while `content` holds the empty string
+   * L16 sets.
    *
-   * L38 sends `{ content }` as the second argument of `updateDocument`, which declares that
-   * argument `DocumentUpdate` at `services/api.ts:L48`. `updateDocument` resolves, and the
-   * `getDocument` beside it at L6 does not.
+   * The timer is disconnected from the rendered editor. `DocumentCanvas` declares no props, so
+   * `content` and `onContentChange` never reach it, and Draft.js edits never change the string this
+   * effect watches. Once an identifier appears, the save sends the empty initial string.
    *
-   * Failures stop at L40. `console.error` writes the message, the outstanding-work comment at L41
-   * records the gap, and the reader of the page sees no sign that a save failed.
+   * L40 passes the whole error object, not a message. The failing request carried the document
+   * body in `{ content }`, and an Axios error keeps `config`, `request` and `response`, so the
+   * browser console can end up holding that document text along with the request URL, the request
+   * headers and the response body. The bearer header is absent from those headers today, because
+   * `services/api.ts:L16` reads an `auth` slice that `store/index.ts` does not register, and a
+   * repaired interceptor would place the token there and put it in the same log line.
    *
    * Intended behavior per documentation/Software Requirements Specifications (SRS).md, "SAFETY"
-   * heading: auto-save every thirty seconds during active editing. That requirements
-   * specification states the interval at `Software Requirements Specifications (SRS).md:L543`,
-   * and promises a local cache of recent changes for crash recovery at `:L544`. L45 waits five
-   * seconds, and this module holds no cache.
+   * heading: auto-save every thirty seconds, with a local cache of recent changes for recovery.
    */
   useEffect(() => {
+    /**
+     * Send the captured editor content to the server once the debounce timer fires.
+     *
+     * @returns A promise that always resolves. The closure declares `async` with no parameter
+     * and no return value. The `try` at L37-L42 catches every failure the body raises, so the
+     * promise resolves whether the save reached the server or not. L45 hands the closure to
+     * `setTimeout`, which discards the promise, so nothing awaits it in any case.
+     * @remarks
+     * The closure captures two values from the enclosing render rather than receiving them.
+     * `currentDocument` comes from the store read at L15, and L38 dereferences `.id` on it with
+     * no null test. `content` comes from the state at L16, and L38 sends it as `{ content }`,
+     * the second argument of `updateDocument`, which declares that argument `DocumentUpdate` at
+     * `services/api.ts:L48`. `updateDocument` resolves as an import, and the `getDocument`
+     * beside it at L6 does not.
+     *
+     * Failures stop at L40. `console.error` writes the message, the outstanding-work comment at
+     * L41 records the gap, and the reader of the page sees no sign that a save failed.
+     */
     const autoSave = async () => {
       try {
         await updateDocument(currentDocument.id, { content });
@@ -149,18 +183,14 @@ const Editor: React.FC = () => {
   }, [content, currentDocument?.id]);
 
   /**
-   * Replace the editor content held in state.
+   * Replace the editor content held in page state.
    *
-   * @param newContent - Replacement text, declared `string` at L49.
+   * @param newContent - Replacement text.
    * @returns Nothing.
    * @remarks
-   * The one write is `setContent` at L50, which replaces the state L16 declares. That state is the
-   * first dependency at L47, so every call restarts the five-second save timer that the block
-   * above L35 documents.
-   *
-   * Nothing calls this handler as committed. L59 passes it to `DocumentCanvas` as
-   * `onContentChange`, and `components/DocumentCanvas.tsx:L10` declares no props, so the child
-   * never receives it.
+   * The one write is `setContent`, and every call restarts the five-second save timer. Nothing
+   * calls this handler as committed: the page passes it to `DocumentCanvas` as `onContentChange`,
+   * and that component declares no props.
    */
   const handleContentChange = (newContent: string) => {
     setContent(newContent);

@@ -1,9 +1,8 @@
 """Declare the application settings model and the factory that builds it.
 
-Both imports resolve. `BaseSettings` ships in the main Pydantic package only
-in Pydantic 1.x, so importing the name here pins the backend to that major
-version. `Optional` annotates the `GOOGLE_CLOUD_PROJECT` and
-`GOOGLE_APPLICATION_CREDENTIALS` fields below.
+Nine modules import a module-level `settings` object from here, and this module defines
+none. Importing any of those modules therefore raises `ImportError`, which is the first
+failure a backend run hits.
 
 Dependency limitation. The repository commits no backend dependency manifest.
 No `requirements.txt`, `pyproject.toml`, `setup.py`, `setup.cfg`, `Pipfile`,
@@ -13,29 +12,44 @@ The `BaseSettings` import at L1 requires Pydantic 1.x, while Pydantic 2.x is
 the current major release, so a resolver that takes the newest version breaks
 this module. Reviewed secure floor for the pinned major: Pydantic 1.10.13 or
 later, because releases below it carry the regular-expression denial-of-service
-advisory GHSA-mr82-8j83-vxmv (CVE-2024-3772). Selecting a version and adding a
-manifest are code changes and stay outside this documentation pass.
+advisory GHSA-mr82-8j83-vxmv (CVE-2024-3772). No committed file names a version,
+so nothing in the repository selects one.
 
-The module never defines a module-level `settings` instance. Eight modules
-import that name from here, so each import raises ImportError:
-`app/api/auth.py:L6`, `app/db/firestore.py:L3`, `app/db/sql.py:L3`,
-`app/main.py:L7`, `app/services/collaboration_service.py:L4`,
-`app/services/document_service.py:L5`, `app/services/export_service.py:L3`
-and `app/tasks/background_tasks.py:L3`. Seven of the eight dereference the
-name; `app/services/document_service.py` imports it and never uses it.
-`app/core/security.py:L6` imports the `get_settings` factory below instead,
-and that factory does exist.
+Deployment coverage. `infrastructure/docker/docker-compose.yml:L23-L24` supplies
+exactly one environment key to the `backend` service, `DATABASE_URL`. Seven of
+the nine fields below carry no default and are therefore required:
+`PROJECT_NAME`, `API_V1_STR`, `SECRET_KEY`, `ACCESS_TOKEN_EXPIRE_MINUTES`,
+`ALGORITHM`, `DATABASE_URL` and `REDIS_URL`. Compose covers one of the seven, so
+constructing `Settings()` inside that container still fails validation on the
+six remaining required keys: `PROJECT_NAME`, `API_V1_STR`, `SECRET_KEY`,
+`ACCESS_TOKEN_EXPIRE_MINUTES`, `ALGORITHM` and `REDIS_URL`. Pydantic reports
+every missing required field at once, so the container reports all six together.
+Restoring the module-level `settings` instance therefore does not make the
+committed Compose deployment start.
 
-Line locators: every `Lnn` reference below numbers the tree at commit
-06be74c7c88aa6bca652d465eaa00ad480a9e5c5, the frozen revision that precedes this
-documentation pass. A bare `Lnn` points into this file, and a `path:Lnn` points into
-the named file. Current HEAD numbers each documented file higher.
+Six further settings are read at runtime and declared by no field below, so each
+raises `AttributeError` at the point of the read even on a fully supplied
+environment. The six are `ALLOWED_ORIGINS` at `app/main.py:L42`, `PROJECT_ID` at
+`app/services/collaboration_service.py:L20`, `:L21`, `:L50` and `:L60`,
+`STORAGE_BUCKET_NAME` at `app/services/export_service.py:L16` and `:L35`,
+`SIGNED_URL_EXPIRATION` at `app/services/export_service.py:L24` and `:L43`,
+`EXPORT_BUCKET_NAME` at `app/tasks/background_tasks.py:L26`, and
+`DOCUMENT_BUCKET_NAME` at `app/tasks/background_tasks.py:L54`. Fifteen settings
+are therefore in play: nine declared here and six read but never declared.
+
+`REDIS_URL` has no target in the committed topology even when supplied.
+`infrastructure/docker/docker-compose.yml:L3-L39` defines three services,
+`frontend`, `backend` and `db`, and names no Redis service, while
+`app/tasks/background_tasks.py:L9` builds a Celery broker from that value.
+
+`BaseSettings` lives in the `pydantic` package itself, so this module requires Pydantic
+1.x. Pydantic 2 moved the class to `pydantic-settings`.
 """
 from pydantic import BaseSettings
 from typing import Optional
 
 class Settings(BaseSettings):
-    """Declare the nine configuration fields this model can load from the environment.
+    """Collect the environment-supplied configuration for the backend.
 
     Pydantic populates each key from the process environment or from the file
     named in the nested `Config` class. No field carries an explicit default,
@@ -49,10 +63,17 @@ class Settings(BaseSettings):
     Pydantic checks the type and nothing else. Verified consequences, each
     confirmed by constructing the model directly:
 
-    - `SECRET_KEY` accepts the empty string and any short or low-entropy value.
-      A caller who signs with a guessable key produces JSON Web Tokens that an
-      attacker can forge, and `app/core/security.py:L19` and
-      `app/api/auth.py:L37` both sign with whatever this field holds.
+    - `SECRET_KEY` accepts the empty string and any short or low-entropy value,
+      and `app/core/security.py:L19` and `app/api/auth.py:L37` both sign with
+      whatever the field holds. The consequence depends on which algorithm
+      `ALGORITHM` names. Under a symmetric algorithm such as HS256, this one
+      value both signs and verifies, so a guessable key lets an attacker forge
+      a JSON Web Token that `app/core/security.py:L35` and
+      `app/api/auth.py:L16` accept. Under an asymmetric algorithm such as
+      RS256, the two signing sites need a private key here while the two
+      verifying sites need a public key, so a short value forges nothing and
+      the operation fails instead. One field serves both roles, and nothing
+      pairs it with the algorithm the deployment names.
     - `ALGORITHM` accepts any string, including `none`. Nothing restricts the
       value to a signing algorithm the deployment intends.
     - `ACCESS_TOKEN_EXPIRE_MINUTES` accepts `0` and negative integers, and
@@ -64,36 +85,28 @@ class Settings(BaseSettings):
       settings validation and fails later, at `app/db/sql.py:L5` for the
       database and at `app/tasks/background_tasks.py:L9` for the broker.
 
-    Adding constraints or validators would change the settings model, so this
-    pass records the gap and leaves the model as committed.
+    The model as committed accepts every value listed above, so each consequence
+    surfaces at the reading site rather than at settings construction.
 
     Attributes:
-        PROJECT_NAME: Project display name. No code reads the field;
-            `app/main.py:L55` assigns `app.title` a string literal instead.
-        API_V1_STR: Route path version prefix. The name appears once in the
-            repository, at its own declaration, so no code reads the field.
-        SECRET_KEY: Signing key for JSON Web Tokens, read at
-            `app/core/security.py:L19` and `:L35` and at
-            `app/api/auth.py:L16` and `:L37`.
-        ACCESS_TOKEN_EXPIRE_MINUTES: Access token lifetime in minutes, read
-            at `app/core/security.py:L17` and `app/api/auth.py:L34`.
-        ALGORITHM: JSON Web Token signing algorithm, read at
-            `app/core/security.py:L19` and `:L35` and at
-            `app/api/auth.py:L16` and `:L38`.
-        GOOGLE_CLOUD_PROJECT: Google Cloud project identifier, read at
-            `app/db/firestore.py:L7` to construct the Firestore client.
-        GOOGLE_APPLICATION_CREDENTIALS: Path to a Google credential
-            configuration file that Application Default Credentials accepts,
-            including a workload or workforce identity federation
-            configuration or a service-account key. No code reads the field
-            from `Settings`. The Google authentication library reads the
-            operating-system environment variable of the same name through
-            Application Default Credentials at `app/db/firestore.py:L6`.
-            `scripts/deploy.sh:L4` guards on that same variable.
-        DATABASE_URL: SQLAlchemy connection string, read at
-            `app/db/sql.py:L5`.
-        REDIS_URL: Celery broker URL, read at
-            `app/tasks/background_tasks.py:L9`.
+        PROJECT_NAME: Display name for the application. Required.
+        API_V1_STR: Version prefix for the API. Required, and read by no module.
+        SECRET_KEY: Signing key for JSON Web Tokens. Required, with no length bound and
+            no default.
+        ACCESS_TOKEN_EXPIRE_MINUTES: Token lifetime in minutes. Required.
+        ALGORITHM: Signing algorithm name. Required, with no allowed-value check.
+        GOOGLE_CLOUD_PROJECT: Google Cloud project identifier. Optional, and passed to
+            the Firestore client.
+        GOOGLE_APPLICATION_CREDENTIALS: Path to a service-account key file. Optional.
+        DATABASE_URL: SQLAlchemy connection string. Required.
+        REDIS_URL: Celery broker and backend URL. Required, and no Redis service is
+            declared in Compose or in the Terraform.
+
+    Note:
+        Seven of the nine fields are required and carry no default, so constructing
+        `Settings()` without a complete environment raises `ValidationError`. No field
+        declares a validator, so any non-empty string satisfies `SECRET_KEY` and
+        `ALGORITHM`.
     """
     PROJECT_NAME: str
     API_V1_STR: str
@@ -106,30 +119,22 @@ class Settings(BaseSettings):
     REDIS_URL: str
 
     class Config:
-        """Point Pydantic at the environment file that supplies the settings.
-
-        `env_file` names `.env`, and the repository commits no such file, so
-        Pydantic resolves every field from the process environment alone.
-        `env_file_encoding` decodes the named file as UTF-8.
-        """
+        """Point Pydantic at the `.env` file and its encoding."""
         env_file = ".env"
         env_file_encoding = "utf-8"
 
 def get_settings() -> Settings:
-    """Build and return a fresh Settings instance.
-
-    The function caches nothing. No `functools.lru_cache` decorates it and no
-    module-level memo holds the result, so every call constructs a new
-    `Settings` and re-runs the environment read and validation.
-    The function has two callers, at `app/core/security.py:L12` and
-    `app/core/security.py:L33`.
+    """Build a fresh `Settings` instance from the current environment.
 
     Returns:
-        A Settings instance populated from the environment.
+        A new `Settings`, constructed on every call.
 
     Raises:
-        pydantic.ValidationError: If any of the seven required fields is
-            absent from both the process environment and the uncommitted
-            `.env` file.
+        ValidationError: When any of the seven required fields is absent from both the
+            environment and the `.env` file.
+
+    Note:
+        Carries no caching decorator, so each call re-reads the environment and rebuilds
+        the model. `app/core/security.py` calls it once per function invocation.
     """
     return Settings()

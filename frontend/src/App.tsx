@@ -2,17 +2,13 @@
  * Compose the application shell, and declare the client-side route table.
  *
  * @remarks
- * Seven imports do not resolve. L4-L9 and L10 use the `@/` prefix, and
- * `frontend/tsconfig.json:L10-L16` declares five aliases that do not include it. L10 fails twice,
- * binding `{ store }` by name where `store/index.ts:L15` exports `store` only as the default.
+ * Seven `@/` specifiers do not resolve, because `tsconfig.json` declares aliases that
+ * exclude the prefix. The store import fails twice, binding `{ store }` by name where
+ * `store/index.ts` exports `store` only as the default.
  *
- * Three router call sites use react-router-dom v5 APIs while `frontend/package.json:L11` declares
- * `^6.11.1`: `Switch` at L2 and L19, `exact` at L20, and `component` at L20-L23. Version 6 exports
- * `Routes` rather than `Switch`, and `Route` accepts neither `component` nor `exact`.
- *
- * The `Provider` at L14 is the second wrapping this store, because `index.tsx:L17` already wraps
- * one. The module declares four routes and exports one symbol, the default `App` at L33. Every
- * `Lnn` here numbers the frozen revision 06be74c that precedes this documentation pass.
+ * Three router call sites use react-router-dom v5 APIs while the manifest declares v6.
+ * Version 6 exports `Routes` rather than `Switch`, and `Route` accepts neither
+ * `component` nor `exact`.
  */
 
 import React from 'react';
@@ -29,16 +25,21 @@ import { store } from '@/store/index';
 /**
  * Render the shared header and footer around a routed main area, inside a Redux and router shell.
  *
+ * @returns The provider, router and shell element tree wrapping the routed page area.
  * @remarks
  * The component declares the complete routed surface: `/` to `Home`, `/editor` to `Editor`,
- * `/templates` to `Templates`, `/settings` to `Settings`. Five links elsewhere target paths
- * absent from that list. Every page repeats part of this shell, adding a second `Header` on all
- * four routes and a second `Footer` on three. `./README.md` registers both under Known Limitations.
+ * `/templates` to `Templates`, `/settings` to `Settings`. Five links elsewhere target paths absent
+ * from that list.
+ *
+ * Accessibility: the shell owns the one `<main>` landmark, and `Home`, `Settings` and `Templates`
+ * each render a second `<main>` inside it, which nests one main landmark within another. All four
+ * pages also repeat the `Header`, and three repeat the `Footer`, so assistive technology reports
+ * duplicate banner and contentinfo landmarks on every route.
  *
  * Intended behavior per `documentation/Technical Specifications.md`, "USER INTERFACE DESIGN"
  * heading: `Toolbar`, `DocumentCanvas` and `Sidebar` sit under `App` rather than under `Editor`.
  *
- * @returns The provider, router and shell element tree wrapping the routed page area.
+ * @see ./README.md for the shell-level register of these findings.
  */
 const App: React.FC = () => {
   return (

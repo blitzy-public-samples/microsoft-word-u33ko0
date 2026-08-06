@@ -1,9 +1,12 @@
 /**
- * Draft.js editor surface driven by keyboard commands, holding its content in local state only.
+ * Draft.js editor surface driven by keyboard commands, holding its content in local state only. An
+ * `EditorState` is Draft.js's immutable snapshot of editor content plus selection.
  *
- * The component renders one Draft.js `Editor` at L39 and routes every key command through
- * `handleKeyCommand` at L10 to one of two formatting helpers. An `EditorState` is Draft.js's
- * immutable snapshot of editor content plus selection.
+ * Unresolved imports, both reported as TS2307:
+ * - `draft-js` is absent from `frontend/package.json`, and so is `@types/draft-js`.
+ * - The `@/` prefix is absent from the `paths` map in `frontend/tsconfig.json`. `applyInlineStyle`
+ *   and `applyBlockStyle` themselves exist, and the calls below pass both declared arguments,
+ *   unlike the one-argument calls in `Toolbar.tsx`.
  *
  * Unresolved imports and undefined symbols:
  * - `draft-js` at L2 is absent from the seven runtime dependencies at
@@ -11,9 +14,9 @@
  *   `react-redux`, `react-router-dom`, `tailwindcss` and `typescript`. `@types/draft-js` is absent
  *   from the dev dependencies at `frontend/package.json:L15-L30`. `tsc` raises TS2307 for the
  *   specifier, and both packages would have to be declared before this module compiles.
- * - `applyInlineStyle` and `applyBlockStyle` at L3 both exist, and both declare two parameters at
- *   `frontend/src/utils/formatting.ts:L3` and `:L16`. L17 and L24 pass both arguments in the
- *   declared order.
+ * - `applyInlineStyle` and `applyBlockStyle` at L3 both exist, at
+ *   `frontend/src/utils/formatting.ts:L3` and `:L16`. The `@remarks` block on `handleKeyCommand`
+ *   below reads how L17 and L24 call them.
  * - The `@/` prefix at L3 is absent from the `paths` map at `frontend/tsconfig.json:L10-L16`, which
  *   declares `@components/*`, `@utils/*`, `@styles/*`, `@hooks/*` and `@services/*` only. `tsc`
  *   raises TS2307 for that specifier too.
@@ -24,24 +27,17 @@
  * `Editor.tsx:L2-L5`, and renders `DocumentCanvas` at `Editor.tsx:L59`. The editor a user reaches
  * is therefore the one in `frontend/src/components/DocumentCanvas.tsx`.
  *
- * `Toolbar.tsx` calls the same two helpers with one argument each, at `Toolbar.tsx:L14` and `:L19`.
- * L17 and L24 below pass both. See ./README.md for the side-by-side reading of the two call sites,
- * and for this directory's setup notes and repository-wide error figures.
+ * `Toolbar.tsx:L14` and `:L19` call the same two helpers differently. The `@remarks` block on
+ * `handleKeyCommand` below reads both call sites against the declared signatures, and ./README.md
+ * carries this directory's setup notes and repository-wide error figures. The assistance marker
+ * below records that `handleKeyCommand` needs review before production use.
  *
  * Intended behavior per documentation/Technical Specifications.md, "COMPONENT DIAGRAMS" heading:
- * `documentation/Technical Specifications.md:L190` places `TextEditor` under `DocumentCanvas`, and
- * the "USER INTERFACE DESIGN" heading repeats that placement at
- * `documentation/Technical Specifications.md:L470`. The committed `DocumentCanvas.tsx` renders a
- * Draft.js `Editor` directly and imports no `TextEditor`.
+ * `TextEditor` sits under `DocumentCanvas`. The committed `DocumentCanvas.tsx` renders a Draft.js
+ * `Editor` directly and imports no `TextEditor`.
  *
- * The assistance marker at L8 records that `handleKeyCommand` needs review before production use.
- *
- * Line locators: every `Lnn` reference below numbers the tree at commit
- * 06be74c7c88aa6bca652d465eaa00ad480a9e5c5, the frozen revision that precedes this documentation
- * pass. A bare `Lnn` points into this file, and a `path:Lnn` points into the named file. Current
- * HEAD numbers each documented file higher.
+ * @see ./README.md for the component register and the side-by-side reading of the two call sites.
  */
-
 import React, { useState } from 'react';
 import { Editor, EditorState } from 'draft-js';
 import { applyInlineStyle, applyBlockStyle } from '@/utils/formatting';
@@ -49,40 +45,34 @@ import { applyInlineStyle, applyBlockStyle } from '@/utils/formatting';
 /**
  * Render a self-contained Draft.js editor whose key commands drive the two formatting helpers.
  *
- * @returns A Draft.js `Editor` element at L39, bound to the local `editorState` at L40, to
- * `setEditorState` at L41 and to `handleKeyCommand` at L42. The element carries no wrapper and no
- * class name, unlike the `div.toolbar` at `Toolbar.tsx:L29` and the `div.document-canvas` at
- * `DocumentCanvas.tsx:L30`.
- *
+ * @returns A Draft.js `Editor` element bound to the local `editorState`, to `setEditorState` and to
+ * `handleKeyCommand`. The element carries no wrapper and no class name.
  * @remarks
- * Side effects: the component writes to its own state and nowhere else. `useState` at L6 seeds that
- * state with `EditorState.createEmpty()`, the `onChange` binding at L41 replaces it on every edit,
- * and `setEditorState` at L31 replaces it after a handled key command. The file imports no store,
- * reads no selector, issues no dispatch and makes no network request. Nothing a user types leaves
- * the component, and every edit is lost on unmount, because nothing persists it.
- * `DocumentCanvas.tsx:L26` dispatches to the store on every change instead.
+ * Side effects: the component writes to its own state and nowhere else. `useState` seeds that state
+ * with `EditorState.createEmpty()`, `onChange` replaces it on every edit, and a handled key command
+ * replaces it again. The file imports no store, reads no selector, issues no dispatch and makes no
+ * network request. Nothing a user types leaves the component, and every edit is lost on unmount.
+ * `DocumentCanvas.tsx` dispatches to the store on every change instead.
  *
- * No running screen exercises the call sites below, because no module imports `TextEditor`. The
- * `draft-js` specifier at L2 also resolves to no installed package, since
- * `frontend/package.json:L6-L14` does not declare it.
+ * No `keyBindingFn` is bound, so the switch sees only the commands Draft.js supplies by default.
  *
  * L39-L43 bind `editorState`, `onChange` and `handleKeyCommand`, and bind no `keyBindingFn`, so the
  * switch at L13 sees only the commands Draft.js supplies by default.
  *
- * @see `Toolbar.tsx` calls the same two helpers with one argument each, at `Toolbar.tsx:L14` and
- * `:L19`, against the two-parameter signatures at `frontend/src/utils/formatting.ts:L3` and `:L16`.
- * L17 and L24 pass both arguments, and L19-L23 pass Draft.js block types. L14-L16 pass lowercase
- * key-command names into the inline-style argument. So this component agrees with Draft.js on arity
- * and block types only, and ./README.md holds the side-by-side reading.
+ * Accessibility: the rendered `Editor` receives no accessible name, no `aria-label` and no
+ * associated label element, so assistive technology announces an unlabelled text box.
  *
+ * @see The `@remarks` block on `handleKeyCommand` below, which reads this component's two helper
+ * calls against the declared signatures and against the constants Draft.js expects. `Toolbar.tsx`
+ * calls the same two helpers, and ./README.md holds the side-by-side reading.
+ *
+ * @returns A Draft.js `Editor` element with no surrounding markup.
+ * @remarks Calls both helpers with the editor state and the style name, which is the arity
+ * they declare. `Toolbar` calls the same helpers with the style name alone.
  * @example
- * ```typescript
- * // L17 as committed: both required arguments reach a two-parameter function.
- * newState = applyInlineStyle(editorState, command);
+ * ```tsx
+ * <TextEditor />
  * ```
- * The example cannot run. `draft-js` at L2 is absent from `frontend/package.json:L6-L14`, and the
- * `@/utils/formatting` specifier at L3 resolves to nothing because `@/` is absent from
- * `frontend/tsconfig.json:L10-L16`.
  */
 const TextEditor: React.FC = () => {
   const [editorState, setEditorState] = useState(EditorState.createEmpty());
@@ -90,38 +80,24 @@ const TextEditor: React.FC = () => {
   // HUMAN ASSISTANCE NEEDED
   // The following function needs review and potential improvements for production readiness
   /**
-   * Route a Draft.js key command to the matching formatting helper and store the new editor state.
+   * Apply inline or block formatting for a recognized command, or decline the keystroke.
    *
-   * @param command - Key command name Draft.js hands to the `handleKeyCommand` prop bound at L42.
-   * The switch at L13 matches three inline commands at L14-L16 and five block types at L19-L23.
+   * @param command - Key command name Draft.js hands to the bound `handleKeyCommand` prop. The
+   * switch matches three inline commands and five block types.
    * @param editorState - Editor state the helpers read for content and selection. The parameter
-   * shadows the state variable declared at L6, so both helpers receive the value Draft.js passes
-   * in.
-   * @returns `'handled'` at L32 once a helper returns a new state, or `'not-handled'` at L27 for an
-   * unrecognised command and at L35 when the helper returned a falsy value. L10 declares no return
-   * type, so those three literals type the function on their own.
+   * shadows the state variable declared above, so both helpers read the value Draft.js passes in.
+   * @returns `'handled'` once a helper returns a new state, or `'not-handled'` for an unrecognised
+   * command and when the helper returned a falsy value. The signature declares no return type, so
+   * those three literals type the function on their own.
+   * @remarks Side effect: a handled command replaces the component's local editor state.
    *
-   * @remarks
-   * Side effects: `setEditorState(newState)` at L31 replaces the component's local editor state.
-   * The function writes nothing else and returns before L31 on the default branch at L27.
-   *
-   * The two branches spell their constants differently. An inline style labels a character range,
-   * and L14, L15 and L16 match the lowercase key-command names `bold`, `italic` and `underline`,
-   * which Draft.js emits for those keystrokes. L17 forwards `command` unchanged into the
-   * `inlineStyle` parameter of `frontend/src/utils/formatting.ts:L3`, which passes it to
-   * `Modifier.applyInlineStyle` at `formatting.ts:L7`, where Draft.js spells the same three styles
-   * `BOLD`, `ITALIC` and `UNDERLINE`.
-   *
-   * A block type labels a paragraph-level element. L19 through L23 match `header-one`,
-   * `header-two`, `blockquote`, `unordered-list-item` and `ordered-list-item`, and
-   * `Modifier.setBlockType` at `formatting.ts:L20` accepts all five under those spellings.
-   *
-   * Both helper calls supply both declared arguments. `formatting.ts:L3` declares
-   * `applyInlineStyle(editorState, inlineStyle)` and `:L16` declares
-   * `applyBlockStyle(editorState, blockType)`. L17 and L24 each pass two arguments in that order.
-   *
-   * The assistance marker directly above records that this function needs review before production
-   * use.
+   * The two branches spell their constants differently. The inline cases match the lowercase
+   * key-command names `bold`, `italic` and `underline` that Draft.js emits for those keystrokes.
+   * `command` is forwarded unchanged into the `inlineStyle` parameter, where Draft.js spells the
+   * same three styles `BOLD`, `ITALIC` and `UNDERLINE`. The block cases match `header-one`,
+   * `header-two`, `blockquote`, `unordered-list-item` and `ordered-list-item`, which
+   * `Modifier.setBlockType` accepts under those spellings. Both helper calls supply both declared
+   * arguments, unlike the calls in `Toolbar.tsx`.
    */
   const handleKeyCommand = (command: string, editorState: EditorState) => {
     let newState: EditorState | null = null;

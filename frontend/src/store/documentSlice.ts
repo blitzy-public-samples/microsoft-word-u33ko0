@@ -1,37 +1,27 @@
 /**
- * Hold document state for the client as a Redux Toolkit slice.
+ * Hold the open document, the recent-document list, and the loading and error flags.
  *
- * Line locators: every `Lnn` reference below numbers the tree at commit
- * 06be74c7c88aa6bca652d465eaa00ad480a9e5c5, the frozen revision that precedes this documentation
- * pass. A bare `Lnn` points into this file, and a `path:Lnn` points into the named file. Current
- * HEAD numbers each documented file higher.
- *
- * The module publishes six action creators at L43-L50 and its reducer as a default export at L52,
- * and keeps `DocumentState` at L4-L9 and `initialState` at L11-L16 module-private.
+ * The module publishes six action creators and its reducer as a default export, and keeps
+ * `DocumentState` and `initialState` module-private. Every reducer mutates an Immer draft and
+ * returns nothing, which Redux Toolkit commits as the next state.
  *
  * @remarks
  * `@reduxjs/toolkit` is declared in `frontend/package.json`, so `createSlice` resolves. The one
- * unresolved name below is local rather than a missing dependency.
+ * unresolved name is local: the `Document` import names a type `schema/document.ts` never
+ * declares, which raises TS2305.
  *
- * The `Document` import at L2 names a type `schema/document.ts` never declares, so a type check
- * reports `TS2305` against L2. Both sibling schema modules declare an inferred type, `Template` at
- * `schema/template.ts:L12` and `User` in `schema/user.ts`. One export line therefore separates a
- * resolving schema import from this failing one.
- *
- * Four modules import from here and three name symbols this module never exports.
- * `components/DocumentCanvas.tsx:L4` names `selectCurrentDocument` and `updateDocument`, and
- * `components/Toolbar.tsx:L4` names `updateDocument`. `store/index.ts:L2` names `documentReducer`
- * instead of the default export at L52, which TypeScript reports as `TS2614`. Only
- * `pages/Editor.tsx:L8` names an action this slice provides, `setCurrentDocument`.
- *
- * The assistance marker at L54-L57 asks for asynchronous thunks and error handling for document
- * fetches and saves. The slice declares neither, and no `extraReducers` block appears below.
+ * Four modules import from here and three name symbols this slice never exports.
+ * `components/DocumentCanvas.tsx` names `selectCurrentDocument` and `updateDocument`,
+ * `components/Toolbar.tsx` names `updateDocument`, and `store/index.ts` names `documentReducer`
+ * rather than the default export, which raises TS2614. The assistance marker below asks for
+ * asynchronous thunks and error handling, and the slice declares neither.
  *
  * @see ./README.md for the store-level register of these findings.
  */
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { Document } from '../schema/document';
 
+/** Shape of the document slice state. */
 interface DocumentState {
   currentDocument: Document | null;
   recentDocuments: Document[];
@@ -39,6 +29,7 @@ interface DocumentState {
   error: string | null;
 }
 
+/** Starting state: no open document, an empty recent list, idle and error-free. */
 const initialState: DocumentState = {
   currentDocument: null,
   recentDocuments: [],
@@ -46,6 +37,23 @@ const initialState: DocumentState = {
   error: null,
 };
 
+/**
+ * Define the `document` slice and its six reducers.
+ *
+ * @remarks Each reducer mutates the draft state through Immer, which Redux Toolkit applies, so
+ * the assignments below produce a new state object rather than mutating the store.
+ *
+ * - `setCurrentDocument` takes a `Document` and replaces `currentDocument`.
+ * - `addRecentDocument` takes a `Document` and prepends it, keeping the first four existing
+ *   entries, so `recentDocuments` never holds more than five.
+ * - `setLoading` takes a boolean and replaces `isLoading`.
+ * - `setError` takes a string or null and replaces `error`.
+ * - `clearCurrentDocument` sets `currentDocument` to null and leaves the recent list alone.
+ * - `clearRecentDocuments` empties `recentDocuments` and leaves the open document alone.
+ *
+ * No reducer clears `error` when a later action succeeds, so a stale message survives until a
+ * caller dispatches `setError(null)`.
+ */
 const documentSlice = createSlice({
   name: 'document',
   initialState,
@@ -53,20 +61,14 @@ const documentSlice = createSlice({
     /**
      * Store the supplied document as the active document.
      *
-     * @param state - Draft slice state, assigned at L23.
+     * @param state - Draft slice state.
      * @param action - Action whose `payload` carries the document to store, declared
      * `PayloadAction<Document>`.
-     * @returns Nothing. Redux Toolkit commits the Immer draft mutation as the next state.
-     * @remarks
-     * Redux Toolkit wraps `state` in an Immer draft, so the reducer mutates
-     * `state.currentDocument` and returns nothing.
-     *
-     * `pages/Editor.tsx:L23` holds the only dispatch of this action in the codebase, and the
-     * example below reproduces that call. No dispatch runs today, for the reason recorded on the
-     * action-creator export at L43.
+     * @returns Nothing.
+     * @remarks `pages/Editor.tsx` holds the only dispatch in the codebase, and it runs inside an
+     * effect that already requires `currentDocument.id`, so no path seeds the first document.
      * @example
      * ```typescript
-     * const documentData = await getDocument(currentDocument.id);
      * dispatch(setCurrentDocument(documentData));
      * ```
      */
@@ -76,22 +78,13 @@ const documentSlice = createSlice({
     /**
      * Prepend the supplied document to the recent-document list.
      *
-     * @param state - Draft slice state, assigned at L26.
+     * @param state - Draft slice state.
      * @param action - Action whose `payload` carries the document to prepend, declared
      * `PayloadAction<Document>`.
-     * @returns Nothing. Redux Toolkit commits the Immer draft mutation as the next state.
-     * @remarks
-     * The list holds at most five entries. L26 keeps the first four existing entries and puts the
-     * payload in front of them, so a full list drops its oldest entry on the next call.
-     *
-     * The reducer writes `state.recentDocuments` through the Immer draft and returns nothing.
-     * Duplicate payloads survive, because L26 compares no entries before prepending.
-     *
-     * The example cannot run today, for the reason recorded at L43.
-     * @example
-     * ```typescript
-     * dispatch(addRecentDocument(documentData));
-     * ```
+     * @returns Nothing.
+     * @remarks The list holds at most five entries: the payload goes in front of the first four
+     * existing entries, so a full list drops its oldest entry. Duplicate payloads survive, because
+     * no entries are compared before prepending.
      */
     addRecentDocument: (state, action: PayloadAction<Document>) => {
       state.recentDocuments = [action.payload, ...state.recentDocuments.slice(0, 4)];
@@ -99,13 +92,10 @@ const documentSlice = createSlice({
     /**
      * Set the loading flag from the boolean payload.
      *
-     * @param state - Draft slice state, assigned at L29.
+     * @param state - Draft slice state.
      * @param action - Action whose `payload` is the new flag value, declared
      * `PayloadAction<boolean>`.
-     * @returns Nothing. Redux Toolkit commits the Immer draft mutation as the next state.
-     * @remarks
-     * The reducer writes `state.isLoading` through the Immer draft and returns nothing. No other
-     * reducer in this slice writes that field.
+     * @returns Nothing. No other reducer in this slice writes that field.
      */
     setLoading: (state, action: PayloadAction<boolean>) => {
       state.isLoading = action.payload;
@@ -113,17 +103,11 @@ const documentSlice = createSlice({
     /**
      * Record an error message, or clear the stored one.
      *
-     * @param state - Draft slice state, assigned at L32.
+     * @param state - Draft slice state.
      * @param action - Action whose `payload` is the message to store, declared
      * `PayloadAction<string | null>`, so passing `null` clears the error.
-     * @returns Nothing. Redux Toolkit commits the Immer draft mutation as the next state.
-     * @remarks
-     * The reducer writes `state.error` through the Immer draft and returns nothing, and leaves
-     * `state.isLoading` untouched.
-     *
-     * `userSlice.ts:L37` declares `PayloadAction<string>` for its own `setError`, which rejects
-     * `null`. That slice clears `state.error` through `setUser` at `userSlice.ts:L26` and
-     * `clearUser` at `userSlice.ts:L32` instead, and its `setError` also resets `isLoading`.
+     * @returns Nothing. The reducer leaves `state.isLoading` untouched, unlike the `setError` in
+     * `userSlice.ts`, which resets that flag and rejects a `null` payload.
      */
     setError: (state, action: PayloadAction<string | null>) => {
       state.error = action.payload;
@@ -131,11 +115,9 @@ const documentSlice = createSlice({
     /**
      * Drop the active document.
      *
-     * @param state - Draft slice state, assigned at L35.
-     * @returns Nothing. Redux Toolkit commits the Immer draft mutation as the next state.
-     * @remarks
-     * The reducer declares no `action` parameter at L34, so the generated action creator takes no
-     * argument. Assigning `null` at L35 leaves `state.recentDocuments` untouched.
+     * @param state - Draft slice state.
+     * @returns Nothing. The reducer declares no `action` parameter, so the generated creator takes
+     * no argument, and `state.recentDocuments` is left untouched.
      */
     clearCurrentDocument: (state) => {
       state.currentDocument = null;
@@ -143,11 +125,9 @@ const documentSlice = createSlice({
     /**
      * Empty the recent-document list.
      *
-     * @param state - Draft slice state, assigned at L38.
-     * @returns Nothing. Redux Toolkit commits the Immer draft mutation as the next state.
-     * @remarks
-     * The reducer declares no `action` parameter at L37, so the generated action creator takes no
-     * argument. Assigning a fresh empty array at L38 leaves `state.currentDocument` untouched.
+     * @param state - Draft slice state.
+     * @returns Nothing. The reducer declares no `action` parameter, so the generated creator takes
+     * no argument, and `state.currentDocument` is left untouched.
      */
     clearRecentDocuments: (state) => {
       state.recentDocuments = [];
@@ -156,19 +136,14 @@ const documentSlice = createSlice({
 });
 
 /**
- * Publish the six action creators generated for this slice.
+ * Export the six action creators generated from the reducers above.
  *
- * @remarks
- * The destructure at L43-L50 exports `setCurrentDocument`, `addRecentDocument`, `setLoading`,
- * `setError`, `clearCurrentDocument` and `clearRecentDocuments`. The first two take a document
- * payload, `setLoading` takes a boolean, `setError` takes a string or `null`, and the two clearing
- * creators take no argument.
+ * @remarks The first two creators take a document payload, `setLoading` takes a boolean, `setError`
+ * takes a string or `null`, and the two clearing creators take no argument. Of the six, only
+ * `setCurrentDocument` reaches a consumer.
  *
- * No dispatch below can execute today, because `store/index.ts:L2-L3` imports `documentReducer`
- * and `userReducer`, which neither slice declares. The reducer map at `store/index.ts:L6-L9`
- * therefore binds two undefined values, and the store never constructs.
- *
- * Of the six creators, only `setCurrentDocument` reaches a consumer, at `pages/Editor.tsx:L8`.
+ * No dispatch can execute today, because `store/index.ts` imports reducer names neither slice
+ * declares, so the store never constructs.
  * @example
  * ```typescript
  * dispatch(setLoading(true));
@@ -185,6 +160,12 @@ export const {
   clearRecentDocuments,
 } = documentSlice.actions;
 
+/**
+ * The slice reducer, exported as the module default for the store's `document` key.
+ *
+ * @remarks `store/index.ts` imports the name `documentReducer` instead of this default, which is
+ * one of the repository's two TS2614 errors.
+ */
 export default documentSlice.reducer;
 
 // HUMAN ASSISTANCE NEEDED

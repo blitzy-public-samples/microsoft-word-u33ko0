@@ -1,12 +1,12 @@
-"""Upload document exports to Google Cloud Storage and return signed links.
+"""Upload exported documents to Cloud Storage and hand back signed download URLs.
 
-`ExportService` below is written to upload one artifact per call to a Google
-Cloud Storage (GCS) bucket, then return a time-limited signed download Uniform
-Resource Locator (URL). No part of that runs as committed. Every statement below
-describes intended behavior and the prerequisite that blocks it.
+`settings` is requested from `app.core.config`, which never defines it, so importing
+this module raises `ImportError`. Two settings this module reads are also undeclared:
+`STORAGE_BUCKET_NAME` and `SIGNED_URL_EXPIRATION`.
 
-Line references point at the pre-documentation layout of commit `06be74c`, so
-they exclude docstrings added by this pass.
+Neither method converts anything. Both upload the literal strings `PDF_CONTENT` and
+`DOCX_CONTENT` under the correct content types, so a download yields those bytes. The
+four outstanding-work notes below mark both gaps.
 
 Nothing here is reachable, for four reasons that stack:
 
@@ -21,9 +21,15 @@ Nothing here is reachable, for four reasons that stack:
    `AttributeError` even if the import above resolved.
 3. Signing is not guaranteed to be available. L7 builds a
    `google.cloud.storage.Client` with no explicit credentials, so it uses
-   Application Default Credentials. A version 4 signed URL requires a signing key,
-   which ADC supplies only when the active credentials carry a service-account
-   private key. Under a bare metadata-server or end-user credential the
+   Application Default Credentials (ADC). A version 4 signed URL needs credentials
+   that can sign, meaning credentials implementing
+   `google.auth.credentials.Signing`. Two kinds qualify. Service-account key
+   credentials hold a private key and sign locally. Impersonated service-account
+   credentials hold no private key and sign remotely through the Identity and
+   Access Management (IAM) `signBlob` interface, which needs the
+   `iam.serviceAccounts.signBlob` permission on the impersonated account. Plain
+   metadata-server credentials on a compute instance and end-user credentials from
+   an interactive login commonly satisfy neither path, and under those the
    `generate_signed_url` calls at L22 and L41 raise instead of returning a link.
 4. `SIGNED_URL_EXPIRATION` carries no declared type and no bound. `Settings`
    never declares the field, so nothing states whether it holds an integer of
@@ -36,32 +42,29 @@ even on a repaired deployment a caller who follows a returned link downloads tha
 string rather than a Portable Document Format (PDF) or Office Open XML (DOCX)
 file. `ExportService` also defines no `convert_document` method, so the call at
 `app/tasks/background_tasks.py:L23` raises `AttributeError`.
+
+Resilience. The class configures none, and every absence below belongs to this
+module rather than to the client library. `Client()` at L7 receives no
+`client_options` and no retry configuration. The `upload_from_string` calls at L19
+and L38 pass no `timeout`, no `retry`, no `checksum` and no `if_generation_match`.
+Each upload therefore runs with no write precondition and no integrity check, and
+a repeated call overwrites whatever the object key already holds. The
+`generate_signed_url` calls at L22 and L41 pass no `timeout` either. Neither
+method holds a `try` block, so no compensating delete removes a half-finished
+object, no fallback returns a degraded result, and every failure propagates to the
+caller unchanged. No backend dependency manifest is committed, so nothing pins
+`google-cloud-storage` and no committed file records which defaults the resolved
+release would apply.
 """
 from google.cloud.storage import Client
 from app.schema.document import Document
 from app.core.config import settings
 
 class ExportService:
-    """Export a document to a Cloud Storage object and return a signed link.
+    """Turn a document into a downloadable artifact in Cloud Storage.
 
-    Public methods:
-        export_to_pdf: Intended to upload a PDF artifact and return its signed
-            download URL. Unreachable, per the module documentation above.
-        export_to_docx: Intended to upload a DOCX artifact and return its signed
-            download URL. Unreachable for the same reasons.
-
-    Both public methods are plain synchronous `def`. The public methods of
-    `document_service.py` and `collaboration_service.py` are `async def`, so the
-    service package mixes the two styles. Neither method here converts the
-    document it receives.
-
-    Neither method authorizes anything. Each takes a `Document` and no caller
-    identity, and reads only `document.id` to build an object key, so the class
-    performs no ownership check before it would export.
-
-    Attributes:
-        storage_client: The `google.cloud.storage.Client` built in `__init__`
-            (L7) and shared by both export methods.
+    Opens its own Cloud Storage client at construction, which runs Application Default
+    Credentials discovery. Both methods are synchronous, unlike the document service.
     """
     def __init__(self):
         """Build the Cloud Storage client that both export methods reuse.
@@ -72,8 +75,10 @@ class ExportService:
 
         L7 passes no credentials, so the client resolves Application Default
         Credentials. Construction itself does not verify that those credentials
-        can sign a URL, so the missing-signing-key failure surfaces later, at the
-        `generate_signed_url` calls at L22 and L41.
+        can sign a URL, so a credential that implements no signing interface
+        surfaces as a failure later, at the `generate_signed_url` calls at L22
+        and L41. The module documentation above records which credential kinds
+        can sign.
         """
         self.storage_client = Client()
 
@@ -95,8 +100,9 @@ class ExportService:
         `settings` object, L16 raises `AttributeError` for the undeclared
         `STORAGE_BUCKET_NAME`. Given that field, L24 raises `AttributeError` for the
         undeclared `SIGNED_URL_EXPIRATION`. Given both, L22 raises unless the
-        Application Default Credentials behind L7 carry a service-account private
-        key, because a version 4 signature needs one.
+        Application Default Credentials behind L7 can sign, which means either a
+        service-account key credential signing locally or an impersonated
+        service-account credential signing through IAM `signBlob`.
 
         The uploaded bytes would not be a PDF. L19 sends the literal 11-character
         string `"PDF_CONTENT"` with content type `application/pdf`, so a caller who
@@ -118,12 +124,28 @@ class ExportService:
         every failure above reaches the caller unmodified.
 
         Args:
-            document: The document to export. The method reads only `document.id`
-                (L17) when building the object key. The method takes no caller
-                identity and checks no ownership.
+            document: Document to export. Only `document.id` is read, so the title and
+                content never reach the uploaded object.
 
         Returns:
             The signed download URL, as a `str`. No caller receives one today.
+
+        Raises:
+            AttributeError: At L16, because `Settings` declares no
+                `STORAGE_BUCKET_NAME` field. The read is the method's first
+                statement, so nothing has happened when it raises.
+            AttributeError: At L24, because `Settings` declares no
+                `SIGNED_URL_EXPIRATION` field. The read runs only once L16
+                resolves, and by then L19 has already uploaded the placeholder
+                object, so the failure leaves that object in the bucket.
+            ValueError: From `generate_signed_url` at L22, when the expiry read at
+                L24 exceeds the seven-day maximum a version 4 signature allows.
+            Whatever `Blob.upload_from_string` raises at L19 and whatever
+                `Blob.generate_signed_url` raises at L22. Both reach the caller
+                unchanged, because the method holds no `try` block. The upload
+                fails when the Application Default Credentials behind L7 cannot
+                authenticate or the bucket rejects the write, and the signing call
+                fails when those credentials carry no service-account private key.
         """
         # Convert document content to PDF
         # TODO: Implement PDF conversion logic
@@ -156,8 +178,9 @@ class ExportService:
 
         Where it stops today. The path matches `export_to_pdf` exactly: the import
         of `settings` fails first, then L35 on the undeclared bucket name, then L43
-        on the undeclared expiry, then L41 unless the credentials behind L7 can
-        sign.
+        on the undeclared expiry, then L41 unless the credentials behind L7
+        implement a signing interface, whether through a local private key or
+        through IAM `signBlob`.
 
         The uploaded bytes would not be a DOCX file. L38 sends the literal
         12-character string `"DOCX_CONTENT"` with the Office Open XML
@@ -178,12 +201,25 @@ class ExportService:
         every failure above reaches the caller unmodified.
 
         Args:
-            document: The document to export. The method reads only `document.id`
-                (L36) when building the object key. The method takes no caller
-                identity and checks no ownership.
+            document: Document to export. Only `document.id` is read.
 
         Returns:
             The signed download URL, as a `str`. No caller receives one today.
+
+        Raises:
+            AttributeError: At L35, because `Settings` declares no
+                `STORAGE_BUCKET_NAME` field. The read is the method's first
+                statement, so nothing has happened when it raises.
+            AttributeError: At L43, because `Settings` declares no
+                `SIGNED_URL_EXPIRATION` field. The read runs only once L35
+                resolves, and by then L38 has already uploaded the placeholder
+                object, so the failure leaves that object in the bucket.
+            ValueError: From `generate_signed_url` at L41, when the expiry read at
+                L43 exceeds the seven-day maximum a version 4 signature allows.
+            Whatever `Blob.upload_from_string` raises at L38 and whatever
+                `Blob.generate_signed_url` raises at L41, for the credential and
+                bucket reasons recorded on `export_to_pdf`. Both reach the caller
+                unchanged, because the method holds no `try` block.
         """
         # Convert document content to DOCX
         # TODO: Implement DOCX conversion logic

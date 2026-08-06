@@ -1,50 +1,15 @@
-"""Assemble the FastAPI application: middleware, routers and lifecycle hooks.
+"""Compose the FastAPI application: lifecycle handlers, CORS and the four routers.
 
-The module is the composition root. L11 creates the application object, L40-L46
-registers Cross-Origin Resource Sharing (CORS) middleware, L49-L52 mount the four
-routers, L54-L56 set the title and version, and L13-L37 define the two lifecycle
-handlers.
+Six imports cannot resolve. The four router modules each export `router`, and this file
+requests `auth_router`, `documents_router`, `users_router` and `templates_router`.
+`app.core.config` defines only the `Settings` class and a `get_settings` factory, so
+`settings` is absent. `app.db.sql` declares no `init_db`.
 
-Line references below point at the committed revision 06be74c, which numbers this
-file as it stood before these docstrings existed.
+The documents and templates routers are both mounted without a prefix, and their five
+path shapes are identical. Starlette matches in registration order, so the documents
+router takes every such request and the template routes never run.
 
-Unresolved imports. Six of the nine imports name symbols the referenced modules
-never define, so importing this module fails:
-
-- L3-L6 request `auth_router`, `documents_router`, `users_router` and
-  `templates_router`. All four router modules export the bare name `router`
-  instead, at `api/auth.py:L12`, `api/documents.py:L8`, `api/users.py:L6` and
-  `api/templates.py:L8`.
-- L7 requests `settings` from `app.core.config`. That module defines the
-  `Settings` class at `core/config.py:L4` and the `get_settings()` factory at
-  `core/config.py:L19`, and never creates a module-level instance. Eight modules
-  import the absent name: `api/auth.py:L6`, `db/firestore.py:L3`, `db/sql.py:L3`,
-  L7 here, `services/collaboration_service.py:L4`,
-  `services/document_service.py:L5`, `services/export_service.py:L3` and
-  `tasks/background_tasks.py:L3`. `core/security.py:L6` imports the
-  `get_settings` factory instead, and that factory does exist.
-- L9 requests `init_db` from `app.db.sql`, which never defines it. L19 awaits it.
-
-`import app.main` therefore fails at L3, then at `api/auth.py:L6`, reporting
-`ImportError: cannot import name 'settings' from 'app.core.config'`.
-
-Undeclared configuration. L42 reads `settings.ALLOWED_ORIGINS` to populate the
-CORS allow-list. `Settings` declares nine fields at `core/config.py:L5-L13`, and
-`ALLOWED_ORIGINS` is not one of them, so the read raises `AttributeError` once
-the L7 import resolves.
-
-Route collision. L49-L52 pass no `prefix` to any `include_router` call, so all
-fourteen handlers mount at the application root. Starlette matches path templates
-positionally, so `/{document_id}` in `api/documents.py` and `/{template_id}` in
-`api/templates.py` compile to the same single-segment pattern. L50 mounts the
-document router before L52 mounts the template router, so the five template
-routes are unreachable. Intended behavior per
-`documentation/Technical Specifications.md`, SYSTEM DESIGN > API DESIGN: the
-route surface is prefixed per resource, with `/auth`, `/documents`, `/users` and
-`/templates` separating the four groups.
-
-Ordering. L55 and L56 assign `app.title` and `app.version` after the middleware
-and the routers are already installed.
+CORS reads `settings.ALLOWED_ORIGINS`, which the `Settings` model does not declare.
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -60,11 +25,10 @@ app = FastAPI()
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize the database connections when the application starts.
+    """Initialize the SQL connection and verify Firestore, once at startup.
 
-    FastAPI runs this handler once, on the `startup` event registered at L13. The
-    body opens the relational connection at L19, checks the Firestore connection
-    at L22, and leaves migration work outstanding at L26.
+    Returns:
+        Nothing. FastAPI calls the handler with no arguments and discards its result.
 
     See the human-assistance marker at L15-L16 below: the startup path is flagged
     for review because its confidence level falls below 0.8.
@@ -77,12 +41,17 @@ async def startup_event():
     The handler declares no parameters and no return annotation. FastAPI calls it
     with no arguments and discards its result.
 
-    Raises:
-        Nothing. The `except Exception` at L27 catches every error the body
-            raises, including the `Exception` that L23 raises when the Firestore
-            check fails, and L28 prints it. Startup therefore continues after a
-            failed database check, and the application serves requests against
-            connections it never verified.
+    L28 prints `str(e)`, and the caught exception text can carry connection or
+    configuration detail from the failing initialization call, including the
+    host, port and credential fragments a driver error quotes back. Intended
+    remediation: a redacted structured log record, which the outstanding-work
+    comment at L29 already records as unfinished.
+
+    No exception leaves the handler. The `except Exception` at L27 catches every
+    error the body raises, including the `Exception` that L23 raises when the
+    Firestore check fails, and L28 prints it. Startup therefore continues after a
+    failed database check, and the application serves requests against connections
+    it never verified.
     """
     # HUMAN ASSISTANCE NEEDED
     # The following code block has a confidence level below 0.8 and may need review
@@ -108,18 +77,34 @@ async def shutdown_event():
     is the only statement, and L37 records further cleanup as outstanding work.
 
     L34 awaits `db.close()` on the object that L8 imports from
-    `app.db.firestore`. The declared call contradicts the runtime object twice.
-    The Google Cloud Firestore `Client` provides no `close` method, and the client
-    is synchronous, so `await` has nothing to suspend on. L34 raises
-    `AttributeError` at shutdown.
+    `app.db.firestore`. A Firestore `Client` does carry a `close` method, and that
+    method is synchronous: it inherits `close()` from the shared Google Cloud
+    client base class, which shuts the underlying transport session and returns
+    `None`. The `await` at L34 therefore receives `None`, which is not awaitable,
+    so the statement runs the close and then raises
+    `TypeError: object NoneType can't be used in 'await' expression`. The close
+    takes effect before the error is raised, so the session is already shut when
+    shutdown fails.
+
+    No backend dependency manifest is committed, so nothing here pins
+    `google-cloud-firestore` and the inherited surface is whatever the resolved
+    release provides. The behavior above is what L34 produces against any release
+    whose client inherits the synchronous `close` from `google.cloud.client`. A
+    release that omitted the method would raise `AttributeError` instead, and no
+    committed file settles which release applies. The startup path at L22 differs
+    either way: `is_connected` belongs to no version of that surface, so that call
+    raises `AttributeError`.
 
     The handler declares no parameters and no return annotation. FastAPI calls it
     with no arguments and discards its result.
 
     Raises:
-        AttributeError: At L34, because the Firestore `Client` declares no
-            `close` method. The handler wraps L34 in no `try` block, so the error
-            propagates to the caller, unlike the startup path at L27-L28.
+        TypeError: At L34, after the synchronous `close()` has returned `None`,
+            because `await` cannot suspend on `None`. The handler wraps L34 in no
+            `try` block, so the error propagates to the caller, unlike the startup
+            path at L27-L28. A shutdown that raises leaves any remaining cleanup
+            undone, and L37 records further cleanup as outstanding work. Neither
+            handler runs as committed, because the module fails at import.
     """
     # Close database connections
     await db.close()

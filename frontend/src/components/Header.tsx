@@ -1,37 +1,22 @@
 /**
- * Top navigation bar. Renders branding, the primary link list, and either a local user block
- * or a login link. Every `L` reference numbers a file as committed, before any comment block.
+ * Top navigation bar: branding, the link list, and either a local user block or a login link.
  *
- * The user block is conditional local profile state, not authenticated identity. L26 tests
- * whether the Redux store holds a `currentUser`, and a non-null value proves only that some
- * code dispatched `setUser`. No token is read, no backend call is made, and no dependency on
- * `backend/app/api/auth.py:L14-L26` exists in this file.
- * `frontend/src/store/userSlice.ts:L22-L27` sets `isAuthenticated` from a plain assignment, so
- * neither that flag nor a non-null `currentUser` establishes who the caller is. Rendering the
- * user block is therefore a presentation choice, and rendering the login link at L32 instead
- * signals only that the local store is empty.
+ * The user block is local profile state, not authenticated identity. A non-null `currentUser`
+ * proves only that some code dispatched `setUser`, and no token is read and no backend call is
+ * made, so rendering the block is a presentation choice rather than an access decision.
  *
- * Four references in this file resolve to nothing:
- * - `useAppSelector` (L3). `frontend/src/store/index.ts` exports `RootState`, `AppDispatch`
- *   and a default `store`, and declares no such hook.
- * - `selectCurrentUser` (L4). `frontend/src/store/userSlice.ts` exports `setUser`,
- *   `clearUser`, `setLoading`, `setError` and a default reducer, and declares no selector.
- * - The logo at L13 does not load, because `frontend/public/` holds only `index.html`.
- * - `currentUser.avatar` and `currentUser.name` (L28, L29). No user contract declares either
- *   field; `frontend/src/schema/user.ts:L6-L7` declares `username` and optional `full_name`.
+ * Unresolved references:
+ * - `useAppSelector` does not exist in `frontend/src/store/index.ts`, and `selectCurrentUser` does
+ *   not exist in `frontend/src/store/userSlice.ts`. The `@/` prefix on both specifiers is absent
+ *   from the `paths` map in `frontend/tsconfig.json`, so each raises TS2307.
+ * - `currentUser.avatar` and `currentUser.name` match no user contract.
+ *   `frontend/src/schema/user.ts` declares `username` and optional `full_name`.
+ * - The logo asset does not load, because `frontend/public/` holds only `index.html`.
+ * - Two of the four links match no route. `App.tsx` declares `/`, `/editor`, `/templates` and
+ *   `/settings`, so `/documents` and `/login` go nowhere.
  *
- * Two of the four links go nowhere. `frontend/src/App.tsx:L20-L23` declares `/`, `/editor`,
- * `/templates` and `/settings`, so `/` (L19) and `/templates` (L21) resolve while
- * `/documents` (L20) and `/login` (L32) match no route.
- *
- * Every class name here is a Tailwind utility, and nothing compiles them.
- * `frontend/package.json:L12` declares `tailwindcss`, while the repository commits no
- * `tailwind.config.js`, no `postcss.config.js` and no stylesheet.
- *
- * `App.tsx:L4` imports the L42 default export correctly, while `pages/Editor.tsx:L2` imports
- * it as a named import. See `./README.md` for the directory register.
+ * @see ./README.md for the directory register.
  */
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAppSelector } from '@/store';
@@ -40,26 +25,32 @@ import { selectCurrentUser } from '@/store/userSlice';
 /**
  * Render the application's top navigation bar.
  *
- * @returns A `header` element holding the branding block (L12-L15), the nav list (L17-L23),
- * and the conditional user block (L25-L36).
+ * @returns A `header` element holding the branding block, the nav list and the conditional user
+ * block.
+ * @remarks The selector call is the only external read, and no dispatch or network call runs here.
  *
  * @remarks
- * The selector call at L7 is the only external read, and no dispatch or network call runs here.
+ * The selector call at L7 is the only explicit data read, and no line dispatches an action or
+ * calls an application programming interface. Rendering still makes browser requests. The `img`
+ * at L28 sets `src` to `currentUser.avatar`, so the browser fetches that URL, and the `img` at
+ * L13 fetches the static path `/microsoft-word-logo.png`. The avatar URL is the one that matters:
+ * it arrives with the user object rather than from this repository, and no line validates,
+ * allow-lists or rewrites it. A value pointing at an outside host makes the browser contact that
+ * host on every render of a signed-in page, and the host learns the reader's internet protocol
+ * (IP) address, user agent, and whatever referrer the page's policy permits.
  *
  * The branch at L26 tests `currentUser`, then reads `.avatar` and `.name` at L28 and L29.
  * `store/userSlice.ts:L5` types that value `User | null`, which `schema/user.ts:L13` infers
  * from a schema declaring neither field.
  *
  * The branch guards rendering, not access. A truthy `currentUser` means the local store holds an
- * object, so the component shows a profile block instead of the login link at L32. Nothing here
- * verifies a session, and no content this component renders is protected by the test.
- *
+ * object, so the component shows a profile block instead of the login link, and no content it
+ * renders is protected by the test.
  * @example
  *     <Provider store={store}>
  *       <Header />
  *     </Provider>
- * The snippet cannot run: `tsc` reports `TS2307` for `@/store` at `Header.tsx(3,32)`, so the
- * `useAppSelector` call at L7 never resolves.
+ * The snippet cannot run: `@/store` raises `TS2307`, so the `useAppSelector` call never resolves.
  */
 const Header: React.FC = () => {
   const currentUser = useAppSelector(selectCurrentUser);

@@ -1,29 +1,28 @@
-"""Hash passwords and issue JSON Web Tokens for the authentication flow.
+"""Provide the token, password-hashing and current-user security primitives.
 
-Importing this module raises `NameError: name 'Optional' is not defined`, because
-L11 annotates the `expires_delta` parameter with `Optional[timedelta]` and the
-file imports nothing from `typing`. Python evaluates annotations while the `def`
-statement runs, and no file in this repository uses
-`from __future__ import annotations`.
+Exports `create_access_token`, `verify_password`, `get_password_hash`,
+`get_current_user`, plus the `pwd_context` and `oauth2_scheme` singletons.
 
-Two further names are undefined, and each fails at a different moment. L32
-annotates a return type of `User`, which raises next, but only once L11 stops
-raising, because L11 runs first. L42 calls `UserService`, which raises at first
-call rather than at import, because module-level execution never enters a
-function body.
+Three names are used and never imported: `Optional` in the `create_access_token`
+signature, and `User` and `UserService` in `get_current_user`. The first raises
+`NameError` at module evaluation; the other two raise when the function runs.
 
-`except jwt.JWTError` at L39 resolves against `python-jose`, the library L2
-imports. The line carries no defect.
+`app/api/auth.py` defines a second `get_current_user` with the same purpose and
+different status codes, and every router imports that one rather than this one.
 
 Dependency limitation. The repository commits no backend dependency manifest,
 so nothing pins `python-jose` or `passlib` and nothing excludes a vulnerable
 release. Reviewed secure floor: `python-jose` 3.4.0 or later. Releases below it
-carry GHSA-6c5p-j8vq-pqhj (CVE-2024-33663), a critical algorithm-confusion flaw
-that bears directly on the `jwt.encode` at L19 and the `jwt.decode` at L35, and
-GHSA-cjwg-qfpm-7377 (CVE-2024-33664), a denial-of-service flaw. `passlib` 1.7.4
-with a `bcrypt` backend is what the `CryptContext` at L8 requires, and neither
-package name appears in any tracked file. Pinning a version is a dependency
-change and stays outside this documentation pass.
+carry GHSA-6c5p-j8vq-pqhj (CVE-2024-33663), a critical algorithm-confusion flaw,
+and GHSA-cjwg-qfpm-7377 (CVE-2024-33664), which allows resource exhaustion
+through a compressed JSON Web Encryption payload. Both advisories turn on the
+token an attacker submits, so the `jwt.decode` at L35 is the remotely reachable
+call. The `jwt.encode` at L19 signs the payload that L13 copies from its `data`
+argument and L18 stamps with an `exp` claim, never a token that arrived with a
+request, so a remote caller cannot steer it. `passlib` 1.7.4 with a
+`bcrypt` backend is what the `CryptContext` at L8 requires, and neither package
+name appears in any tracked file. An environment build therefore resolves both
+imports to whatever release the package index offers on the day it runs.
 
 L6 imports the `get_settings` factory, which `app/core/config.py:L19` defines.
 Eight other modules import a `settings` singleton from that same module, and
@@ -49,45 +48,28 @@ pwd_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl='token')
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-    """Return a signed token carrying the supplied claims.
-
-    L12 calls `get_settings()`, which builds a fresh `Settings` from the
-    environment on every call. L13 copies `data`, so the caller's mapping stays
-    unchanged. L18 sets the `exp` claim, and L19 signs the payload with
-    `settings.SECRET_KEY` and `settings.ALGORITHM`.
-
-    The L14 branch tests `expires_delta` for truthiness rather than for `None`,
-    so two inputs behave in ways the parameter default does not suggest:
-
-    - `timedelta(0)` is falsy. A caller who asks for a zero lifetime takes the
-      L17 fallback instead and receives the configured lifetime.
-    - A negative `timedelta` is truthy. L15 adds it to `datetime.utcnow()`, so
-      L18 writes an `exp` claim already in the past and L19 signs a token that
-      every verifier rejects at once.
-
-    Configuration limitation. All three settings this function reads arrive
-    unvalidated. `app/core/config.py:L7-L9` declares `SECRET_KEY` and `ALGORITHM`
-    as bare `str` and `ACCESS_TOKEN_EXPIRE_MINUTES` as bare `int`, with no
-    length bound, no allowed-value list and no positivity check. L19 therefore
-    signs with an empty or low-entropy key when the environment supplies one, and
-    with whatever algorithm string the environment names. L17 accepts a zero,
-    negative or unbounded configured lifetime by the same route.
+    """Sign a JSON Web Token carrying the given claims and an expiry.
 
     Args:
-        data: Claims to encode, declared `dict`.
-        expires_delta: Token lifetime, declared `Optional[timedelta]` with a
-            default of `None`. Python cannot evaluate that annotation, because
-            `Optional` is undefined at L11.
+        data: Claims to embed. Copied before use, so the caller's dictionary is left
+            unchanged.
+        expires_delta: Lifetime for this token. When omitted, the lifetime comes from
+            `settings.ACCESS_TOKEN_EXPIRE_MINUTES`.
 
     Returns:
-        The encoded token, declared `str`.
+        The encoded token as a string.
+
+    Raises:
+        NameError: At import time, because `Optional` is used in the signature and never
+            imported.
 
     Example:
-        >>> token = create_access_token({"sub": "user-123"})
-        >>> token = create_access_token({"sub": "user-123"}, timedelta(hours=1))
+        token = create_access_token({"sub": user_id}, timedelta(minutes=30))
 
-        The example cannot run. Importing `app.core.security` raises `NameError`
-        at L11.
+    Note:
+        Adds only the `exp` claim, so no issuer, audience or issued-at claim is set, and
+        no token identifier is recorded that would allow revocation. Expiry is computed
+        from `datetime.utcnow()`, a naive timestamp.
     """
     settings = get_settings()
     to_encode = data.copy()
@@ -100,31 +82,33 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return encoded_jwt
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Report whether a plaintext password matches a stored hash.
-
-    L23 delegates the comparison to `pwd_context.verify` against the bcrypt
-    context configured at L8.
+    """Check a plain-text password against a stored bcrypt hash.
 
     Args:
-        plain_password: Candidate password, declared `str`.
-        hashed_password: Stored hash to compare against, declared `str`.
+        plain_password: Password as submitted by the caller.
+        hashed_password: Stored hash to compare against.
 
     Returns:
-        `True` when the candidate matches the stored hash, declared `bool`.
+        True when the password matches the hash, false otherwise.
+
+    Note:
+        No caller in the committed tree uses this helper; `app/api/auth.py` delegates
+        authentication to the absent user service instead.
     """
     return pwd_context.verify(plain_password, hashed_password)
 
 def get_password_hash(password: str) -> str:
-    """Return a bcrypt hash of the supplied password.
-
-    L26 delegates the work to `pwd_context.hash` against the bcrypt context
-    configured at L8.
+    """Hash a password with bcrypt.
 
     Args:
-        password: Plaintext password to hash, declared `str`.
+        password: Plain-text password to hash.
 
     Returns:
-        The bcrypt hash, declared `str`.
+        The bcrypt hash, carrying its own salt and cost factor.
+
+    Note:
+        bcrypt truncates input at 72 bytes, so a longer password contributes nothing
+        beyond that length.
     """
     return pwd_context.hash(password)
 
@@ -147,10 +131,15 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
     Configuration limitation. L35 verifies the signature with
     `settings.SECRET_KEY` and restricts the accepted algorithms to
     `[settings.ALGORITHM]`. Both values arrive unvalidated from
-    `app/core/config.py:L7` and `:L9`, which declare each as a bare `str`. An
-    empty or low-entropy key leaves the signature check ineffective against a
-    forged token, and the single-entry algorithm list inherits whatever string
-    the environment names rather than an approved algorithm.
+    `app/core/config.py:L7` and `:L9`, which declare each as a bare `str`, and
+    the consequence depends on which algorithm the environment names. Under a
+    symmetric algorithm such as HS256, this field carries the shared secret that
+    both signs at L19 and verifies at L35, so an empty or guessable value lets an
+    attacker forge a token that L35 accepts. Under an asymmetric algorithm such
+    as RS256, L35 expects a public key in the same field, so a short or
+    low-entropy value forges nothing and verification fails instead of
+    succeeding. The single-entry algorithm list inherits whatever string the
+    environment names rather than an approved algorithm either way.
 
     `app/api/auth.py:L14` defines a second copy of this function, and the twelve
     protected routes depend on that copy rather than the one here. The two
@@ -158,12 +147,11 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
     `app/api/auth.py:L25` raises 404.
 
     Args:
-        token: Bearer token, declared `str`. FastAPI supplies the value through
-            `Depends(oauth2_scheme)` against the scheme at L9.
+        token: Bearer token, extracted from the `Authorization` header by
+            `oauth2_scheme`.
 
     Returns:
-        The authenticated user, declared `User`. The module never defines or
-        imports that name.
+        The `User` the token's `sub` claim identifies.
 
     Raises:
         HTTPException: Status 401 at L38 when the `sub` claim read at L36 is
@@ -174,15 +162,19 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
             bearer scheme expects that header on a 401, so a client cannot read
             the scheme or realm from the rejection and a standards-conforming
             client library cannot start its re-authentication flow from the
-            response alone. Adding the header would change the responses, so this
-            pass records the gap only.
+            response alone.
 
     Example:
-        >>> async def read_me(user: User = Depends(get_current_user)):
-        ...     return user
+        @router.get("/me")
+        async def read_me(user: User = Depends(get_current_user)):
+            return user
 
-        The example cannot run. Importing `app.core.security` raises `NameError`
-        at L11, and no route in this repository depends on this function.
+    Note:
+        Answers 401 for a missing user, where the duplicate in `app/api/auth.py` answers
+        404, and sends "Could not validate credentials" where that one sends "Invalid
+        authentication credentials". Reads no `is_active` flag, so a deactivated user
+        passes. The assistance marker directly above records the unverified integration
+        with the user model and service.
     """
     settings = get_settings()
     try:

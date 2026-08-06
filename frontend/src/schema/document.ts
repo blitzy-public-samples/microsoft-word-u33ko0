@@ -1,15 +1,16 @@
 /**
- * Declare the client-side runtime validation shapes for a document record and a version snapshot.
+ * Declare the client-side validation shapes for a document record and a version snapshot.
  *
- * Line numbers cited for this module refer to the code as committed, before these comment blocks.
- * The module exports two schema values, `DocumentSchema` at L3 and `DocumentVersionSchema` at
- * L13, and no inferred TypeScript type. Both sibling modules declare one, `User` at
- * `schema/user.ts:L13` and `Template` at `schema/template.ts:L12`.
+ * The module exports two schema values, `DocumentSchema` and `DocumentVersionSchema`, and no
+ * inferred TypeScript type. Both sibling modules export one, `User` in `schema/user.ts` and
+ * `Template` in `schema/template.ts`.
  *
  * @remarks
- * Three modules import a type from here that the module never declares.
- * `store/documentSlice.ts:L2` and `services/collaboration.ts:L3` each request `Document`.
- * `services/api.ts:L3` requests `Document`, `DocumentCreate` and `DocumentUpdate`.
+ * Three modules import types from here that the module never declares, which produces five TS2305
+ * errors: `Document` at three import sites, plus `DocumentCreate` and `DocumentUpdate` at
+ * `services/api.ts`. Clearing all five needs three exported names, and the server draws the same
+ * three-way distinction across `DocumentCreate`, `DocumentUpdate` and `Document` in
+ * `backend/app/schema/document.py`.
  *
  * Those three import sites name five absent type references across three distinct missing
  * export names. A full type check reports five matching `TS2305` errors, the code TypeScript
@@ -29,7 +30,8 @@
  * record and none for either write shape, so two of the three contracts have no schema to
  * infer from.
  *
- * Adding exports would change the module surface, so this pass records the gap only.
+ * All five errors therefore stand as committed, and each importing module fails on the name it
+ * asked for rather than on anything in its own file.
  *
  * The `zod` import at L1 resolves to nothing. `frontend/package.json:L6-L14` declares seven
  * runtime dependencies, `@reduxjs/toolkit`, `react`, `react-dom`, `react-redux`,
@@ -44,31 +46,21 @@ import { z } from 'zod';
  * Validate a complete document record exchanged with the API.
  *
  * @remarks
- * The schema declares seven fields: `id` at L4, `title` at L5, `content` at L6, `owner_id` at L7,
- * `created_at` at L8, `updated_at` at L9, and `collaborators` at L10. `collaborators` holds
- * `z.array(z.string())`. The module calls `.optional()` nowhere and `.nullable()` nowhere, so
- * validation requires every one of the seven and rejects null in every one of the seven.
+ * The schema declares seven required fields: `id`, `title`, `content`, `owner_id`, `created_at`,
+ * `updated_at` and `collaborators`, the last holding `z.array(z.string())`. Neither `.optional()`
+ * nor `.nullable()` appears, so validation requires all seven and rejects null in all seven.
  *
- * `owner_id` at L7 contradicts the server contract on both counts. The Pydantic model declares
- * `owner_id: Optional[str] = None` at `backend/app/schema/document.py:L8`, so the server may
- * omit the key and may send it as null. `z.string()` accepts neither. A response that satisfies
- * the server contract without an owner therefore fails this schema, and the parse rejects a
- * record the backend considers valid.
+ * `owner_id` contradicts the server contract on both counts. The Pydantic model declares
+ * `owner_id: Optional[str] = None`, so the server may omit the key and may send null, and
+ * `z.string()` accepts neither. A response the server considers valid therefore fails this schema.
  *
- * `created_at` at L8 and `updated_at` at L9 declare `z.date()`, which accepts only a JavaScript
- * `Date` instance. The server declares both as `datetime` on its `Document` model at
- * `backend/app/schema/document.py:L19-L20` and sends them as ISO 8601 strings over JSON.
- * `z.date()` rejects a string, so both fields fail against an unconverted API response.
+ * `created_at` and `updated_at` declare `z.date()`, which accepts only a `Date` instance, while the
+ * server sends both as ISO 8601 strings over JSON, so both fields fail against an unconverted
+ * response.
  *
- * The schema names the owner `owner_id` at L7, while `DocumentVersionSchema` names its actor
- * `user_id` at L18. One file therefore carries two names for a reference to a person.
- *
- * `collaborators` at L10 has no server counterpart. `backend/app/schema/document.py` declares no
- * `collaborators` field on any of its five models. The specification models the concept as a
- * Firestore subcollection instead, at `documentation/Technical Specifications.md:L325`.
- *
- * `updated_at` at L9 agrees with the `Document` model at `backend/app/schema/document.py:L20` and
- * differs from `last_modified` at `documentation/Technical Specifications.md:L335`.
+ * The schema names the owner `owner_id` while `DocumentVersionSchema` names its actor `user_id`, so
+ * one file carries two names for a reference to a person. `collaborators` has no counterpart on any
+ * model in `backend/app/schema/document.py`.
  */
 export const DocumentSchema = z.object({
   id: z.string(),
@@ -84,19 +76,12 @@ export const DocumentSchema = z.object({
  * Validate a historical content snapshot of a document.
  *
  * @remarks
- * The schema declares five fields, all required: `id` at L14, `document_id` at L15, `content` at
- * L16, `created_at` at L17, and `user_id` at L18.
+ * The schema declares five required fields: `id`, `document_id`, `content`, `created_at` and
+ * `user_id`.
  *
- * `user_id` at L18 matches the server contract, which declares `user_id` on `DocumentVersion` at
- * `backend/app/schema/document.py:L27`. `DocumentSchema` names the comparable reference
- * `owner_id` at L7.
- *
- * `created_at` at L17 declares `z.date()` and carries the same string-against-`Date` mismatch
- * recorded on `DocumentSchema` above.
- *
- * The specification's Versions subcollection declares `version_id`, `timestamp` and `changes` at
- * `documentation/Technical Specifications.md:L338-L341`. That subcollection declares no author
- * field and no content field, so `user_id` at L18 and `content` at L16 have no counterpart in it.
+ * `user_id` matches the server, which declares `user_id` on `DocumentVersion`, while
+ * `DocumentSchema` names the comparable reference `owner_id`. `created_at` declares `z.date()` and
+ * carries the same string-against-`Date` mismatch recorded above.
  */
 export const DocumentVersionSchema = z.object({
   id: z.string(),

@@ -1,47 +1,37 @@
-"""Relay document changes between connected editors over Google Cloud Pub/Sub.
+"""Fan document changes out to per-document Cloud Pub/Sub topics.
 
-The module builds one Pub/Sub topic path per document and creates one subscription
-per document-and-user pair. `CollaborationService` below holds the whole
-implementation.
+`settings` is requested from `app.core.config`, which never defines it, so importing
+this module raises `ImportError`. `WebSocketDisconnect` and `Document` are imported and
+unused. `asyncio` and `json` are used and never imported, so `connect` and
+`broadcast_change` each raise `NameError` when they run.
 
 The module creates no topic. No `create_topic` call exists anywhere in this file
 or in the repository. L20 and L60 interpolate a topic path into a string, and L24
-passes that string to `create_subscription` as the `topic` argument. Only three
-Pub/Sub operations run: `create_subscription` at L24, `subscribe` at L35 and
-`delete_subscription` at L52, plus `publish` at L63. Every one of them requires
-the topic to exist already, so L24 and L63 both fail against a project where
-nothing else created it.
+passes that string to `create_subscription` as the `topic` argument. Four Pub/Sub
+calls run: `create_subscription` at L24, `subscribe` at L35, `delete_subscription`
+at L52 and `publish` at L63. Two of the four name a topic and need it to exist
+already, so L24 and L63 both fail against a project where nothing else created it.
+The other two address a subscription instead: L35 consumes the subscription path
+built at L21, and L52 deletes the subscription path built at L50.
 
-Authorization. The three public methods take `document_id` and `user_id` from the
-caller and verify neither. No method checks a bearer token, compares the supplied
-`user_id` against an authenticated identity, or tests whether that user may read
-or write the named document. Whatever a caller passes decides which topic it
-publishes to and which document stream it receives. No route constructs this
-service, so no request path exercises it today, and any future route would have to
-supply both checks itself.
+Resilience. The module configures none, and every absence below belongs to this
+module rather than to the client library. `PublisherClient()` at L8 and
+`SubscriberClient()` at L9 receive no `client_options`, no publisher batch or flow
+control settings and no credentials. The four operations pass no `retry` and no
+`timeout` argument. `create_subscription` at L24 sets no `dead_letter_policy`, no
+`ack_deadline_seconds`, no `retry_policy` and no `message_retention_duration`, so
+no redelivery policy and no dead-letter route exists for a message the client
+fails to handle. `future.result()` at L38 and L64 is called with no timeout, so
+each call blocks indefinitely on a stalled future. No circuit breaker, no backoff,
+no jitter and no fallback path exists. The `callback` at L31 acknowledges each
+message at L32 before it attempts delivery at L33, so a delivery that fails
+cannot be redelivered and the change it carried is lost. No backend dependency
+manifest is committed, so nothing pins `google-cloud-pubsub` and no committed file
+records which defaults the resolved release would apply.
 
-Line references point at the pre-documentation layout of commit `06be74c`, so
-they exclude docstrings added by this pass.
-
-The `settings` import at L4 does not resolve. `app/core/config.py` defines a
-`Settings` class and a `get_settings()` factory, and never creates a module-level
-`settings` instance, so the import raises ImportError. The four
-`settings.PROJECT_ID` reads, at L20, L21, L50 and L60, name a field absent from
-that module's nine declared fields.
-
-`asyncio` at L33 and `json` at L63 are never imported. Both uses sit inside
-function bodies, so each raises NameError at first call rather than at import, and
-neither name appears in the import block below.
-
-Two imports go unused: `WebSocketDisconnect` at L1 and `Document` at L3.
-
-No application module imports `CollaborationService`, and no WebSocket route exists
-anywhere under `backend/`. The only references sit in
-`backend/tests/test_services.py` at L4 and L39, which import through a bare
-`services.*` root that does not resolve. The client uses a different transport:
-`frontend/src/services/collaboration.ts:L1` imports `socket.io-client`, while
-`connect` below declares a FastAPI `WebSocket`. The collaboration path is
-unreachable.
+No route constructs this class, so the whole path is unreachable. The client half speaks
+Socket.IO while `connect` expects a FastAPI `WebSocket`, and no WebSocket route exists
+to join them.
 """
 from fastapi import WebSocket, WebSocketDisconnect
 from google.cloud.pubsub_v1 import PublisherClient, SubscriberClient
@@ -49,14 +39,11 @@ from app.schema.document import Document
 from app.core.config import settings
 
 class CollaborationService:
-    """Register editor sockets and carry document changes through Pub/Sub.
+    """Track live editor connections and bridge them to Pub/Sub.
 
-    The class names one topic per document,
-    `projects/{PROJECT_ID}/topics/{document_id}`, and one subscription per
-    document-and-user pair,
-    `projects/{PROJECT_ID}/subscriptions/{document_id}_{user_id}`. Both patterns
-    interpolate `settings.PROJECT_ID`. Naming a topic is all the class does with
-    one; no method creates a topic.
+    One publisher, one subscriber and one connection registry per instance. The registry
+    is a plain dictionary in process memory, so a second server process shares none of
+    it.
 
     No method authorizes its caller. Each takes identifiers as arguments and acts
     on them directly, so the trust decision belongs entirely to whatever code
@@ -67,26 +54,18 @@ class CollaborationService:
         disconnect: Drop a socket and delete its subscription.
         broadcast_change: Publish one change payload to a document topic.
 
-    All three methods declare `async def` and contain no `await` expression. The
-    Pub/Sub client calls inside them run synchronously, and each method waits on its
-    future by blocking, at L38 and L64.
+    All three methods declare `async def` and contain no `await` expression, so the
+    Pub/Sub client calls inside them run synchronously. Future handling differs by
+    method, and only two of the three produce a future at all. `connect` binds the
+    streaming pull future that `subscribe` returns at L35 and blocks on it at L38,
+    which stalls the event loop for the lifetime of the subscription.
+    `broadcast_change` binds the publish future that `publish` returns at L63 and
+    blocks on it at L64. `disconnect` creates no future: L52 calls
+    `delete_subscription`, which returns nothing to wait on, so the method has
+    nothing to block for and nothing to cancel.
     """
     def __init__(self):
-        """Build the Pub/Sub clients and the in-process connection registry.
-
-        L8 builds a `PublisherClient` and L9 builds a `SubscriberClient`, so
-        creating this service opens both Google Cloud clients before any caller
-        connects. L10 sets `active_connections` to an empty dictionary.
-
-        Attributes:
-            publisher: Pub/Sub publisher client, used by `broadcast_change`.
-            subscriber: Pub/Sub subscriber client, used by `connect` and
-                `disconnect`.
-            active_connections: Registry mapping a `document_id` to a dictionary
-                that maps a `user_id` to a `WebSocket`. The registry is a plain
-                per-process, unsynchronized dictionary, so a second worker process
-                sees none of its contents.
-        """
+        """Open the Pub/Sub clients and start with an empty connection registry."""
         self.publisher = PublisherClient()
         self.subscriber = SubscriberClient()
         self.active_connections = {}
@@ -94,53 +73,28 @@ class CollaborationService:
     # HUMAN ASSISTANCE NEEDED
     # The following method has a confidence level of 0.6 and may need adjustments for production readiness
     async def connect(self, websocket: WebSocket, document_id: str, user_id: str) -> None:
-        """Register a websocket and subscribe it to the document's topic.
-
-        The comment block above this signature flags the method for
-        production-readiness review.
-
-        The method verifies nothing about its arguments. The method registers whatever
-        socket it is handed under whatever `document_id` and `user_id` it is given,
-        and subscribes that pair to the matching document stream, so any caller
-        able to reach this method can receive another document's changes.
-
-        When subscription creation fails, L27 prints and L28 returns, so the
-        socket registered at L17 keeps its place in `active_connections` with no
-        subscription behind it. L38 blocks inside an `async def`, which stalls the
-        event loop for the lifetime of the subscription.
-
-        A repeated document-and-user pair loses the earlier socket without closing
-        it. L17 assigns into the registry unconditionally, so a second `connect`
-        for the same pair overwrites the first entry before L24 runs. The `callback`
-        that L31 defined during the first call closed over that first `websocket`
-        parameter, and the streaming pull started at L35 still holds it, so
-        messages keep arriving on the socket the registry no longer names. L24 then
-        raises on the second call, because the subscription already exists, and L28
-        returns after printing. The replacement socket therefore sits in the
-        registry with no subscription of its own and receives nothing, while the
-        displaced socket keeps receiving document updates.
-
-        The streaming future is never retained. L35 binds `future` to a local
-        name, L38 blocks on it, and nothing stores it on the instance, so no later
-        call can cancel the pull. `disconnect` has no handle on it either.
+        """Register one editor connection and subscribe it to the document's topic.
 
         Args:
-            websocket: Socket to register under this document and user.
-            document_id: Document identifier. Names the Pub/Sub topic and keys the
-                outer `active_connections` dictionary.
-            user_id: Identifier of the connecting user. Keys the inner dictionary
-                and forms the second part of the subscription name.
+            websocket: Live connection to the editing client. Stored in the registry and
+                written to from the subscription callback.
+            document_id: Document being edited, used as both the topic name and the
+                registry key.
+            user_id: Editor identifier, used as the registry key within the document and
+                as part of the subscription name.
 
         Returns:
-            None.
-
-        Side effects:
-            L17 registers the socket in `active_connections`. L20 derives the
-            topic name and L21 the subscription name. L24 creates the Pub/Sub
-            subscription. L35 subscribes the nested `callback`. L38 blocks on
-            `future.result()`.
+            Nothing.
 
         Raises:
+            AttributeError: At L20, because `Settings` declares no `PROJECT_ID`
+                field. The read sits above the `try` at L23, outside every guarded
+                block, so the error propagates to the caller on the first call.
+                Partial state at that point: L17 has already registered the socket
+                in `active_connections`, and no Pub/Sub call has run. The socket
+                therefore sits in the registry with no subscription behind it, and
+                the caller cannot tell from the exception that the registry was
+                mutated.
             Whatever `SubscriberClient.subscribe` raises at L35. That call sits
                 between the two `try` blocks, outside both, so a synchronous
                 client or argument-validation failure propagates to the caller. L23
@@ -149,8 +103,9 @@ class CollaborationService:
             NameError: From the nested `callback` at L33 on first delivery, as
                 documented on that function. The error surfaces on the Pub/Sub
                 client's own thread rather than through this method.
-            Nothing else. L25 and L39 catch every exception their blocks raise,
-                and L27 and L41 print it.
+
+        No other exception leaves the method. L25 and L39 catch every exception
+        their own blocks raise, and L27 and L41 print it.
         """
         if document_id not in self.active_connections:
             self.active_connections[document_id] = {}
@@ -195,8 +150,9 @@ class CollaborationService:
                 message: The delivered Pub/Sub message. The parameter carries no
                     type annotation.
 
-            Returns:
-                None. The signature declares no return type.
+            The two side effects are the acknowledgement at L32 and the socket send
+            at L33. The signature declares no return annotation, and the Pub/Sub
+            client discards the value the body evaluates to.
             """
             message.ack()
             asyncio.run(websocket.send_json(message.data))
@@ -210,44 +166,34 @@ class CollaborationService:
             print(f"Subscription error: {e}")
 
     async def disconnect(self, document_id: str, user_id: str) -> None:
-        """Drop a user's socket and delete the matching Pub/Sub subscription.
+        """Drop one editor connection and delete its subscription.
 
         Args:
-            document_id: Document identifier. Keys the outer `active_connections`
-                dictionary and forms the first part of the subscription name.
-            user_id: Identifier of the departing user. Keys the inner dictionary and
-                forms the second part of the subscription name.
+            document_id: Document the editor was working on.
+            user_id: Editor identifier.
 
         Returns:
-            None.
-
-        Side effects:
-            L45 removes the socket from `active_connections`. L47 removes the
-            document key once the inner dictionary is empty. L52 deletes the
-            per-user Pub/Sub subscription named at L50.
+            Nothing.
 
         Raises:
-            Nothing. L53 catches every exception and L55 prints it.
+            AttributeError: At L50, because `Settings` declares no `PROJECT_ID`
+                field. The read sits above the `try` at L51, outside the guarded
+                block, so the error propagates to the caller on the first call.
+                Partial state at that point: L45 has already removed the socket
+                from `active_connections`, and L47 has already removed the document
+                key when that removal emptied the inner dictionary. L52 never runs,
+                so the per-user Pub/Sub subscription survives while the registry
+                entry that named it is gone, and no later call can find the pair to
+                clean it up.
 
-        The method verifies nothing about its arguments. Any caller able to reach
-        it can drop another user's socket from the registry and delete that user's
-        subscription, because L44 and L50 use the supplied identifiers directly.
+        No other exception leaves the method. L53 catches every exception the body
+        raises and L55 prints it.
 
-        Three things the method does not clean up:
-
-        - The socket itself. L45 removes the registry entry and no line calls
-          `websocket.close()`, so the connection stays open on the client side with
-          nothing on the server tracking it.
-        - The streaming pull. `connect` never stored the future it created at L35,
-          so this method has no handle to cancel. The pull keeps running and its
-          `callback` keeps holding the socket it closed over.
-        - The topic. L52 deletes only the per-user subscription. No `delete_topic`
-          call exists, matching the absence of any `create_topic` call.
-
-        Deleting the subscription stops new messages for that name, and messages
-        Pub/Sub already delivered to the running pull are unaffected, so a socket
-        displaced by the overwrite documented on `connect` can still receive
-        document updates after its owner disconnects.
+        Note:
+            Removes the document's registry entry once its last editor leaves, so the
+            registry does not grow without bound. Deletes the subscription synchronously
+            and waits on no future. Logs a deletion failure and returns, so a caller
+            cannot tell a clean disconnect from a leaked subscription.
         """
         if document_id in self.active_connections and user_id in self.active_connections[document_id]:
             del self.active_connections[document_id][user_id]
@@ -265,43 +211,26 @@ class CollaborationService:
     # HUMAN ASSISTANCE NEEDED
     # The following method has a confidence level of 0.7 and may need adjustments for production readiness
     async def broadcast_change(self, document_id: str, change: dict) -> None:
-        """Publish one change payload to the document's Pub/Sub topic.
-
-        The comment block above this signature flags the method for
-        production-readiness review.
-
-        L63 calls `json.dumps`, and this module never imports `json`, so the first
-        call raises NameError.
-
-        The method verifies nothing about its arguments. The method publishes to
-        the topic named for whatever `document_id` it receives. No check confirms
-        that the caller may write to that document, and the method takes no user
-        identifier. The payload reaches every subscriber of that document with no
-        record of who sent it.
-
-        The topic must already exist. L60 only builds a path string, and no method
-        in this module creates a topic, so `publish` at L63 fails against a project
-        where nothing else created it. The failure is silent to the caller: L65
-        catches it and L67 prints.
+        """Publish one change to the document's Pub/Sub topic.
 
         Args:
-            document_id: Document identifier, interpolated into the topic name at
-                L60.
-            change: Change payload. L63 serializes the dictionary to JavaScript
-                Object Notation (JSON) and encodes the result as UTF-8. The
-                receiving `callback` at L31 does not decode it, as documented
-                there.
+            document_id: Document the change belongs to, used as the topic name.
+            change: Change payload, serialized to UTF-8 encoded JSON as the message
+                body.
 
         Returns:
-            None.
-
-        Side effects:
-            L60 derives the topic name. L63 publishes the encoded payload to the
-            per-document topic. L64 waits on the publish future.
+            Nothing.
 
         Raises:
-            Nothing. L65 catches every exception and L67 prints it, so a caller
-                cannot tell a delivered change from a dropped one.
+            AttributeError: At L60, because `Settings` declares no `PROJECT_ID`
+                field. The read sits above the `try` at L61, outside the guarded
+                block, so the error propagates to the caller on the first call. No
+                partial state follows: L60 is the method's first statement, no
+                Pub/Sub call runs, and nothing is published.
+
+        No other exception leaves the method. L65 catches every exception the body
+        raises and L67 prints it, so a caller cannot tell a delivered change from a
+        dropped one.
         """
         topic_name = f"projects/{settings.PROJECT_ID}/topics/{document_id}"
         

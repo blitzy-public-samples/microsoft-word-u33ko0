@@ -1,27 +1,29 @@
 /**
- * Settings page. Renders a controlled form for the current user's name and email, then submits
- * both fields to the server. Every `L` number refers to a file as committed, before any comment
- * block.
+ * Settings page. Renders a controlled form for the current user's name and email, and attempts
+ * to save both fields through a helper that does not exist. Every `L` number refers to a file as
+ * committed, before any comment block.
  *
- * Five imported symbols do not exist:
- * - `updateUserSettings` (L4). `services/api.ts` exports only `getDocuments` L38,
- *   `createDocument` L43 and `updateDocument` L48.
- * - `useAppSelector` and `useAppDispatch` (L5). `store/index.ts` exports only `RootState` L12,
- *   `AppDispatch` L13 and a default `store` L15.
- * - `selectCurrentUser` and `updateUser` (L6). `store/userSlice.ts:L44` exports only `setUser`,
- *   `clearUser`, `setLoading` and `setError`.
+ * No server boundary is defined for this page. L21 calls `updateUserSettings`, and
+ * `frontend/src/services/api.ts` never declares that symbol. No request method, no request
+ * path, no request body and no response shape therefore exists anywhere in the repository for
+ * the save the form appears to perform. The page defines no `fetch` call, no `axios` call and no
+ * other outbound request of its own either, so the whole save path stops at an unresolved
+ * import. The backend does register `PUT /me` at `backend/app/api/users.py:L12`, and no line
+ * here targets it.
  *
- * `Header` (L2) and `Footer` (L3) are named imports of default-only exports, at
- * `components/Header.tsx:L42` and `components/Footer.tsx:L23`. `pages/Home.tsx:L3-L4` imports
- * both as defaults. The `@/` prefix on L2-L6 also fails module resolution, because
- * `tsconfig.json:L10-L16` declares five aliases and none is `@/*`.
+ * Unresolved imports, every one reported as TS2307 because the `@/` prefix is absent from the
+ * `paths` map in `frontend/tsconfig.json`:
+ * - `updateUserSettings` does not exist in `services/api.ts`, which exports `getDocuments`,
+ *   `createDocument` and `updateDocument`.
+ * - `useAppSelector` and `useAppDispatch` do not exist in `store/index.ts`.
+ * - `selectCurrentUser` and `updateUser` do not exist in `store/userSlice.ts`, which exports
+ *   `setUser`, `clearUser`, `setLoading` and `setError`.
+ * - `Header` and `Footer` are named imports of default-only exports, unlike `pages/Home.tsx`,
+ *   which imports both as defaults.
  *
- * L15 and L21 read and submit `name`, which no user contract declares. `schema/user.ts:L3-L11`
- * models `username` and optional `full_name`. L15 and L16 initialise state once, so a
- * `currentUser` arriving after the first render leaves both fields empty.
+ * The assistance marker below records that the component needs refinement for production readiness.
  *
- * The assistance marker at L8 records that this component needs refinement for production
- * readiness.
+ * @see ./README.md for the page register and the contract drift this page carries.
  */
 import React, { useState } from 'react';
 import { Header } from '@/components/Header';
@@ -35,27 +37,40 @@ import { selectCurrentUser, updateUser } from '@/store/userSlice';
 // Please review and adjust as necessary.
 
 /**
- * Render the user settings page.
+ * Hold the name and email fields in local state and submit them as one update.
  *
- * Reads `currentUser` from the store at L14, sends the form at L21, dispatches the result at L22
- * and writes to the console at L25. Performs no navigation and no local storage write.
+ * Reads `currentUser` from the store at L14, attempts the save helper at L21, would dispatch the
+ * result at L22, and writes to the console at L25. Performs no navigation and no local storage
+ * write. L21 is an attempted call to an undefined symbol rather than a request, so the page
+ * issues no HTTP traffic at all.
  *
  * @returns The settings page element: the shell at L31, the form at L35-L57 and the footer at L59.
  *
  * @remarks
- * L15 and L16 initialise `name` and `email` from `currentUser` once. A `currentUser` that arrives
- * after the first render leaves both fields at their empty-string fallbacks, so the form renders
- * blank. No effect resynchronises them.
+ * Side effects: the form submit sends the request, dispatches the result and writes failures to the
+ * console. The page performs no navigation and no local storage write.
  *
- * `App.tsx` renders `Header` at L17 and `Footer` at L26 around every route, so L32 and L59 add a
- * second header and a second footer.
+ * The `name` and `email` state initialise from `currentUser` once, so a `currentUser` that arrives
+ * after the first render leaves both fields at their empty-string fallbacks, and no effect
+ * resynchronises them.
  *
- * The markup carries exactly one styling attribute, the `settings-page` class at L31. The
- * heading, the form and the submit button sit between L33 and L58 with no styling attribute,
- * and the repository commits no stylesheet, no `tailwind.config.js` and no `postcss.config.js`.
+ * Accessibility: the page renders a second `main` element inside App's `main`, so one main landmark
+ * nests inside another, and the repeated header and footer duplicate the banner and contentinfo
+ * landmarks.
+ *
+ * The markup carries one styling attribute, the `settings-page` class. The heading, form and submit
+ * button carry none, and the repository commits no stylesheet or Tailwind configuration.
  *
  * @example
- * <Route path="/settings" component={Settings} />
+ * <Route path="/settings" element={<Settings />} />
+ * // `frontend/package.json:L11` declares `react-router-dom` at `^6.11.1`, which takes an
+ * // `element` prop and dropped the v5 `component` prop. `App.tsx:L19-L24` holds the committed
+ * // route table, still written in the version 5 form.
+ * // Cannot run today: the five `@/` specifiers at L2-L6 fail module resolution. L2 and L3 import
+ * // `Header` and `Footer` as named exports, while `components/Header.tsx:L42` and
+ * // `components/Footer.tsx:L23` declare defaults, and the other three symbols,
+ * // `updateUserSettings` at L4, `useAppSelector` and `useAppDispatch` at L5 and
+ * // `selectCurrentUser` and `updateUser` at L6, are exported by no module.
  */
 const Settings: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -64,23 +79,35 @@ const Settings: React.FC = () => {
   const [email, setEmail] = useState(currentUser?.email || '');
 
   /**
-   * Submit the edited name and email, then push the server response into the store.
+   * Attempt to save the edited name and email, then push the result into the store.
    *
-   * L19 suppresses the native form submission. L21 sends `{ name, email }` to
-   * `updateUserSettings`. L22 dispatches the returned value through `updateUser`.
+   * L19 suppresses the native form submission. L21 passes `{ name, email }` to
+   * `updateUserSettings`. L22 would dispatch the returned value through `updateUser`.
    *
    * @param e - The form submit event, declared `React.FormEvent`.
-   * @returns A promise that resolves once the request settles. The declared `async` signature
-   * carries no value, so a caller receives neither a success result nor a failure result.
+   * @returns A promise that resolves once L21 settles. The declared `async` signature carries no
+   * value, so a caller receives neither a success result nor a failure result.
    *
    * @remarks
-   * The `name` field sent at L21 has no counterpart in `schema/user.ts:L3-L11`, which models
+   * L21 defines no request. `updateUserSettings` is absent from `services/api.ts`, which exports
+   * only `getDocuments` L38, `createDocument` L43 and `updateDocument` L48, so no method, path,
+   * body encoding or response shape is declared anywhere for this save. The two fields the object
+   * carries are therefore the whole of what the page knows about the intended payload, and L22
+   * has no value to dispatch. `updateUser` is absent as well, at `store/userSlice.ts:L44`.
+   *
+   * The `name` field passed at L21 has no counterpart in `schema/user.ts:L3-L11`, which models
    * `username` and optional `full_name`. The `email` field does match, at `schema/user.ts:L5`.
    *
-   * On failure L25 writes to the console and nothing else, so a failed save produces no
-   * user-visible signal. The outstanding-work comment at L23 sits in the success path and records
-   * the absent notification. The comment at L26 sits in the `catch` and records the absent error
+   * A failure writes to the console and nothing else, so a failed save produces no user-visible
+   * signal. The two outstanding-work comments record the absent notification and the absent error
    * feedback.
+   *
+   * L25 logs the whole error object rather than a message. The failing request carried the
+   * profile fields `{ name, email }` from L21, and an Axios error keeps `config`, `request` and
+   * `response`, so the browser console can end up holding that submitted name and email address
+   * along with the request URL, the request headers and the response body. Both fields are
+   * personal data, and the console is not a private sink: a browser extension or a support tool
+   * that collects logs reads whatever the entry retained.
    */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

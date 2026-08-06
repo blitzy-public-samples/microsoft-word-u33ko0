@@ -1,33 +1,29 @@
 """Build the shared Firestore client and expose four document helpers.
 
-`L7` constructs one Google Cloud Firestore client at module scope, so every
-importer shares a single instance. The four helpers below run synchronously
-and cover create, read, update and delete (CRUD) work against a collection
-that the caller names on each call.
+One client is constructed at module scope, so every importer shares a single instance.
+The four helpers run synchronously and cover create, read, update and delete work
+against a collection the caller names on each call.
 
-`L3` imports `settings` from `app.core.config`, and that module defines only
-the `Settings` class and the `get_settings` factory. No module-level
-`settings` exists there, so importing this module raises ImportError at `L3`
-before the credential call at `L6` runs.
+`settings` is requested from `app.core.config`, which defines only the `Settings` class
+and a `get_settings` factory, so importing this module raises `ImportError` before the
+credential call runs. Importing it also runs Application Default Credentials discovery,
+which fails without resolvable Google credentials, and binds `credentials` and `project`
+that no line in the repository reads.
 
-`L6` runs Application Default Credentials (ADC) discovery through the
-`default` function imported at `L2`. `L6` binds `credentials` and `project`,
-and no line in the repository reads either name. `L7` takes the project
-identifier from `settings.GOOGLE_CLOUD_PROJECT` and passes neither bound name
-to `Client`. Importing this module therefore runs ADC discovery, which fails
-without resolvable Google credentials.
+No module imports the four helpers. Three modules import the `db` client and call it
+directly instead: `app/main.py`, `app/services/document_service.py` and
+`app/tasks/background_tasks.py`.
 
-No module imports `get_document`, `create_document`, `update_document` or
-`delete_document`. Three modules import the `db` client that `L7` builds:
-`app/main.py:L8`, `app/services/document_service.py:L4` and
-`app/tasks/background_tasks.py:L4`. Each of the three calls that client
-directly instead of through these helpers, at `document_service.py:L17` and
-`:L21` and at `background_tasks.py:L43`, `:L50`, `:L59`, `:L60` and `:L74`.
-Those callers reach the `documents`, `document_permissions` and
-`document_metadata` collections.
+`app/main.py:L22` calls `db.is_connected()`, and a Firestore `Client` defines no
+such method, so that call raises `AttributeError`.
 
-`app/main.py:L22` calls `db.is_connected()` and `app/main.py:L34` awaits
-`db.close()`. A Firestore `Client` defines neither method.
+`app/main.py:L34` awaits `db.close()`, and the outcome differs. The client does
+carry `close`, inherited from the shared Google Cloud client base class, and that
+method is synchronous: it shuts the underlying transport session and returns
+`None`. The `await` then receives `None`, which is not awaitable, so the statement
+performs the close and afterwards raises `TypeError`. No backend dependency
+manifest is committed, so nothing pins `google-cloud-firestore` and the inherited
+surface is whatever the resolved release provides.
 
 None of the four helpers opens a transaction, sets a retry policy, sets a
 timeout, or catches an exception.
@@ -48,25 +44,23 @@ db = Client(project=settings.GOOGLE_CLOUD_PROJECT)
 def get_document(collection: str, document_id: str) -> dict:
     """Retrieve one document's stored fields from a named collection.
 
-    The body performs one synchronous read against the named collection at
-    `L10` and `L11`.
-
     Args:
         collection: Name of the Firestore collection holding the document.
         document_id: Identifier of the document to read.
 
     Returns:
-        The stored fields as a dictionary when the snapshot exists, per `L12`
-        and `L13`. `L14` returns None when the snapshot does not exist, which
-        contradicts the `-> dict` annotation at `L9`. A caller that trusts
-        that annotation and subscripts the result raises TypeError whenever
-        the document is missing.
+        The stored fields as a dictionary when the snapshot exists, and `None` when it
+        does not. The `None` branch contradicts the `-> dict` annotation, so a caller
+        that trusts the annotation and subscripts the result raises `TypeError` for a
+        missing document.
 
     Example:
         fields = get_document("documents", "abc123")
-        title = fields["title"]
+        if fields is not None:
+            title = fields["title"]
 
-        The example cannot run as committed, because `L3` imports a
+        The guard is required, because `L14` returns None for a missing
+        snapshot. The example cannot run as committed, because `L3` imports a
         `settings` name that `app/core/config.py` never defines.
     """
     doc_ref = db.collection(collection).document(document_id)
@@ -76,77 +70,58 @@ def get_document(collection: str, document_id: str) -> dict:
     return None
 
 def create_document(collection: str, data: dict) -> str:
-    """Add a document to a named collection and return its new identifier.
-
-    The body performs one synchronous write at `L17` that creates a document
-    with a server-generated identifier.
-
-    `L17` calls `add`, which returns a two-element tuple holding the write
-    timestamp and the new document reference. `L18` indexes element 1 to
-    reach that reference before reading `.id`. The local name `doc_ref`
-    therefore holds a tuple, not a document reference.
+    """Add a document to a named collection and return its generated identifier.
 
     Args:
-        collection: Name of the Firestore collection to write to.
-        data: Field names and values to store on the new document.
+        collection: Name of the Firestore collection to add to.
+        data: Field values to store. Written as given, with no validation against any
+            Pydantic model.
 
     Returns:
-        The server-generated document identifier, declared `str`, per `L18`.
+        The new document's identifier, taken from the second element of the tuple
+        `add()` returns.
 
     Example:
-        new_id = create_document("documents", {"title": "Draft"})
+        document_id = create_document("documents", {"title": "Draft"})
 
-        The example cannot run as committed, because `L3` imports a
-        `settings` name that `app/core/config.py` never defines.
+    Note:
+        Side effect is one write to the named collection. Firestore generates the
+        identifier, so the caller cannot supply one through this helper.
     """
     doc_ref = db.collection(collection).add(data)
     return doc_ref[1].id
 
 def update_document(collection: str, document_id: str, data: dict) -> None:
-    """Merge the supplied fields into an existing document.
-
-    The body performs one synchronous partial update at `L22`. Firestore
-    rewrites only the keys present in `data` and leaves every other stored
-    field unchanged.
+    """Merge field values into an existing document.
 
     Args:
         collection: Name of the Firestore collection holding the document.
-        document_id: Identifier of the document to modify.
-        data: Field names and values to merge into the stored document.
+        document_id: Identifier of the document to update.
+        data: Field values to merge. Keys absent from the dictionary are left as stored.
 
     Returns:
-        Nothing. The function is annotated `-> None` at `L20` and its body
-        contains no return statement.
+        Nothing.
+
+    Note:
+        Side effect is one write. `update()` requires an existing document and raises
+        `NotFound` otherwise, and this helper does not catch that.
     """
     doc_ref = db.collection(collection).document(document_id)
     doc_ref.update(data)
 
 def delete_document(collection: str, document_id: str) -> None:
-    """Delete a document from a named collection.
-
-    The body performs one synchronous `DocumentReference.delete()` request at
-    `L26` against the single document that `L25` addresses. The helper writes no
-    tombstone, sets no deleted flag, and asks for no confirmation before the
-    delete.
-
-    The claim stops at that one request. Firestore does not delete a document's
-    subcollections when the document goes, so any subcollection under this path
-    survives the call and its documents remain readable by direct reference. The
-    call also says nothing about copies held elsewhere: scheduled backups,
-    point-in-time recovery windows, Cloud Storage exports, and any other
-    collection that stores the same content are outside its reach.
-    `app/tasks/background_tasks.py:L59-L60` shows that pattern in this repository,
-    deleting `document_permissions` and `document_metadata` records separately.
-    Whether the data is erased everywhere it was written is therefore not
-    established by this function.
+    """Delete one document from a named collection.
 
     Args:
         collection: Name of the Firestore collection holding the document.
-        document_id: Identifier of the document to remove.
+        document_id: Identifier of the document to delete.
 
     Returns:
-        Nothing. The function is annotated `-> None` at `L24` and its body
-        contains no return statement.
+        Nothing.
+
+    Note:
+        Side effect is one hard delete, with no version retained. Deleting an absent
+        document succeeds silently, so the caller learns nothing about what existed.
     """
     doc_ref = db.collection(collection).document(document_id)
     doc_ref.delete()
