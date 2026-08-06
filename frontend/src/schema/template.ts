@@ -9,8 +9,8 @@
  * `owner_id`, `created_at` and `updated_at`.
  *
  * The server half of the contract is missing. No backend/app/schema/template.py exists, and
- * backend/app/api/templates.py:L3 imports it. The same router imports the absent template
- * service at L4.
+ * backend/app/api/templates.py:L75 imports it. The same router imports the absent template
+ * service at L32.
  *
  * Every `Lnn` locator here numbers the frozen revision 06be74c that precedes this
  * documentation pass, so it excludes the comment blocks the pass added. Current HEAD numbers

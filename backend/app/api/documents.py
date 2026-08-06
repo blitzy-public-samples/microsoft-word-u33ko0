@@ -11,11 +11,11 @@ request and the template routes never run.
 
 The module cannot import. L4 requests `app.services.document_service`, whose
 own chain reaches `settings` in `app.core.config` through
-`app/db/firestore.py:L3`, and `app.core.config` defines only the `Settings`
+`app/db/firestore.py:L38`, and `app.core.config` defines only the `Settings`
 class and a `get_settings()` factory. L4 therefore raises `ImportError` first.
 L5 requests `app.api.auth` for the `get_current_user` defined at
-`app/api/auth.py:L14`, and `app/api/auth.py:L6` requests that same absent
-`settings`. `app/core/security.py:L32` defines a second `get_current_user`,
+`app/api/auth.py:L92`, and `app/api/auth.py:L84` requests that same absent
+`settings`. `app/core/security.py:L119` defines a second `get_current_user`,
 which this module does not import.
 
 Ten sites disagree with the service contract in
@@ -30,7 +30,7 @@ parentheses.
   two where three are declared (L43), and L45 passes one where two are
   declared (L63).
 - L26, L34 and L43 read `user_id` from a `Document`, and that contract
-  declares `owner_id` at `app/schema/document.py:L8`.
+  declares `owner_id` at `app/schema/document.py:L68`.
 - The arity mismatches above raise `TypeError`, not `HTTPException`. FastAPI
   leaves an uncaught `TypeError` to the server error handler, so a caller
   receives HTTP 500 rather than a document, a 403 or a 404.
@@ -84,8 +84,8 @@ async def create_document(document: DocumentCreate, current_user: User = Depends
         Firestore `documents` collection is the intended effect, and the write
         does not reach the service's `set` remote procedure call. L13 passes the
         whole `current_user` object where
-        `app/services/document_service.py:L11` declares `user_id: str`.
-        `app/services/document_service.py:L19` places that Pydantic model under
+        `app/services/document_service.py:L74` declares `user_id: str`.
+        `app/services/document_service.py:L118` places that Pydantic model under
         the `user_id` key of the dictionary, and `:L21` hands the dictionary to
         `DocumentReference.set`. The Firestore encoder accepts `None`, `bool`,
         `int`, `float`, `str`, `bytes`, `datetime`, `GeoPoint`,
@@ -134,7 +134,7 @@ async def get_documents(current_user: User = Depends(get_current_user)) -> List[
     L19 awaits `document_service.get_documents(current_user)`, and
     `DocumentService` defines no `get_documents` method. That class declares
     `create_document`, `get_document`, `update_document` and `delete_document`
-    at `app/services/document_service.py:L11`, `:L26`, `:L43` and `:L63`. The
+    at `app/services/document_service.py:L74`, `:L26`, `:L43` and `:L63`. The
     declared `List[Document]` cannot be produced, and L20 never runs.
 
     Side effects:
@@ -158,7 +158,7 @@ async def get_document(document_id: str, current_user: User = Depends(get_curren
 
     Raises:
         TypeError: At L25, because the call passes one argument where
-            `app/services/document_service.py:L26` declares `document_id` and
+            `app/services/document_service.py:L125` declares `document_id` and
             `user_id` after `self`. Python raises before the method body runs, so
             the failure is certain on every request. The handler wraps L25 in no
             `try` block, so FastAPI converts the uncaught error into a 500
@@ -176,9 +176,9 @@ async def get_document(document_id: str, current_user: User = Depends(get_curren
         route reads nothing and writes nothing.
 
     Two call sites disagree with their contracts. L25 passes one argument where
-    `app/services/document_service.py:L26` declares two, `document_id` and
+    `app/services/document_service.py:L125` declares two, `document_id` and
     `user_id`. L26 reads `user_id` from a `Document`, and that contract declares
-    `owner_id` at `app/schema/document.py:L8`. `owner_id` is optional and
+    `owner_id` at `app/schema/document.py:L68`. `owner_id` is optional and
     defaults to `None`, so a `Document` validates without the value the
     ownership check reads.
     """
@@ -203,11 +203,11 @@ async def update_document(document_id: str, document: DocumentUpdate, current_us
 
     Raises:
         TypeError: At L33, because the call passes one argument where
-            `app/services/document_service.py:L26` declares `document_id` and
+            `app/services/document_service.py:L125` declares `document_id` and
             `user_id` after `self`. Python raises before the method body runs, so
             the failure is certain on every request.
         TypeError: At L36, for the same class of mistake, because the call passes
-            two arguments where `app/services/document_service.py:L43` declares
+            two arguments where `app/services/document_service.py:L185` declares
             `document_id`, `document` and `user_id` after `self`. L36 is
             unreachable while L33 raises first.
         HTTPException: HTTP 403, detail
@@ -228,7 +228,7 @@ async def update_document(document_id: str, document: DocumentUpdate, current_us
     the Firestore `documents` collection, preceded by two reads: this handler's
     ownership read plus the service's own read-before-write. The ownership
     comparison at L34 reads `document.user_id` against a contract declaring
-    `owner_id` at `app/schema/document.py:L8`.
+    `owner_id` at `app/schema/document.py:L68`.
     """
     document_service = DocumentService()
     existing_document = await document_service.get_document(document_id)
@@ -251,11 +251,11 @@ async def delete_document(document_id: str, current_user: User = Depends(get_cur
 
     Raises:
         TypeError: At L42, because the call passes one argument where
-            `app/services/document_service.py:L26` declares `document_id` and
+            `app/services/document_service.py:L125` declares `document_id` and
             `user_id` after `self`. Python raises before the method body runs, so
             the failure is certain on every request.
         TypeError: At L45, for the same class of mistake, because the call passes
-            one argument where `app/services/document_service.py:L63` declares
+            one argument where `app/services/document_service.py:L254` declares
             `document_id` and `user_id` after `self`. L45 is unreachable while L42
             raises first.
         HTTPException: HTTP 403, detail
@@ -275,7 +275,7 @@ async def delete_document(document_id: str, current_user: User = Depends(get_cur
     Once the arity at L42 and L45 is corrected, the route performs one hard delete
     from the Firestore `documents` collection, with no soft-delete flag and no
     version retained. The ownership comparison at L43 reads `document.user_id`
-    against a contract declaring `owner_id` at `app/schema/document.py:L8`.
+    against a contract declaring `owner_id` at `app/schema/document.py:L68`.
     """
     document_service = DocumentService()
     existing_document = await document_service.get_document(document_id)

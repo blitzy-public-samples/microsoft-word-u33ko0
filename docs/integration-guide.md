@@ -1,14 +1,17 @@
 # Integration Guide
 
-Four external systems appear in this repository, and they sit in three different states of
-readiness. Google Cloud Firestore takes reads and writes on a path that a request can enter. Google
-Cloud Storage takes export objects and signs download links. Google Cloud Pub/Sub has a full set of
-publish and subscribe calls that no route can reach. Redis has a broker Uniform Resource Locator
-(URL) in configuration and no service anywhere in the committed infrastructure.
+**No Firestore, upload, or signed-URL call executes as committed.** The source contains these calls,
+but import, configuration, caller, and credential-signing prerequisites fail first.
 
-Every integration below carries one label, and each label arrives with the evidence that earns it. A
-reader who knows which of the four works can plan an afternoon's work. A reader given four
-evenly-toned descriptions cannot.
+Four external systems appear in this repository. Google Cloud Firestore has reads and writes written
+against it. Google Cloud Storage has export uploads and download-link signing written against it.
+Google Cloud Pub/Sub has a full set of publish and subscribe calls whose holding class nothing
+constructs. Redis has a broker Uniform Resource Locator (URL) in configuration and no service anywhere
+in the committed infrastructure.
+
+Every integration below carries one label, and each label arrives with the evidence that earns it,
+including the named prerequisite that stops it. A reader who knows what stands between the code and a
+working call can plan an afternoon's work. A reader given four evenly-toned descriptions cannot.
 
 ## How to read this guide
 
@@ -30,7 +33,7 @@ documents agree:
 Six words carry one fixed meaning throughout.
 
 | Term | Meaning |
-|------|---------|
+| ------ | --------- |
 | router | A FastAPI `APIRouter` instance |
 | handler | A route function carrying a `@router` decorator |
 | service | A domain service class under `backend/app/services/` |
@@ -46,38 +49,49 @@ SYSTEM ARCHITECTURE, `L300` SYSTEM DESIGN, `L523` TECHNOLOGY STACK and `L620` SE
 CONSIDERATIONS. A numbered section citation anywhere in this documentation set refers to the
 generated Technical Specification, a separate document, and the text says so when it does.
 
-Where this engagement made a judgement, [decision-log.md](decision-log.md) carries the argument. No
-rationale lives in this file.
+Where this engagement made a judgement, [decision-log.md](decision-log.md) will carry the argument.
+That file is planned for a later checkpoint and is not committed yet. No rationale lives in this file.
 
 ## Integration inventory
 
-Four integrations, four labels, and no overlap between them.
+Four integrations, four labels, and no overlap between them. No integration earns the strongest label.
 
 | Integration | Client library | Reachability | Entry point | Configuration it reads |
-|-------------|----------------|--------------|-------------|------------------------|
-| Google Cloud Firestore | `google-cloud-firestore` | **REACHABLE** | `DocumentService`, constructed by all five document handlers at `backend/app/api/documents.py:L110`, `:L144`, `:L185`, `:L233` and `:L280` | `GOOGLE_CLOUD_PROJECT`, declared at `backend/app/core/config.py:L116` |
-| Google Cloud Storage | `google-cloud-storage` | **REACHABLE for exports only** | `ExportService.export_to_pdf` at `backend/app/services/export_service.py:L87` and `export_to_docx` at `:L168`, plus the export task at `backend/app/tasks/background_tasks.py:L141-L146` | `STORAGE_BUCKET_NAME`, `SIGNED_URL_EXPIRATION`, `EXPORT_BUCKET_NAME` and `DOCUMENT_BUCKET_NAME`, none of them declared |
+| ------------- | ---------------- | -------------- | ------------- | ------------------------ |
+| Google Cloud Firestore | `google-cloud-firestore` | **WIRED, BLOCKED AT IMPORT** | `DocumentService`, constructed by all five document handlers at `backend/app/api/documents.py:L110`, `:L144`, `:L185`, `:L233` and `:L280` | `GOOGLE_CLOUD_PROJECT`, declared at `backend/app/core/config.py:L116` |
+| Google Cloud Storage | `google-cloud-storage` | **NOT REACHABLE** | `ExportService.export_to_pdf` at `backend/app/services/export_service.py:L87` and `export_to_docx` at `:L168`, plus the export task at `backend/app/tasks/background_tasks.py:L141-L146`. No handler calls either method, and no producer enqueues the task | `STORAGE_BUCKET_NAME`, `SIGNED_URL_EXPIRATION`, `EXPORT_BUCKET_NAME` and `DOCUMENT_BUCKET_NAME`, none of them declared |
 | Google Cloud Pub/Sub | `google-cloud-pubsub` | **SCAFFOLDED ONLY** | `CollaborationService.connect` at `backend/app/services/collaboration_service.py:L75` and `broadcast_change` at `:L218`, and no route constructs that class | `PROJECT_ID`, not declared |
 | Redis, as the Celery broker | `celery` | **ABSENT** | `celery_app` at `backend/app/tasks/background_tasks.py:L98`, carrying three tasks | `REDIS_URL`, declared at `backend/app/core/config.py:L119` |
 
-Three labels carry one fixed meaning in this guide and in the rest of the documentation set.
+Four labels carry one fixed meaning in this guide and in the rest of the documentation set.
 
 | Label | Meaning |
-|-------|---------|
-| **REACHABLE** | Committed code constructs the client library and issues a complete, well-formed call to the external system. Reachable describes the call, not the outcome. Every call in this repository still depends on configuration that no committed file supplies |
+| ------- | --------- |
+| **WIRED, BLOCKED AT IMPORT** | Committed code constructs the client library and issues complete, well-formed calls, and a caller exists, and the module holding it cannot import, so no call runs today |
+| **NOT REACHABLE** | Committed code writes the calls, and more than one independent barrier stands between a request and the external system. The entry-point column names them |
 | **SCAFFOLDED ONLY** | Committed code constructs the client library and writes the calls, and nothing in the application constructs the class holding them, so no call site can run |
 | **ABSENT** | Configuration names the integration and code reads that value, and no committed infrastructure provisions the service |
 
 Two qualifiers in the table need their reach spelled out, because a label invites the question
 "reachable from where?"
 
-- Firestore is reachable from an HTTP request. Five document handlers construct `DocumentService`,
-  and each of its four methods issues a Firestore call.
-- Cloud Storage is reachable only through export code. Export objects are the only bytes the
-  repository writes to any bucket, no route uploads a document or an image, and no handler calls
-  either export method.
+- Firestore is the one external system an HTTP handler calls. Five document handlers construct
+  `DocumentService`, and each of its four methods issues a Firestore call. No request reaches a
+  handler today, because importing the application raises `ImportError` on the absent `settings` name.
+- Cloud Storage is reached only from export code. Export objects are the only bytes the repository
+  writes to any bucket, no route uploads a document or an image, and no handler calls either export
+  method.
 
 ### The integration map
+
+No edge in the map below carries traffic today, and the diagram is a map of the calls the committed
+code writes rather than a map of live request flow. Two blockers sit in front of every edge.
+`backend/app/main.py:L16` reaches `backend/app/api/auth.py:L84`, which asks `app.core.config` for a
+`settings` name that module never binds, so importing the application raises `ImportError` and no
+route is ever registered. Nine of the fifteen settings the code reads are declared nowhere, and no
+committed file supplies a value for any of them. Read a thick edge as "the call is written in full and
+would run once those blockers clear" and a dotted edge as "the link is broken in the code itself and
+would still not run".
 
 ```mermaid
 graph LR
@@ -90,43 +104,45 @@ graph LR
     COLSVC["CollaborationService<br/>collaboration_service.py:L41"]
     TASKS["3 Celery tasks<br/>background_tasks.py:L101, L152, L287"]
 
-    FS["Google Cloud Firestore<br/>REACHABLE"]
-    GCS["Google Cloud Storage<br/>REACHABLE for exports only"]
+    FS["Google Cloud Firestore<br/>WIRED, BLOCKED AT IMPORT"]
+    GCS["Google Cloud Storage<br/>NOT REACHABLE"]
     PS["Google Cloud Pub/Sub<br/>SCAFFOLDED ONLY"]
     REDIS["Redis broker<br/>ABSENT"]
 
-    BROWSER -->|"REST over HTTP"| APP
-    APP --> ROUTERS
-    ROUTERS -->|"constructs at L110, L144, L185, L233, L280"| DOCSVC
-    DOCSVC -->|"set L120, get L171, update L248, delete L286"| FS
+    BROWSER ==>|"REST over HTTP; no request completes,<br/>the application cannot import"| APP
+    APP ==>|"registers 4 routers, main.py:L125-L128,<br/>never reached"| ROUTERS
+    ROUTERS ==>|"constructs at documents.py:L110, :L144,<br/>:L185, :L233, :L280"| DOCSVC
+    DOCSVC ==>|"set document_service.py:L120, get :L171,<br/>update :L248, delete :L286"| FS
 
-    EXPSVC -.->|"upload L157 and v4 signing L160-L164 are complete; no handler calls either method"| GCS
-    TASKS -.->|"constructs at L131, then calls convert_document at L138, which the class never defines"| EXPSVC
-    TASKS -.->|"read L267, delete L274, update L317; no producer runs them"| FS
-    TASKS -.->|"upload L143 and a signed URL at L146 with no version argument"| GCS
-    TASKS -.->|"broker URL read at L98 resolves to no service"| REDIS
+    EXPSVC -.->|"upload export_service.py:L157 and v4 signing :L160-L164 are<br/>written in full; no handler calls either method"| GCS
+    TASKS -.->|"constructs at background_tasks.py:L131, then calls convert_document<br/>at :L138, which the class never defines"| EXPSVC
+    TASKS -.->|"read background_tasks.py:L267, delete :L274, update :L317;<br/>no producer runs them"| FS
+    TASKS -.->|"upload background_tasks.py:L143 and a signed URL at :L146<br/>with no version argument"| GCS
+    TASKS -.->|"broker URL read at background_tasks.py:L98 resolves to no service"| REDIS
     ROUTERS -.->|"no producer: zero .delay() and .apply_async() call sites exist"| TASKS
     ROUTERS -.->|"no route constructs CollaborationService"| COLSVC
-    COLSVC -.->|"subscribe L165 and publish L248 never run"| PS
+    COLSVC -.->|"subscribe collaboration_service.py:L165 and publish :L248 never run"| PS
     BROWSER -.->|"no module imports collaboration.ts, so nothing constructs the client class"| SOCK
     SOCK -.->|"no route joins Socket.IO to the FastAPI WebSocket signature"| COLSVC
 
-%% A solid edge carries a call today. A dashed edge marks a link that carries none, and its label
-%% names the reason. Node labels on the four external systems repeat the inventory label.
+%% No edge carries traffic today. A thick edge marks a call written in full that would run once the
+%% import chain and the undeclared settings are repaired. A dotted edge marks a link broken in the
+%% code itself, and its label names the reason. Node labels repeat the inventory label.
 ```
 
 ## Google Cloud Firestore
 
-**REACHABLE.** Firestore is the only external system a committed HTTP request reaches. Five document
-handlers construct `DocumentService` at `backend/app/api/documents.py:L110`, `:L144`, `:L185`,
-`:L233` and `:L280`, and each of that class's four methods issues a Firestore call. Firestore also
-holds every record the code writes, because the SQLAlchemy path stays declared and unused.
+**REACHABLE.** Firestore is the only external system a committed HTTP handler calls, which is what
+the label means here, not that any request completes. Five document handlers construct
+`DocumentService` at `backend/app/api/documents.py:L110`, `:L144`, `:L185`, `:L233` and `:L280`, and
+each of that class's four methods issues a Firestore call. Firestore also holds every record the
+code writes, because the SQLAlchemy path stays declared and unused.
 [data-model.md](data-model.md) covers the split.
 
 Two independent access paths exist, and only one of them has a caller.
 
 | Access path | Location | Callers |
-|-------------|----------|---------|
+| ------------- | ---------- | --------- |
 | The adapter's four helpers | `backend/app/db/firestore.py:L44`, `:L72`, `:L94`, `:L112` | None. No module imports any of the four |
 | `DocumentService`, calling the client directly | `backend/app/services/document_service.py:L64` | Five document handlers, plus three call sites inside the task module |
 
@@ -154,14 +170,16 @@ exception. [../backend/app/db/README.md](../backend/app/db/README.md) carries th
 ### The service, and the shape of its calls
 
 `DocumentService` holds the shared client at `backend/app/services/document_service.py:L72` and
-issues six Firestore calls across four methods.
+issues **seven** remote Firestore operations across four methods. The count excludes
+`collection()` and `document()`, which build a reference locally and send nothing, so
+`:L116`, `:L170`, `:L236` and `:L275` are not remote operations.
 
-| Method | Firestore calls | Locators |
-|--------|-----------------|----------|
-| `create_document` at `:L74` | Document reference, then `set` | `:L116`, `:L120` |
-| `get_document` at `:L125` | `get` | `:L171` |
-| `update_document` at `:L185` | `get`, `update`, then `get` again | `:L237`, `:L248`, `:L251` |
-| `delete_document` at `:L254` | `get`, then `delete` | `:L276`, `:L286` |
+| Method | Remote operations | Count | Locators |
+|--------|-------------------|-------|----------|
+| `create_document` at `:L74` | `set` | 1 | `:L120`, on the reference built at `:L116` |
+| `get_document` at `:L125` | `get` | 1 | `:L171`, on the reference built at `:L170` |
+| `update_document` at `:L185` | `get`, `update`, then `get` again | 3 | `:L237`, `:L248`, `:L251` |
+| `delete_document` at `:L254` | `get`, then `delete` | 2 | `:L276`, `:L286` |
 
 The update path reads, modifies, then reads again, which costs three Firestore operations for one
 logical update. The first read at `:L237` supports the existence check at `:L240` and the ownership
@@ -176,13 +194,18 @@ detail.
 
 ### What the background tasks touch
 
-Two of the three Celery tasks reach Firestore, and neither runs today, because no producer enqueues
-them. The [Redis broker section](#redis-broker-for-celery) carries that evidence.
+Two of the three Celery tasks in `backend/app/tasks/background_tasks.py` reach Firestore, and
+neither runs today, because no producer enqueues them. The
+[Redis broker section](#redis-broker-for-celery) carries that evidence.
 
 | Task | Firestore work | Locators |
-|------|----------------|----------|
+| ------ | ---------------- | ---------- |
 | `cleanup_expired_documents` at `:L152` | Queries `documents` on an expiry comparison, deletes the matching document, calls `.delete()` on a `document_permissions` query result, then deletes from `document_metadata` | `:L267`, `:L274`, `:L283`, `:L284` |
-| `update_document_statistics` at `:L287` | Updates `documents` with a recomputed word and page count | `:L317` |
+| `update_document_statistics` at `:L287` | Reads one document through `DocumentService.get_document`, then updates `documents` with a recomputed word and page count | `:L310`, `:L317` |
+
+`process_document_export` reaches Firestore indirectly rather than through the `db` client, and the
+call at `:L135` passes two arguments to a service method that accepts two, so the arity is correct
+there. `update_document_statistics` passes one argument at `:L310` to the same two-argument method.
 
 Two faults sit inside that work. `backend/app/tasks/background_tasks.py:L267` calls
 `datetime.now()`, and `:L96` imports `timedelta` alone, so the name `datetime` is undefined and the
@@ -199,10 +222,13 @@ alone, and no schema in either language models either of them.
 
 ## Google Cloud Storage and version 4 signed URLs
 
-**REACHABLE for exports only.** Export objects are the only bytes this repository writes to any
-bucket. The write-and-sign sequence in `ExportService` is complete and correct in form, and no
-handler calls either export method, so a request never reaches that sequence today. No route uploads
-a document, and no route uploads an image, so nothing else in the codebase touches Cloud Storage.
+**REACHABLE for exports only, and structurally present rather than working.** Export objects are the
+only bytes this repository writes to any bucket. The write-and-sign sequence in `ExportService` is
+written in full and in the right order, and nothing in the application reaches it: no handler calls
+either export method, no route uploads a document, and no route uploads an image. Read the label as a
+statement about the shape of the call, not about a successful upload or a usable link. Three
+prerequisites stand between the committed code and either outcome, and the two subsections after the
+step table name each one.
 
 Two code paths construct a Cloud Storage client. `backend/app/services/export_service.py:L83` builds
 one per service instance, and `backend/app/tasks/background_tasks.py:L132` and `:L277` build one per
@@ -214,7 +240,7 @@ Both export methods are plain synchronous `def`, at `backend/app/services/export
 `:L168`. Each resolves a bucket, uploads a payload, signs a link, and returns the link.
 
 | Step | `export_to_pdf` | `export_to_docx` |
-|------|-----------------|------------------|
+| ------ | ----------------- | ------------------ |
 | Resolve the bucket from `settings.STORAGE_BUCKET_NAME` | `:L154` | `:L228` |
 | Target the object key | `:L155` | `:L229` |
 | Upload the payload | `:L157` | `:L231` |
@@ -230,12 +256,50 @@ The payloads are literal placeholder strings. `:L157` uploads `"PDF_CONTENT"` wi
 Multipurpose Internet Mail Extensions (MIME) types are correct for the format each method names. A
 browser receiving either object therefore treats eleven or twelve bytes of text as a document.
 
-Upload works and signing works. Conversion does not exist, and each method carries a `TODO` marker
-recording the gap, at `:L151`, `:L156`, `:L225` and `:L230`.
+Conversion does not exist, and each method carries a `TODO` marker recording the gap, at `:L151`,
+`:L156`, `:L225` and `:L230`.
 
 No module under `backend/app/` calls either method. The only callers anywhere sit in the test suite,
-at `backend/tests/test_services.py:L67` and `:L75`, and both pass a document identifier string where
-the signature declares a `Document`.
+at `backend/tests/test_services.py:L67` and `:L75`. Both pass the integer identifier `1`, bound at
+`:L65` and `:L73`, where the signature declares a `Document`.
+
+### What the upload and the signature each still need
+
+Neither the upload nor the signature completes as committed. Three prerequisites are missing, and they
+fail in this order inside `export_to_pdf`.
+
+| Order | Statement | Locator | What it needs |
+|-------|-----------|---------|---------------|
+| 1 | `self.storage_client.bucket(settings.STORAGE_BUCKET_NAME)` | `export_service.py:L154` | A declared `STORAGE_BUCKET_NAME`. `Settings` declares nine fields at `backend/app/core/config.py:L111-L119` and this is not among them, so attribute access raises `AttributeError` before any network call |
+| 2 | `blob.upload_from_string(...)` | `export_service.py:L157` | Credentials that authenticate and carry write permission on the bucket. `backend/app/db/firestore.py:L41` is the only Application Default Credentials resolution in the repository, and no committed file supplies `GOOGLE_APPLICATION_CREDENTIALS` |
+| 3 | `blob.generate_signed_url(version="v4", ...)` | `export_service.py:L160-L164` | Sign-capable credentials, and an expiry inside the version 4 limit |
+
+Signing is the prerequisite most easily missed, because it needs more than authentication. A version 4
+signature is computed locally, so the credentials must be able to sign bytes. Two credential shapes
+satisfy that:
+
+- **A service-account private key.** A key file referenced through `GOOGLE_APPLICATION_CREDENTIALS`,
+  which `backend/app/core/config.py:L116` declares as a required field and no committed `.env` file
+  supplies. `Config.env_file` at `:L123` names the file the repository does not commit.
+- **An IAM `signBlob` grant.** Credentials with no private key, such as a metadata-server token on a
+  Compute Engine or Cloud Run instance, can sign only by delegating to the IAM Credentials application
+  programming interface (API). That path needs the `iam.serviceAccounts.signBlob` permission on the
+  signing service account, granted through the Service Account Token Creator role, and the caller must
+  pass the signer identity explicitly. Neither the code nor
+  `infrastructure/terraform/main.tf` grants that permission or names a signer.
+
+Credentials resolved from a user account through `gcloud auth application-default login` carry neither
+a private key nor a signer identity, so `generate_signed_url` raises for a local developer even when
+the upload at `export_service.py:L157` succeeds.
+
+The expiry carries its own two constraints. `generate_signed_url` accepts an `int` of seconds, a
+`datetime.timedelta`, or an absolute `datetime`, and `export_service.py:L162` passes
+`settings.SIGNED_URL_EXPIRATION` with no conversion, so whatever type that field eventually holds is
+the type the call receives. A version 4 signature also caps the lifetime at seven days, and a longer
+expiry raises `ValueError` rather than returning a short-lived link. `Settings` declares no
+`SIGNED_URL_EXPIRATION`, so no committed value can be checked against either constraint. The method
+holds no `try` block, so both the `AttributeError` and the `ValueError` reach the caller unchanged, and
+step 2 has already written the placeholder object by the time step 3 fails.
 
 ### The task path signs differently
 
@@ -250,16 +314,26 @@ The two paths sign links differently. `:L146` calls
 passes `version="v4"` at `:L161` and `:L235`. A caller consuming both paths receives links signed
 under two different schemes.
 
-The two paths also disagree on where an export object lands.
+Three object-key layouts appear in the committed code, and no two of them agree.
 
 | Path | Object key | Locators |
-|------|-----------|----------|
+| ------ | ----------- | ---------- |
 | `ExportService` | `exports/{document.id}.pdf` and `exports/{document.id}.docx` | `:L155`, `:L229` |
 | `process_document_export` | `exports/{user_id}/{document_id}.{export_format}` | `:L142` |
 
-The same export therefore lands in two different places depending on which path runs. The service
-layout omits the owner and encodes the format in the file extension. The task layout partitions by
-owner and takes the format from a caller-supplied string that nothing validates.
+The two writers disagree with each other. The service layout omits the owner and encodes the format
+in the file extension. The task layout partitions by owner and takes the format from a
+caller-supplied string that nothing validates. The same export therefore lands in two different
+places depending on which path runs.
+
+The third layout is the one that matters most, because it deletes rather than writes.
+`backend/app/tasks/background_tasks.py:L279` builds `{user_id}/{doc_id}` and `:L280` calls
+`blob.delete()` on it. That key matches neither writer, carrying no `exports/` prefix and no file
+extension. The service path produces `exports/{document.id}.pdf` at `export_service.py:L155`, and the
+task path produces `exports/{user_id}/{document_id}.{export_format}` at `background_tasks.py:L142`.
+Neither shape can be named by the deletion key. The retention sweep would therefore reclaim nothing,
+and it reads a third bucket name, `DOCUMENT_BUCKET_NAME`, which no other code path writes to. Three
+layouts, three bucket settings, and no agreement between the writers and the deleter.
 
 ### Four settings fields, none of them declared
 
@@ -267,7 +341,7 @@ Cloud Storage code reads three bucket names and one expiry value, and `Settings`
 the four.
 
 | Field | Read at | Status |
-|-------|---------|--------|
+| ------- | --------- | -------- |
 | `STORAGE_BUCKET_NAME` | `export_service.py:L154`, `:L228` | Read but never declared |
 | `SIGNED_URL_EXPIRATION` | `export_service.py:L162`, `:L236` | Read but never declared |
 | `EXPORT_BUCKET_NAME` | `background_tasks.py:L141` | Read but never declared |
@@ -281,9 +355,50 @@ read and never declared, against nine that are declared.
 [../backend/app/core/README.md](../backend/app/core/README.md) carries the full configuration
 census.
 
+One of the four sets the lifetime of a bearer credential, and no committed contract bounds it.
+`SIGNED_URL_EXPIRATION` reaches `Blob.generate_signed_url` as the `expiration` argument at
+`backend/app/services/export_service.py:L162` and `:L236`. `backend/app/core/config.py` declares no
+field of that name, so it carries no type, no default, no `Field` constraint and no validator, and
+defined bounds on the value measure zero. That matters more than an ordinary missing setting, because
+a version 4 signed URL needs no authentication to redeem. Whoever holds the link holds the object for
+as long as the link lives, so the lifetime is the whole of the access control.
+
+Two failure modes follow once a value arrives. A unit mistake passes silently, because the client
+library reads a bare integer as seconds while a `timedelta` or a `datetime` means something else.
+Nothing in the codebase distinguishes the three. An over-long lifetime passes too, since the only
+ceiling in play is the client library's version 4 limit of seven days rather than any project policy.
+
+No signed URL is generated today. Three barriers stand in front of the gap in this order: the absent
+`settings` singleton at `backend/app/services/export_service.py:L61`, the undeclared
+`STORAGE_BUCKET_NAME` at `:L154`, then the undeclared `SIGNED_URL_EXPIRATION` at `:L162`. Version 4
+signing also needs a service-account private key, which Application Default Credentials does not
+supply. Read the gap as one to close before the first link is issued, not as an exposure running now.
+The same limitation is recorded against the modules that hold it, in
+[../backend/app/core/README.md](../backend/app/core/README.md) and
+[../backend/app/services/README.md](../backend/app/services/README.md).
+
 `infrastructure/terraform/main.tf:L50` declares one `google_storage_bucket` resource, and no
 committed file connects that bucket's name to any of the four settings fields above.
 [deployment-guide.md](deployment-guide.md) covers the infrastructure side.
+
+### Signed-link trust boundary
+
+A signed URL is a bearer credential. Anyone holding the string can fetch the object until the signature
+expires, with no account, no token and no further check, so the link is the authorization. Treat every
+one of these links as a secret in transit and at rest. The constraints below are absent from the
+committed code and become prerequisites the moment a caller reaches the signing calls.
+
+| # | Constraint | Committed state |
+|---|------------|-----------------|
+| 1 | A reviewed expiry, short enough to bound exposure | `export_service.py:L162` and `:L236` read `settings.SIGNED_URL_EXPIRATION`, which `Settings` never declares, so no value and no ceiling exists in the repository. `background_tasks.py:L146` hard-codes `timedelta(hours=1)` instead, so the two paths would expire differently even once the field exists |
+| 2 | One signing scheme | The service passes `version="v4"` at `:L161` and `:L235`. The task passes no `version` argument at `:L146`. A consumer of both paths receives links signed under two different schemes |
+| 3 | An authorization check before a link is minted | Neither export method takes a caller identity. `export_to_pdf` at `:L87` and `export_to_docx` at `:L168` accept a `Document` and sign a link for it, and nothing compares a requesting user against the document's owner first. `process_document_export` at `background_tasks.py:L101` takes `user_id` and uses it only to build the object key at `:L142` |
+| 4 | A signing credential held as a secret | Signing needs a private key or an IAM SignBlob delegation. No committed file supplies either, and `scripts/deploy.sh:L19` would archive a service-account key JSON file sitting in the working tree and `:L23` would upload it. [../scripts/README.md](../scripts/README.md) carries that path |
+| 5 | No link in a log or an error | `frontend/src/services/api.ts` and the page handlers log whole error objects, so a returned link would land in the console alongside the rest of the response. [../frontend/src/pages/README.md](../frontend/src/pages/README.md) records the logging behaviour |
+| 6 | Object-level access control that the link cannot bypass | `infrastructure/terraform/main.tf:L54` sets `uniform_bucket_level_access = true`, which is the right default. `:L56-L58` enables versioning with no `lifecycle_rule`, so an earlier generation of an export object is retained after a live delete and remains addressable to anyone able to name it. [../infrastructure/terraform/README.md](../infrastructure/terraform/README.md) carries the bucket detail |
+
+None of the six is changed here. Each is recorded so that whoever makes this path reachable knows what
+has to land with it.
 
 ## Google Cloud Pub/Sub
 
@@ -311,7 +426,7 @@ views of who is connected.
 Four Pub/Sub calls exist across three methods.
 
 | Method | Pub/Sub call | Locator |
-|--------|--------------|---------|
+| -------- | -------------- | --------- |
 | `connect` at `:L75` | `create_subscription` | `:L124` |
 | `connect` at `:L75` | `subscribe` | `:L165` |
 | `disconnect` at `:L173` | `delete_subscription` | `:L211` |
@@ -319,27 +434,72 @@ Four Pub/Sub calls exist across three methods.
 
 `connect` registers the socket at `:L117`, then builds a per-document topic path at `:L120` and a
 per-document, per-user subscription path at `:L121`. Both paths interpolate `settings.PROJECT_ID`,
-and `Settings` never declares that field, so both lines raise `AttributeError` before any Pub/Sub
-call runs. `disconnect` rebuilds the same subscription path at `:L209`, and `broadcast_change`
-rebuilds the same topic path at `:L245`.
+and `Settings` never declares that field, so `:L120` raises `AttributeError` before any Pub/Sub call
+runs. `disconnect` rebuilds the same subscription path at `:L209`, and `broadcast_change` rebuilds the
+same topic path at `:L245`.
 
-### Five faults inside the collaboration path
+### The topic must already exist, and nothing creates it
 
-- **A registered socket can survive with no subscription.** `:L124` calls `create_subscription`
-  inside a `try`. On failure, `:L127` prints the error and `:L128` returns. The socket registered at
-  `:L117` stays in `active_connections`, and the method has already returned, so that connection
-  receives nothing and no later call removes it.
-- **`asyncio` is undefined.** The callback at `:L131` calls `asyncio.run(...)` at `:L163`, and the
-  module imports no `asyncio`. Every delivered message raises `NameError` inside the callback.
-- **`json` is undefined.** `broadcast_change` calls `json.dumps(change)` at `:L248`, and the module
-  imports no `json`. Every publish raises `NameError` before the client library sees the payload.
+Two of the four Pub/Sub calls name a topic and require it to exist. `create_subscription` at `:L124`
+passes `topic=topic_name`, and Pub/Sub answers `NotFound` when that topic is absent. `publish` at
+`:L248` addresses the same path and fails the same way. Neither call creates a topic, and no
+`create_topic` call exists anywhere in the repository. The module's own docstring records the gap at
+`backend/app/services/collaboration_service.py:L8-L12`.
+
+No committed infrastructure supplies the topic either. Searching all of `infrastructure/` for
+`pubsub`, `topic` and `subscription` returns nothing, and `infrastructure/terraform/main.tf` declares
+one provider plus four Google Cloud resources with no messaging resource among them. The topic name is
+derived per document at `backend/app/services/collaboration_service.py:L120`, so a deployment would
+need one topic per document identifier, created outside this repository before any editor connects.
+
+| Call | Locator | Needs a topic | Status without a pre-created topic |
+|------|---------|---------------|-------------------------------------|
+| `create_subscription` | `collaboration_service.py:L124` | Yes, as the `topic` argument | **BLOCKED.** `NotFound`, caught at `:L125`, printed at `:L127`, then `:L128` returns |
+| `subscribe` | `collaboration_service.py:L165` | No, it names the subscription | Never reached, because `:L128` returned first |
+| `delete_subscription` | `collaboration_service.py:L211` | No, it names the subscription | `NotFound` for a subscription that was never created, caught at `:L212` and printed at `:L214` |
+| `publish` | `collaboration_service.py:L248` | Yes, as the destination path | **BLOCKED.** `NotFound`, caught at `:L250`, printed at `:L252`, and the method returns normally |
+
+Creating the topic outside the repository is therefore a prerequisite for the collaboration path, and
+it sits behind the earlier blockers rather than in front of them: no route constructs the class, and
+`settings.PROJECT_ID` is undeclared.
+
+### Seven faults inside the collaboration path
+
+- **`asyncio` is undefined, and two further faults sit on the same line.** The callback at
+  `backend/app/services/collaboration_service.py:L131` calls
+  `asyncio.run(websocket.send_json(message.data))` at `:L163`, and the module imports no
+  `asyncio`, so the first delivered message raises `NameError`. Supplying the import exposes the
+  second fault: `message.data` is `bytes` on a Pub/Sub message, `WebSocket.send_json` serializes with
+  `json.dumps`, and `json.dumps` rejects `bytes`. Nothing decodes the payload, while
+  `broadcast_change` encoded it as UTF-8 at `:L248`, so the round trip is unbalanced. The third fault
+  is event-loop ownership: `asyncio.run` builds a new loop and closes it on return, the `WebSocket`
+  belongs to the server's already-running loop, and `asyncio.run` refuses outright when a loop is
+  already running on the calling thread. The Pub/Sub client invokes the callback on its own thread, so
+  none of the three propagates to `connect`.
+- **A failed publish is caught and logged, not raised.** `broadcast_change` reads
+  `settings.PROJECT_ID` at `:L245`, which sits **above** the `try` at `:L247`, so the undeclared-field
+  `AttributeError` propagates to the caller on the first call and nothing is published. That is the
+  method's first statement, so it leaves no partial state. Everything after it is guarded: `:L248`
+  calls `json.dumps(change)` against a module that imports no `json`, and `:L250` catches every
+  exception the body raises while `:L252` prints it. Once `PROJECT_ID` exists, a publish failure
+  therefore surfaces as a printed line and a normal `None` return, and a caller cannot tell a
+  delivered change from a dropped one.
 - **Acknowledgement precedes delivery.** `:L162` calls `message.ack()` and `:L163` then sends the
   data to the socket. A send that fails after the acknowledgement loses the message, because Pub/Sub
   has already been told the message was handled and will not redeliver.
-- **Both futures block.** `:L168` calls `future.result()` on the streaming pull future, and `:L249`
-  calls `future.result()` on the publish future. Neither call passes a timeout, so each blocks the
-  calling thread until the future settles. `connect` is declared `async def`, so the block at
-  `:L168` holds the event loop rather than one worker thread.
+- **Both futures block, and the third method has no future to wait on.** `:L168` calls
+  `future.result()` on the streaming pull future, and `:L249` calls `future.result()` on the publish
+  future. Neither call passes a timeout, so each blocks the calling thread until the future settles.
+  `connect` is declared `async def`, so the block at `:L168` holds the event loop rather than one
+  worker thread. `disconnect` creates no future: `:L211` calls `delete_subscription`, which returns
+  nothing to wait on, so the method has nothing to block for and nothing to cancel.
+- **Two partial states can persist.** `connect` mutates the registry at `:L115-L117` before it touches
+  Pub/Sub. `:L124` calls `create_subscription` inside a `try`, and on failure `:L127` prints the error
+  and `:L128` returns, leaving the socket registered in `active_connections` with no subscription
+  behind it. That connection receives nothing and no later call removes it. `disconnect` removes the
+  registry entry at `:L203-L206` before it deletes the subscription, so a caught deletion failure at
+  `:L212` leaves a subscription with no registry entry. Neither method compensates, and neither reports
+  the state to its caller.
 
 Two markers sit inside this module, above `connect` at `:L73-L74` and above `broadcast_change` at
 `:L216-L217`. Both record the code authors' own confidence in the method beneath them. Read them in
@@ -347,13 +507,36 @@ place. [../backend/app/services/README.md](../backend/app/services/README.md) ca
 detail, and [troubleshooting.md](troubleshooting.md) registers the transport gap under
 [G7](troubleshooting.md#the-collaboration-path-has-no-route-and-two-protocols).
 
+### Collaboration trust boundary
+
+Being unreachable is not the same as being safe, and this path is neither. The controls listed below do
+not exist in the committed code, and each one becomes a prerequisite the moment a route constructs the
+service. None of them can be inferred from the current signatures, so a repair that only adds a
+WebSocket route would expose every gap at once.
+
+| # | Control | Committed state |
+|---|---------|-----------------|
+| 1 | Authenticate the connection | `connect` at `:L75` takes `websocket`, `document_id` and `user_id`. It accepts no token, reads no header and calls no dependency, so nothing establishes who is connecting. Every other protected surface in the backend goes through `get_current_user` at `backend/app/api/auth.py:L92`, and this path does not |
+| 2 | Authorize the identity against the document | Nothing compares `user_id` against the document's stored owner. `:L115-L117` registers the socket straight from the two string arguments. The document handlers at least attempt an owner check, at `backend/app/api/documents.py:L187`, `:L235` and `:L282` |
+| 3 | Validate `document_id` before it names a resource | `:L120`, `:L121` and `:L245` interpolate `document_id` directly into Pub/Sub topic and subscription paths. A caller-supplied string therefore selects the topic it publishes to and the subscription it creates, with no allow-list, no format check and no membership check |
+| 4 | Authorize a disconnect | `disconnect` at `:L173` takes the same two unverified strings and removes the entry at `:L204` and `:L206`, then deletes the subscription at `:L211`. Supplying another user's identifiers would drop that user's connection |
+| 5 | Validate the event payload | `broadcast_change` at `:L218` declares `change: dict` and publishes it unchanged at `:L248`. No schema constrains the keys, no field is bounded, and no type is checked |
+| 6 | Bound the payload size | Nothing limits the size of `change`. A large object is serialized and published as one message, and Pub/Sub rejects a message above its own limit rather than the application refusing it first |
+| 7 | Scope the fan-out per recipient | `active_connections[document_id]` maps every registered `user_id` to a socket, and the callback at `:L131` sends each delivered message to the socket at `:L163` with no per-recipient authorization check. One publish reaches every socket registered against that document |
+| 8 | Share state across processes | `__init__` at `:L67` builds `active_connections` as a plain dictionary in process memory, and the class docstring records the consequence at `:L44-L46`. A second server process shares none of it, so a fan-out under more than one worker reaches only the subset of clients that landed on the same process |
+
+Read the whole table as future work, not as a change made here. Nothing in this documentation pass
+alters the service. The security gates that must land before this integration is made reachable are
+ordered in [onboarding.md](onboarding.md), and [troubleshooting.md](troubleshooting.md) registers each
+one with its evidence.
+
 ## Redis broker for Celery
 
 **ABSENT.** Redis is declared in configuration and exists in no infrastructure, so no Celery task
 can be enqueued. The chain is three links long and every link is verifiable.
 
 | Link | Evidence |
-|------|----------|
+| ------ | ---------- |
 | Configuration declares the broker URL | `backend/app/core/config.py:L119` declares `REDIS_URL: str` with no default, so the field is required |
 | Code wires Celery to that value | `backend/app/tasks/background_tasks.py:L98` builds `Celery('microsoft_word', broker=settings.REDIS_URL)` at module scope |
 | No infrastructure provisions Redis | `infrastructure/docker/docker-compose.yml:L3-L39` defines exactly three services, `frontend` at `:L4`, `backend` at `:L17` and `db` at `:L30`. `infrastructure/terraform/main.tf` declares one provider and four Google Cloud resources, a network at `:L19`, a subnetwork at `:L25`, a firewall rule at `:L35` and a storage bucket at `:L50`, and no cache resource. Searching all of `infrastructure/` for `redis` or `memorystore` returns nothing |
@@ -368,7 +551,7 @@ same document lists Celery as the task queue, at `:L554` under the TECHNOLOGY ST
 Three tasks carry the `@celery_app.task` decorator, at `:L100`, `:L150` and `:L286`.
 
 | Task | Signature | Purpose in the code |
-|------|-----------|---------------------|
+| ------ | ----------- | --------------------- |
 | `process_document_export` | `:L101` | Convert a document, upload the object, return a signed link |
 | `cleanup_expired_documents` | `:L152` | Delete documents past an expiry date, plus their object and metadata |
 | `update_document_statistics` | `:L287` | Recompute a word and page count and write it back |
@@ -394,12 +577,16 @@ Two further defects sit in the task tier.
 
 ## Credential model
 
-Google credentials resolve at import time, not at first call. `backend/app/db/firestore.py:L41`
-calls `google.auth.default()` at module scope, so importing the adapter runs ADC discovery
-immediately. Any module that reaches `from app.db.firestore import db` inherits that requirement,
-which covers `backend/app/main.py:L21`, `backend/app/services/document_service.py:L61` and
-`backend/app/tasks/background_tasks.py:L93`. The next line, `:L42`, constructs the Firestore client
-eagerly rather than lazily.
+Google credentials are designed to resolve at import time, not at first call.
+`backend/app/db/firestore.py:L41` calls `google.auth.default()` at module scope, so importing the
+adapter would run ADC discovery immediately. Any module that reaches `from app.db.firestore import db`
+inherits that requirement, which covers `backend/app/main.py:L21`,
+`backend/app/services/document_service.py:L61` and `backend/app/tasks/background_tasks.py:L93`. The
+next line, `:L42`, constructs the Firestore client eagerly rather than lazily.
+
+No ADC discovery happens against the committed tree. `backend/app/db/firestore.py:L38` imports
+`settings` and raises `ImportError` first, so `:L41` and `:L42` never execute. The credential model
+below is the model the code declares.
 
 The database engine behaves the same way. `backend/app/db/sql.py:L16` calls
 `create_engine(settings.DATABASE_URL)` at module scope, so importing that module needs a connection
@@ -409,11 +596,24 @@ value passes here and fails at first use instead.
 Four surfaces supply credentials, and they do not agree on a single source.
 
 | Surface | What it supplies | Locator |
-|---------|------------------|---------|
+| --------- | ------------------ | --------- |
 | `Settings` | `GOOGLE_CLOUD_PROJECT` and `GOOGLE_APPLICATION_CREDENTIALS`, both `Optional[str]` | `backend/app/core/config.py:L116-L117` |
 | The nested `Config` class | An `.env` file as the fallback source, with UTF-8 encoding | `backend/app/core/config.py:L121-L124`, naming `.env` at `:L123` |
-| `scripts/deploy.sh` | A guard that exits 1 when `GOOGLE_APPLICATION_CREDENTIALS` is unset | `scripts/deploy.sh:L4-L7` |
-| `.github/workflows/cd.yml` | A project identifier and a service-account key, both from repository secrets named `GCP_PROJECT_ID` and `GCP_SA_KEY` | `.github/workflows/cd.yml:L13-L16` |
+| `scripts/deploy.sh` | A guard that exits 1 when `GOOGLE_APPLICATION_CREDENTIALS` is empty, and nothing more. See the note below | `scripts/deploy.sh:L4-L7` |
+| `.github/workflows/cd.yml` | A project identifier and a service-account key, both from repository secrets named `GCP_PROJECT_ID` and `GCP_SA_KEY`, passed to `google-github-actions/setup-gcloud`, which does authenticate the CLI | `.github/workflows/cd.yml:L13-L16` |
+
+`scripts/deploy.sh` supplies no credential to any tool. Two credential mechanisms exist and the
+script conflates them. `GOOGLE_APPLICATION_CREDENTIALS` configures Application Default Credentials,
+which the Google client libraries read, and the `gcloud` and `gsutil` command-line tools read their
+own credential store instead. `scripts/deploy.sh:L4-L7` tests only that the variable is non-empty: it
+checks no path, validates no key, runs no `gcloud auth activate-service-account --key-file`, and runs
+no `gcloud config set project`. Every cloud stage in that script is a CLI invocation rather than a
+client-library call, so a passing guard authorizes nothing. The gap first surfaces at
+`scripts/deploy.sh:L23`, the `gsutil cp` that is the script's first cloud command, which fails on
+missing credentials or a missing default project unless the host already carries an authenticated
+`gcloud` configuration. `.github/workflows/cd.yml:L13-L16` is the one path that does authenticate a
+CLI, because the `setup-gcloud` action consumes the key rather than an environment variable alone.
+[../scripts/README.md](../scripts/README.md) carries the per-stage detail.
 
 No `.env` file is committed, so the fallback source named at `backend/app/core/config.py:L123`
 resolves to nothing on a clean checkout. The environment must therefore supply all seven required
@@ -422,15 +622,29 @@ fields directly. `Settings` construction raises `ValidationError` when any one o
 
 One earlier failure hides all of the above. `backend/app/core/config.py` defines the `Settings`
 class at `:L51` and the `get_settings()` factory at `:L126`, and creates no module-level `settings`
-instance, while nine modules import that name. `import app.main` therefore raises `ImportError`
-before any credential call runs. [troubleshooting.md](troubleshooting.md) records the chain under
+instance. Eight modules import that name directly, and nine module-import failures trace back to it,
+because `app.main` fails both on its own import at `:L20` and earlier through `app.api.auth`.
+`import app.main` therefore raises `ImportError` before any credential call runs. [troubleshooting.md](troubleshooting.md) records the chain under
 [G2](troubleshooting.md#the-absent-settings-singleton).
+
+Two counts describe the reach of that single omission. Mixing them overstates the direct damage.
+**Eight modules import the `settings` name directly**, at `backend/app/main.py:L20`,
+`backend/app/api/auth.py:L84`, `backend/app/db/firestore.py:L38`, `backend/app/db/sql.py:L14`,
+`backend/app/services/collaboration_service.py:L39`,
+`backend/app/services/document_service.py:L62`, `backend/app/services/export_service.py:L61` and
+`backend/app/tasks/background_tasks.py:L92`. A ninth module is affected without importing the name.
+`backend/app/core/security.py:L45` imports `get_settings`, which does exist, and calls it at `:L179`,
+so that module fails later and for a different reason. The wider count is different again. Modules
+affected through the import chain reach twelve of the fifteen under `backend/app/`, because a module
+importing any of the eight inherits the failure. Only three import cleanly.
 
 ## The four end-to-end workflows and their contract mismatches
 
-Four workflows run from a page in the browser to a handler on the server. Each one has a matching
-server route, and each one carries at least one contract mismatch, which is what makes tracing them
-worthwhile. The application programming interface (API) route inventory belongs to
+Four workflows can be traced as intended workflows, from a page in the browser to a handler on the
+server. None of the four runs: the application cannot import, and each workflow carries at least one
+contract mismatch of its own, which is what makes tracing them worthwhile. Read each table below as a
+pairing of committed client code against committed server code, not as a request that completes. The
+application programming interface (API) route inventory belongs to
 [../backend/app/api/README.md](../backend/app/api/README.md). That README owns all 14 handlers, the
 split of 12 protected against 2 public, and the fact that no handler declares a `status_code`.
 Field-level drift belongs to [data-model.md](data-model.md).
@@ -440,31 +654,71 @@ One mismatch applies to three of the four workflows, so read it once here.
 document calls with `/documents` at `frontend/src/services/api.ts:L218`, `:L246` and `:L288`, and no
 server route carries that segment.
 
+The three prefixed calls do not all fail the same way, and the difference matters when reading a
+response. Assume for a moment that the import chain and the client's own blockers are repaired, so
+dispatch actually happens:
+
+| Client call | Locator | What the server does with it |
+|-------------|---------|------------------------------|
+| `GET /documents` | `frontend/src/services/api.ts:L218` | Matches `GET /{document_id}` at `backend/app/api/documents.py:L148`, because `/documents` is a single path segment. The single-document read runs with `document_id` bound to the string `documents`, and the client receives one object where it declared `Document[]` |
+| `POST /documents` | `frontend/src/services/api.ts:L246` | The single-segment shape matches `GET`, `PUT` and `DELETE` at `backend/app/api/documents.py:L148`, `:L191` and `:L240`, and no router declares `POST /{document_id}`. Starlette answers **405 Method Not Allowed** rather than 404 |
+| `PUT /documents/${documentId}` | `frontend/src/services/api.ts:L288` | Two path segments, and no two-segment route is registered anywhere in the four routers. The response is **404** |
+
+Every one of the three sits behind earlier blockers, so none is observable today.
+[troubleshooting.md](troubleshooting.md#the-client-calls-three-routes-that-do-not-exist) carries the
+same three outcomes in its route register.
+
 ### Register and sign in
 
-The client and the server disagree on the path, on the token field name, and on which HTTP client
-carries the call.
+The login call diverges from its intended server route in five independent places. Those are the path,
+the request origin, the body encoding, the credential field name and the response field name. The table
+sets the two sides against each other dimension by dimension, and
+[../frontend/src/services/README.md](../frontend/src/services/README.md) carries the same comparison
+for all six client call sites.
+
+| Dimension | Client, `login` at `frontend/src/services/auth.ts:L146` | Server, `POST /token` at `backend/app/api/auth.py:L170` |
+| --- | --- | --- |
+| Method | `POST` | `POST` |
+| Path | `/auth/login` | `/token`, since `backend/app/main.py:L125` mounts the router with no prefix |
+| Origin | Page origin. `auth.ts:L68` imports the bare `axios` global, which carries no `baseURL` | Wherever the service is served |
+| Encoding | JSON. Axios serializes the object literal at `:L146` | `application/x-www-form-urlencoded`, because `:L171` declares `OAuth2PasswordRequestForm` |
+| Credential fields | `email` and `password` | `username` and `password` |
+| Request headers | No `Authorization` header. `auth.ts` never reaches the interceptor at `api.ts:L140-L146` | The route is public and reads none |
+| Response fields | Reads `response.data.accessToken` at `:L147` | Returns `{"access_token": ..., "token_type": "bearer"}` at `:L243` |
+| State handoff | Writes the read value to `localStorage` under `accessToken` at `:L148` | None. The server holds no session |
+
+The other two calls in the same module have no working counterpart either.
 
 | Side | What runs | Locator |
-|------|-----------|---------|
+| ------ | ----------- | --------- |
 | Client | `login` posts to `/auth/login` | `frontend/src/services/auth.ts:L146` |
 | Client | Reads `response.data.accessToken` | `:L147` |
 | Client | Stores the value under `accessToken` in `localStorage` | `:L148` |
 | Client | `logout` posts to `/auth/logout` | `:L194` |
 | Client | `getCurrentUser` gets `/auth/me`, then casts with `as User` and no check | `:L239`, `:L240` |
-| Server | `POST /token` issues the token | `backend/app/api/auth.py:L171`, decorator at `:L170` |
-| Server | Returns `{"access_token": ..., "token_type": "bearer"}` | `:L243` |
-| Server | `POST /register` creates the user | `:L246`, decorator at `:L245` |
+| Server | `POST /register` creates the user, taking a JSON `UserCreate` body | `backend/app/api/auth.py:L246`, decorator at `:L245` |
+| Server | `GET /me` returns the caller, behind `get_current_user` | `backend/app/api/users.py:L33`, decorator at `:L32` |
 
-Three mismatches, each of which breaks the workflow on its own:
+Five mismatches, each of which breaks the workflow on its own:
 
 - **Path.** The client calls `/auth/login`, `/auth/logout` and `/auth/me`. The server exposes
   `POST /token`, `POST /register` and `GET /me`, the last of them on the user router at
   `backend/app/api/users.py:L32`. None of the three client paths matches a registered route, so all
-  three return 404.
+  three return 404. `GET /me` is itself shadowed, which the profile workflow below records.
+- **Request encoding.** `frontend/src/services/auth.ts:L146` calls `axios.post` with a plain object,
+  and Axios serializes a plain object as JSON with `Content-Type: application/json`. The server
+  declares `form_data: OAuth2PasswordRequestForm = Depends()` at `backend/app/api/auth.py:L171`, and
+  that dependency reads an `application/x-www-form-urlencoded` body. A JSON body therefore fails
+  request validation with 422 before the handler body runs, even if the path were corrected.
+- **Credential field name.** The client sends `email` and `password` at
+  `frontend/src/services/auth.ts:L146`. `OAuth2PasswordRequestForm` supplies `username` and
+  `password`, and `backend/app/api/auth.py:L233` reads `form_data.username`. No `email` field reaches
+  the handler, so the two ends disagree on the identifier as well as on the encoding.
 - **Token field name.** The server returns `access_token` at `backend/app/api/auth.py:L243`, and the
-  client reads `accessToken` at `frontend/src/services/auth.ts:L147`. A successful login would store
-  `undefined`.
+  client reads `accessToken` at `frontend/src/services/auth.ts:L147`, so the read yields `undefined`.
+  `localStorage.setItem` coerces its value to a string, so `:L148` stores the four-character string
+  `"undefined"` rather than the value `undefined`, and any later truthiness test on the stored value
+  passes.
 - **HTTP client.** `frontend/src/services/auth.ts:L68` imports the bare `axios` global and calls it
   directly at `:L146`, `:L194` and `:L239`. The configured instance lives in
   `frontend/src/services/api.ts:L162`, and its request interceptor at `:L140-L146` is the only code
@@ -478,7 +732,7 @@ form, so a user cannot reach either server route through the interface.
 ### Open and edit a document with auto-save
 
 | Side | What runs | Locator |
-|------|-----------|---------|
+| ------ | ----------- | --------- |
 | Client | Imports `getDocument` and `updateDocument` from the API module | `frontend/src/pages/Editor.tsx:L25` |
 | Client | Loads the document inside an effect, guarded on the identifier | `:L105-L120`, guard at `:L117`, call at `:L108` |
 | Client | Auto-saves inside a second effect | `:L186-L216` |
@@ -505,16 +759,22 @@ Four mismatches:
   declared intent and the five-second timer as committed behaviour.
 
 The auto-save effect carries no null guard and no empty-content guard. `:L207` dereferences
-`currentDocument.id` with no test, while the sibling load effect does guard, at `:L117`. The effect
-body runs on mount, so the timer fires five seconds after the page appears. That first save carries
-empty content and targets an identifier that may not exist yet. Failures stop at `:L209`, where
-`console.error` writes the message and the reader of the page sees nothing.
+`currentDocument.id` with no test, while the sibling load effect does guard, at `:L117`. The effect body
+runs on mount, so the timer fires five seconds after the page appears.
+
+**That first firing sends no request.** `currentDocument` comes from the selector at `:L85`, and
+`frontend/src/store/documentSlice.ts:L34` initialises `currentDocument` to `null`. Dereferencing
+`currentDocument.id` at `:L207` therefore raises `TypeError` inside the client, on the argument
+expression, before `updateDocument` is called and before any network activity begins. The `catch` at
+`:L208` receives that `TypeError`, `console.error` at `:L209` writes it, and the outstanding-work
+comment at `:L210` records the gap. No HTTP request reaches the server, so no server-side effect and no
+partial write is possible from this path. The reader of the page sees nothing either way.
 [../frontend/src/pages/README.md](../frontend/src/pages/README.md) carries the page detail.
 
 ### Browse and select a template
 
 | Side | What runs | Locator |
-|------|-----------|---------|
+| ------ | ----------- | --------- |
 | Client | Imports `getTemplates` from the API module | `frontend/src/pages/Templates.tsx:L35` |
 | Client | Calls it inside a load effect | `:L142` |
 | Client | Declares a local `Template` interface | `:L61-L66` |
@@ -535,7 +795,10 @@ Four mismatches:
   router and `:L128` registers the template router, both with no prefix. FastAPI matches in
   registration order, and `/{document_id}` and `/{template_id}` compile to the same single-segment
   shape, so the document handler answers first for every single-segment path. The five paths in
-  `templates.py` duplicate the five in `documents.py` exactly.
+  `templates.py` duplicate the five in `documents.py` exactly. The same registration order shadows
+  the two profile routes as well, which makes seven of the twelve protected handlers unreachable
+  rather than five. See the profile workflow below and
+  [troubleshooting.md](troubleshooting.md#document-routes-shadow-the-template-and-profile-routes).
 - **Two imported modules do not exist.** `backend/app/api/templates.py:L75` imports `Template`,
   `TemplateCreate` and `TemplateUpdate` from `app.schema.template`, and `:L76` imports
   `TemplateService` from `app.services.template_service`. Neither module is committed, so importing
@@ -544,24 +807,31 @@ Four mismatches:
 ### View and update the profile
 
 | Side | What runs | Locator |
-|------|-----------|---------|
+| ------ | ----------- | --------- |
 | Client | Imports `updateUserSettings` from the API module | `frontend/src/pages/Settings.tsx:L31` |
 | Client | Initialises the form from `currentUser?.name` | `:L82` |
 | Client | Submits `{ name, email }` | `:L121`, handler at `:L118` |
 | Server | `GET /me` returns the caller | `backend/app/api/users.py:L33`, decorator at `:L32` |
 | Server | `PUT /me` applies the update | `:L54`, decorator at `:L53` |
 
-Three mismatches:
+Four mismatches:
 
 - **`updateUserSettings` does not exist.** `frontend/src/services/api.ts` exports the same three
   functions at `:L217`, `:L245` and `:L287`, and none of them is `updateUserSettings`.
+- **Both profile routes are shadowed.** `/me` is a literal path and still a single segment, so it
+  falls inside the pattern the document router already claimed. `backend/app/main.py:L126` registers
+  documents ahead of `:L127` profiles, so `GET /{document_id}` at
+  `backend/app/api/documents.py:L148` answers `GET /me` and `PUT /{document_id}` at `:L191` answers
+  `PUT /me`. A profile fetch reaches the single-document read with `document_id` bound to the literal
+  string `me`, and neither handler at `backend/app/api/users.py:L32` or `:L53` ever runs.
 - **No contract declares `name`.** The page reads `currentUser?.name` at `Settings.tsx:L82` and
   submits a `name` field at `:L121`. The Pydantic `UserBase` model declares `email`, `username` and
   `full_name` at `backend/app/schema/user.py:L80-L82`, and the Zod `UserSchema` declares the same
   three at `frontend/src/schema/user.ts:L39-L41`. Neither language models a `name` field.
   [data-model.md](data-model.md) carries the field census.
-- **Both handlers are synchronous.** `:L33` and `:L54` are plain `def`, and they are the only two of
-  the 14 handlers that are not `async def`. `:L80` calls `user_service.update_user(...)` without
+- **Both handlers are synchronous.** `backend/app/api/users.py:L33` and `:L54` are plain `def`, and
+  they are the only two of the 14 handlers that are not `async def`. `:L80` calls
+  `user_service.update_user(...)` without
   awaiting it, so a coroutine result would be truthy and would pass the check at `:L81` unexecuted.
   The marker at `:L76-L78` records that the `UserService` contract is unverified, and
   `app.services.user_service` is not a committed module.
@@ -573,7 +843,7 @@ between them. Neither end can reach the other under any configuration, because t
 differ and no handler bridges them.
 
 | End | Transport | Locator |
-|-----|-----------|---------|
+| ----- | ----------- | --------- |
 | Client | `socket.io-client`, with `io()` called with no URL | `frontend/src/services/collaboration.ts:L13`, call at `:L77` |
 | Server | `fastapi.WebSocket` as the first parameter of `connect` | `backend/app/services/collaboration_service.py:L36`, signature at `:L75` |
 | Between them | Nothing. No `@app.websocket` route and no `@router.websocket` route exists anywhere | Searched all four routers and `backend/app/main.py` |
@@ -598,7 +868,7 @@ the wider map.
 
 ## Related documentation
 
-Start at [docs/README.md](README.md), which indexes every document in this set.
+[docs/README.md](README.md) is planned as the index for this documentation set, and is not committed yet.
 
 Repository-level documents beside this one:
 
@@ -608,7 +878,7 @@ Repository-level documents beside this one:
 - [deployment-guide.md](deployment-guide.md), what the Terraform, Docker and pipeline assets do
   today
 - [onboarding.md](onboarding.md), clean-machine setup and a prioritised task list
-- [decision-log.md](decision-log.md), every judgement this engagement made, with its reasoning
+- [decision-log.md](decision-log.md), planned and not yet committed, for every judgement this engagement made and its reasoning
 
 Module documentation for the directories this guide draws on:
 

@@ -13,12 +13,12 @@ Pydantic never publishes.
 Every import resolves and `import app.schema.document` succeeds, because this file
 depends only on pydantic, typing and datetime, never on the absent `settings`
 singleton in app/core/config.py. `List` on the typing import line is imported
-and never used. No app/schema/template.py exists, though app/api/templates.py:L33
+and never used. No app/schema/template.py exists, though app/api/templates.py:L254
 imports Template, TemplateCreate and TemplateUpdate from app.schema.template.
 
-Consumers. app/api/documents.py:L11 binds DocumentCreate as the create request
-body. app/api/documents.py:L31 binds DocumentUpdate as the update request body and
-passes it to the service signature at app/services/document_service.py:L43.
+Consumers. app/api/documents.py:L57 binds DocumentCreate as the create request
+body. app/api/documents.py:L192 binds DocumentUpdate as the update request body and
+passes it to the service signature at app/services/document_service.py:L185.
 DocumentCreate adds no field of its own, so the create request body accepts a
 client-supplied `owner_id`. No module imports DocumentVersion, and the name
 appears exactly once across the repository's Python files, at its definition on
@@ -27,15 +27,15 @@ L22.
 DocumentBase declares `owner_id` while DocumentVersion declares `user_id`. See
 docs/data-model.md for the full comparison. `owner_id` at L8 is optional with a
 default of `None`, so a document validates with no owner recorded, while ownership
-decides access at app/services/document_service.py:L35, :L52 and :L72.
+decides access at app/services/document_service.py:L177, :L52 and :L72.
 
-`Document(**doc_data)` at app/services/document_service.py:L24 raises a Pydantic
+`Document(**doc_data)` at app/services/document_service.py:L123 raises a Pydantic
 validation error on two missing required fields.
-app/services/document_service.py:L18-L20 assembles `doc_data` from `title`,
+app/services/document_service.py:L117-L119 assembles `doc_data` from `title`,
 `content`, `owner_id`, `user_id` and `id`, and writes neither `created_at` nor
 `updated_at`, which L19 and L20 declare as required.
 
-app/api/documents.py:L26, :L34 and :L43 read `.user_id` on a value of the
+app/api/documents.py:L187, :L34 and :L43 read `.user_id` on a value of the
 `Document` type. The model never declares `user_id`, so the attribute access
 fails.
 

@@ -42,13 +42,13 @@ import { setCurrentDocument } from '@/store/documentSlice';
  *
  * - `getDocument` is absent from `frontend/src/services/api.ts`, so the load call names an
  *   undefined symbol.
- * - No committed path seeds `currentDocument.id`, so the load guard at L30 never passes.
- * - `services/api.ts:L16` raises inside the request interceptor, so `updateDocument` rejects
+ * - No committed path seeds `currentDocument.id`, so the load guard at L117 never passes.
+ * - `services/api.ts:L142` raises inside the request interceptor, so `updateDocument` rejects
  *   before transport.
  * - The client path `PUT /documents/{id}` is two segments and matches no registered route, so
  *   a repaired client receives 404.
- * - `backend/app/api/documents.py:L33` passes one argument where
- *   `backend/app/services/document_service.py:L26` declares two, so a repaired client path
+ * - `backend/app/api/documents.py:L234` passes one argument where
+ *   `backend/app/services/document_service.py:L125` declares two, so a repaired client path
  *   still receives 500.
  *
  * Intended behavior once those five are repaired: the load effect requests a document and
@@ -63,21 +63,21 @@ import { setCurrentDocument } from '@/store/documentSlice';
  * Accessibility: the page renders no heading, and the Draft.js surface inside `DocumentCanvas`
  * carries no accessible name, so assistive technology reaches an unlabelled text box.
  *
- * L55 renders a second `Header`. `App.tsx:L17` already renders one around every route, and
- * `App.tsx:L26` renders a `Footer` that this page does not repeat. The three sibling pages in this
+ * L234 renders a second `Header`. `App.tsx:L49` already renders one around every route, and
+ * `App.tsx:L58` renders a `Footer` that this page does not repeat. The three sibling pages in this
  * directory each render both, so the editor is the only route without a page-level footer.
  *
- * The three class names at L54, L56 and L58 resolve to no style. The repository commits no `.css`
- * file, no `tailwind.config.js` and no `postcss.config.js`.
+ * The three class names at L233, L235 and L237 resolve to no style. The repository
+ * commits no `.css` file, no `tailwind.config.js` and no `postcss.config.js`.
  * @example
  * <Route path="/editor" element={<Editor />} />
  * // `frontend/package.json:L11` declares `react-router-dom` at `^6.11.1`, which takes an
- * // `element` prop and dropped both the v5 `component` prop and `exact`. `App.tsx:L19-L24`
- * // holds the committed route table, still written in the version 5 form, and `App.tsx:L2`
+ * // `element` prop and dropped both the v5 `component` prop and `exact`. `App.tsx:L51-L56`
+ * // holds the committed route table, still written in the version 5 form, and `App.tsx:L15`
  * // still imports `Switch`, which version 6 replaced with `Routes`.
- * // `App.tsx:L21` is the registration this snippet reproduces.
- * // Cannot run today: `tsc` raises TS2307 for all seven `@/` specifiers at L2-L8, and the four
- * // named component imports at L2-L5, `getDocument` at L6 and both store hooks at L7 name
+ * // `App.tsx:L53` is the registration this snippet reproduces.
+ * // Cannot run today: `tsc` raises TS2307 for all seven `@/` specifiers at L21-L27, and the four
+ * // named component imports at L21-L24, `getDocument` at L25 and both store hooks at L26 name
  * // bindings that do not exist.
  */
 const Editor: React.FC = () => {
@@ -89,10 +89,10 @@ const Editor: React.FC = () => {
    * Fetch the current document whenever its identifier changes.
    *
    * @remarks Runs the fetch only when `currentDocument?.id` is truthy, then stores the content
-   * locally and publishes the document to Redux. L21 reads `currentDocument.id` with no null
+   * locally and publishes the document to Redux. L108 reads `currentDocument.id` with no null
    * test of its own, and no race follows: the closure captures the value the render held, and
-   * L30 calls `fetchDocument` only when that captured value carries an identifier. The
-   * auto-save effect at L35-L47 is where an unguarded read does bite, because L38 reads the
+   * L117 calls `fetchDocument` only when that captured value carries an identifier. The
+   * auto-save effect at L186-L216 is where an unguarded read does bite, because L207 reads the
    * same property with no equivalent test. Failures reach the console only, per the
    * outstanding-work note in the catch block.
    *
@@ -122,28 +122,28 @@ const Editor: React.FC = () => {
   /**
    * Persist the current editor content five seconds after the last edit.
    *
-   * @returns The cleanup function at L46, which clears the timer L45 scheduled.
+   * @returns The cleanup function at L215, which clears the timer L214 scheduled.
    * @remarks
-   * No debounce library takes part. L45 schedules one `setTimeout` for 5000 milliseconds and L46
+   * No debounce library takes part. L214 schedules one `setTimeout` for 5000 milliseconds and L215
    * returns a cleanup that clears it. React stores that cleanup and runs it before every re-run of
    * the effect, so a change to either dependency cancels the pending save and starts a fresh
    * five-second wait. A burst of changes to `content` therefore saves once, five seconds after the
    * last one.
    *
    * The effect declares no parameters, so its two inputs arrive as closure reads listed in the
-   * dependency array at L47. `content` is the state declared at L16, and every call to
-   * `handleContentChange` at L49 replaces it and restarts the delay. `currentDocument?.id` is read
-   * from the store at L15, so opening another document restarts the delay as well.
+   * dependency array at L216. `content` is the state declared at L86, and every call to
+   * `handleContentChange` at L228 replaces it and restarts the delay. `currentDocument?.id` is read
+   * from the store at L85, so opening another document restarts the delay as well.
    *
-   * The cleanup cancels a pending timer and nothing else. Once L45 fires and L38 starts its
+   * The cleanup cancels a pending timer and nothing else. Once L214 fires and L207 starts its
    * request, no line cancels that request, and `clearTimeout` has no effect on it.
    *
    * No save reaches storage as committed, so the ordering hazard below describes a repaired
    * path rather than current behavior. Three blockers sit in front of it: `updateDocument`
-   * rejects inside the request interceptor at `services/api.ts:L16`, the client path
+   * rejects inside the request interceptor at `services/api.ts:L142`, the client path
    * `PUT /documents/{id}` is two segments and matches no registered route, and
-   * `backend/app/api/documents.py:L33` passes one argument where
-   * `backend/app/services/document_service.py:L26` declares two.
+   * `backend/app/api/documents.py:L234` passes one argument where
+   * `backend/app/services/document_service.py:L125` declares two.
    *
    * Once those three are repaired, two saves can be in flight together: an edit five seconds
    * after a slow save began schedules a second save while the first is still open. Nothing
@@ -157,26 +157,26 @@ const Editor: React.FC = () => {
    * The load effect checks `currentDocument?.id`; the auto-save effect does not. On mount, the
    * timer can dereference `null` after five seconds.
    *
-   * L30 tests `currentDocument?.id` before calling `fetchDocument`, so L21 dereferences a value
-   * known to exist. L35-L47 schedules its timer with no equivalent test. L38 therefore reads
+   * L117 tests `currentDocument?.id` before calling `fetchDocument`, so L108 dereferences a value
+   * known to exist. L186-L216 schedules its timer with no equivalent test. L207 therefore reads
    * `currentDocument.id` while `currentDocument` is still `null`, and throws a `TypeError` five
-   * seconds after the page mounts. That read sits inside the `try` at L37-L42, so L39 catches the
-   * `TypeError` and L40 writes it to the console, and the promise `autoSave` returns resolves
-   * rather than rejecting. Nothing surfaces on the page and nothing reaches the server. No
-   * empty-content test exists either, so a save fires even while `content` holds the empty string
-   * L16 sets.
+   * seconds after the page mounts. That read sits inside the `try` at L206-L211, so L208
+   * catches the `TypeError` and L209 writes it to the console, and the promise `autoSave`
+   * returns resolves rather than rejecting. Nothing surfaces on the page and nothing
+   * reaches the server. No empty-content test exists either, so a save fires even while
+   * `content` holds the empty string L86 sets.
    *
    * The timer is disconnected from the rendered editor. `DocumentCanvas` declares no props, so
    * `content` and `onContentChange` never reach it, and Draft.js edits never change the string this
    * effect watches. A repaired save path would therefore send the empty initial string, because
-   * `content` still holds the value L16 set.
+   * `content` still holds the value L86 set.
    *
-   * L40 passes the whole error object, not a message. The object it receives today is the
-   * `TypeError` from the null read at L38, which carries no request detail. A repaired save path
+   * L209 passes the whole error object, not a message. The object it receives today is the
+   * `TypeError` from the null read at L207, which carries no request detail. A repaired save path
    * changes what the line exposes: an Axios error keeps `config`, `request` and `response`, so
    * the console would then hold the document text sent in `{ content }` along with the request
    * URL, the request headers and the response body. The bearer header is absent from those
-   * headers today, because `services/api.ts:L16` reads an `auth` slice that `store/index.ts`
+   * headers today, because `services/api.ts:L142` reads an `auth` slice that `store/index.ts`
    * does not register, and a repaired interceptor would place the token there and put it in the
    * same log line.
    *
@@ -188,19 +188,19 @@ const Editor: React.FC = () => {
      * Send the captured editor content to the server once the debounce timer fires.
      *
      * @returns A promise that always resolves. The closure declares `async` with no parameter
-     * and no return value. The `try` at L37-L42 catches every failure the body raises, so the
-     * promise resolves whether the save reached the server or not. L45 hands the closure to
+     * and no return value. The `try` at L206-L211 catches every failure the body raises, so the
+     * promise resolves whether the save reached the server or not. L214 hands the closure to
      * `setTimeout`, which discards the promise, so nothing awaits it in any case.
      * @remarks
      * The closure captures two values from the enclosing render rather than receiving them.
-     * `currentDocument` comes from the store read at L15, and L38 dereferences `.id` on it with
-     * no null test. `content` comes from the state at L16, and L38 sends it as `{ content }`,
+     * `currentDocument` comes from the store read at L85, and L207 dereferences `.id` on it with
+     * no null test. `content` comes from the state at L86, and L207 sends it as `{ content }`,
      * the second argument of `updateDocument`, which declares that argument `DocumentUpdate` at
-     * `services/api.ts:L48`. `updateDocument` resolves as an import, and the `getDocument`
-     * beside it at L6 does not.
+     * `services/api.ts:L287`. `updateDocument` resolves as an import, and the `getDocument`
+     * beside it at L25 does not.
      *
-     * Failures stop at L40. `console.error` writes the message, the outstanding-work comment at
-     * L41 records the gap, and the reader of the page sees no sign that a save failed.
+     * Failures stop at L209. `console.error` writes the message, the outstanding-work comment at
+     * L210 records the gap, and the reader of the page sees no sign that a save failed.
      */
     const autoSave = async () => {
       try {

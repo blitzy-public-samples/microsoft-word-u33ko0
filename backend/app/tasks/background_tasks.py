@@ -20,7 +20,7 @@ Undefined and absent names:
 - L43 and L78 read `datetime`. L7 imports `timedelta` alone, so each read
   raises NameError.
 - `ExportService` declares no `convert_document`, and L23 calls one.
-  `app/services/export_service.py:L11` declares `export_to_pdf`, and `:L30`
+  `app/services/export_service.py:L87` declares `export_to_pdf`, and `:L30`
   declares `export_to_docx`.
 - `@celery_app.periodic_task` at L36 is not a Celery 4 or 5 application
   attribute, so the decorator raises AttributeError while the module body runs.
@@ -200,7 +200,7 @@ def cleanup_expired_documents():
     2. Once `datetime` is imported, L47 reads `user_id` from the snapshot through
        `DocumentSnapshot.get`, which raises `KeyError` for a field the snapshot
        data does not hold. `create_document` writes that key at
-       `app/services/document_service.py:L19`, so a record from that path passes,
+       `app/services/document_service.py:L118`, so a record from that path passes,
        and a record written by any other path stops the pass at L47 with nothing
        deleted.
     3. Once `user_id` is present, the iteration deletes the Firestore document at
@@ -215,7 +215,7 @@ def cleanup_expired_documents():
        `process_document_export` writes
        `exports/{user_id}/{document_id}.{export_format}` at L27, and
        `ExportService` writes `exports/{document.id}.pdf` and
-       `exports/{document.id}.docx` at `app/services/export_service.py:L17` and
+       `exports/{document.id}.docx` at `app/services/export_service.py:L155` and
        `:L36`. `Blob.delete()` therefore raises `NotFound` before the permission
        cleanup at L59. Partial state: the document record is gone and nothing else
        changed, so both the exported artifacts and the two describing records

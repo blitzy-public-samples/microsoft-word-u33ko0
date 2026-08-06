@@ -24,13 +24,13 @@ request, so a remote caller cannot steer it. `passlib` 1.7.4 with a
 name appears in any tracked file. An environment build therefore resolves both
 imports to whatever release the package index offers on the day it runs.
 
-L6 imports the `get_settings` factory, which `app/core/config.py:L19` defines.
+L6 imports the `get_settings` factory, which `app/core/config.py:L126` defines.
 Eight other modules import a `settings` singleton from that same module, and
 `app/core/config.py` never defines the name.
 
 No module in this repository imports `app.core.security`, so the four functions
 below have no callers. The twelve protected routes import `get_current_user`
-from `app/api/auth.py:L14` instead.
+from `app/api/auth.py:L92` instead.
 
 Line locators: every `Lnn` reference below numbers the tree at commit
 06be74c7c88aa6bca652d465eaa00ad480a9e5c5, the frozen revision that precedes this
@@ -131,7 +131,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
     Configuration limitation. L35 verifies the signature with
     `settings.SECRET_KEY` and restricts the accepted algorithms to
     `[settings.ALGORITHM]`. Both values arrive unvalidated from
-    `app/core/config.py:L7` and `:L9`, which declare each as a bare `str`, and
+    `app/core/config.py:L113` and `:L9`, which declare each as a bare `str`, and
     the consequence depends on which algorithm the environment names. Under a
     symmetric algorithm such as HS256, this field carries the shared secret that
     both signs at L19 and verifies at L35, so an empty or guessable value lets an
@@ -141,10 +141,10 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
     succeeding. The single-entry algorithm list inherits whatever string the
     environment names rather than an approved algorithm either way.
 
-    `app/api/auth.py:L14` defines a second copy of this function, and the twelve
+    `app/api/auth.py:L92` defines a second copy of this function, and the twelve
     protected routes depend on that copy rather than the one here. The two
     diverge on the missing-user path: L45 raises status 401, while
-    `app/api/auth.py:L25` raises 404.
+    `app/api/auth.py:L167` raises 404.
 
     Args:
         token: Bearer token, extracted from the `Authorization` header by

@@ -25,7 +25,7 @@
  * currently exports no type at all.
  *
  * The server draws the same three-way distinction. `backend/app/schema/document.py` declares
- * `DocumentCreate` at L10 and `DocumentUpdate` at L13 alongside `Document` at L17, and each
+ * `DocumentCreate` at L72 and `DocumentUpdate` at L86 alongside `Document` at L90, and each
  * carries a different field set. This module declares one schema value covering the full
  * record and none for either write shape, so two of the three contracts have no schema to
  * infer from.
@@ -33,10 +33,10 @@
  * All five errors therefore stand as committed, and each importing module fails on the name it
  * asked for rather than on anything in its own file.
  *
- * The `zod` import at L1 resolves to nothing. `frontend/package.json:L6-L14` declares seven
+ * The `zod` import at L43 resolves to nothing. `frontend/package.json:L6-L14` declares seven
  * runtime dependencies, `@reduxjs/toolkit`, `react`, `react-dom`, `react-redux`,
  * `react-router-dom`, `tailwindcss` and `typescript`, and omits `zod`. A type check reports
- * `TS2307` against L1, and no code in this module runs until `zod` is installed.
+ * `TS2307` against L43, and no code in this module runs until `zod` is installed.
  *
  * @see ./README.md for the contract drift table covering this directory.
  */

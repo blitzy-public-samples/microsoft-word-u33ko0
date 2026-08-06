@@ -1,14 +1,14 @@
 /**
  * Settings page. Renders a controlled form for the current user's name and email, and attempts
- * to save both fields through a helper that does not exist. Every `L` number refers to a file as
- * committed, before any comment block.
+ * to save both fields through a helper that does not exist. Every `L` number below numbers
+ * the named file, or this file where none is named, as each stands at HEAD.
  *
- * No server boundary is defined for this page. L21 calls `updateUserSettings`, and
+ * No server boundary is defined for this page. L121 calls `updateUserSettings`, and
  * `frontend/src/services/api.ts` never declares that symbol. No request method, no request
  * path, no request body and no response shape therefore exists anywhere in the repository for
  * the save the form appears to perform. The page defines no `fetch` call, no `axios` call and no
  * other outbound request of its own either, so the whole save path stops at an unresolved
- * import. The backend does register `PUT /me` at `backend/app/api/users.py:L12`, and no line
+ * import. The backend does register `PUT /me` at `backend/app/api/users.py:L53`, and no line
  * here targets it.
  *
  * Unresolved imports, every one reported as TS2307 because the `@/` prefix is absent from the
@@ -39,12 +39,12 @@ import { selectCurrentUser, updateUser } from '@/store/userSlice';
 /**
  * Hold the name and email fields in local state and submit them as one update.
  *
- * Reads `currentUser` from the store at L14, attempts the save helper at L21, would dispatch the
- * result at L22, and would write to the console at L25. Performs no navigation and no local
- * storage write. L21 is an attempted call to an undefined symbol rather than a request, so the
+ * Reads `currentUser` from the store at L81, attempts the save helper at L121, would dispatch the
+ * result at L122, and would write to the console at L125. Performs no navigation and no local
+ * storage write. L121 is an attempted call to an undefined symbol rather than a request, so the
  * page issues no HTTP traffic at all.
  *
- * @returns The settings page element: the shell at L31, the form at L35-L57 and the footer at L59.
+ * @returns The page element: the shell at L131, the form at L135-L157 and the footer at L159.
  *
  * @remarks
  * Actual side effects are none. The form submit attempts a call to `updateUserSettings` and a
@@ -67,14 +67,14 @@ import { selectCurrentUser, updateUser } from '@/store/userSlice';
  * @example
  * <Route path="/settings" element={<Settings />} />
  * // `frontend/package.json:L11` declares `react-router-dom` at `^6.11.1`, which takes an
- * // `element` prop and dropped the v5 `component` prop. `App.tsx:L19-L24` holds the committed
+ * // `element` prop and dropped the v5 `component` prop. `App.tsx:L51-L56` holds the committed
  * // route table, still written in the version 5 form.
- * // `App.tsx:L23` is the registration this snippet reproduces.
- * // Cannot run today: the five `@/` specifiers at L2-L6 fail module resolution. L2 and L3 import
- * // `Header` and `Footer` as named exports, while `components/Header.tsx:L42` and
- * // `components/Footer.tsx:L23` declare defaults, and the other three symbols,
- * // `updateUserSettings` at L4, `useAppSelector` and `useAppDispatch` at L5 and
- * // `selectCurrentUser` and `updateUser` at L6, are exported by no module.
+ * // `App.tsx:L55` is the registration this snippet reproduces.
+ * // Cannot run today: the five `@/` specifiers at L29-L33 fail module resolution. L29 and
+ * // L30 import `Header` and `Footer` as named exports, while `components/Header.tsx:L91`
+ * // and `components/Footer.tsx:L44` declare defaults, and the other three symbols,
+ * // `updateUserSettings` at L31, `useAppSelector` and `useAppDispatch` at L32 and
+ * // `selectCurrentUser` and `updateUser` at L33, are exported by no module.
  */
 const Settings: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -85,33 +85,33 @@ const Settings: React.FC = () => {
   /**
    * Attempt to save the edited name and email, then push the result into the store.
    *
-   * L19 suppresses the native form submission. L21 passes `{ name, email }` to
-   * `updateUserSettings`. L22 would dispatch the returned value through `updateUser`.
+   * L119 suppresses the native form submission. L121 passes `{ name, email }` to
+   * `updateUserSettings`. L122 would dispatch the returned value through `updateUser`.
    *
    * @param e - The form submit event, declared `React.FormEvent`.
-   * @returns A promise that resolves once L21 settles. The declared `async` signature carries no
+   * @returns A promise that resolves once L121 settles. The declared `async` signature carries no
    * value, so a caller receives neither a success result nor a failure result.
    *
    * @remarks
-   * L21 defines no request. `updateUserSettings` is absent from `services/api.ts`, which exports
-   * only `getDocuments` L38, `createDocument` L43 and `updateDocument` L48, so no method, path,
+   * L121 defines no request. `updateUserSettings` is absent from `services/api.ts`, which exports
+   * only `getDocuments` L138, `createDocument` L143 and `updateDocument` L148, so no method, path,
    * body encoding or response shape is declared anywhere for this save. The two fields the object
-   * carries are therefore the whole of what the page knows about the intended payload, and L22
-   * has no value to dispatch. `updateUser` is absent as well, at `store/userSlice.ts:L44`.
+   * carries are therefore the whole of what the page knows about the intended payload, and L122
+   * has no value to dispatch. `updateUser` is absent as well, at `store/userSlice.ts:L139`.
    *
-   * The `name` field passed at L21 has no counterpart in `schema/user.ts:L3-L11`, which models
-   * `username` and optional `full_name`. The `email` field does match, at `schema/user.ts:L5`.
+   * The `name` field passed at L121 has no counterpart in `schema/user.ts:L37-L45`, which models
+   * `username` and optional `full_name`. The `email` field does match, at `schema/user.ts:L39`.
    *
    * A failure would write to the console and nothing else, so a failed save would produce no
    * user-visible signal. No failure reaches the catch block today, because the unresolved symbol
-   * at L21 stops the module from linking. The two outstanding-work comments record the absent
+   * at L121 stops the module from linking. The two outstanding-work comments record the absent
    * notification and the absent error feedback.
    *
-   * L25 logs the whole error object rather than a message. No error reaches that line today,
-   * because L21 names a symbol no module exports and the module never links. Implementing
+   * L125 logs the whole error object rather than a message. No error reaches that line today,
+   * because L121 names a symbol no module exports and the module never links. Implementing
    * `updateUserSettings` as an HTTP call turns the line into a disclosure: an Axios error keeps
    * `config`, `request` and `response`, so the console would then hold the name and email
-   * address submitted at L21 along with the request URL, the request headers and the response
+   * address submitted at L121 along with the request URL, the request headers and the response
    * body. Both fields are personal data, and the console is not a private sink: a browser
    * extension or a support tool that collects logs reads whatever the entry retained.
    */

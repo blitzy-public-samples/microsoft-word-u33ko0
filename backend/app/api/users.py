@@ -7,7 +7,7 @@ exports `router`.
 `router`. The module cannot import. L3 requests `UserService` from
 `app.services.user_service`, a module that does not exist, so L3 raises before L4 is
 reached. L4 requests `get_current_user` from `app.api.auth`, the definition at
-`auth.py:L14`, and that module would fail in turn at `auth.py:L6` on the absent
+`auth.py:L92`, and that module would fail in turn at `auth.py:L84` on the absent
 `settings` name.
 
 Both handlers are plain synchronous `def`, at L9 and L13. The other twelve
@@ -43,9 +43,9 @@ def get_current_user_info(current_user: User = Depends(get_current_user)) -> Use
 
     The decorator sits at L8, and L10 returns the injected `current_user` object.
     The handler is a synchronous `def`, and FastAPI resolves its `async def`
-    dependency at `auth.py:L14` before calling it.
+    dependency at `auth.py:L92` before calling it.
 
-    The route is shadowed. `app/main.py:L50` mounts the document router first, so
+    The route is shadowed. `app/main.py:L126` mounts the document router first, so
     `GET /{document_id}` claims `GET /me` and this handler never runs.
     """
     return current_user

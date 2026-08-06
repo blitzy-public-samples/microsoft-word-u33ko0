@@ -7,15 +7,15 @@
  *   `validation.ts` and `documentUtils.ts` only, and the `@/` prefix is absent from the `paths`
  *   map in `frontend/tsconfig.json`. Neither `resizeImage` nor `cropImage` reaches the body.
  *
- * Neither symbol from L3 reaches the body. `resizeImage` and `cropImage` appear at L3 and nowhere
- * else, and the author comment at L26-L27 records both operations as unimplemented.
+ * Neither symbol from L30 reaches the body. `resizeImage` and `cropImage` appear at L30 and nowhere
+ * else, and the author comment at L98-L27 records both operations as unimplemented.
  *
  * Nothing here runs. No module in the tree imports `ImageEditor`, so the `editorState` prop that
- * L5-L7 requires never arrives, and the return at L29-L35 renders a `div` holding one JSX comment,
+ * L33-L7 requires never arrives, and the return at L101-L35 renders a `div` holding one JSX comment,
  * so a browser shows an empty container. The docstring on `handleInsertImage` records why that
  * handler never executes, and why an inserted image would not render even if it did.
  *
- * The assistance marker at L10 records that `handleInsertImage` needs review before production
+ * The assistance marker at L54 records that `handleInsertImage` needs review before production
  * use. A second marker sits inside the return statement and records the component's own interface
  * as unimplemented.
  *
@@ -38,15 +38,15 @@ interface ImageEditorProps {
  * Define the image insert helper and render an empty container.
  *
  * The component renders nothing visible, because the returned `div` holds only the JSX comment at
- * L33. The component performs no dispatch, no network call, no upload and no state mutation, and
+ * L105. The component performs no dispatch, no network call, no upload and no state mutation, and
  * so carries no side effects. `handleInsertImage` is the one function here that would transform
  * editor state, and its docstring records why it never runs.
  *
- * @param editorState - Draft.js editor state that the nested `handleInsertImage` reads at L13 for
- *   its current content. Declared at L6 as `EditorState` on `ImageEditorProps`, which stays local
+ * @param editorState - Draft.js editor state that the nested `handleInsertImage` reads at L85 for
+ *   its current content. Declared at L34 as `EditorState` on `ImageEditorProps`, which stays local
  *   to this file and reaches no consumer.
- * @returns A single `div` element at L32-L34 carrying no text, no children and no `className`.
- * @remarks Nothing imports this component. The `@/utils/imageUtils` module at L3 does not exist,
+ * @returns A single `div` element at L104-L34 carrying no text, no children and no `className`.
+ * @remarks Nothing imports this component. The `@/utils/imageUtils` module at L30 does not exist,
  *   and both symbols it would provide, `resizeImage` and `cropImage`, stay unused.
  * @see ./README.md
  */
@@ -71,14 +71,14 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ editorState }) => {
    * whose content is a single entity rather than text. Draft.js draws such a block only through a
    * `blockRendererFn`, the function an `Editor` uses to decide how to render it. No module in the
    * repository defines one, and the two committed `Editor` elements pass none, at
-   * `DocumentCanvas.tsx:L31-L35` and `TextEditor.tsx:L39-L43`, so the atomic block L23 inserts
+   * `DocumentCanvas.tsx:L169-L173` and `TextEditor.tsx:L131-L135`, so the atomic block L95 inserts
    * would not appear. No route accepts image bytes either. The fourteen handlers under
    * `backend/app/api/` cover tokens, documents, templates and the current user, and none takes an
-   * upload, so nothing in the repository produces the `imageUrl` argument L12 requires.
+   * upload, so nothing in the repository produces the `imageUrl` argument L84 requires.
    *
-   * @param imageUrl - Address stored on the new entity under `src` at L17. Declared at L12 as
+   * @param imageUrl - Address stored on the new entity under `src` at L89. Declared at L84 as
    *   `string`, and the declaration constrains the value no further.
-   * @returns The `EditorState` returned by `AtomicBlockUtils.insertAtomicBlock` at L23, which
+   * @returns The `EditorState` returned by `AtomicBlockUtils.insertAtomicBlock` at L95, which
    *   places the atomic block using a single space as its placeholder character.
    */
   const handleInsertImage = (imageUrl: string): EditorState => {

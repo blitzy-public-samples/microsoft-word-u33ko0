@@ -19,23 +19,23 @@
  * missing slice. The base URL reads `REACT_APP_API_BASE_URL`, while Compose injects
  * `REACT_APP_API_URL`, so the base URL resolves to `undefined`.
  *
- * L3 imports `Document`, `DocumentCreate` and `DocumentUpdate` from `../schema/document`. The
+ * L80 imports `Document`, `DocumentCreate` and `DocumentUpdate` from `../schema/document`. The
  * path resolves and all three names are absent, because that module exports only the schema
  * values `DocumentSchema` and `DocumentVersionSchema` and declares no `z.infer` alias. Three
- * TS2305 errors follow. L2 imports `RootState` from `../store`, and
- * `frontend/src/store/index.ts:L12` does export it.
+ * TS2305 errors follow. L79 imports `RootState` from `../store`, and
+ * `frontend/src/store/index.ts:L54` does export it.
  *
- * L16 carries two independent faults, and they surface one after the other. No import brings
+ * L142 carries two independent faults, and they surface one after the other. No import brings
  * `store` into this module, so the read raises `ReferenceError` first. Supplying that import
- * exposes the second fault: `frontend/src/store/index.ts:L6-L9` registers only the `document`
- * and `user` reducer keys, so the `auth` key L16 reads does not exist and a `TypeError`
+ * exposes the second fault: `frontend/src/store/index.ts:L42-L45` registers only the `document`
+ * and `user` reducer keys, so the `auth` key L142 reads does not exist and a `TypeError`
  * follows.
  *
- * L5 reads `REACT_APP_API_BASE_URL`, while `infrastructure/docker/docker-compose.yml:L11`
+ * L82 reads `REACT_APP_API_BASE_URL`, while `infrastructure/docker/docker-compose.yml:L11`
  * injects `REACT_APP_API_URL`. The two names differ, so the base URL resolves to `undefined`.
- * L5 holds the only `process.env` read in the frontend.
+ * L82 holds the only `process.env` read in the frontend.
  *
- * The key mismatch is one of seven independent barriers between L5 and a working base URL.
+ * The key mismatch is one of seven independent barriers between L82 and a working base URL.
  * Each one blocks the committed Docker deployment on its own, so repairing the key name
  * leaves the other six standing. In the order a deployer meets them:
  *
@@ -47,7 +47,7 @@
  *    same mismatch for the backend service.
  * 2. Build-time substitution. `frontend/package.json:L29` pins `react-scripts` 5.0.1, and
  *    Create React App replaces every `process.env.REACT_APP_*` read with a literal during
- *    `npm run build`. A value supplied after the build cannot reach L5.
+ *    `npm run build`. A value supplied after the build cannot reach L82.
  * 3. No build-time value. `infrastructure/docker/frontend.Dockerfile:L17` runs
  *    `npm run build` with no `ARG` and no `ENV` above it, so the literal baked into the
  *    bundle is `undefined`.
@@ -68,9 +68,9 @@
  *    on the host outside that network, so it resolves no such host.
  *
  * Three symbols other modules import from here never appear in this file: `getDocument`
- * (`frontend/src/pages/Editor.tsx:L6`), `getTemplates`
- * (`frontend/src/pages/Templates.tsx:L4`) and `updateUserSettings`
- * (`frontend/src/pages/Settings.tsx:L4`).
+ * (`frontend/src/pages/Editor.tsx:L25`), `getTemplates`
+ * (`frontend/src/pages/Templates.tsx:L35`) and `updateUserSettings`
+ * (`frontend/src/pages/Settings.tsx:L31`).
  *
  * @see ./README.md for the service-level defect register.
  */
@@ -96,36 +96,36 @@ const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
  * copies it into Redux, and `frontend/src/store/index.ts` registers only the `document` and
  * `user` reducer keys.
  *
- * The request interceptor at L14-L23 reads a token and, when one is present, sets the
- * `Authorization` header to `Bearer <token>`. L16 fails twice, and the two failures are
+ * The request interceptor at L140-L23 reads a token and, when one is present, sets the
+ * `Authorization` header to `Bearer <token>`. L142 fails twice, and the two failures are
  * sequential rather than simultaneous. No import brings `store` into this module, so the
  * first request raises `ReferenceError: store is not defined`. Supplying that import moves
- * the failure one step along. `frontend/src/store/index.ts:L6-L9` registers only the
+ * the failure one step along. `frontend/src/store/index.ts:L42-L45` registers only the
  * `document` and `user` reducer keys, so `getState().auth` evaluates to `undefined` and
  * reading `.token` from it raises a `TypeError`. Under either failure the interceptor never
- * reaches the header assignment at L18.
+ * reaches the header assignment at L144.
  *
  * No issued token reaches this interceptor even once both faults are repaired, because the
- * writer and the reader use different stores. `frontend/src/services/auth.ts:L9` writes to
+ * writer and the reader use different stores. `frontend/src/services/auth.ts:L148` writes to
  * browser `localStorage` under the key `accessToken`. The value it writes comes from
- * `response.data.accessToken` at `auth.ts:L8`, a camelCase field that
- * `backend/app/api/auth.py:L40` never sends, so the stored string is `"undefined"`. No
+ * `response.data.accessToken` at `auth.ts:L147`, a camelCase field that
+ * `backend/app/api/auth.py:L243` never sends, so the stored string is `"undefined"`. No
  * module under `frontend/src` calls `localStorage.getItem('accessToken')`, and no module
- * dispatches a token into the Redux store, so the path L16 reads has no writer at all. The
+ * dispatches a token into the Redux store, so the path L142 reads has no writer at all. The
  * flow is broken at both ends: the one writer stores a useless value where nothing reads,
- * and the one reader reads where nothing writes. `auth.ts:L18-L19` removes the key only
- * after the logout request resolves, and `auth.ts:L20-L22` swallows the error, so a failed
+ * and the one reader reads where nothing writes. `auth.ts:L194-L195` removes the key only
+ * after the logout request resolves, and `auth.ts:L196-L198` swallows the error, so a failed
  * logout keeps the stored value while reporting success.
  *
- * The response interceptor at L25-L31 passes both outcomes straight through: L26 returns the
- * response unchanged and L29 re-rejects the error unchanged. L28 carries the file's only
+ * The response interceptor at L151-L31 passes both outcomes straight through: L152 returns the
+ * response unchanged and L155 re-rejects the error unchanged. L154 carries the file's only
  * pre-existing comment, inside that error branch.
  *
  * Resilience is absent from this module, and every absence below belongs to the application
- * rather than to the library. `axios.create` at L8-L10 receives `baseURL` alone, so no
+ * rather than to the library. `axios.create` at L134-L10 receives `baseURL` alone, so no
  * `timeout`, no `signal` and no `validateStatus` is configured. No `AbortController` and no
  * cancellation token reaches any request. No retry, no backoff, no jitter, no circuit
- * breaker and no fallback response exists anywhere in the module, and L29 re-rejects instead
+ * breaker and no fallback response exists anywhere in the module, and L155 re-rejects instead
  * of recovering. `axios` is absent from `frontend/package.json` and no lockfile is committed,
  * so this repository fixes no library version and supports no claim about the library's own
  * default behavior.
@@ -166,41 +166,41 @@ const api = createApiClient();
  *
  * @returns A promise resolving to the Axios `response.data`, typed as `Document[]`.
  * @remarks Every call travels through the shared `api` instance, so the request interceptor
- * runs first and fails at L16. Both rejection handlers propagate the original error
+ * runs first and fails at L142. Both rejection handlers propagate the original error
  * unchanged.
  *
  * The `Document[]` in the signature is a compile-time annotation and nothing more. The
- * generic argument at L39 tells the type checker what to expect and emits no code. The three
- * type names L3 imports are absent from `frontend/src/schema/document.ts`, and no line here
+ * generic argument at L218 tells the type checker what to expect and emits no code. The three
+ * type names L80 imports are absent from `frontend/src/schema/document.ts`, and no line here
  * calls a Zod schema.
  *
- * L40 returns `response.data` exactly as received. A null body, a body of some other shape,
+ * L219 returns `response.data` exactly as received. A null body, a body of some other shape,
  * and date values arriving as JSON strings where `DocumentSchema` declares `z.date()` at
- * `frontend/src/schema/document.ts:L8-L9` all reach the caller unconverted and unreported.
+ * `frontend/src/schema/document.ts:L70-L71` all reach the caller unconverted and unreported.
  *
  * Five layers stand between this call and a document list, and each one blocks on its own.
  * Repairing any single layer leaves the rest standing. In the order a request meets them:
  *
- * 1. No request leaves the browser. L16 reads `store` before any import defines it, so the
+ * 1. No request leaves the browser. L142 reads `store` before any import defines it, so the
  *    call rejects before transport. The `createApiClient` block above records that failure
  *    and the second one waiting behind it.
- * 2. No bearer credential exists. With L16 repaired, no committed line writes a token where
- *    L16 reads one, so `token` holds `undefined`, the test at L17 fails and L18 sets no
+ * 2. No bearer credential exists. With L142 repaired, no committed line writes a token where
+ *    L142 reads one, so `token` holds `undefined`, the test at L143 fails and L144 sets no
  *    `Authorization` header.
  * 3. The path selects the get-one route rather than the list route.
- *    `backend/app/main.py:L49-L52` mounts every router without a prefix, so the committed
+ *    `backend/app/main.py:L125-L128` mounts every router without a prefix, so the committed
  *    document routes are `/` and `/{document_id}`. The path `/documents` is one segment, so
- *    it matches `GET /{document_id}` at `backend/app/api/documents.py:L22` with `document_id`
+ *    it matches `GET /{document_id}` at `backend/app/api/documents.py:L148` with `document_id`
  *    bound to the literal string `documents`. `GET /` at
- *    `backend/app/api/documents.py:L16`, the only route that returns a list, is never
+ *    `backend/app/api/documents.py:L114`, the only route that returns a list, is never
  *    selected.
- * 4. The selected route rejects the request. `backend/app/api/documents.py:L23` injects
+ * 4. The selected route rejects the request. `backend/app/api/documents.py:L149` injects
  *    `get_current_user`, which depends on the `OAuth2PasswordBearer` instance at
- *    `backend/app/api/auth.py:L10`. A request carrying no `Authorization` header answers
+ *    `backend/app/api/auth.py:L88`. A request carrying no `Authorization` header answers
  *    HTTP 401 before the handler body runs.
  * 5. The handler fails its service call. A request carrying a valid token reaches
- *    `backend/app/api/documents.py:L25`, which passes one argument where
- *    `backend/app/services/document_service.py:L26` declares `document_id` and `user_id`, so
+ *    `backend/app/api/documents.py:L186`, which passes one argument where
+ *    `backend/app/services/document_service.py:L125` declares `document_id` and `user_id`, so
  *    Python raises `TypeError` and FastAPI answers HTTP 500.
  *
  * No layer produces a list, so this call buffers nothing. The route the path selects returns
@@ -208,7 +208,7 @@ const api = createApiClient();
  * `Document[]`. Intended behavior per documentation/Technical Specifications.md, SYSTEM
  * DESIGN > API DESIGN (L417): `GET /documents` returns the caller's documents. A repaired
  * path would buffer every document, content included, because
- * `backend/app/api/documents.py:L16-L20` declares no pagination, no page size and no field
+ * `backend/app/api/documents.py:L114-L146` declares no pagination, no page size and no field
  * projection, so the response would grow with the collection.
  * @example
  * const documents = await getDocuments();
@@ -225,21 +225,21 @@ export const getDocuments = async (): Promise<Document[]> => {
  * @param documentData - The new document payload, typed as `DocumentCreate`.
  * @returns A promise resolving to the Axios `response.data`, typed as `Document`.
  * @remarks The shared `api` instance applies the same request interceptor, so the call fails
- * at L16 exactly as `getDocuments` does.
+ * at L142 exactly as `getDocuments` does.
  *
  * The `DocumentCreate` parameter type and the `Document` return type are compile-time
- * annotations. L45 returns `response.data` with no Zod parse and no date conversion, exactly
+ * annotations. L247 returns `response.data` with no Zod parse and no date conversion, exactly
  * as recorded on `getDocuments`.
  *
  * The dispatch outcome differs from `getDocuments`. No `POST /{document_id}` route exists,
- * because `backend/app/api/documents.py:L22`, `:L30` and `:L39` register that path template
+ * because `backend/app/api/documents.py:L148`, `:L30` and `:L39` register that path template
  * for GET, PUT and DELETE only. Starlette matches the one-segment path `/documents` against
  * that template, finds no handler for the method, and answers 405 Method Not Allowed. The
- * request never reaches `POST /` at `backend/app/api/documents.py:L10`.
+ * request never reaches `POST /` at `backend/app/api/documents.py:L56`.
  *
  * @example
  * const created = await createDocument(documentData);
- * // Cannot run today: L16 raises first, and `DocumentCreate` has no definition to shape the
+ * // Cannot run today: L142 raises first, and `DocumentCreate` has no definition to shape the
  * // argument.
  */
 export const createDocument = async (documentData: DocumentCreate): Promise<Document> => {
@@ -252,19 +252,19 @@ export const createDocument = async (documentData: DocumentCreate): Promise<Docu
  *
  * @param documentId - Identifier interpolated into the request path.
  * @param documentData - The update payload, declared `DocumentUpdate`. That name is one of the
- * three unresolved imports at L3, so no client-side type states which fields the payload may
- * carry. L49 sends the value as the request body without inspecting it.
+ * three unresolved imports at L80, so no client-side type states which fields the payload may
+ * carry. L288 sends the value as the request body without inspecting it.
  * @returns A promise resolving to the Axios `response.data`, typed as `Document`.
  * @remarks The request replaces no field the caller leaves out. The server contract for this
- * operation is a partial patch: `backend/app/schema/document.py:L13-L15` declares only `title` and
- * `content` on `DocumentUpdate`, and `backend/app/services/document_service.py:L56` calls
+ * operation is a partial patch: `backend/app/schema/document.py:L84-L96` declares only `title` and
+ * `content` on `DocumentUpdate`, and `backend/app/services/document_service.py:L247` calls
  * `dict(exclude_unset=True)`, so only the fields a caller sets explicitly reach storage.
  *
  * The shared `api` instance applies the same request interceptor, so the call fails
- * at L16 exactly as `getDocuments` does. L50 returns `response.data` with no Zod parse and no
+ * at L142 exactly as `getDocuments` does. L289 returns `response.data` with no Zod parse and no
  * date conversion, exactly as recorded on `getDocuments`.
  *
- * L49 interpolates `documentId` into the path with no validation and no `encodeURIComponent`.
+ * L288 interpolates `documentId` into the path with no validation and no `encodeURIComponent`.
  * A caller-supplied value can therefore change the shape of the request Uniform Resource
  * Locator rather than only its last segment. A value carrying `/` adds a path segment and
  * retargets the request. A value carrying `?` starts a query string and truncates the path. A
@@ -274,14 +274,14 @@ export const createDocument = async (documentData: DocumentCreate): Promise<Docu
  * The dispatch outcome differs again. `/documents/${documentId}` is two segments, and every
  * route the application registers is either the root or a single segment.
  * `backend/app/api/documents.py` registers `/` and `/{document_id}`,
- * `backend/app/api/users.py:L8` and `:L12` register `/me`, `backend/app/api/auth.py:L28` and
+ * `backend/app/api/users.py:L32` and `:L12` register `/me`, `backend/app/api/auth.py:L170` and
  * `:L42` register `/token` and `/register`, and `backend/app/api/templates.py` repeats the
  * document templates. No registered template matches two segments, so the response is 404
  * rather than the 405 that `createDocument` receives.
  *
  * @example
  * const updated = await updateDocument('doc-123', documentData);
- * // Cannot run today: L16 raises first, and `DocumentUpdate` has no definition to shape the
+ * // Cannot run today: L142 raises first, and `DocumentUpdate` has no definition to shape the
  * // second argument.
  */
 export const updateDocument = async (documentId: string, documentData: DocumentUpdate): Promise<Document> => {

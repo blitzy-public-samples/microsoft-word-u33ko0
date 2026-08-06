@@ -17,7 +17,7 @@ Nothing here is reachable, for four reasons that stack:
 2. Both settings the methods read are undeclared.
    `settings.STORAGE_BUCKET_NAME` (L16, L35) and
    `settings.SIGNED_URL_EXPIRATION` (L24, L43) match none of the nine fields
-   `Settings` declares at `app/core/config.py:L5-L13`, so each read raises
+   `Settings` declares at `app/core/config.py:L111-L119`, so each read raises
    `AttributeError` even if the import above resolved.
 3. Signing is not guaranteed to be available. L7 builds a
    `google.cloud.storage.Client` with no explicit credentials, so it uses
@@ -41,7 +41,7 @@ Format conversion does not exist. Both methods upload a fixed literal string, so
 even on a repaired deployment a caller who follows a returned link downloads that
 string rather than a Portable Document Format (PDF) or Office Open XML (DOCX)
 file. `ExportService` also defines no `convert_document` method, so the call at
-`app/tasks/background_tasks.py:L23` raises `AttributeError`.
+`app/tasks/background_tasks.py:L138` raises `AttributeError`.
 
 Resilience. The class configures none, and every absence below belongs to this
 module rather than to the client library. `Client()` at L7 receives no

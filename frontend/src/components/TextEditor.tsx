@@ -9,25 +9,25 @@
  *   unlike the one-argument calls in `Toolbar.tsx`.
  *
  * Unresolved imports and undefined symbols:
- * - `draft-js` at L2 is absent from the seven runtime dependencies at
+ * - `draft-js` at L42 is absent from the seven runtime dependencies at
  *   `frontend/package.json:L6-L14`, which declare `@reduxjs/toolkit`, `react`, `react-dom`,
  *   `react-redux`, `react-router-dom`, `tailwindcss` and `typescript`. `@types/draft-js` is absent
  *   from the dev dependencies at `frontend/package.json:L15-L30`. `tsc` raises TS2307 for the
  *   specifier, and both packages would have to be declared before this module compiles.
- * - `applyInlineStyle` and `applyBlockStyle` at L3 both exist, at
- *   `frontend/src/utils/formatting.ts:L3` and `:L16`. The `@remarks` block on `handleKeyCommand`
- *   below reads how L17 and L24 call them.
- * - The `@/` prefix at L3 is absent from the `paths` map at `frontend/tsconfig.json:L10-L16`, which
+ * - `applyInlineStyle` and `applyBlockStyle` at L43 both exist, at
+ *   `frontend/src/utils/formatting.ts:L31` and `:L16`. The `@remarks` block on `handleKeyCommand`
+ *   below reads how L109 and L116 call them.
+ * - The `@/` prefix at L43 is absent from the `paths` map at `frontend/tsconfig.json:L10-L16`, which
  *   declares `@components/*`, `@utils/*`, `@styles/*`, `@hooks/*` and `@services/*` only. `tsc`
  *   raises TS2307 for that specifier too.
  * - Beyond `draft-js` and the `@/` prefix, the module names no undefined symbol.
  *
  * No module imports `TextEditor`, so no page mounts this component.
  * `frontend/src/pages/Editor.tsx` imports `Header`, `Toolbar`, `DocumentCanvas` and `Sidebar` at
- * `Editor.tsx:L2-L5`, and renders `DocumentCanvas` at `Editor.tsx:L59`. The editor a user reaches
+ * `Editor.tsx:L21-L24`, and renders `DocumentCanvas` at `Editor.tsx:L238`. The editor a user reaches
  * is therefore the one in `frontend/src/components/DocumentCanvas.tsx`.
  *
- * `Toolbar.tsx:L14` and `:L19` call the same two helpers differently. The `@remarks` block on
+ * `Toolbar.tsx:L62` and `:L19` call the same two helpers differently. The `@remarks` block on
  * `handleKeyCommand` below reads both call sites against the declared signatures, and ./README.md
  * carries this directory's setup notes and repository-wide error figures. The assistance marker
  * below records that `handleKeyCommand` needs review before production use.
@@ -56,8 +56,8 @@ import { applyInlineStyle, applyBlockStyle } from '@/utils/formatting';
  *
  * No `keyBindingFn` is bound, so the switch sees only the commands Draft.js supplies by default.
  *
- * L39-L43 bind `editorState`, `onChange` and `handleKeyCommand`, and bind no `keyBindingFn`, so the
- * switch at L13 sees only the commands Draft.js supplies by default.
+ * L131-L43 bind `editorState`, `onChange` and `handleKeyCommand`, and bind no `keyBindingFn`, so the
+ * switch at L105 sees only the commands Draft.js supplies by default.
  *
  * Accessibility: the rendered `Editor` receives no accessible name, no `aria-label` and no
  * associated label element, so assistive technology announces an unlabelled text box.

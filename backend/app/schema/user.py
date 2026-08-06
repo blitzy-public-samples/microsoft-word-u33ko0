@@ -15,11 +15,11 @@ is one of them. `List` on the `typing` import line is imported and never used.
 `orm_mode = True` in the nested `Config` is the Pydantic 1.x spelling, so
 attribute-based construction here depends on Pydantic 1.x.
 
-Consumers. `app/api/auth.py:L7` imports `User` and `UserCreate`, and
-`app/api/auth.py:L43` annotates the `register_user` parameter with `UserCreate`.
-`app/api/users.py:L2` imports `User` and `UserUpdate`, and `app/api/users.py:L13`
-is the only consumer of `UserUpdate`. `app/api/documents.py:L6` and
-`app/api/templates.py:L6` import `User`. `UserUpdate` extends `BaseModel` rather
+Consumers. `app/api/auth.py:L85` imports `User` and `UserCreate`, and
+`app/api/auth.py:L246` annotates the `register_user` parameter with `UserCreate`.
+`app/api/users.py:L26` imports `User` and `UserUpdate`, and `app/api/users.py:L54`
+is the only consumer of `UserUpdate`. `app/api/documents.py:L52` and
+`app/api/templates.py:L78` import `User`. `UserUpdate` extends `BaseModel` rather
 than `UserBase`, so it shares no field definition with the create path.
 
 No field carries a length bound. `email`, `username` and `full_name` at L6-L8,
@@ -27,20 +27,20 @@ No field carries a length bound. `email`, `username` and `full_name` at L6-L8,
 or `Optional[str]` annotations with no `min_length` and no `max_length`, and no
 model declares a `@validator`. No route and no committed middleware caps the
 request body size either, so a caller can submit an arbitrarily large value in any
-field. `POST /register` is public, because `app/api/auth.py:L42` declares no
+field. `POST /register` is public, because `app/api/auth.py:L245` declares no
 authentication dependency, so an unauthenticated caller reaches the unbounded
 `UserCreate` fields directly.
 
 No password policy applies to `UserCreate.password`. The bare `str` at L11 carries
 no non-empty check and no regular expression, so the empty string, a single
-character and any common password all validate, and `app/api/auth.py:L48` hashes
-whatever arrives. `frontend/src/utils/validation.ts:L8-L15` declares a length and
+character and any common password all validate, and `app/api/auth.py:L326` hashes
+whatever arrives. `frontend/src/utils/validation.ts:L44-L51` declares a length and
 character policy, and no module calls it, so the client validator cannot protect
 this contract even if it ran.
 
-`User` declares no field for the password hash that `app/api/auth.py:L48`
+`User` declares no field for the password hash that `app/api/auth.py:L326`
 computes, so a response validated against `User` cannot carry that hash. The
-guarantee stops at this contract. `app/api/auth.py:L43` declares no return
+guarantee stops at this contract. `app/api/auth.py:L246` declares no return
 annotation and its decorator at `:L42` sets no `response_model`, so `POST
 /register` returns the absent service's result unfiltered at `:L50`. Nothing
 constrains that value to `User`, so hash exposure on the registration response
@@ -49,7 +49,7 @@ cannot be ruled out from this file.
 The two authorization flags on `User` are declared and never read. No code path in
 the repository reads `is_active` or `is_superuser`; both names appear only as
 declarations across every `.py`, `.ts` and `.tsx` file. The consequence for
-`is_active` is concrete. `app/api/auth.py:L14-L26` resolves a bearer token,
+`is_active` is concrete. `app/api/auth.py:L92-L168` resolves a bearer token,
 fetches the user at `:L23` and returns it at `:L26` without testing the flag, so a
 valid token issued to a deactivated account passes the dependency. Deactivating a
 user therefore revokes nothing until the token expires. The `User` docstring below
@@ -58,8 +58,8 @@ records which of the twelve protected routes such a token actually reaches.
 `User` declares neither `name` nor `avatar`, and `updated_at` has no counterpart
 in the client-side user contract. `docs/data-model.md` records both divergences.
 
-`app/services/user_service.py` does not exist, though `app/api/auth.py:L8` and
-`app/api/users.py:L3` both import it.
+`app/services/user_service.py` does not exist, though `app/api/auth.py:L86` and
+`app/api/users.py:L27` both import it.
 
 Line references point at the pre-documentation layout of commit `06be74c`, so
 they exclude docstrings added by this pass.
@@ -115,11 +115,11 @@ class User(UserBase):
     """Represent a stored user returned to the caller.
 
     `User` extends `UserBase`, travels outward as a response model, and carries
-    the nested `Config` class below. `app/api/auth.py:L7`,
-    `app/api/users.py:L2`, `app/api/documents.py:L6` and
-    `app/api/templates.py:L6` import this model.
+    the nested `Config` class below. `app/api/auth.py:L85`,
+    `app/api/users.py:L26`, `app/api/documents.py:L52` and
+    `app/api/templates.py:L78` import this model.
 
-    `User` declares no field for the password hash that `app/api/auth.py:L48`
+    `User` declares no field for the password hash that `app/api/auth.py:L326`
     computes, so a response validated against this contract cannot carry that
     hash. The module docstring above records why that guarantee stops at this
     contract and does not reach the `POST /register` response.
@@ -129,7 +129,7 @@ class User(UserBase):
     declarations across every `.py`, `.ts` and `.tsx` file.
 
     The consequence for `is_active` sits in the token dependency.
-    `app/api/auth.py:L14-L26` resolves a bearer token, fetches the user at `:L23`
+    `app/api/auth.py:L92-L168` resolves a bearer token, fetches the user at `:L23`
     and returns it at `:L26` without testing the flag, so wherever that
     dependency is invoked it accepts a valid token issued to an account that was
     later deactivated. The dependency reports no difference between an active and
@@ -137,15 +137,15 @@ class User(UserBase):
     expires.
 
     Route reachability is a separate question, and the answer is narrower.
-    `import app.main` fails at `app/main.py:L3`, then at `app/api/auth.py:L6`,
+    `import app.main` fails at `app/main.py:L16`, then at `app/api/auth.py:L84`,
     with `ImportError: cannot import name 'settings' from 'app.core.config'`, so
     no route is served at all as committed and the dependency is invoked nowhere.
     Repairing that import does not make all twelve protected routes reachable
-    either. `app/main.py:L49-L52` mounts every router with no prefix, so
-    `GET /{document_id}` at `app/api/documents.py:L22` and `PUT /{document_id}` at
-    `:L30` shadow `GET /me` and `PUT /me` at `app/api/users.py:L8` and `:L12`, and
+    either. `app/main.py:L125-L128` mounts every router with no prefix, so
+    `GET /{document_id}` at `app/api/documents.py:L148` and `PUT /{document_id}` at
+    `:L30` shadow `GET /me` and `PUT /me` at `app/api/users.py:L32` and `:L12`, and
     all five routes in `app/api/templates.py` repeat paths the documents router
-    claimed first at `app/main.py:L50`. Seven of the twelve protected handlers are
+    claimed first at `app/main.py:L126`. Seven of the twelve protected handlers are
     therefore unreachable through the assembled route order, leaving the five
     document routes as the ones a deactivated account would actually reach.
 

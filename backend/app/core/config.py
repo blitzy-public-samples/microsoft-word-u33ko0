@@ -29,18 +29,18 @@ committed Compose deployment start.
 
 Six further settings are read at runtime and declared by no field below, so each
 raises `AttributeError` at the point of the read even on a fully supplied
-environment. The six are `ALLOWED_ORIGINS` at `app/main.py:L42`, `PROJECT_ID` at
-`app/services/collaboration_service.py:L20`, `:L21`, `:L50` and `:L60`,
-`STORAGE_BUCKET_NAME` at `app/services/export_service.py:L16` and `:L35`,
-`SIGNED_URL_EXPIRATION` at `app/services/export_service.py:L24` and `:L43`,
-`EXPORT_BUCKET_NAME` at `app/tasks/background_tasks.py:L26`, and
-`DOCUMENT_BUCKET_NAME` at `app/tasks/background_tasks.py:L54`. Fifteen settings
+environment. The six are `ALLOWED_ORIGINS` at `app/main.py:L118`, `PROJECT_ID` at
+`app/services/collaboration_service.py:L120`, `:L21`, `:L50` and `:L60`,
+`STORAGE_BUCKET_NAME` at `app/services/export_service.py:L154` and `:L35`,
+`SIGNED_URL_EXPIRATION` at `app/services/export_service.py:L162` and `:L43`,
+`EXPORT_BUCKET_NAME` at `app/tasks/background_tasks.py:L141`, and
+`DOCUMENT_BUCKET_NAME` at `app/tasks/background_tasks.py:L278`. Fifteen settings
 are therefore in play: nine declared here and six read but never declared.
 
 `REDIS_URL` has no target in the committed topology even when supplied.
 `infrastructure/docker/docker-compose.yml:L3-L39` defines three services,
 `frontend`, `backend` and `db`, and names no Redis service, while
-`app/tasks/background_tasks.py:L9` builds a Celery broker from that value.
+`app/tasks/background_tasks.py:L98` builds a Celery broker from that value.
 
 `BaseSettings` lives in the `pydantic` package itself, so this module requires Pydantic
 1.x. Pydantic 2 moved the class to `pydantic-settings`.
@@ -64,12 +64,12 @@ class Settings(BaseSettings):
     confirmed by constructing the model directly:
 
     - `SECRET_KEY` accepts the empty string and any short or low-entropy value,
-      and `app/core/security.py:L19` and `app/api/auth.py:L37` both sign with
+      and `app/core/security.py:L81` and `app/api/auth.py:L240` both sign with
       whatever the field holds. The consequence depends on which algorithm
       `ALGORITHM` names. Under a symmetric algorithm such as HS256, this one
       value both signs and verifies, so a guessable key lets an attacker forge
-      a JSON Web Token that `app/core/security.py:L35` and
-      `app/api/auth.py:L16` accept. Under an asymmetric algorithm such as
+      a JSON Web Token that `app/core/security.py:L181` and
+      `app/api/auth.py:L158` accept. Under an asymmetric algorithm such as
       RS256, the two signing sites need a private key here while the two
       verifying sites need a public key, so a short value forges nothing and
       the operation fails instead. One field serves both roles, and nothing
@@ -82,8 +82,8 @@ class Settings(BaseSettings):
       effectively never expires.
     - `DATABASE_URL` and `REDIS_URL` accept any string. Neither is parsed as a
       Uniform Resource Locator (URL) at this layer, so a malformed value passes
-      settings validation and fails later, at `app/db/sql.py:L5` for the
-      database and at `app/tasks/background_tasks.py:L9` for the broker.
+      settings validation and fails later, at `app/db/sql.py:L16` for the
+      database and at `app/tasks/background_tasks.py:L98` for the broker.
 
     The model as committed accepts every value listed above, so each consequence
     surfaces at the reading site rather than at settings construction.

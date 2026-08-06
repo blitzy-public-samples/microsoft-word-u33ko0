@@ -3,8 +3,11 @@
 Nothing in this repository deploys. Four asset groups describe a deployment, and each group stops
 before it finishes. Terraform sits under `infrastructure/terraform/`, container definitions under
 `infrastructure/docker/`, two GitHub Actions workflows under `.github/workflows/`, and two shell
-scripts under `scripts/`. Eleven separate blockers stand in the way, and none of them depends on
-another, so repairing one leaves the other ten standing.
+scripts under `scripts/`. Eleven blockers stand in the way, and they are not eleven parallel
+problems: each execution path hits one blocker and hides the rest behind it.
+[Why a deploy fails as committed](#why-a-deploy-fails-as-committed) groups them by path, separating
+the blocker a run reports from the latent blockers it never reaches. Clearing a first-hit blocker
+exposes the next one on that path rather than producing a working deploy.
 
 The sections below describe each asset group as committed, then list every failure point in the
 order a reader hits it. Every claim carries an inline citation in the form `path:Lnn`, so a reader
@@ -13,14 +16,22 @@ can open the file and check the line. Line numbers refer to the current state of
 ## What exists today
 
 Four asset groups carry every deployment instruction in the repository. The table below states what
-each group provisions or runs, and points at the module README that documents the group in full.
+each group provisions or runs, and points at the module README that documents the group in full. The
+Lines column counts physical lines at the documentation baseline, commit `06be74c`, so each figure
+matches the per-file census in the module README beside it. Only Terraform changed after that commit,
+and its three files now hold 281 physical lines, because this engagement added block comments to them.
 
 | Asset group | Files | Lines | What it provisions or runs | Module README |
-|-------------|-------|-------|----------------------------|---------------|
-| `infrastructure/terraform/` | 3 | 235 | One virtual private cloud (VPC) network, one subnet, one firewall rule and one Cloud Storage bucket on Google Cloud, plus three module calls | [terraform](../infrastructure/terraform/README.md) |
-| `infrastructure/docker/` | 3 | 102 | A backend image, a frontend image, and a three-service Compose topology for local work | [docker](../infrastructure/docker/README.md) |
-| `.github/workflows/` | 2 | 41 | Continuous integration (CI) on pushes and pull requests to `main`, and continuous delivery (CD) on pushes to `main` | [workflows](../.github/workflows/README.md) |
-| `scripts/` | 2 | 101 | A linear deploy script and a developer-machine setup script | [scripts](../scripts/README.md) |
+| ------------- | ------- | ------- | ---------------------------- | --------------- |
+| `infrastructure/terraform/` | 3 | 281 now, 238 at `06be74c` | One virtual private cloud (VPC) network, one subnet, one firewall rule and one Cloud Storage bucket on Google Cloud, plus three module calls | [terraform](../infrastructure/terraform/README.md) |
+| `infrastructure/docker/` | 3 | 105 | A backend image, a frontend image, and a three-service Compose topology for local work | [docker](../infrastructure/docker/README.md) |
+| `.github/workflows/` | 2 | 43 | Continuous integration (CI) on pushes and pull requests to `main`, and continuous delivery (CD) on pushes to `main` | [workflows](../.github/workflows/README.md) |
+| `scripts/` | 2 | 103 | A linear deploy script and a developer-machine setup script | [scripts](../scripts/README.md) |
+
+Every count above is a physical line count. The Terraform row carries two numbers because the three
+`.tf` files are the only deployment assets that received inline comments in this documentation pass,
+which took them from 238 lines to 281. Docker, the workflows and the shell scripts received none, so
+their counts are the same at `06be74c` and at the current head.
 
 Two categories of file that a deploy needs are missing from the tree.
 
@@ -33,6 +44,12 @@ No dependency manifest for the backend exists either. No `requirements.txt`, `py
 and `scripts/setup_dev_environment.sh:L26` both read one. `frontend/package.json` is the only
 dependency manifest the repository commits, and no lockfile accompanies it.
 
+Writing that missing manifest needs a definitive package list, and one authoritative inventory exists.
+[../backend/app/README.md](../backend/app/README.md) carries it: thirteen distributions, ten of them
+direct imports, one runtime-only and two conditional, each with the version boundary the code
+establishes and the code fact that establishes it. Every other document in this set, this one included,
+defers to that inventory rather than restating it, so there is one list to keep correct.
+
 ## Terraform
 
 The Terraform configuration declares 35 blocks and cannot initialise.
@@ -40,7 +57,7 @@ The Terraform configuration declares 35 blocks and cannot initialise.
 verified across the three files as follows.
 
 | Block kind | Count | Location |
-|------------|-------|----------|
+| ------------ | ------- | ---------- |
 | `provider "google"` | 1 | `main.tf:L9-L12` |
 | `resource` | 4 | `main.tf:L19`, `:L25`, `:L35`, `:L50` |
 | `module` | 3 | `main.tf:L67`, `:L76`, `:L85` |
@@ -55,7 +72,7 @@ else. The block reads `var.project_id` at `:L10` and `var.region` at `:L11`.
 Four resources make up everything the configuration builds directly.
 
 | Resource | Location | What it declares |
-|----------|----------|------------------|
+| ---------- | ---------- | ------------------ |
 | `google_compute_network.word_network` | `main.tf:L19-L22` | A custom-mode network. `auto_create_subnetworks = false` at `:L21`, so the network carries only the subnet declared below it |
 | `google_compute_subnetwork.word_subnet` | `main.tf:L25-L30` | One subnet on the `10.0.0.0/24` Classless Inter-Domain Routing (CIDR) range at `:L27`, attached to the network at `:L29` |
 | `google_compute_firewall.allow_internal` | `main.tf:L35-L45` | Transmission Control Protocol (TCP) ports `0-65535` at `:L41`, from source range `10.0.0.0/24` at `:L44` |
@@ -76,7 +93,7 @@ bucket therefore takes the provider default, and the declared variable never rea
 Three module calls source directories that are absent, and `terraform init` stops on them.
 
 | Module call | Block | `source` | Directory |
-|-------------|-------|----------|-----------|
+| ------------- | ------- | ---------- | ----------- |
 | `word_backend` | `main.tf:L67-L74` | `./modules/word_backend` at `:L68` | absent |
 | `word_frontend` | `main.tf:L76-L83` | `./modules/word_frontend` at `:L77` | absent |
 | `word_database` | `main.tf:L85-L92` | `./modules/word_database` at `:L86` | absent |
@@ -95,9 +112,19 @@ and three consequences follow.
   version the registry serves that day.
 - No `required_version` constraint pins Terraform itself, so any command-line version may run the
   configuration.
-- No backend block redirects state, so Terraform writes state to a local file beside the sources. A
-  local state file travels with one machine and stays out of version control, so two engineers
-  running `apply` would each track a separate copy of the same infrastructure.
+- No backend block redirects state, so Terraform writes state to a local `terraform.tfstate` file
+  beside the sources. A local state file travels with one machine, so two engineers running `apply`
+  would each track a separate copy of the same infrastructure.
+
+That local state file is a disclosure risk as well as a coordination one, and nothing in the repository
+guards against it. Terraform state stores resolved attribute values in plaintext, including the database
+password the two connection-string outputs interpolate. Marking an output `sensitive = true`, as
+`outputs.tf:L21` and `:L27` do, masks it in command-line output and does not encrypt it in state. The
+repository commits no `.gitignore` at all, so nothing excludes `terraform.tfstate`,
+`terraform.tfstate.backup` or the `.terraform/` directory from `git add`. An engineer who runs `apply`
+in this directory and then stages their work can commit a plaintext credential without any warning. Two
+mitigations exist and neither is committed: a remote backend with encryption at rest, or a `.gitignore`
+rule covering the state files.
 
 ### Variables and outputs
 
@@ -117,6 +144,13 @@ Services (AWS) address that no file in the folder declares.
 [The cloud-provider contradiction](#the-cloud-provider-contradiction) covers all 14, the two that
 carry a database password, and the one that names the wrong network.
 
+Those output references block `terraform apply` on their own, independently of the module problem.
+Terraform resolves every reference in the configuration before it plans, and each of the 14 outputs
+names a resource address that no file declares, so the run reports an unresolved reference rather
+than a plan. No apply happens, and no resource is created, until every output either points at a
+declared resource or is removed. Fixing only the three module sources is therefore not enough: it
+moves the failure from initialization to reference resolution.
+
 A marker sits at `infrastructure/terraform/main.tf:L94-L99` and raises the subnet range, the
 firewall rules, the bucket configuration and the module sources. A second marker sits at
 `infrastructure/terraform/outputs.tf:L58-L60`.
@@ -130,8 +164,8 @@ Two Dockerfiles build the two deployable units, and neither build completes.
 `infrastructure/docker/backend.Dockerfile` runs 27 lines and seven instructions.
 
 | Line | Instruction | Effect |
-|------|-------------|--------|
-| `:L2` | `FROM python:3.9-slim` | Pins Python 3.9, a release past end of life |
+| ------ | ------------- | -------- |
+| `:L2` | `FROM python:3.9-slim` | Pins Python 3.9, which reached end of life on 31 October 2025 with 3.9.25 as its final security release |
 | `:L5` | `WORKDIR /app` | Sets the build and run directory |
 | `:L8` | `COPY requirements.txt .` | Stops the build. No `requirements.txt` exists anywhere in the repository |
 | `:L11` | `RUN pip install --no-cache-dir -r requirements.txt` | Never runs |
@@ -149,8 +183,8 @@ directory and the environment configuration.
 `infrastructure/docker/frontend.Dockerfile` runs 32 lines across two stages.
 
 | Line | Instruction | Effect |
-|------|-------------|--------|
-| `:L2` | `FROM node:14-alpine as build` | Build stage on Node 14, a release past end of life |
+| ------ | ------------- | -------- |
+| `:L2` | `FROM node:14-alpine as build` | Build stage on Node 14, which reached end of life on 30 April 2023 |
 | `:L5` | `WORKDIR /app` | Sets the build directory |
 | `:L8` | `COPY package*.json ./` | Copies `package.json`. The glob matches no lockfile, because the repository commits none |
 | `:L11` | `RUN npm ci` | Stops the build. `npm ci` installs strictly from a lockfile |
@@ -171,7 +205,7 @@ copies `package.json` alone.
 format `3.8` at `:L1`. Neither application service builds.
 
 | Service | Build or image | Ports | Environment | Block |
-|---------|----------------|-------|-------------|-------|
+| --------- | ---------------- | ------- | ------------- | ------- |
 | `frontend` | context `../../frontend`, `dockerfile: Dockerfile` at `:L6-L7` | `3000:3000` at `:L9` | `REACT_APP_API_URL=http://backend:5000` at `:L11` | `:L4-L15` |
 | `backend` | context `../../backend`, `dockerfile: Dockerfile` at `:L19-L20` | `5000:5000` at `:L22` | `DATABASE_URL` at `:L24` | `:L17-L28` |
 | `db` | image `postgres:13` at `:L31` | none published | `POSTGRES_DB`, `POSTGRES_USER` and `POSTGRES_PASSWORD` at `:L33-L35` | `:L30-L39` |
@@ -207,10 +241,61 @@ so the Celery broker has no target in the local topology or in the cloud configu
 process and no beat scheduler appears anywhere in the repository, and
 [../backend/app/tasks/README.md](../backend/app/tasks/README.md) covers the task tier.
 
-The frontend environment variable names never meet. `docker-compose.yml:L11` injects
-`REACT_APP_API_URL`, and `frontend/src/services/api.ts:L82` reads
-`process.env.REACT_APP_API_BASE_URL`, the only `process.env` read in the whole frontend. The client
-resolves an undefined base URL under Compose.
+**All three runtime pins are past end of life.** Python 3.9 at `backend.Dockerfile:L2` ended support on
+31 October 2025, and Node 14 at `frontend.Dockerfile:L2` on 30 April 2023. PostgreSQL 13 at
+`docker-compose.yml:L31` ended support on 13 November 2025, with 13.23 as its final release. None of the
+three receives security patches as of 6 August 2026, so every image this topology builds or pulls ships
+an unsupported runtime. `nginx:alpine` at `frontend.Dockerfile:L20` pins no version at all, so a rebuild
+can change the serving runtime with no file changing.
+
+**Compose cannot supply the frontend a working API base URL, for four independent reasons.** Each one
+is sufficient on its own, so correcting any one leaves the other three.
+
+1. The key names never meet. `docker-compose.yml:L11` injects `REACT_APP_API_URL`, and
+   `frontend/src/services/api.ts:L82` reads `process.env.REACT_APP_API_BASE_URL`, the only
+   `process.env` read in the whole frontend.
+2. Substitution happens at build time, not run time. `frontend/package.json:L29` pins `react-scripts`
+   at `5.0.1`, and Create React App substitutes every `process.env.REACT_APP_*` reference into the
+   bundle during `npm run build` at `frontend.Dockerfile:L17`. The runtime stage starts `nginx:alpine`
+   at `:L20` and serves already-compiled files, so a Compose `environment` entry arrives after
+   substitution has finished.
+3. The browser cannot resolve the host. `http://backend:5000` names a Compose service, which Docker
+   resolves only for containers on `word-app-network` at `docker-compose.yml:L44-L46`. The compiled
+   bundle executes in the user's browser on the host, where `backend` is not a resolvable name.
+4. The port is wrong even from inside the network, for the reason the port paragraph above gives.
+
+Supplying a working base URL needs a build argument consumed before `npm run build`, using the key the
+code reads, naming a host the browser can resolve, on the port the server listens on.
+
+**Compose supplies 1 of the 15 settings the backend needs.** `Settings` declares nine fields at
+`backend/app/core/config.py:L111-L119`. Seven carry no default and are required, and the two `Optional`
+GCP fields at `:L116-L117` default to `None`. Compose injects `DATABASE_URL` only.
+
+| Setting | Declared at | Required | Compose supplies | Consequence |
+| --------- | ------------- | ---------- | ------------------ | ------------- |
+| `PROJECT_NAME` | `config.py:L111` | Yes | No | `Settings()` raises `ValidationError` |
+| `API_V1_STR` | `config.py:L112` | Yes | No | `ValidationError`. Read by no module |
+| `SECRET_KEY` | `config.py:L113` | Yes | No | `ValidationError`. Signs and verifies every token |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | `config.py:L114` | Yes | No | `ValidationError`. Sets token lifetime |
+| `ALGORITHM` | `config.py:L115` | Yes | No | `ValidationError`. Names the JWT algorithm |
+| `GOOGLE_CLOUD_PROJECT` | `config.py:L116` | No, `Optional` | No | Resolves to `None`, and `backend/app/db/firestore.py:L42` passes it as the Firestore project |
+| `GOOGLE_APPLICATION_CREDENTIALS` | `config.py:L117` | No, `Optional` | No | Resolves to `None`. No credential file is mounted into any container |
+| `DATABASE_URL` | `config.py:L118` | Yes | Yes, `docker-compose.yml:L24` | Satisfied. Read at `backend/app/db/sql.py:L16` |
+| `REDIS_URL` | `config.py:L119` | Yes | No | `ValidationError`. No Redis service exists to point it at |
+| `ALLOWED_ORIGINS` | Nowhere | n/a | No | `AttributeError` at `backend/app/main.py:L118` |
+| `PROJECT_ID` | Nowhere | n/a | No | `AttributeError` at `backend/app/services/collaboration_service.py:L120` |
+| `STORAGE_BUCKET_NAME` | Nowhere | n/a | No | `AttributeError` at `backend/app/services/export_service.py:L154` |
+| `SIGNED_URL_EXPIRATION` | Nowhere | n/a | No | `AttributeError` at `backend/app/services/export_service.py:L162` |
+| `EXPORT_BUCKET_NAME` | Nowhere | n/a | No | `AttributeError` at `backend/app/tasks/background_tasks.py:L141` |
+| `DOCUMENT_BUCKET_NAME` | Nowhere | n/a | No | `AttributeError` at `backend/app/tasks/background_tasks.py:L278` |
+
+Six required fields are absent, so `Settings()` cannot construct. Six further settings are read from
+`settings` and declared on no model, so no `.env` file and no Compose entry can supply them through
+Pydantic. Both GCP fields resolve to `None`, which leaves Firestore, Cloud Storage and Pub/Sub with no
+project and no credential path. No credential file is mounted into any container by any Compose
+stanza. A backend container that got past the build would still fail during import, because
+`backend/app/core/config.py` never constructs a module-level `settings` instance for the eight modules
+that import one.
 
 ### The lost Python package boundary
 
@@ -223,8 +308,10 @@ search both return zero, so `app`, `app.api`, `app.core`, `app.db`, `app.schema`
 `app.tasks` are implicit namespace packages. All seven resolve only while `backend/` itself sits on
 the import path.
 
-Every backend module nonetheless imports by absolute package path. `backend/app/main.py:L20` reads
-`from app.core.config import settings`, and eleven further modules follow the same form.
+Every backend module that imports a sibling nonetheless does so by absolute package path.
+`backend/app/main.py:L20` reads `from app.core.config import settings`, and eleven further modules
+follow the same form, which is 12 of the 15 modules under `backend/app/`. The remaining three,
+`core/config.py`, `schema/document.py` and `schema/user.py`, import no sibling at all.
 
 `infrastructure/docker/backend.Dockerfile:L14` copies `./app` to `/app`, which places the modules at
 the filesystem root rather than beneath an `app` package. `:L20` then starts `uvicorn main:app`, a
@@ -245,17 +332,28 @@ Two workflows automate the pipeline, and each one fails on its own first substan
 `ubuntu-latest` at `:L11`.
 
 | Step | Location | Effect |
-|------|----------|--------|
+| ------ | ---------- | -------- |
 | `actions/checkout@v2` | `:L13` | Checks out the repository. Version 2 is deprecated |
 | `actions/setup-node@v2` | `:L15` | Installs Node, pinned to `'14'` at `:L17`. Version 2 is deprecated, and Node 14 is past end of life |
 | `npm ci` | `:L19` | Fails. The step runs at the repository root, where no `package.json` and no lockfile exist |
 | `npm test` | `:L21` | Never runs |
-| `npm run build` | `:L23` | Never runs |
+| `npm run build` | `:L23` | Never runs, and would fail on the 76 TypeScript errors if reached |
 
 The job stops at `:L19`. No step sets a `working-directory`, so `npm ci` executes at the repository
 root, and the only manifest in the tree sits at `frontend/package.json`. The workflow also defines no
-Python job, no lint gate and no type-check gate. The 76 type errors the frontend carries would
-therefore not fail the build even after a successful install.
+Python job.
+
+The Build step is a latent second blocker rather than a step that would pass. `npm run build` runs
+`react-scripts build` (`frontend/package.json:L33`), which type-checks the project and treats a
+TypeScript error as a build failure. Create React App downgrades those errors to warnings only when
+`TSC_COMPILE_ON_ERROR=true` is set, and no committed file sets it, because the repository commits no
+`.env`. `npx tsc --noEmit` reports 76 errors, so repairing the install moves the failure from `:L19`
+to `:L23` rather than producing a green run.
+
+No dedicated lint step and no dedicated type-check step exist, although both tools are configured:
+`frontend/package.json:L36` defines a `lint` script, and `frontend/tsconfig.json:L25` sets
+`"noEmit": true`, which supports a standalone type check. The `Build` step type-checks as a side
+effect, which reports the errors at the wrong stage and gives no separate signal.
 
 ### Continuous delivery
 
@@ -263,21 +361,53 @@ therefore not fail the build even after a successful install.
 `main` at `:L5` and on nothing else.
 
 | Step | Location | Effect |
-|------|----------|--------|
+| ------ | ---------- | -------- |
 | `actions/checkout@v2` | `:L11` | Checks out the repository |
 | `google-github-actions/setup-gcloud@v0.2.0` | `:L13` | Installs the Google Cloud software development kit (SDK), reading a project identifier from the `GCP_PROJECT_ID` secret at `:L15` and a service-account key from the `GCP_SA_KEY` secret at `:L16` |
 | `gcloud app deploy app.yaml --quiet` | `:L19` | Fails. The repository commits no `app.yaml` |
 | `gcloud app deploy dispatch.yaml --quiet` | `:L20` | Never runs. The repository commits no `dispatch.yaml` |
 
-The deploy step at `:L17-L20` stops on its first command, because both descriptors are absent from
-the tree. The service-account key at `:L16` carries whatever identity and access management (IAM)
-role the project granted it, and no committed file records that role.
+The deploy step at `:L17-L20` stops on its first command, because both descriptors are absent from the
+tree. The reason `:L20` never runs is the shell rather than the missing file. GitHub executes a `run:` block on
+a Linux runner through `bash -e` by default, so the first non-zero exit ends the step. `cd.yml:L19` is
+therefore the failure a run reports, and `cd.yml:L20` is latent. Supplying `app.yaml` alone moves the
+failure to `cd.yml:L20`, and a run log shows one failure rather than two.
 
-Three gaps surround the two workflows. The `deploy` job declares no `needs:` key, so CD runs on a
-push to `main` whether or not CI passed. Neither workflow defines a rollback path, so a partial
-deploy stays partial. And `infrastructure/terraform/main.tf` declares no App Engine resource, so the
+Two supply-chain facts sit in this job. The service-account key at `:L16` carries whatever identity and
+access management (IAM) role the project granted it, and no committed file records that role. All three
+action references in the two workflows are mutable tags rather than immutable commit references. Nothing
+in this repository therefore fixes the code that handles the key, because only a full-length commit hash
+pins an action. [../.github/workflows/README.md](../.github/workflows/README.md) carries the detail.
+
+Three gaps surround the two workflows. Nothing gates CD on CI, so CD runs on a push to `main`
+whether or not CI passed. A `needs:` key cannot close that gap, because `needs:` orders jobs inside
+one workflow and cannot reference another workflow; the options are one combined workflow or a
+`workflow_run` trigger on `cd.yml`, and neither file contains either key. Neither workflow defines a
+rollback path, so a partial deploy stays partial. And `infrastructure/terraform/main.tf` declares no App Engine resource, so the
 committed infrastructure never provisions the target that both `gcloud app deploy` commands address.
 A search of the three `.tf` files for `app_engine` returns no match.
+
+### Operations risk register
+
+Nine risks apply to any environment built from these assets, and none of them is a build failure, so
+none surfaces from a green pipeline. Each row names the committed evidence and the prerequisite that
+closes it. Every one is future work; this documentation pass changes no manifest, image or workflow.
+
+| # | Risk | Committed evidence | Prerequisite |
+|---|------|--------------------|--------------|
+| 1 | Python 3.9 receives no security fix | `infrastructure/docker/backend.Dockerfile:L2` names `python:3.9-slim`, and `../README.md:L23` states Python 3.8 or later. Python 3.9 reached end of support on 31 October 2025 | Move to a supported Python and pin it in one place, with a reviewed backend dependency manifest behind it |
+| 2 | Node.js 14 receives no security fix | `.github/workflows/ci.yml:L17` sets `node-version: '14'`, `infrastructure/docker/frontend.Dockerfile:L2` names `node:14-alpine`, and `../README.md:L22` states Node 14 or later. Node.js 14 left support on 30 April 2023, and its final release, 14.21.3, shipped on 16 February 2023 | Move to a supported Node major, declare it in `engines` and in the workflow, and add a lockfile so `npm ci` can run |
+| 3 | PostgreSQL 13 receives no security fix | `infrastructure/docker/docker-compose.yml:L31` names `image: postgres:13`. PostgreSQL 13 reached end of life on 13 November 2025, so the community ships no further fix for the 13 branch | Move to a supported major, and plan the upgrade path for any data already written |
+| 4 | Image references are mutable | Every `FROM` and every `image:` above names a tag. A tag can be repointed at different bytes by whoever publishes it, and `frontend.Dockerfile:L20` names `nginx:alpine`, which pins no minor version at all | Pin each image by digest, written `image@sha256:<hex>`, which is the only immutable form, and record the resolved version beside it |
+| 5 | Action references are mutable | `ci.yml:L13`, `:L15` and `cd.yml:L11`, `:L13` name tags. Anyone with write access to an action repository can move or delete a tag. The March 2025 `tj-actions/changed-files` compromise moved every tag in that repository to malicious code | Replace each tag with a reviewed full-length commit SHA, the only immutable reference, and record the resolved version in a comment |
+| 6 | Both jobs hold more token scope than they need | Neither workflow declares a `permissions:` block at workflow or job level, so both receive the default `GITHUB_TOKEN` scope | Declare the minimum explicitly: `contents: read` for `ci.yml`, and `contents: read` plus `id-token: write` for `cd.yml` under federated identity |
+| 7 | A long-lived key authenticates the deploy | `cd.yml:L16` passes `secrets.GCP_SA_KEY` to `setup-gcloud`. A user-managed service account key does not expire by default and grants its permissions to anyone who obtains it | Replace it with Workload Identity Federation, which exchanges the OpenID Connect token GitHub issues for short-lived credentials and removes key handling entirely |
+| 8 | No federated identity is configured | Nothing in either workflow requests an OIDC token, and no workload identity pool or provider appears in `infrastructure/terraform/` | Create a pool and provider, request `id-token: write` on the job, and add an attribute condition restricting the provider to this repository, because an unconditioned provider lets any repository authenticate |
+| 9 | No credential rotation or audit exists | No committed file records which IAM role `GCP_SA_KEY` carries, when it was issued, or when it is next rotated. [Continuous delivery](#continuous-delivery) above records the same gap | Record the role, set a rotation schedule, and audit key use, until item 7 removes the key |
+
+[../.github/workflows/README.md](../.github/workflows/README.md) carries rows 5 through 8 against the
+workflow files, and [../infrastructure/docker/README.md](../infrastructure/docker/README.md) carries
+rows 1 through 4 against the images.
 
 ### The intended release pipeline, with its stops marked
 
@@ -288,20 +418,21 @@ graph TD
     subgraph CIJOB["Continuous integration: .github/workflows/ci.yml"]
         A1["checkout@v2, :L13"] --> A2["setup-node 14, :L15-L17"]
         A2 --> A3["npm ci, :L19"]
-        A3 -.->|"stops: no root package.json, no lockfile"| A4["npm test, :L21"]
-        A4 -.-> A5["npm run build, :L23"]
+        A3 -.->|"FIRST HIT: no root package.json, no lockfile"| A4["npm test, :L21"]
+        A4 -.-> A5["npm run build, :L23<br/>LATENT: 76 TypeScript errors"]
     end
 
     subgraph CDJOB["Continuous delivery: .github/workflows/cd.yml"]
         B1["checkout@v2, :L11"] --> B2["setup-gcloud v0.2.0, :L13-L16"]
         B2 --> B3["gcloud app deploy app.yaml, :L19"]
-        B3 -.->|"stops: app.yaml absent"| B4["gcloud app deploy dispatch.yaml, :L20"]
+        B3 -.->|"FIRST HIT: app.yaml absent,<br/>bash -e ends the step"| B4["gcloud app deploy dispatch.yaml, :L20<br/>LATENT: dispatch.yaml absent"]
     end
 
     subgraph TFPATH["Terraform: infrastructure/terraform"]
-        C1["terraform init"] -.->|"stops: 3 module sources absent, main.tf:L68 :L77 :L86"| C2["terraform apply"]
-        C2 --> C3["4 Google Cloud resources, main.tf:L19-L59"]
-        C2 -.->|"14 outputs read undeclared aws_ addresses"| C4["outputs.tf exports"]
+        C1["terraform init"] -.->|"stops: 3 module sources absent, main.tf:L68 :L77 :L86"| C0["terraform validate and plan"]
+        C0 -.->|"stops: 14 outputs reference 12 undeclared aws_ addresses, outputs.tf:L5-L87"| C2["terraform apply"]
+        C2 -.->|"unreachable until the outputs are fixed"| C3["4 Google Cloud resources, main.tf:L19-L59"]
+        C2 -.->|"unreachable"| C4["outputs.tf exports"]
     end
 
     subgraph COPATH["Containers: infrastructure/docker"]
@@ -313,13 +444,14 @@ graph TD
     COMMIT --> A1
     COMMIT --> B1
     B4 -.->|"no App Engine resource in main.tf"| GAE["Google App Engine"]
-    SH["scripts/deploy.sh"] -.->|"bucket, app.yaml and db_migrations.sql absent; :L47 echoes success"| GAE
+    SH["scripts/deploy.sh"] -.->|"bucket, app.yaml and db_migrations.sql absent; deploy.sh:L47 echoes success"| GAE
 
     classDef stops stroke-dasharray: 5 5
-    class A3,B3,C1,D1,D3,SH stops
+    class A3,B3,C1,C0,D1,D3,SH stops
 
 %% Convention: a dashed edge marks a step that never runs, and the edge label names the blocker.
-%% A dashed node border marks the step that stops. Solid edges run as committed.
+%% A dashed node border marks the step that stops. Solid edges show the declared step order,
+%% not proof that the step is reached.
 ```
 
 ## The deploy script
@@ -329,37 +461,70 @@ between steps. `:L1` sets the shebang and no `set -e` follows, so every step run
 the step before it returned. [../scripts/README.md](../scripts/README.md) owns the script detail.
 
 | Step | Location | What it does |
-|------|----------|--------------|
-| Credentials guard | `:L4-L7` | Exits 1 at `:L6` when `GOOGLE_APPLICATION_CREDENTIALS` is unset. The only check in the script |
+| ------ | ---------- | -------------- |
+| Credentials guard | `:L4-L7` | Exits 1 at `:L6` when `GOOGLE_APPLICATION_CREDENTIALS` is empty. Tests the variable only, and authenticates nothing |
 | Frontend build | `:L11` | Runs `npm run build` with no preceding `cd`, so the command executes wherever the caller invoked the script. No root `package.json` exists |
 | Backend tests | `:L15` | Runs `python -m pytest tests/`. No `tests/` directory sits at the repository root, and the three test modules sit at `backend/tests/` |
-| Package | `:L19` | Runs `zip -r app.zip .`, excluding `*.git*`, `node_modules/*` and `venv/*` |
-| Upload | `:L23` | Runs `gsutil cp app.zip gs://my-word-app-bucket/`, against a hard-coded bucket name |
+| Package | `:L19` | Runs `zip -r app.zip .` with three `-x` patterns. The patterns are anchored at the archive root, so nested dependency trees and any `.env` are included |
+| Upload | `:L23` | Runs `gsutil cp app.zip gs://my-word-app-bucket/`, against a hard-coded bucket name. The script's first cloud command |
 | App Engine deploy | `:L27` | Runs `gcloud app deploy app.yaml --quiet`. The repository commits no `app.yaml` |
-| Database migration | `:L31` | Pipes `db_migrations.sql` into `gcloud sql connect my-word-app-db --user=root`. The repository commits no such file |
-| Content delivery | `:L35` | Enables a content delivery network (CDN) on backend service `my-word-app-backend` |
+| Database migration | `:L31` | Pipes `db_migrations.sql` into `gcloud sql connect my-word-app-db --user=root`. The repository commits no such file, and neither provisioning path creates a `root` role |
+| Content delivery | `:L35` | Enables a content delivery network (CDN) on backend service `my-word-app-backend`. Passes neither `--global` nor `--region`, and no `--quiet` |
 | Post-deploy checks | `:L37-L44` | A marker at `:L37` sits above four commented-out checks |
 | Success message | `:L47` | Echoes `Deployment completed successfully!` with no guard |
+
+**The credentials guard authenticates nothing.** Two credential mechanisms exist and the script
+conflates them. `GOOGLE_APPLICATION_CREDENTIALS` configures Application Default Credentials, which the
+Google client libraries read, while the `gcloud` and `gsutil` command-line tools read their own
+credential store. `:L4-L7` tests only that the variable is non-empty: it checks no path, validates no
+key, runs no `gcloud auth activate-service-account --key-file`, and runs no `gcloud config set project`.
+All four cloud stages are CLI invocations rather than client-library calls, so a passing guard authorizes
+nothing. The gap first surfaces at `:L23`, the `gsutil cp` that is the script's first cloud command. That
+upload fails on missing credentials or a missing default project unless the host already carries an
+authenticated `gcloud` configuration.
+
+**The archive carries more than the application.** `:L19` excludes `*.git*`, `node_modules/*` and
+`venv/*`, and the last two are anchored at the archive root, so neither matches `frontend/node_modules/`
+or `backend/venv/`. A machine that ran `setup_dev_environment.sh:L14` and `:L20` first therefore packages
+both dependency trees. Nothing excludes `.env`, which `setup_dev_environment.sh:L40` writes into the
+repository root, and nothing excludes a service-account JSON key left in the tree. Credentials and
+dependency trees leave the machine on the upload at `:L23`.
+
+**Three operational details the step table does not carry.** Every path in the script is relative, so
+`:L11`, `:L15` and `:L19` resolve against whatever directory the caller invoked from. Running the script
+from `scripts/` rather than the repository root changes which files it reads and where it writes. `:L19`
+writes `app.zip` into that same directory, and `zip` updates an existing archive in place rather than
+replacing it, so a second run adds to whatever the first left behind and uploads the result. Every remote
+stage mutates rather than reconciles: `:L23` overwrites the object, `:L27` creates a new App Engine
+version, `:L31` replays the whole migration file, and `:L35` re-applies the CDN flag. A re-run after a
+partial failure repeats every stage that already succeeded, the migration included.
+
+**The CDN update names no scope.** `gcloud compute backend-services update` requires either `--global` or
+`--region`, and `:L35` passes neither, so the command prompts or errors rather than applying the change
+unattended. `:L35` also omits the `--quiet` that `:L27` and `.github/workflows/cd.yml:L19-L20` pass, so
+this one stage can block on a prompt in a script designed to run without a person watching.
 
 The hard-coded bucket at `:L23` does not match the infrastructure. `gs://my-word-app-bucket/` names
 one bucket, and the only bucket the configuration declares is `word-documents-${var.project_id}` at
 `infrastructure/terraform/main.tf:L51`. No committed Terraform creates `my-word-app-bucket`, so the
 upload addresses a bucket the infrastructure never provisions. The same mismatch applies to
-`my-word-app-db` at `:L31` and `my-word-app-backend` at `:L35`, and neither name appears in any `.tf`
-file.
+`my-word-app-db` at `scripts/deploy.sh:L31` and `my-word-app-backend` at `:L35`, and neither name
+appears in any `.tf` file.
 
-The final echo at `:L47` reports success unconditionally. No line sets `set -e`, no step tests an
-exit status, and `:L47` carries no guard, so the script prints `Deployment completed successfully!`
-after every earlier step has failed. An operator reading that output sees success and gets no signal
-that nothing deployed.
+The final echo at `:L47` reports success unconditionally. No line sets `set -e`, no step tests an exit
+status, and `:L47` carries no guard, so the script prints `Deployment completed successfully!` whatever
+the earlier stages returned. The message is not conditional on failure either: it prints after a clean
+run and after a run in which every stage failed, which is what makes it useless as a signal. An operator
+must read the log rather than the last line.
 
 ### The developer setup script
 
-`scripts/setup_dev_environment.sh` runs 56 lines and prepares a developer machine. Two of its steps
-fail outright, and two more run the wrong tool.
+`scripts/setup_dev_environment.sh` runs 56 lines and prepares a developer machine. The run ends in
+partial success rather than clean failure, and reports unqualified success. `:L1` sets the shebang and no
+`set -e` follows, so every stage runs regardless of what the stage before it returned.
 
 | Step | Location | Note |
-|------|----------|------|
+| ------ | ---------- | ------ |
 | System packages | `:L10` | Installs `nodejs`, `npm`, `python3`, `python3-pip`, `python3-venv` and `postgresql`, all unpinned, so the installed versions follow the host distribution |
 | Virtual environment | `:L14-L15` | Creates `backend/venv` and activates it |
 | Frontend install | `:L20` | Runs `npm install` inside `frontend/`, which succeeds and resolves the declared manifest |
@@ -367,6 +532,17 @@ fail outright, and two more run the wrong tool.
 | Database | `:L31-L36` | Creates database `msword_clone` at `:L31` and user `msword_user` at `:L32`, then grants privileges at `:L36` |
 | Environment file | `:L40` | Runs `cp .env.example .env`. Fails, because the repository commits no template |
 | Migrations | `:L47-L48` | Runs `python manage.py makemigrations` and `python manage.py migrate` |
+| Success message | `:L52` | Echoes `Development environment setup complete!` with no guard, then prints start-up instructions at `:L53-L56` |
+
+The stages after the backend install fail on their own causes, not because of it. Database provisioning at
+`:L31-L36` succeeds on a host where `apt-get install postgresql` at `:L10` started a server. A run
+therefore leaves a usable database, an activated virtual environment holding no backend packages,
+installed frontend packages, no `.env` and no migrations. `:L52` then prints success over that mixed
+outcome, for the same reason `deploy.sh:L47` does: no `set -e`, and no exit-status check anywhere.
+
+Two prerequisites the script does not install are worth naming, because `deploy.sh` needs both. `:L10`
+omits the Google Cloud SDK, which `README.md:L24` lists as a prerequisite, and omits `zip`, which
+`deploy.sh:L19` runs.
 
 The database names disagree with Compose. `setup_dev_environment.sh:L31` creates `msword_clone` and
 `:L32` creates user `msword_user`, while `infrastructure/docker/docker-compose.yml:L33-L34` provisions
@@ -377,15 +553,34 @@ the Compose pair.
 The migration commands belong to Django, and the backend is FastAPI. `:L47` and `:L48` call
 `python manage.py`, and no `manage.py` exists anywhere in the repository. `:L55` closes the script by
 telling the developer to start the backend with `python manage.py runserver`, which contradicts both
-`README.md:L55` and `infrastructure/docker/backend.Dockerfile:L20`, each of which runs Uvicorn. A
-marker at `:L41` and a TODO at `:L42` sit above the environment step. The `.env` file that `:L40`
-would create is the file `backend/app/core/config.py:L123` names as its settings source.
+`../README.md:L55` and `infrastructure/docker/backend.Dockerfile:L20`, each of which runs Uvicorn. A
+marker at `scripts/setup_dev_environment.sh:L41` and a TODO at `:L42` sit above the environment step.
+The `.env` file that `:L40` would create is the file `backend/app/core/config.py:L123` names as its
+settings source.
 
 ## Why a deploy fails as committed
 
-A deploy fails at eleven points. The list runs in the order a reader meets them, from provisioning
-infrastructure through to the final script, and each entry names the file and line that stops the
-step. No entry depends on another, so each one needs its own fix.
+A deploy fails at eleven points, and the eleven are not eleven parallel problems. Six execution paths
+exist, each path hits one blocker, and the rest of that path's blockers sit behind it unreported. The
+table below groups them so a reader can tell what a run will actually say from what it will say next.
+
+| Execution path | Command that starts it | First hit, the failure a run reports | Latent behind it |
+| ---------------- | ------------------------ | -------------------------------------- | ------------------ |
+| Terraform | `terraform init` | Item 1, three unreadable module sources | The 14 outputs reading undeclared `aws_*` addresses, which block `apply` once `init` clears, and item 10, the absent App Engine resource |
+| Compose | `docker compose up --build` | Item 5, neither build context holds a `Dockerfile` | Items 3 and 4, the two image builds; then item 6, the port mapping; then item 7, the flattened package; then item 8, the absent broker |
+| Direct backend build | `docker build -f infrastructure/docker/backend.Dockerfile ./backend` | Item 4, `COPY requirements.txt` | Item 7, the `app.` prefix, which only surfaces once the image runs |
+| Direct frontend build | `docker build -f infrastructure/docker/frontend.Dockerfile ./frontend` | Item 3, `npm ci` with no lockfile | The `npm run build` at `frontend.Dockerfile:L17`, which fails on 76 TypeScript errors |
+| Continuous integration | Push or pull request to `main` | Item 2, `npm ci` at the repository root | `npm run build` at `ci.yml:L23`, which fails on the same 76 errors |
+| Continuous delivery and `deploy.sh` | Push to `main`, or `bash scripts/deploy.sh` | Item 9 for the workflow, `app.yaml` absent; item 11's `:L11` for the script, no root `package.json` | `cd.yml:L20` behind `bash -e`; and for the script, the unauthenticated CLI at `:L23`, the absent `app.yaml` at `:L27`, the absent migration file at `:L31`, the unscoped CDN update at `:L35`, and the unconditional success echo at `:L47` |
+
+Two consequences follow. Fixing a first-hit blocker exposes the next blocker on that path rather than
+producing a working deploy, so no single fix moves any path to completion. A path's silence about a
+blocker is also not evidence the blocker is absent. `deploy.sh` is the one path that reports nothing at
+all, because it declares no `set -e`, so every stage runs and fails in turn behind an unconditional
+success message.
+
+The eleven entries themselves follow, in the order a reader meets them from provisioning through to the
+final script, each naming the file and line that stops the step.
 
 1. **`terraform init` cannot read three module sources.** `infrastructure/terraform/main.tf:L68`,
    `:L77` and `:L86` source `./modules/word_backend`, `./modules/word_frontend` and
@@ -421,10 +616,12 @@ step. No entry depends on another, so each one needs its own fix.
     commands and `scripts/deploy.sh:L27` address App Engine. The three `.tf` files declare one
     network, one subnet, one firewall rule and one bucket, and a search for `app_engine` returns no
     match, so the deploy target is never provisioned.
-11. **`deploy.sh` addresses absent resources and then reports success.** `:L23` uploads to hard-coded
-    `gs://my-word-app-bucket/`, which no Terraform creates. `:L31` pipes an uncommitted
-    `db_migrations.sql` into Cloud SQL. `:L47` echoes `Deployment completed successfully!` with no
-    guard, after every earlier step has failed.
+11. **`deploy.sh` addresses absent resources and then reports success.** `:L4-L7` guards a variable
+    without authenticating the `gcloud` CLI, so `:L23` fails on credentials before the bucket name even
+    matters. That bucket is hard-coded `gs://my-word-app-bucket/`, which no Terraform creates. `:L31`
+    pipes an uncommitted `db_migrations.sql` into Cloud SQL as a `root` role neither provisioning path
+    creates. `:L35` updates a backend service with no `--global` or `--region` scope. `:L47` echoes
+    `Deployment completed successfully!` with no guard, whatever the earlier stages returned.
 
 [troubleshooting.md](troubleshooting.md#g8-platform-and-automation-defects) carries the same eleven
 entries inside the full defect register, alongside the backend import failure and the 76 frontend
@@ -441,7 +638,7 @@ the project proposal names Microsoft Azure.
 Google Cloud is the platform the code actually calls.
 
 | Evidence | Location |
-|----------|----------|
+| ---------- | ---------- |
 | The only configured Terraform provider | `infrastructure/terraform/main.tf:L9-L12` |
 | Four Google Cloud resources | `main.tf:L19`, `:L25`, `:L35`, `:L50` |
 | Firestore client, built at import time | `backend/app/db/firestore.py:L42`, importing at `:L36` |
@@ -449,12 +646,12 @@ Google Cloud is the platform the code actually calls.
 | Pub/Sub publisher and subscriber | `backend/app/services/collaboration_service.py:L37` |
 | `gcloud` in the delivery workflow | `.github/workflows/cd.yml:L13`, `:L19-L20` |
 | `gcloud` and `gsutil` in the deploy script | `scripts/deploy.sh:L23`, `:L27`, `:L31`, `:L35` |
-| The stack line in the root README | `README.md:L18` |
+| The stack line in the root README | `../README.md:L18` |
 
 The Technical Specifications document agrees with the code, and the agreement is declared intent
 rather than evidence of behaviour. Google Cloud names appear under its HIGH-LEVEL ARCHITECTURE
-DIAGRAM heading at `L140`, including a `Google Cloud Platform` subgraph at `L172`. The same names
-appear again under its THIRD-PARTY SERVICES heading at `L587`.
+DIAGRAM heading at `Technical Specifications.md:L140`, including a `Google Cloud Platform` subgraph
+at `:L172`. The same names appear again under its THIRD-PARTY SERVICES heading at `:L587`.
 [integration-guide.md](integration-guide.md) records which of those services a request can actually
 reach.
 
@@ -465,7 +662,7 @@ Every one of the 14 outputs reads an AWS address, and no file declares any of th
 resource addresses across 9 resource types**.
 
 | Resource type | Address | Read by |
-|---------------|---------|---------|
+| --------------- | --------- | --------- |
 | `aws_api_gateway_deployment` | `.main` | `api_gateway_endpoint` at `:L5` |
 | `aws_api_gateway_stage` | `.main` | `api_gateway_stage` at `:L10` |
 | `aws_db_instance` | `.main` | `database_connection_string` at `:L18` |
@@ -487,8 +684,8 @@ configured in the folder is `google` at `main.tf:L9`, which cannot create an AWS
 outputs fail to resolve during a plan.
 
 The generated Technical Specification describes fifteen AWS resources at its §1.2.1.3. The verified
-count is 12 distinct addresses across 9 types, and [decision-log.md](decision-log.md) records the
-correction.
+count is 12 distinct addresses across 9 types, and the pending
+[decision-log.md](decision-log.md) will record that correction.
 
 Two outputs interpolate a database password into their value. `outputs.tf:L20` builds
 `database_connection_string` from the username, password, endpoint and name of
@@ -505,11 +702,12 @@ marker at `outputs.tf:L58-L60` raises the same mismatch.
 
 ### Microsoft Azure, in the project proposal
 
-Azure appears only in the project proposal, and only as declared intent. No committed file references
-Azure anywhere.
+Azure appears only in the project proposal, and only as declared intent. No implementation file and
+no infrastructure file references Azure: a search across `backend/`, `frontend/src/`,
+`infrastructure/`, `.github/workflows/` and `scripts/` returns nothing.
 
 | Site | Heading | Statement |
-|------|---------|-----------|
+| ------ | --------- | ----------- |
 | `L193` | `ASSUMPTIONS` | Assumes Azure cloud infrastructure will be available and scalable |
 | `L214` | `DEPENDENCIES` | Places an `Azure Services` node inside a Mermaid dependency diagram |
 | `L229` | `DEPENDENCIES` | Lists Azure services for backend operations |
@@ -524,24 +722,31 @@ Azure.
 
 ### What the contradiction costs
 
-The three positions carry one practical consequence for anyone who runs `terraform apply`. A
-successful apply would create the four Google Cloud resources at `main.tf:L19` through `:L59`. All 14
-outputs would still fail, because the outputs describe a platform the configuration never builds.
-Provisioning the right resources and exporting the wrong ones are two separate defects, and this
-configuration carries both.
+The three positions carry one practical consequence for anyone who runs Terraform, and the order of
+failures matters. The 14 outputs reference 12 resource addresses that no file declares, and Terraform
+resolves every reference while building the graph. `terraform validate` and `terraform plan` therefore
+fail on those references before any resource is created, so no apply reaches the four Google Cloud
+resources at `main.tf:L19` through `:L59`. Creating those four resources is unreachable until the
+outputs are corrected or removed. Provisioning the right resources and exporting the wrong ones are
+two separate defects, and the second one blocks the first.
 
 ## Related documentation
 
-Start at [docs/README.md](README.md), which indexes every document in this set.
+[docs/README.md](README.md) will index every document in this set once that file lands. Until then,
+the list below is the map.
 
 Repository-level documents beside this one:
 
 - [architecture-overview.md](architecture-overview.md), the six-area map and the four tiers
 - [troubleshooting.md](troubleshooting.md), every defect in the repository as a numbered register
-- [integration-guide.md](integration-guide.md), each external service marked reachable or scaffolded
+- [integration-guide.md](integration-guide.md), each external service under one of four reachability
+  labels
 - [onboarding.md](onboarding.md), clean-machine setup and a prioritised task list
-- [decision-log.md](decision-log.md), every judgement this engagement made, with its reasoning
+- [decision-log.md](decision-log.md), pending and not yet committed: every judgement this engagement
+  made, with its reasoning
 - [data-model.md](data-model.md), the Pydantic and Zod contracts and every field divergence
+- `docs/decision-log.md`, scheduled and not yet written. A later checkpoint will record every
+  judgement this engagement made, with its reasoning
 
 Module documentation for the four asset groups this guide describes:
 

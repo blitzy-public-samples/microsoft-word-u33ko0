@@ -30,17 +30,17 @@ import { selectCurrentUser } from '@/store/userSlice';
  * @remarks The selector call is the only external read, and no dispatch or network call runs here.
  *
  * @remarks
- * The selector call at L7 is the only explicit data read, and no line dispatches an action or
+ * The selector call at L56 is the only explicit data read, and no line dispatches an action or
  * calls an application programming interface. Rendering still makes browser requests. The `img`
- * at L28 sets `src` to `currentUser.avatar`, so the browser fetches that URL, and the `img` at
- * L13 fetches the static path `/microsoft-word-logo.png`. The avatar URL is the one that matters:
+ * at L77 sets `src` to `currentUser.avatar`, so the browser fetches that URL, and the `img` at
+ * L62 fetches the static path `/microsoft-word-logo.png`. The avatar URL is the one that matters:
  * it arrives with the user object rather than from this repository, and no line validates,
  * allow-lists or rewrites it. A value pointing at an outside host makes the browser contact that
  * host on every render of a signed-in page, and the host learns the reader's internet protocol
  * (IP) address, user agent, and whatever referrer the page's policy permits.
  *
- * The branch at L26 tests `currentUser`, then reads `.avatar` and `.name` at L28 and L29.
- * `store/userSlice.ts:L5` types that value `User | null`, which `schema/user.ts:L13` infers
+ * The branch at L75 tests `currentUser`, then reads `.avatar` and `.name` at L77 and L78.
+ * `store/userSlice.ts:L26` types that value `User | null`, which `schema/user.ts:L56` infers
  * from a schema declaring neither field.
  *
  * The branch guards rendering, not access. A truthy `currentUser` means the local store holds an

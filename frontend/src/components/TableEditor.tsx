@@ -12,7 +12,7 @@
  *
  * Nothing here runs. No module in the tree imports `TableEditor`, so the `editorState` prop that
  * L30-L32 requires never arrives, and the return at L97-L101 renders an empty `div`. The docstring
- * on `handleInsertTable` records why that handler never executes. The assistance marker at L53
+ * on `handleInsertTable` records why that handler never executes. The assistance marker at L52-L53
  * flags the handler's confidence level.
  *
  * Intended behavior per documentation/Technical Specifications.md, "USER INTERFACE DESIGN" heading:

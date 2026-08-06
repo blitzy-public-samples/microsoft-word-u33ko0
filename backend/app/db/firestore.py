@@ -14,10 +14,10 @@ No module imports the four helpers. Three modules import the `db` client and cal
 directly instead: `app/main.py`, `app/services/document_service.py` and
 `app/tasks/background_tasks.py`.
 
-`app/main.py:L22` calls `db.is_connected()`, and a Firestore `Client` defines no
+`app/main.py:L63` calls `db.is_connected()`, and a Firestore `Client` defines no
 such method, so that call raises `AttributeError`.
 
-`app/main.py:L34` awaits `db.close()`, and the outcome differs. The client does
+`app/main.py:L110` awaits `db.close()`, and the outcome differs. The client does
 carry `close`, inherited from the shared Google Cloud client base class, and that
 method is synchronous: it shuts the underlying transport session and returns
 `None`. The `await` then receives `None`, which is not awaitable, so the statement

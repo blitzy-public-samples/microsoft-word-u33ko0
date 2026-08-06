@@ -25,14 +25,14 @@ round trip.
 
 Two owner identities land in one stored record. L18 serializes the
 `DocumentCreate` body, which carries the client-supplied `owner_id` that
-`app/schema/document.py:L8` declares as `Optional[str]` with a default of `None`.
+`app/schema/document.py:L68` declares as `Optional[str]` with a default of `None`.
 L19 then adds a separate `user_id` key. A stored document therefore holds a
 client-controlled `owner_id` alongside the `user_id` that every later comparison
 reads, and nothing reconciles the two.
 
 The ownership field carries two names across four positions, and no evidence in
 the repository makes either name canonical. L19, L35, L52 and L72 in this module
-write and read `user_id`. `app/schema/document.py:L8` declares `owner_id` on
+write and read `user_id`. `app/schema/document.py:L68` declares `owner_id` on
 `DocumentBase`, while `:L27` declares `user_id` on `DocumentVersion`. The
 specification names the field `owner_id` at
 `documentation/Technical Specifications.md:L333`. All four positions are recorded
@@ -48,7 +48,7 @@ again below. Eight backend modules import `settings`, and this one alone never
 reads an attribute from it.
 
 Absent method: `DocumentService` defines no `get_documents`, and
-`app/api/documents.py:L19` calls one.
+`app/api/documents.py:L145` calls one.
 
 Line locators: every `Lnn` reference below numbers the tree at commit
 06be74c7c88aa6bca652d465eaa00ad480a9e5c5, the frozen revision that precedes this
@@ -93,7 +93,7 @@ class DocumentService:
                 this method sets either field.
             TypeError: From the Firestore encoder at L21, when a caller passes a
                 value the encoder cannot serialize under a key of `doc_data`.
-                `app/api/documents.py:L13` passes a Pydantic `User` for the
+                `app/api/documents.py:L111` passes a Pydantic `User` for the
                 `user_id` parameter, which L19 places in the dictionary, and the
                 encoder rejects an arbitrary `BaseModel`. The encoding runs before
                 the network call, so no document is written on that path.
@@ -154,7 +154,7 @@ class DocumentService:
         for exact string equality against the `user_id` argument. The comparison
         is the whole authorization decision: no role, no access-control list and
         no share list takes part, and the `owner_id` field that
-        `app/schema/document.py:L8` declares is not consulted.
+        `app/schema/document.py:L68` declares is not consulted.
 
         The order of the two guards decides which status a caller sees. L31 tests
         existence first, so a missing document raises 404 at L32 and never reaches
@@ -208,7 +208,7 @@ class DocumentService:
                 receives an exception instead of the refreshed document. The
                 condition holds on every call that passes the ownership check,
                 because `DocumentUpdate` declares only `title` and `content` at
-                `app/schema/document.py:L13-L15` and nothing sets a timestamp.
+                `app/schema/document.py:L84-L96` and nothing sets a timestamp.
 
         Side effects:
             Spends three Firestore round trips on every call: a read at L46, a
@@ -224,7 +224,7 @@ class DocumentService:
         lines, so the check runs against a snapshot the write does not re-verify.
         An ownership change committed between L46 and L57 is not observed, and the
         write proceeds on the strength of the stale snapshot. The write itself
-        cannot reassign ownership: `app/schema/document.py:L13-L15` declares only
+        cannot reassign ownership: `app/schema/document.py:L84-L96` declares only
         `title` and `content` on `DocumentUpdate`, and Pydantic 1.x drops
         undeclared keys, so L56 can emit no owner field for L57 to store.
 

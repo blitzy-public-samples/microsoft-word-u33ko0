@@ -16,7 +16,7 @@ authorization decision would have to live in `TemplateService`. That class does
 not exist: `app.services.template_service` is absent, so no contract states
 whether such a check happens, and none can be inferred. Three of the five backend
 document routes take the opposite approach and compare ownership in the router
-body, at `app/api/documents.py:L26`, `:L34` and `:L43`; the create and list routes
+body, at `app/api/documents.py:L187`, `:L34` and `:L43`; the create and list routes
 at `:L10` and `:L16` compare nothing.
 
 Error text is not a control. L35 and L43 send the detail
@@ -30,7 +30,7 @@ No caller reaches a template handler as committed, so every authorization
 statement in this module describes a hypothetical rather than a live control.
 Three independent barriers block that reach, each one sufficient on its own, and
 the three paragraphs below set them out in turn: the import failure at L3, the
-`templates_router` export mismatch against `app/main.py:L6`, and the route
+`templates_router` export mismatch against `app/main.py:L19`, and the route
 collision with the document router.
 
 Once all three are repaired, no line below narrows the reach: any authenticated
@@ -45,13 +45,13 @@ file, so nothing defines what the handler calls below must pass. The
 decorators at L10, L16, L22, L30 and L38 never execute, and `router` never
 gains a route.
 
-Export name mismatch: `app/main.py:L6` imports `templates_router` from this
+Export name mismatch: `app/main.py:L19` imports `templates_router` from this
 module. L8 defines `router`, and no `templates_router` name exists here.
 
-Route collision: `app/main.py:L50` mounts the document router with no prefix,
-then `app/main.py:L52` mounts this router the same way. `POST /` at L10 and
-`GET /` at L16 repeat the paths that `app/api/documents.py:L10` and
-`app/api/documents.py:L16` already claim. The dynamic paths repeat them too,
+Route collision: `app/main.py:L126` mounts the document router with no prefix,
+then `app/main.py:L128` mounts this router the same way. `POST /` at L10 and
+`GET /` at L16 repeat the paths that `app/api/documents.py:L56` and
+`app/api/documents.py:L114` already claim. The dynamic paths repeat them too,
 because `/{template_id}` and `/{document_id}` compile to the same
 single-segment pattern and the parameter name does not affect the match.
 Starlette matches in registration order, so all five handlers below are

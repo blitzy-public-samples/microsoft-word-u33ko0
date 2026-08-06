@@ -11,8 +11,8 @@
  * setError and a default reducer, and no selector.
  * The greeting reads currentUser.name, which no user contract declares. schema/user.ts
  * models username and full_name, and Settings reads the same absent field.
- * The three quick-access links at L18, L21 and L24 target /new-document, /open-document and
- * /recent-documents. App.tsx:L20-L23 declares only /, /editor, /templates and /settings, so
+ * The three quick-access links at L61, L64 and L67 target /new-document, /open-document and
+ * /recent-documents. App.tsx:L52-L55 declares only /, /editor, /templates and /settings, so
  * none of the three targets matches a declared route.
  */
 import React from 'react';
@@ -31,7 +31,7 @@ import { selectCurrentUser } from '@/store/userSlice';
  *
  * @returns The home page element.
  * @remarks App renders Header and Footer around every route, so this page renders a second
- * header and a second footer. The three links at L18, L21 and L24 target /new-document,
+ * header and a second footer. The three links at L61, L64 and L67 target /new-document,
  * /open-document and /recent-documents. App declares only /, /editor, /templates and
  * /settings, so each of the three targets an undeclared route and a click reaches no page.
  * The page calls no router hook, so nothing here navigates on its own.
@@ -42,11 +42,11 @@ import { selectCurrentUser } from '@/store/userSlice';
  * @example
  * <Route path="/" element={<Home />} />
  * // `frontend/package.json:L11` declares `react-router-dom` at `^6.11.1`, which takes an
- * // `element` prop and dropped both the v5 `component` prop and `exact`. `App.tsx:L19-L24`
+ * // `element` prop and dropped both the v5 `component` prop and `exact`. `App.tsx:L51-L56`
  * // holds the committed route table, still written in the version 5 form.
- * // `App.tsx:L20` is the registration this snippet reproduces.
- * // Cannot run today: the four `@/` specifiers at L3-L6 fail module resolution, and neither
- * // `useAppSelector` at L5 nor `selectCurrentUser` at L6 is exported by the module it names.
+ * // `App.tsx:L52` is the registration this snippet reproduces.
+ * // Cannot run today: the four `@/` specifiers at L20-L23 fail module resolution, and neither
+ * // `useAppSelector` at L22 nor `selectCurrentUser` at L23 is exported by the module it names.
  */
 const Home: React.FC = () => {
   const currentUser = useAppSelector(selectCurrentUser);

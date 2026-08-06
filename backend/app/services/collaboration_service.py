@@ -6,25 +6,25 @@ unused. `asyncio` and `json` are used and never imported, so `connect` and
 `broadcast_change` each raise `NameError` when they run.
 
 The module creates no topic. No `create_topic` call exists anywhere in this file
-or in the repository. L20 and L60 interpolate a topic path into a string, and L24
+or in the repository. L120 and L245 interpolate a topic path into a string, and L124
 passes that string to `create_subscription` as the `topic` argument. Four Pub/Sub
-calls run: `create_subscription` at L24, `subscribe` at L35, `delete_subscription`
-at L52 and `publish` at L63. Two of the four name a topic and need it to exist
-already, so L24 and L63 both fail against a project where nothing else created it.
-The other two address a subscription instead: L35 consumes the subscription path
-built at L21, and L52 deletes the subscription path built at L50.
+calls run: `create_subscription` at L124, `subscribe` at L165, `delete_subscription`
+at L211 and `publish` at L248. Two of the four name a topic and need it to exist
+already, so L124 and L248 both fail against a project where nothing else created it.
+The other two address a subscription instead: L165 consumes the subscription path
+built at L121, and L211 deletes the subscription path built at L209.
 
 Resilience. The module configures none, and every absence below belongs to this
-module rather than to the client library. `PublisherClient()` at L8 and
-`SubscriberClient()` at L9 receive no `client_options`, no publisher batch or flow
+module rather than to the client library. `PublisherClient()` at L69 and
+`SubscriberClient()` at L70 receive no `client_options`, no publisher batch or flow
 control settings and no credentials. The four operations pass no `retry` and no
-`timeout` argument. `create_subscription` at L24 sets no `dead_letter_policy`, no
+`timeout` argument. `create_subscription` at L124 sets no `dead_letter_policy`, no
 `ack_deadline_seconds`, no `retry_policy` and no `message_retention_duration`, so
 no redelivery policy and no dead-letter route exists for a message the client
-fails to handle. `future.result()` at L38 and L64 is called with no timeout, so
+fails to handle. `future.result()` at L168 and L249 is called with no timeout, so
 each call blocks indefinitely on a stalled future. No circuit breaker, no backoff,
-no jitter and no fallback path exists. The `callback` at L31 acknowledges each
-message at L32 before it attempts delivery at L33, so a delivery that fails
+no jitter and no fallback path exists. The `callback` at L131 acknowledges each
+message at L162 before it attempts delivery at L163, so a delivery that fails
 cannot be redelivered and the change it carried is lost. No backend dependency
 manifest is committed, so nothing pins `google-cloud-pubsub` and no committed file
 records which defaults the resolved release would apply.
@@ -57,10 +57,10 @@ class CollaborationService:
     All three methods declare `async def` and contain no `await` expression, so the
     Pub/Sub client calls inside them run synchronously. Future handling differs by
     method, and only two of the three produce a future at all. `connect` binds the
-    streaming pull future that `subscribe` returns at L35 and blocks on it at L38,
+    streaming pull future that `subscribe` returns at L165 and blocks on it at L168,
     which stalls the event loop for the lifetime of the subscription.
-    `broadcast_change` binds the publish future that `publish` returns at L63 and
-    blocks on it at L64. `disconnect` creates no future: L52 calls
+    `broadcast_change` binds the publish future that `publish` returns at L248 and
+    blocks on it at L249. `disconnect` creates no future: L211 calls
     `delete_subscription`, which returns nothing to wait on, so the method has
     nothing to block for and nothing to cancel.
     """
@@ -87,28 +87,28 @@ class CollaborationService:
             Nothing.
 
         Raises:
-            AttributeError: At L20, because `Settings` declares no `PROJECT_ID`
-                field. The read sits above the `try` at L23, outside every guarded
+            AttributeError: At L120, because `Settings` declares no `PROJECT_ID`
+                field. The read sits above the `try` at L123, outside every guarded
                 block, so the error propagates to the caller on the first call.
-                Partial state at that point: L17 has already registered the socket
+                Partial state at that point: L117 has already registered the socket
                 in `active_connections`, and no Pub/Sub call has run. The socket
                 therefore sits in the registry with no subscription behind it, and
                 the caller cannot tell from the exception that the registry was
                 mutated.
-            Whatever `SubscriberClient.subscribe` raises at L35. That call sits
+            Whatever `SubscriberClient.subscribe` raises at L165. That call sits
                 between the two `try` blocks, outside both, so a synchronous
-                client or argument-validation failure propagates to the caller. L23
-                guards only `create_subscription` at L24, and L37 guards only
-                `future.result()` at L38.
-            NameError: From the nested `callback` at L33 on first delivery, as
+                client or argument-validation failure propagates to the caller. L123
+                guards only `create_subscription` at L124, and L167 guards only
+                `future.result()` at L168.
+            NameError: From the nested `callback` at L163 on first delivery, as
                 documented on that function. The error surfaces on the Pub/Sub
                 client's own thread rather than through this method.
 
-        No other exception leaves the method. L25 and L39 catch every exception
-        their own blocks raise, and L27 and L41 print it.
+        No other exception leaves the method. L125 and L169 catch every exception
+        their own blocks raise, and L127 and L171 print it.
 
         Note:
-            See the human-assistance marker at L12-L13 directly above this
+            See the human-assistance marker at L73-L74 directly above this
             signature: the method carries a confidence level of 0.6 and is
             flagged for production-readiness adjustments.
         """
@@ -131,16 +131,16 @@ class CollaborationService:
         def callback(message):
             """Acknowledge one Pub/Sub message, then send its data to the socket.
 
-            L32 calls `message.ack()` before L33 sends, so a delivery that fails
+            L162 calls `message.ack()` before L163 sends, so a delivery that fails
             has already been acknowledged and cannot be redelivered.
 
-            Three separate defects sit on L33, and they surface in this order.
+            Three separate defects sit on L163, and they surface in this order.
             First, `asyncio` is undefined, because the module never imports it, so
             the first message delivered raises NameError. Second, once that import
             exists, `message.data` is `bytes` on a Pub/Sub message, and
             `WebSocket.send_json` serializes its argument with `json.dumps`, which
             rejects `bytes`. Nothing decodes the payload, and
-            `broadcast_change` at L63 encoded it as UTF-8 before publishing, so the
+            `broadcast_change` at L248 encoded it as UTF-8 before publishing, so the
             round trip is unbalanced. Third, `asyncio.run` builds a new event loop
             and closes it on return, while the `WebSocket` belongs to the server's
             already-running loop. Driving a socket from a foreign loop fails, and
@@ -149,14 +149,14 @@ class CollaborationService:
 
             The Pub/Sub client invokes this function on its own thread, so an error
             here does not propagate to `connect`. The message stays acknowledged
-            either way, because L32 ran first.
+            either way, because L162 ran first.
 
             Args:
                 message: The delivered Pub/Sub message. The parameter carries no
                     type annotation.
 
-            The two side effects are the acknowledgement at L32 and the socket send
-            at L33. The signature declares no return annotation, and the Pub/Sub
+            The two side effects are the acknowledgement at L162 and the socket send
+            at L163. The signature declares no return annotation, and the Pub/Sub
             client discards the value the body evaluates to.
             """
             message.ack()
@@ -181,18 +181,18 @@ class CollaborationService:
             Nothing.
 
         Raises:
-            AttributeError: At L50, because `Settings` declares no `PROJECT_ID`
-                field. The read sits above the `try` at L51, outside the guarded
+            AttributeError: At L209, because `Settings` declares no `PROJECT_ID`
+                field. The read sits above the `try` at L210, outside the guarded
                 block, so the error propagates to the caller on the first call.
-                Partial state at that point: L45 has already removed the socket
-                from `active_connections`, and L47 has already removed the document
-                key when that removal emptied the inner dictionary. L52 never runs,
+                Partial state at that point: L204 has already removed the socket
+                from `active_connections`, and L206 has already removed the document
+                key when that removal emptied the inner dictionary. L211 never runs,
                 so the per-user Pub/Sub subscription survives while the registry
                 entry that named it is gone, and no later call can find the pair to
                 clean it up.
 
-        No other exception leaves the method. L53 catches every exception the body
-        raises and L55 prints it.
+        No other exception leaves the method. L212 catches every exception the body
+        raises and L214 prints it.
 
         Note:
             Removes the document's registry entry once its last editor leaves, so the
@@ -227,18 +227,18 @@ class CollaborationService:
             Nothing.
 
         Raises:
-            AttributeError: At L60, because `Settings` declares no `PROJECT_ID`
-                field. The read sits above the `try` at L61, outside the guarded
+            AttributeError: At L245, because `Settings` declares no `PROJECT_ID`
+                field. The read sits above the `try` at L246, outside the guarded
                 block, so the error propagates to the caller on the first call. No
-                partial state follows: L60 is the method's first statement, no
+                partial state follows: L245 is the method's first statement, no
                 Pub/Sub call runs, and nothing is published.
 
-        No other exception leaves the method. L65 catches every exception the body
-        raises and L67 prints it, so a caller cannot tell a delivered change from a
+        No other exception leaves the method. L250 catches every exception the body
+        raises and L252 prints it, so a caller cannot tell a delivered change from a
         dropped one.
 
         Note:
-            See the human-assistance marker at L57-L58 directly above this
+            See the human-assistance marker at L216-L217 directly above this
             signature: the method carries a confidence level of 0.7 and is
             flagged for production-readiness adjustments.
         """

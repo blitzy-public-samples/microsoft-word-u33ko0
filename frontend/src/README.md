@@ -1,250 +1,248 @@
 # frontend/src
 
-Every `Lnn` locator in this document numbers the documentation baseline commit `06be74c`, which precedes the inline
-documentation pass. Running `git show 06be74c:frontend/src/App.tsx` reproduces the numbering exactly. Current `HEAD`
-carries a comment block above every construct, so each symbol now sits lower in its file than its citation names.
-Three findings stated here govern the whole subtree, and the six sibling READMEs defer to this file for each one. The
-`@/` import prefix resolves nowhere, the type checker reports 76 errors, and five imported packages are missing from the
-manifest.
-
 ## Purpose
 
-The directory holds the browser entry point and the application shell for a single-page word processor. `index.tsx`
-mounts the React tree into the `#root` element that `frontend/public/index.html` declares at L12, and `App.tsx` composes
-the shell around a routed main area. Six subdirectories hold everything else: components, routed pages, Zod validation
-contracts, service clients, the Redux store, and pure helper functions. Neither module beside this file reaches the
-network, reads an environment variable, or holds state.
+The directory is the source root of the browser application. Two modules sit here: `index.tsx` mounts the
+application into the page, and `App.tsx` composes the providers, the shell and the route table. Six
+subdirectories hold everything else, and each one carries its own README. The directory owns no business
+logic and no network call. Its job is to turn a static HTML page into a running React tree and to name the
+four routes that tree serves. Nothing here runs today, for the reasons Known Limitations records.
 
 ## Key Components
 
 | Component | Type | Location | Description |
 | --- | --- | --- | --- |
-| `index.tsx` | Module | `index.tsx:L1-L25` | Browser entry point. L7 looks up `#root`, L15 renders the tree, and L25 calls `renderApp` during module evaluation, so importing the module mounts the application. The module exports nothing. |
-| `renderApp` | Module-private constant | `index.tsx:L9` | Arrow function returning `void`, declared `const` with no `export` keyword, so no other module can import the name. L11 logs `Root element not found` and L12 returns when `#root` is absent, leaving no fallback on screen. |
-| `App.tsx` | Module | `App.tsx:L1-L33` | Application shell. Wraps a Redux provider at L14 and a `BrowserRouter` at L15 around a `div` at L16, a `Header` at L17, a routed `main` at L18, and a `Footer` at L26. |
-| `App` | Component, default export | `App.tsx:L12`, exported at `App.tsx:L33` | The directory's only export. Declares the complete route table at L20-L23, and takes no props, holds no state, and runs no effect. |
-| `components/` | Subdirectory | `components/` | Eight components covering the application chrome and the editor surface. See [components/README.md](components/README.md). |
-| `pages/` | Subdirectory | `pages/` | Four routed pages, one per entry in the route table. See [pages/README.md](pages/README.md). |
-| `schema/` | Subdirectory | `schema/` | Three Zod contract modules, for documents, users, and templates. See [schema/README.md](schema/README.md). |
-| `services/` | Subdirectory | `services/` | Three clients: a REST wrapper, an authentication helper, and a collaboration socket class. See [services/README.md](services/README.md). |
-| `store/` | Subdirectory | `store/` | The single Redux store and two slices, one for documents and one for the signed-in user. See [store/README.md](store/README.md). |
-| `utils/` | Subdirectory | `utils/` | Three helper modules, for formatting, validation, and serialization. See [utils/README.md](utils/README.md). |
+| `renderApp` | Module-private function | `index.tsx:L28` | Mounts the tree through `ReactDOM.render` at `index.tsx:L34`. Declared `const` with no `export`, so the module exports nothing. `index.tsx:L44` invokes it at module evaluation. |
+| `rootElement` | Module-private constant | `index.tsx:L19` | Result of `document.getElementById('root')`. The one failure path logs at `index.tsx:L30` and returns at `:L31`. |
+| `App` | React component, default export | `App.tsx:L44`, exported at `:L65` | Wraps a second react-redux `Provider` at `:L46`, a `BrowserRouter` at `:L47`, and the shell and route table below. Propless and stateless. |
+| `components/` | Subdirectory | [components/README.md](components/README.md) | Eight shell and editor components. |
+| `pages/` | Subdirectory | [pages/README.md](pages/README.md) | Four routed pages. |
+| `schema/` | Subdirectory | [schema/README.md](schema/README.md) | Three Zod contract modules. |
+| `services/` | Subdirectory | [services/README.md](services/README.md) | Axios and Socket.IO clients. |
+| `store/` | Subdirectory | [store/README.md](store/README.md) | Store composition and two slices. |
+| `utils/` | Subdirectory | [utils/README.md](utils/README.md) | Formatting, validation and serialization helpers. |
+
+`frontend/public/index.html` has no README of its own and is documented here. `index.html:L6` sets the
+title, `:L7` links a favicon and `:L8` links a web app manifest. Neither linked asset is committed, because
+`frontend/public/` holds only `index.html`, and the same absence explains the `/microsoft-word-logo.png`
+reference at `components/Header.tsx:L62`.
 
 ## Architecture Fit
 
-The directory sits at the top of the frontend layer and owns composition alone. `index.tsx` performs the mount and
-`App.tsx` performs the composition, and both delegate every behavior downward. The route table hands control to
-`pages/`, the pages assemble `components/`, `services/` reaches the backend over Hypertext Transfer Protocol (HTTP), and
-`store/` holds client state. No module in the six subdirectories imports either file beside this README, so the
-dependency direction runs one way.
+The directory sits between the static page and every feature module. `index.tsx` is the entry point,
+`App.tsx` is the composition root, and the six subdirectories form the layers below it. Nothing in the
+repository imports these two modules, so the tree they build is the whole client. The wider map lives in
+[the architecture overview](../../docs/architecture-overview.md).
 
-The in-repository specification serves as comparison rather than ground truth. Its
-`## HIGH-LEVEL ARCHITECTURE DIAGRAM` heading at `documentation/Technical Specifications.md:L140` places the single-page
-application in a frontend subgraph beside an offline storage node, and routes traffic through an Application Programming
-Interface (API) gateway. The code matches the subgraph and matches neither the node nor the gateway, as no
-offline-storage module exists and `services/api.ts:L5` points a client at an environment variable.
-
-The same file's `## USER INTERFACE DESIGN` heading at `:L449` places `Toolbar`, `DocumentCanvas`, and `Sidebar` directly
-under `App`. The committed `App.tsx:L16-L27` renders only `Header`, a routed `main`, and `Footer`, while
-`pages/Editor.tsx` renders those three. See the [architecture overview](../../docs/architecture-overview.md) for the map.
+The in-repository specification serves as a point of comparison rather than a source of truth. Its
+`## HIGH-LEVEL ARCHITECTURE DIAGRAM` heading at `documentation/Technical Specifications.md:L140` places a
+frontend single-page application behind an API gateway and beside an offline-storage node. The code matches
+the single-page placement only. No offline-storage module exists, and `services/api.ts:L135` points an Axios
+instance at an environment variable rather than a gateway. The `## USER INTERFACE DESIGN` heading at
+`documentation/Technical Specifications.md:L449` gives an intended tree in which `App` renders `Header`,
+`Toolbar`, `DocumentCanvas`, `Sidebar` and `Footer`. `App.tsx:L48-L59` renders `Header`, a routed `main`
+region and `Footer` only, and `pages/Editor.tsx` renders the other three.
 
 ## Dependencies
 
 ### Internal
 
-| Import site | Bound name and specifier | Status |
+| Import | Site | State |
 | --- | --- | --- |
-| `index.tsx:L4` | `App` from `@/App` | Prefix unresolved. The default binding matches the default export at `App.tsx:L33`. |
-| `index.tsx:L5` | `store` from `@/store` | Prefix unresolved. The default binding matches the default export at `store/index.ts:L15`, so the import form is correct. |
-| `App.tsx:L4-L5` | `Header`, `Footer` from `@/components/*` | Prefix unresolved. Both default bindings match their targets. |
-| `App.tsx:L6-L9` | `Home`, `Editor`, `Templates`, `Settings` from `@/pages/*` | Prefix unresolved. All four default bindings match their targets. |
-| `App.tsx:L10` | `{ store }` from `@/store/index` | Prefix unresolved, and the binding is wrong twice over. `store/index.ts` exports `store` only as the default, alongside `RootState` at L12 and `AppDispatch` at L13. |
-
-The two store imports form a matched pair. `index.tsx:L5` binds the default export by default import and gets the form
-right. `App.tsx:L10` binds the same default-only export by name, which no export in `store/index.ts` provides.
+| `@/App` | `index.tsx:L16` | Default import of the default export at `App.tsx:L65`. Form correct, prefix unresolvable. |
+| `@/store` | `index.tsx:L17` | Default import of the default export at `store/index.ts:L65`. Form correct, and the reference point for the line below. |
+| `@/store/index` | `App.tsx:L23` | Named import written `{ store }`. `store/index.ts` exports `store` as a default only, plus the types `RootState` at `:L54` and `AppDispatch` at `:L62`. The named binding resolves to nothing. |
+| `@/components/Header`, `@/components/Footer` | `App.tsx:L17-L18` | Default imports of default exports. Form correct, prefix unresolvable. |
+| `@/pages/Home`, `@/pages/Editor`, `@/pages/Templates`, `@/pages/Settings` | `App.tsx:L19-L22` | Default imports of default exports. Form correct, prefix unresolvable. |
 
 ### External
 
-| Package | Declared range | Manifest site | Use and status |
+| Package | Range | Declared at | Notes |
 | --- | --- | --- | --- |
-| `react` | `^18.2.0` | `frontend/package.json:L8` | Imported at `index.tsx:L1` and `App.tsx:L1`. |
-| `react-dom` | `^18.2.0` | `frontend/package.json:L9` | Imported at `index.tsx:L2`. L15 calls `ReactDOM.render`, the React 17 entry point. |
-| `react-redux` | `^8.0.5` | `frontend/package.json:L10` | Imported at `index.tsx:L3` and `App.tsx:L3`, supplying both `Provider` elements. |
-| `react-router-dom` | `^6.11.1` | `frontend/package.json:L11` | Imported at `App.tsx:L2`. Three call sites use version 5 interfaces. |
-| `@reduxjs/toolkit` | `^1.9.5` | `frontend/package.json:L7` | Used in `store/` only. Neither module beside this file imports it. |
-| `tailwindcss` | `^3.3.2` | `frontend/package.json:L12` | No module imports the package, and no configuration file activates it. |
-| `typescript` | `^4.9.5` | `frontend/package.json:L13` | Build-time only. |
-| `axios` | none | absent | Imported but undeclared. Two sites, in `services/api.ts` and `services/auth.ts`. |
-| `draft-js` | none | absent | Imported but undeclared. Six sites across `components/` and `utils/`. |
-| `@types/draft-js` | none | absent | Imported but undeclared, so the six Draft.js sites carry no type declarations. |
-| `zod` | none | absent | Imported but undeclared. Four sites, in all three `schema/` modules and `utils/validation.ts`. |
-| `socket.io-client` | none | absent | Imported but undeclared. One site, in `services/collaboration.ts`. |
+| `@reduxjs/toolkit` | `^1.9.5` | `frontend/package.json:L7` | Used by `store/`. |
+| `react` | `^18.2.0` | `frontend/package.json:L8` | Imported at `index.tsx:L13` and `App.tsx:L14`. |
+| `react-dom` | `^18.2.0` | `frontend/package.json:L9` | `index.tsx:L34` calls `ReactDOM.render`, the React 17 legacy API. |
+| `react-redux` | `^8.0.5` | `frontend/package.json:L10` | `Provider` at `index.tsx:L36` and again at `App.tsx:L46`. |
+| `react-router-dom` | `^6.11.1` | `frontend/package.json:L11` | Version 6 removed `Switch`, the `component` prop and `exact`. `App.tsx` uses all three. |
+| `tailwindcss` | `^3.3.2` | `frontend/package.json:L12` | Declared and never configured. |
+| `typescript` | `^4.9.5` | `frontend/package.json:L13` | Compiler only. |
 
-`frontend/package.json:L15-L30` declares 14 development dependencies, with `react-scripts` pinned to exactly `5.0.1` at
-L29 and no caret. The specification names two of the five undeclared packages and omits three. Its
-`## FRAMEWORKS AND LIBRARIES` heading at `documentation/Technical Specifications.md:L536` lists Axios at L544 and
-Draft.js at L545, while `zod` and `socket.io-client` appear nowhere in `documentation/`. The contracts these modules
-exchange are catalogued in the [data model](../../docs/data-model.md), and the external services they reach are
-catalogued in the [integration guide](../../docs/integration-guide.md).
+`frontend/package.json:L15-L30` declares fourteen development dependencies, with `react-scripts` pinned
+exactly at `5.0.1` on `:L29` and no caret.
+
+Five packages appear in import statements under this tree and in no dependency block: `axios`, `draft-js`,
+`@types/draft-js`, `zod` and `socket.io-client`. Two of the five are named by the specification, Axios at
+`documentation/Technical Specifications.md:L544` and Draft.js at `:L545`, while Zod and socket.io-client
+appear nowhere in `documentation/`. Contract shapes travel through
+[the data model](../../docs/data-model.md), and the external services these clients target are listed in
+[the integration guide](../../docs/integration-guide.md).
 
 ## Configuration
 
-| Setting | Value and site | Status |
+| Setting | Value and site | State |
 | --- | --- | --- |
-| `REACT_APP_API_BASE_URL` | Read at `services/api.ts:L5`, the only `process.env` read in the frontend | READ-BUT-NEVER-DECLARED |
-| `REACT_APP_API_URL` | Injected as `http://backend:5000` at `infrastructure/docker/docker-compose.yml:L11` | DECLARED-BUT-NEVER-READ |
-| `@/` path alias | Used by 44 import statements under `frontend/src` | READ-BUT-NEVER-DECLARED |
-| `paths` | Five aliases at `frontend/tsconfig.json:L11-L15`: `@components/*`, `@utils/*`, `@styles/*`, `@hooks/*`, `@services/*` | DECLARED |
-| `baseUrl` | `src`, at `frontend/tsconfig.json:L9` | DECLARED |
-| `strict` | `true`, at `frontend/tsconfig.json:L3` | DECLARED |
-| `noEmit` | `true`, at `frontend/tsconfig.json:L25` | DECLARED |
-| `include` | `src/**/*.ts` and `src/**/*.tsx`, at `frontend/tsconfig.json:L28` | DECLARED |
-| `engines` | Absent from `frontend/package.json`, and no `.nvmrc` is committed | NEVER DECLARED |
+| `REACT_APP_API_BASE_URL` | Read at `services/api.ts:L82` | READ-BUT-NEVER-DECLARED. The only `process.env` reference in all of `frontend/src`. |
+| `REACT_APP_API_URL` | `http://backend:5000` at `infrastructure/docker/docker-compose.yml:L11` | DECLARED-BUT-NEVER-READ. No module reads the name. |
+| `baseUrl` | `src` at `frontend/tsconfig.json:L9` | DECLARED. Roots every path mapping below it. |
+| `paths` | Five aliases at `frontend/tsconfig.json:L10-L16` | DECLARED. `@components/*` `:L11`, `@utils/*` `:L12`, `@styles/*` `:L13`, `@hooks/*` `:L14`, `@services/*` `:L15`. `src/styles` and `src/hooks` do not exist. |
+| `strict` | `true` at `frontend/tsconfig.json:L3` | DECLARED. |
+| `noEmit` | `true` at `frontend/tsconfig.json:L25` | DECLARED. Type checking produces no output files. |
+| `browserslist` | `frontend/package.json:L45-L56` | DECLARED. Separate production and development target lists. |
 
-The two environment variable names differ, so the client resolves an undefined base Uniform Resource Locator (URL). Two
-of the five declared aliases point at directories that do not exist. The aliases at L13 and L14 name `styles` and
-`hooks`, while `frontend/src` holds only `components`, `pages`, `schema`, `services`, `store`, and `utils`.
+The two environment variable names differ, so the client resolves an undefined base URL and every request
+from the shared instance targets the page origin.
 
-`frontend/package.json` declares six scripts: `start` at L32, `build` at L33, `test` at L34, `eject` at L35, `lint` at
-L36, and `format` at L37. No type-check or documentation script exists. The `format` glob at L37 is
-`src/**/*.{js,jsx,ts,tsx,json,css,scss,md}`, so the seven READMEs under `frontend/src` fall inside its reach.
-`browserslist` spans L45-L56. For prerequisites, see the [onboarding guide](../../docs/onboarding.md).
+`frontend/package.json:L31-L38` declares six scripts: `start` `:L32`, `build` `:L33`, `test` `:L34`,
+`eject` `:L35`, `lint` `:L36` and `format` `:L37`. No type-check script and no documentation script exists.
+The `format` glob on `:L37` covers `src/**/*.{js,jsx,ts,tsx,json,css,scss,md}`, so the seven READMEs under
+`src/` fall inside its reach. No `engines` field and no `.nvmrc` is committed, so the Node floor is asserted
+only in `README.md:L22`, `.github/workflows/ci.yml:L17` and `infrastructure/docker/frontend.Dockerfile:L2`,
+all three at Node 14.
 
 ## Data Flows
 
-Control enters at `index.tsx:L25`, which calls `renderApp` during module evaluation. L7 has already looked up `#root`,
-and L15 renders a `StrictMode` tree into that element. `App` wraps a second Redux provider around the same store at L14,
-mounts the router at L15, and renders `Header`, the route table, and `Footer`. Each routed page then renders its own
-`Header` again, and three of the four render their own `Footer` again. Below, dashed edges mark a broken relationship and
-solid edges mark a path the committed code takes.
+One flow starts here. The browser loads `index.html`, `index.tsx:L44` calls `renderApp`, and
+`ReactDOM.render` at `:L34` mounts `React.StrictMode` around a `Provider` around `App`. `App.tsx:L46` then
+wraps a second `Provider` around the same store, `:L47` opens the router, and `:L52-L55` bind four paths.
+Each matched page renders its own `Header` again, and three of the four render their own `Footer` again.
 
 ```mermaid
-flowchart TD
-    HTML["public/index.html:L12<br/>div id=root"] --> LOOKUP["index.tsx:L7<br/>getElementById root"]
-    INVOKE["index.tsx:L25<br/>renderApp during module evaluation"] --> LOOKUP
-    LOOKUP --> RENDER["index.tsx:L15<br/>ReactDOM.render, React 17 entry point"]
-    RENDER --> STRICT["index.tsx:L16<br/>React.StrictMode"]
-    STRICT --> P1["index.tsx:L17<br/>Provider, first of two"]
-    P1 --> APP["App.tsx:L12<br/>App"]
-    APP --> P2["App.tsx:L14<br/>Provider, second of two"]
-    P1 -.->|"one store wrapped twice"| P2
-    P2 --> ROUTER["App.tsx:L15<br/>BrowserRouter"]
-    ROUTER --> HDR["App.tsx:L17<br/>Header"]
-    ROUTER --> SW["App.tsx:L19<br/>Switch, a version 5 interface"]
-    ROUTER --> FTR["App.tsx:L26<br/>Footer"]
-    SW --> HOME["Home, route at App.tsx:L20"]
-    SW --> ED["Editor, route at App.tsx:L21"]
-    SW --> TM["Templates, route at App.tsx:L22"]
-    SW --> ST["Settings, route at App.tsx:L23"]
-    HOME -.->|"Header L13, Footer L29"| DUP["Doubled shell:<br/>header twice on all four routes,<br/>footer twice on three of them"]
-    ED -.->|"Header L55, no Footer"| DUP
-    TM -.->|"Header L43, Footer L64"| DUP
-    ST -.->|"Header L32, Footer L59"| DUP
-    ALIAS["@/ absent from the five aliases<br/>at tsconfig.json:L11-L15"]
-    LOOKUP -.->|"2 unresolved specifiers, index.tsx:L4-L5"| ALIAS
-    APP -.->|"7 unresolved specifiers, App.tsx:L4-L10"| ALIAS
+graph TD
+    HTML["public/index.html:L12<br/>div id='root'"] --> ROOT["index.tsx:L19<br/>getElementById('root')"]
+    ROOT --> CALL["index.tsx:L44<br/>renderApp()"]
+    CALL --> RENDER["index.tsx:L34<br/>ReactDOM.render, React 17 API"]
+    RENDER --> STRICT["index.tsx:L35<br/>React.StrictMode"]
+    STRICT --> P1["index.tsx:L36<br/>Provider, outer"]
+    P1 --> APP["App.tsx:L44<br/>App"]
+    APP --> P2["App.tsx:L46<br/>Provider, second wrap<br/>of the same store"]
+    P2 --> BR["App.tsx:L47<br/>BrowserRouter"]
+    BR --> HDR["App.tsx:L49<br/>Header"]
+    BR --> SW["App.tsx:L51<br/>Switch, router v5 API"]
+    BR --> FTR["App.tsx:L58<br/>Footer"]
+    SW --> HOME["Home, App.tsx:L52<br/>own Header L56, own Footer L72"]
+    SW --> EDIT["Editor, App.tsx:L53<br/>own Header L234, no Footer"]
+    SW --> TPL["Templates, App.tsx:L54<br/>own Header L171, own Footer L192"]
+    SW --> SET["Settings, App.tsx:L55<br/>own Header L132, own Footer L159"]
+
+    ALIAS["@/ prefix<br/>index.tsx:L16-L17<br/>App.tsx:L17-L23"]
+    ALIAS -.->|"unmapped: tsconfig.json:L10-L16<br/>declares five aliases, none is @/"| TSC["frontend/tsconfig.json"]
+    APP -.->|"App.tsx:L23 names { store }<br/>store/index.ts:L65 exports a default only"| STORE["store/index.ts"]
+    P2 -.->|"redundant: the same store<br/>is already provided at index.tsx:L36"| P1
+    HOME & TPL & SET -.->|"doubled shell: banner and contentinfo twice"| HDR
+    EDIT -.->|"doubled banner only"| HDR
+
+%% A solid edge runs today once the alias resolves. A dashed edge marks a defect, and its label names it.
 ```
 
 ## Design Patterns
 
-The directory applies a composition root: `index.tsx` owns the single mount and holds no application logic, and
-`App.tsx` owns the element tree and declares no behavior of its own. Provider composition supplies the store, with
-`react-redux` `Provider` elements at `index.tsx:L17` and `App.tsx:L14` both receiving the same instance, so the tree
-carries two nested providers around one store. Client-side routing runs through a central route table at
-`App.tsx:L19-L24`, which holds every declared path in one place and names a page component per entry.
+Composition root, with provider composition on top of it. `index.tsx` performs the mount and `App.tsx`
+performs the composition, so the two concerns live in separate modules. A react-redux `Provider` supplies
+the store to the tree through context, and two nested `Provider` elements wrap the same store, at
+`index.tsx:L36` and `App.tsx:L46`.
 
-A unidirectional single store holds client state, so pages and components read through selectors and write through
-dispatched actions. A container and presentational split separates `pages/` from `components/`, where pages bind to the
-store and fetch data while components receive props and render markup. Schema-at-the-boundary validates external
-payloads through the Zod modules under `schema/`, which `utils/validation.ts` applies to user input.
+Central route table over a unidirectional single store. `App.tsx:L51-L56` holds every path the application
+declares, so route registration sits in one place rather than beside each page. One store, created at
+`store/index.ts:L41`, holds shared client state, and a consumer changes that state by dispatching an action.
+
+Container and presentational split, with schema at the boundary. `pages/` holds the routed containers that
+read state and call services, and `components/` holds the presentational parts they compose. `schema/`
+declares each exchanged record shape once, and consumers import the declaration rather than restating it.
 
 ## Known Limitations
 
-The frontend does not typecheck. Running `tsc --noEmit` reports 76 errors: 57 `TS2307` cannot-find-module, 6 `TS2305`
-missing-exported-member, 5 `TS7006` implicit `any`, 4 `TS2322` not-assignable, 2 `TS2614`, 1 `TS2552`, and 1 `TS2339`.
+Every item below sits in the committed code, and none is repaired here.
 
-- **The `@/` prefix resolves nowhere.** `frontend/tsconfig.json:L11-L15` declares five aliases and none is `@/`, while
-  44 import statements under `frontend/src` use the prefix. Declaring the alias alone would not fix resolution, because
-  `react-scripts` `5.0.1`, pinned at `frontend/package.json:L29`, does not apply `tsconfig` `paths` to webpack module
-  resolution.
-- **The 57 `TS2307` errors decompose exactly.** 44 come from the `@/` prefix, and 13 come from imports of the five
-  undeclared packages: `axios` twice, `draft-js` six times, `zod` four times, and `socket.io-client` once. Modules under
-  `services/`, `store/`, and `utils/` import their siblings by relative path, so those paths resolve and their failures
-  surface as `TS2305` or `TS2614` instead. One root cause produces two error codes.
-- **Five imported packages are absent from the manifest**: `axios`, `draft-js`, `@types/draft-js`, `zod`, `socket.io-client`.
-- **`npm ci` fails in both places that call it, for two different reasons.** No lockfile is committed, so
-  `infrastructure/docker/frontend.Dockerfile:L11` fails, and no root `package.json` exists, so
-  `.github/workflows/ci.yml:L19` fails. A plain `npm install` inside `frontend/` succeeds, as `README.md:L36` instructs,
-  and it resolves the seven declared runtime packages while leaving all five undeclared packages missing.
-- **The client resolves an undefined base URL.** `services/api.ts:L5` reads `REACT_APP_API_BASE_URL`, and
+- **The `@/` prefix resolves nowhere.** `frontend/tsconfig.json:L10-L16` declares five path aliases and
+  none of them is `@/`, while 44 executable import statements across 13 of the 26 modules under
+  `frontend/src` use that prefix. Adding the alias would fix only the compiler, because `react-scripts`
+  5.0.1 at `frontend/package.json:L29` resolves modules through webpack and reads no `paths` block.
+- **The verified type-check profile is 76 errors.** `tsc --noEmit` reports 57 `TS2307`, 6 `TS2305`, 5
+  `TS7006`, 4 `TS2322`, 2 `TS2614`, 1 `TS2552` and 1 `TS2339`. The 57 module-resolution errors decompose
+  exactly: 44 from the `@/` prefix, plus 13 from undeclared packages, being 6 `draft-js` importers, 4 `zod`
+  importers, 2 `axios` importers and 1 `socket.io-client` importer.
+- **Two error codes share one cause.** Modules under `services/`, `store/` and `utils/` import siblings
+  with relative paths, so their paths resolve and their failures read `TS2305` or `TS2614`. Modules under
+  `components/` and `pages/` import through `@/`, so their failures read `TS2307`.
+- **`npm ci` fails in two places for two reasons.** `infrastructure/docker/frontend.Dockerfile:L11` fails
+  because no lockfile is committed, and `.github/workflows/ci.yml:L19` fails because it runs at the
+  repository root, where no `package.json` exists. A plain `npm install` inside `frontend/` succeeds and
+  resolves 1,532 packages, which is what `README.md:L36` instructs.
+- **The client base URL is undefined.** `services/api.ts:L82` reads `REACT_APP_API_BASE_URL` while
   `infrastructure/docker/docker-compose.yml:L11` injects `REACT_APP_API_URL`.
-- **Three router call sites use version 5 interfaces against `^6.11.1`.** `App.tsx:L2` imports `Switch`, `App.tsx:L20`
-  passes `exact`, and `App.tsx:L20-L23` pass a `component` prop. Version 6 exports `Routes` in place of `Switch`, and
-  its `Route` accepts neither `exact` nor `component`.
-- **`index.tsx:L15` calls `ReactDOM.render`**, the React 17 entry point, against `react-dom` `^18.2.0` declared at
+- **Three react-router-dom version 5 APIs sit against a version 6 range.** `App.tsx:L15` imports `Switch`,
+  `:L52` sets `exact`, and `:L52-L55` pass the `component` prop. `frontend/package.json:L11` declares
+  `^6.11.1`, which removed all three.
+- **`index.tsx:L34` calls the React 17 legacy `ReactDOM.render`** against `react-dom` `^18.2.0` at
   `frontend/package.json:L9`.
-- **Two providers wrap one store**, at `index.tsx:L17` and `App.tsx:L14`.
-- **The shell renders twice on every route.** `App.tsx` renders `Header` at L17 and `Footer` at L26 around the routed
-  area, and all four pages render their own `Header` again at `Home.tsx:L13`, `Editor.tsx:L55`, `Settings.tsx:L32`, and
-  `Templates.tsx:L43`. Three of the four also render their own `Footer` again, at `Home.tsx:L29`, `Settings.tsx:L59`,
-  and `Templates.tsx:L64`. `Editor.tsx` renders no `Footer`. So the header appears twice on all four routes, and the
-  footer appears twice on three of them.
-- **Five links target paths the route table does not declare**, so each navigates to nothing: `/documents` at
-  `components/Header.tsx:L20`, `/login` at `components/Header.tsx:L32`, `/new-document` at `pages/Home.tsx:L18`,
-  `/open-document` at `pages/Home.tsx:L21`, and `/recent-documents` at `pages/Home.tsx:L24`. The declared paths are `/`,
-  `/editor`, `/templates`, and `/settings`, at `App.tsx:L20-L23`.
-- **Nothing renders as styled, under either of the two styling conventions in use.** Tailwind utility classes appear in
-  `components/Header.tsx` and in the body of `pages/Templates.tsx`. Bespoke semantic class names with no backing
-  stylesheet appear in `components/Footer.tsx`, `components/Sidebar.tsx`, `components/Toolbar.tsx`,
-  `components/DocumentCanvas.tsx`, `pages/Home.tsx`, `pages/Editor.tsx`, `pages/Settings.tsx`, and in the wrapper of
-  `pages/Templates.tsx`. That one file therefore carries both conventions. No `tailwind.config.js`, no
-  `postcss.config.js`, and no Cascading Style Sheets (CSS) file is committed. No component library and no design system
-  is declared, so the split is a styling inconsistency rather than a compliance gap.
-- **No test file exists anywhere under `frontend/`.** The `test` script at `frontend/package.json:L34` and the three
-  Testing Library development dependencies at L16-L18 have nothing to run.
-- **Three static assets are referenced and absent**, because `frontend/public/` holds only `index.html`: the icon at
-  `public/index.html:L7`, the manifest at `public/index.html:L8`, and the logo at `components/Header.tsx:L13`.
-- **Neither module beside this file carries an assistance marker or a deferred-work comment.** All 16 assistance markers
-  and all 9 deferred-work comments under `frontend/src` sit in the six subdirectories, and each sibling README cites its
-  own by file and line.
+- **The store is provided twice and the shell renders twice.** `App.tsx:L46` repeats the `Provider` already
+  set at `index.tsx:L36`. `App.tsx:L49` and `:L58` render `Header` and `Footer` around every route, while
+  `pages/Home.tsx` (`:L56`, `:L72`), `pages/Templates.tsx` (`:L171`, `:L192`) and `pages/Settings.tsx`
+  (`:L132`, `:L159`) each render their own pair. `pages/Editor.tsx:L234` renders a second `Header` and no
+  `Footer`, so the banner duplicates on four routes and the footer on three.
+- **Five links target paths the route table never declares.** `components/Header.tsx:L69` links
+  `/documents` and `:L81` links `/login`. `pages/Home.tsx:L61`, `:L64` and `:L67` link `/new-document`,
+  `/open-document` and `/recent-documents`. `App.tsx:L52-L55` declares `/`, `/editor`, `/templates` and
+  `/settings`, and matches none of the five.
+- **Two styling conventions coexist and no authored rule backs either one.** Tailwind utility classes
+  appear in exactly two modules, `components/Header.tsx` and the body of `pages/Templates.tsx`. Bespoke
+  semantic class names appear in `components/Footer.tsx`, `components/Sidebar.tsx`,
+  `components/Toolbar.tsx`, `components/DocumentCanvas.tsx`, `pages/Home.tsx`, `pages/Editor.tsx`,
+  `pages/Settings.tsx` and the wrapper of `pages/Templates.tsx`, which therefore carries both conventions.
+  No `tailwind.config.js`, no `postcss.config.js` and no stylesheet is committed anywhere, so once the
+  build blockers above are cleared no authored styling would apply under either convention.
+  `frontend/package.json` declares no component library and no design system, which makes the split a
+  styling inconsistency rather than a compliance gap.
+- **No frontend test file exists anywhere under `frontend/`,** so the `test` script at
+  `frontend/package.json:L34` and the three Testing Library development dependencies at `:L16-L18` have
+  nothing to run.
+- **Three referenced public assets are absent:** the favicon at `frontend/public/index.html:L7`, the
+  manifest at `:L8` and the logo at `components/Header.tsx:L62`.
+- **The two modules here carry no assistance marker and no outstanding-work comment.** Every such note in
+  the tree sits in the six subdirectories, and each sibling README cites its own by file and line.
 
-Work that would unblock the most downstream errors, in order: export the inferred `Document` type from
-`schema/document.ts`; add `useAppSelector` and `useAppDispatch` to `store/index.ts`; add the `updateDocument` action plus
-the `selectCurrentDocument` and `selectCurrentUser` selectors; reconcile `owner_id` against `user_id` across the
-contracts; then connect the collaboration client. Each item records what the committed code needs, and this documentation
-pass performs none of them. The repository-wide register of these defects lives in
-[troubleshooting](../../docs/troubleshooting.md).
+[The troubleshooting register](../../docs/troubleshooting.md) carries every defect above with evidence.
 
 ## Usage Examples
 
-The mount sequence, as the committed code performs it:
+Prerequisites and runtime versions live in [the onboarding guide](../../docs/onboarding.md).
+
+The bootstrap sequence runs four statements in this order:
 
 ```text
-index.tsx:L7   const rootElement = document.getElementById('root');
-index.tsx:L9   const renderApp = (): void => {        // declared const, never exported
-index.tsx:L11    console.error('Root element not found');   // only failure path, L12 then returns
-index.tsx:L15    ReactDOM.render(<StrictMode><Provider store={store}><App /></Provider></StrictMode>, rootElement);
-index.tsx:L25  renderApp();                          // runs during module evaluation
+public/index.html:L12   the page supplies <div id="root">
+index.tsx:L19           rootElement = document.getElementById('root')
+index.tsx:L44           renderApp() runs at module evaluation
+index.tsx:L34           ReactDOM.render mounts StrictMode > Provider > App
 ```
 
-The sequence does not run as committed, because `index.tsx:L4-L5` import through the unresolved `@/` prefix. Installing
-dependencies and reading the type-check profile:
+Cannot run: `index.tsx:L16` and `:L17` import through the `@/` prefix, which
+`frontend/tsconfig.json:L10-L16` never maps, so the module fails resolution before the mount.
+
+Installing and type-checking the client:
 
 ```bash
 cd frontend
-npm install          # succeeds; the five undeclared packages stay missing
-npx tsc --noEmit     # reports 76 errors
-npm ci               # fails: no lockfile is committed
+npm install            # succeeds, resolves 1,532 packages
+npx tsc --noEmit       # runs to completion and exits nonzero, reporting 76 errors
+npm ci                 # fails, no lockfile is committed
 ```
 
-The first three commands run, and the fourth fails here and at both call sites named under Known Limitations. Adding a
-route means adding one entry to the table in `App.tsx`, which currently reads:
+Registering a route follows the shape `App.tsx:L51-L56` already uses:
 
 ```tsx
-<Switch>                                       {/* App.tsx:L19 */}
-  <Route exact path="/" component={Home} />    {/* App.tsx:L20 */}
-  <Route path="/editor" component={Editor} />  {/* App.tsx:L21, and L22 and L23 repeat the shape */}
+<Switch>
+  <Route exact path="/" component={Home} />
+  <Route path="/documents" component={Documents} />
 </Switch>
 ```
 
-A new entry copied from that shape inherits the same three version 5 interfaces, so it compiles no better.
+Cannot run: `Switch`, `exact` and the `component` prop are react-router-dom version 5 APIs, and
+`frontend/package.json:L11` declares `^6.11.1`.
+
+Repair work is recorded here rather than performed, and each step below unblocks the next. Export an
+inferred `Document` type from `schema/document.ts`, following `schema/user.ts:L56`, then add
+`useAppSelector` and `useAppDispatch` to `store/index.ts`, which seven modules import. Add the
+`updateDocument` action and the two absent selectors, reconcile `owner_id` against `user_id` using
+[the data model](../../docs/data-model.md), then connect the collaboration client described in
+[the services README](services/README.md).

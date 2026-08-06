@@ -42,9 +42,9 @@ import { updateDocument } from '@/store/documentSlice';
  * inline styles and `unstyled`, `header-one` and `header-two` for block types.
  *
  * A second mismatch sits on those same two lines, and it stays latent. Both helpers declare an
- * `EditorState` return, per the `EditorState.push` returns at `formatting.ts:L13` and `:L26`. L14
- * and L19 bind that declared type to `updatedContent`, and L15 and L20 would pass it as a `content`
- * value. No diagnostic covers either point today: the three `@/` specifiers at L2, L3 and L4 fail
+ * `EditorState` return, per the `EditorState.push` returns at `formatting.ts:L41` and `:L26`. L62
+ * and L67 bind that declared type to `updatedContent`, and L63 and L68 would pass it as a `content`
+ * value. No diagnostic covers either point today: the three `@/` specifiers at L22, L23 and L24 fail
  * to resolve, so the checker types the two helpers and the dispatched action as `any` and reports
  * only those module-resolution failures. Neither the argument counts above nor this payload
  * question becomes checkable until those imports resolve, and the payload question needs an

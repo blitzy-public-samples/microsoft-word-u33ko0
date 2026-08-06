@@ -41,68 +41,68 @@ import { serializeDocument, deserializeDocument } from '@/utils/documentUtils';
  * errors stay latent, because the unresolved imports leave the helpers untyped.
  *
  * No write reaches the store as committed, and the two paths stop at different lines. The load
- * path reaches `DocumentSchema.isValid` at `frontend/src/utils/documentUtils.ts:L30`, which is no
- * Zod member, so the call raises a `TypeError` there and L19 never replaces the editor state. The
- * change path stops earlier: L25 hands a `ContentState` to `serializeDocument`, whose first
- * statement at `documentUtils.ts:L9` calls `getCurrentContent()` on the value it received, and a
+ * path reaches `DocumentSchema.isValid` at `frontend/src/utils/documentUtils.ts:L73`, which is no
+ * Zod member, so the call raises a `TypeError` there and L117 never replaces the editor state. The
+ * change path stops earlier: L163 hands a `ContentState` to `serializeDocument`, whose first
+ * statement at `documentUtils.ts:L40` calls `getCurrentContent()` on the value it received, and a
  * `ContentState` declares no such method, so the `TypeError` lands on that line and the
- * `isValid` read at `documentUtils.ts:L13` is never reached.
+ * `isValid` read at `documentUtils.ts:L44` is never reached.
  *
- * 1. L18 and L19 send an `EditorState` where a `ContentState` belongs. L18 binds the `EditorState`
+ * 1. L116 and L117 send an `EditorState` where a `ContentState` belongs. L116 binds the `EditorState`
  *    returned by `deserializeDocument` to a variable named `contentState`, and that name reports
- *    the wrong type. L19 hands the value to `EditorState.createWithContent()`, which accepts a
+ *    the wrong type. L117 hands the value to `EditorState.createWithContent()`, which accepts a
  *    `ContentState`.
- * 2. L25 sends a `ContentState` where an `EditorState` belongs. `getCurrentContent()` returns the
- *    `ContentState` held inside the snapshot, and L25 passes it straight to `serializeDocument`.
+ * 2. L163 sends a `ContentState` where an `EditorState` belongs. `getCurrentContent()` returns the
+ *    `ContentState` held inside the snapshot, and L163 passes it straight to `serializeDocument`.
  *
- * L2 already imports `ContentState`, the exact type L19 accepts, and leaves it unreferenced. The
- * type checker reports neither error, because the unresolved imports at L2 and L5 leave both
+ * L21 already imports `ContentState`, the exact type L117 accepts, and leaves it unreferenced. The
+ * type checker reports neither error, because the unresolved imports at L21 and L24 leave both
  * helpers and both Draft.js types untyped. Only the four `TS2307` module-resolution failures at
- * L2, L3, L4 and L5 surface.
+ * L21, L22, L23 and L24 surface.
  *
- * The declared signature contradicts the call site. L10 declares no props, while
- * `frontend/src/pages/Editor.tsx:L59` passes `content` and `onContentChange`.
+ * The declared signature contradicts the call site. L108 declares no props, while
+ * `frontend/src/pages/Editor.tsx:L238` passes `content` and `onContentChange`.
  *
- * Two side effects are written outside the render, and neither one completes. The effect at L16
- * runs whenever the selected document changes and reads `currentDocument.content` at L18. The
- * change handler at L23 runs on every keystroke, because L34 binds it to the editor's `onChange`.
+ * Two side effects are written outside the render, and neither one completes. The effect at L114
+ * runs whenever the selected document changes and reads `currentDocument.content` at L116. The
+ * change handler at L161 runs on every keystroke, because L172 binds it to the editor's `onChange`.
  *
  * Both effects stop inside the same helper module before they touch the store, and they stop at
  * different lines for different reasons:
  *
- * - L18 calls `deserializeDocument` with `currentDocument.content`, a string, which is the type
+ * - L116 calls `deserializeDocument` with `currentDocument.content`, a string, which is the type
  *   that signature declares. The helper parses the JavaScript Object Notation (JSON) text at
- *   `documentUtils.ts:L24`, then reaches `DocumentSchema.isValid` at `:L30`. A Zod object schema
+ *   `documentUtils.ts:L67`, then reaches `DocumentSchema.isValid` at `:L30`. A Zod object schema
  *   exposes no `isValid` member, so the property read yields `undefined` and calling it raises a
- *   `TypeError`. `convertFromRaw` at `:L34` never runs, so L19 never replaces the editor state.
- * - L25 calls `serializeDocument` with a `ContentState`, and that signature declares an
- *   `EditorState`. The helper's first statement is `documentUtils.ts:L9`, which calls
+ *   `TypeError`. `convertFromRaw` at `:L34` never runs, so L117 never replaces the editor state.
+ * - L163 calls `serializeDocument` with a `ContentState`, and that signature declares an
+ *   `EditorState`. The helper's first statement is `documentUtils.ts:L40`, which calls
  *   `editorState.getCurrentContent()`. A `ContentState` declares no `getCurrentContent` method,
  *   so that property read yields `undefined` and calling it raises a `TypeError` on the helper's
  *   very first line. `convertToRaw` at `:L9`, the `JSON.stringify` at `:L10` and the
  *   `DocumentSchema.isValid` check at `:L13` are all unreachable through this caller, so no
- *   conversion and no stringification happens here at all. L26 never dispatches
+ *   conversion and no stringification happens here at all. L164 never dispatches
  *   `updateDocument`, so no per-keystroke write reaches the store.
  *
- * The type error at L25 is therefore the cause of that second failure rather than a latent defect
- * behind it. A correctly typed caller reaches `documentUtils.ts:L13` and raises on the absent Zod
+ * The type error at L163 is therefore the cause of that second failure rather than a latent defect
+ * behind it. A correctly typed caller reaches `documentUtils.ts:L44` and raises on the absent Zod
  * member instead, which is the path `documentUtils.ts` documents on `serializeDocument`.
  *
  * As committed, no write reaches the Redux store from this component. A repaired path would
  * replace the editor state when the document changes and dispatch a serialized document on every
  * keystroke.
  *
- * The two inverse type errors differ in when they bite. The error at L25 is the immediate cause of
- * the change-handler failure, as the second bullet above records. The error at L18 and L19 stays
- * latent, because L19 never runs. `EditorState.createWithContent()` would receive the wrong type
+ * The two inverse type errors differ in when they bite. The error at L163 is the immediate cause of
+ * the change-handler failure, as the second bullet above records. The error at L116 and L117 stays
+ * latent, because L117 never runs. `EditorState.createWithContent()` would receive the wrong type
  * there, and the mistake surfaces only once `documentUtils.ts` validates through a real Zod call.
  *
  * Accessibility: the rendered `Editor` receives no accessible name, so assistive technology
  * announces an unlabelled text box.
  * @example
  * <DocumentCanvas content={content} onContentChange={handleContentChange} />
- * `frontend/src/pages/Editor.tsx:L59` renders the component exactly that way. The call cannot run,
- * because L3 imports `useAppSelector` and `useAppDispatch`, which `frontend/src/store/index.ts`
+ * `frontend/src/pages/Editor.tsx:L238` renders the component exactly that way. The call cannot run,
+ * because L22 imports `useAppSelector` and `useAppDispatch`, which `frontend/src/store/index.ts`
  * never defines.
  */
 const DocumentCanvas: React.FC = () => {
@@ -124,37 +124,37 @@ const DocumentCanvas: React.FC = () => {
    * @param newEditorState - Snapshot the Draft.js editor supplies on each change.
    * @returns Nothing.
    * @remarks
-   * Three statements run in order, and the third is unreachable. L24 replaces the local editor
-   * state. L25 then calls `serializeDocument` with the value `newEditorState.getCurrentContent()`
+   * Three statements run in order, and the third is unreachable. L162 replaces the local editor
+   * state. L163 then calls `serializeDocument` with the value `newEditorState.getCurrentContent()`
    * returns, which is a `ContentState`, while
-   * `frontend/src/utils/documentUtils.ts:L8` declares that parameter an `EditorState`. The
-   * helper's first statement, at `documentUtils.ts:L9`, calls `editorState.getCurrentContent()` on
+   * `frontend/src/utils/documentUtils.ts:L39` declares that parameter an `EditorState`. The
+   * helper's first statement, at `documentUtils.ts:L40`, calls `editorState.getCurrentContent()` on
    * the value it received. A `ContentState` declares no `getCurrentContent` method, so the
    * property read yields `undefined` and calling it raises a `TypeError` immediately. Nothing
    * downstream of that line executes: `convertToRaw` at `:L9`, the `JSON.stringify` at `:L10`, the
    * `DocumentSchema.isValid` read at `:L13` and the `throw` at `:L14` are all unreachable through
-   * this caller. The dispatch at L26 never runs either, so the handler writes nothing to the Redux
-   * store. The local editor state set at L24 survives, so typing appears to work while nothing is
+   * this caller. The dispatch at L164 never runs either, so the handler writes nothing to the Redux
+   * store. The local editor state set at L162 survives, so typing appears to work while nothing is
    * ever persisted.
    *
-   * L34 binds this handler to the editor's `onChange`, so the failing call is made on every
+   * L172 binds this handler to the editor's `onChange`, so the failing call is made on every
    * keystroke. No serialization cost is paid, because the helper raises before it converts or
    * stringifies anything.
    *
-   * The component documentation above states this type error together with its inverse at L18
-   * and L19. The same block records that a correctly typed caller would instead reach the
-   * absent Zod member at `documentUtils.ts:L13`.
+   * The component documentation above states this type error together with its inverse at L116
+   * and L117. The same block records that a correctly typed caller would instead reach the
+   * absent Zod member at `documentUtils.ts:L44`.
    *
-   * L26 spreads `currentDocument` with no guard, and the spread itself raises nothing. Object
+   * L164 spreads `currentDocument` with no guard, and the spread itself raises nothing. Object
    * spread copies the own enumerable properties of its source and returns immediately for `null`
    * or `undefined`, so `{ ...currentDocument, content: serializedContent }` evaluates to
    * `{ content: ... }` alone while the store holds the initial value that
-   * `frontend/src/store/documentSlice.ts:L12` sets.
+   * `frontend/src/store/documentSlice.ts:L34` sets.
    *
-   * The effect at L17 tests that value before reading it, and this handler runs no such test. A
+   * The effect at L115 tests that value before reading it, and this handler runs no such test. A
    * repaired path would therefore dispatch a payload carrying `content` and nothing else: no `id`,
    * no `title`, no `owner_id`, no `created_at`, no `updated_at` and no `collaborators`.
-   * `DocumentSchema` declares all seven at `frontend/src/schema/document.ts:L3-L11`. Whether that
+   * `DocumentSchema` declares all seven at `frontend/src/schema/document.ts:L65-L73`. Whether that
    * single-field object is a valid payload cannot be established here, because `documentSlice.ts`
    * declares no `updateDocument` action and therefore no payload contract.
    */

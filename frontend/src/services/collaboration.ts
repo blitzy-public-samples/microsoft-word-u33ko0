@@ -21,12 +21,12 @@ import { Document } from '../schema/document';
  * because `setupEventListeners` registers no listener and no inbound message reaches the
  * client.
  *
- * The socket boundary is unauthenticated. `io()` at L10 receives no argument at all, so the
+ * The socket boundary is unauthenticated. `io()` at L77 receives no argument at all, so the
  * handshake carries no `auth` payload, no `extraHeaders` entry, no query-string token and no
- * `withCredentials` cookie policy. None of the three emits at L23, L30 and L38 carries a user
+ * `withCredentials` cookie policy. None of the three emits at L126, L154 and L201 carries a user
  * identifier either. A server would therefore have no way to tell which account sent a join, a
  * leave or a change, beyond the connection itself. The token that
- * `frontend/src/services/auth.ts:L9` stores never reaches this module, because no line here
+ * `frontend/src/services/auth.ts:L148` stores never reaches this module, because no line here
  * reads `localStorage` or the Redux store.
  *
  * The boundary is also unvalidated. `documentId` arrives at `joinDocument` as a bare `string`
@@ -39,8 +39,8 @@ import { Document } from '../schema/document';
  * document identifier a caller supplies.
  *
  * Resilience is absent, and every absence below belongs to this class rather than to the
- * library. `io()` at L10 sets no `timeout`, no `reconnection`, no `reconnectionAttempts`, no
- * `reconnectionDelay` and no `transports` option. `setupEventListeners` at L14-L19 registers
+ * library. `io()` at L77 sets no `timeout`, no `reconnection`, no `reconnectionAttempts`, no
+ * `reconnectionDelay` and no `transports` option. `setupEventListeners` at L88-L19 registers
  * no `connect`, `connect_error`, `disconnect` or `error` handler, so no connection failure is
  * observed anywhere. No emit passes an acknowledgement callback and no emit sets a per-message
  * timeout, so no send is ever confirmed. No retry, backoff, jitter, circuit breaker, offline
@@ -108,13 +108,13 @@ class CollaborationService {
    * identifier travels with it, so a receiving server could not tell which account asked to
    * join, and any client on the connection could name any document identifier.
    *
-   * The local membership write is unconditional and unconfirmed. L24 assigns
-   * `currentDocumentId` immediately after the emit at L23. That emit passes no
+   * The local membership write is unconditional and unconfirmed. L127 assigns
+   * `currentDocumentId` immediately after the emit at L126. That emit passes no
    * acknowledgement callback, and no listener is registered anywhere in the class, so the
    * assignment records intent rather than a server-side join. A dropped connection, a
    * rejected join and a successful join all leave the field set to the same value.
    *
-   * Every later `sendChanges` call then passes the truthiness test at L37 and emits against a
+   * Every later `sendChanges` call then passes the truthiness test at L200 and emits against a
    * document the client may not be joined to. The client's view of its own membership can
    * therefore differ from any server's for the rest of the session.
    *
@@ -139,10 +139,10 @@ class CollaborationService {
    * receives `leave_document`.
    *
    * The local membership clear is unconditional and unconfirmed, exactly like the write in
-   * `joinDocument`. L31 resets `currentDocumentId` straight after the emit at L30, with no
+   * `joinDocument`. L155 resets `currentDocumentId` straight after the emit at L154, with no
    * acknowledgement callback and no listener, so a failed leave still clears the field. The
    * client then reports no active document while any server that did receive the earlier
-   * join still holds one, and the next `sendChanges` call throws at L43 rather than
+   * join still holds one, and the next `sendChanges` call throws at L206 rather than
    * emitting. The two unconfirmed mutations together mean the client's membership state is
    * a record of what it attempted, not of what happened.
    *
