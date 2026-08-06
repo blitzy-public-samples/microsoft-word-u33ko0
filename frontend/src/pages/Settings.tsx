@@ -40,15 +40,18 @@ import { selectCurrentUser, updateUser } from '@/store/userSlice';
  * Hold the name and email fields in local state and submit them as one update.
  *
  * Reads `currentUser` from the store at L14, attempts the save helper at L21, would dispatch the
- * result at L22, and writes to the console at L25. Performs no navigation and no local storage
- * write. L21 is an attempted call to an undefined symbol rather than a request, so the page
- * issues no HTTP traffic at all.
+ * result at L22, and would write to the console at L25. Performs no navigation and no local
+ * storage write. L21 is an attempted call to an undefined symbol rather than a request, so the
+ * page issues no HTTP traffic at all.
  *
  * @returns The settings page element: the shell at L31, the form at L35-L57 and the footer at L59.
  *
  * @remarks
- * Side effects: the form submit sends the request, dispatches the result and writes failures to the
- * console. The page performs no navigation and no local storage write.
+ * Actual side effects are none. The form submit attempts a call to `updateUserSettings` and a
+ * dispatch of `updateUser`, and neither symbol is exported by any module, so the page issues no
+ * request, stores nothing and writes nothing to the console. The page performs no navigation and
+ * no local storage write either. Intended behavior once both symbols exist: the submit sends
+ * the request, dispatches the result and writes failures to the console.
  *
  * The `name` and `email` state initialise from `currentUser` once, so a `currentUser` that arrives
  * after the first render leaves both fields at their empty-string fallbacks, and no effect
@@ -98,16 +101,18 @@ const Settings: React.FC = () => {
    * The `name` field passed at L21 has no counterpart in `schema/user.ts:L3-L11`, which models
    * `username` and optional `full_name`. The `email` field does match, at `schema/user.ts:L5`.
    *
-   * A failure writes to the console and nothing else, so a failed save produces no user-visible
-   * signal. The two outstanding-work comments record the absent notification and the absent error
-   * feedback.
+   * A failure would write to the console and nothing else, so a failed save would produce no
+   * user-visible signal. No failure reaches the catch block today, because the unresolved symbol
+   * at L21 stops the module from linking. The two outstanding-work comments record the absent
+   * notification and the absent error feedback.
    *
-   * L25 logs the whole error object rather than a message. The failing request carried the
-   * profile fields `{ name, email }` from L21, and an Axios error keeps `config`, `request` and
-   * `response`, so the browser console can end up holding that submitted name and email address
-   * along with the request URL, the request headers and the response body. Both fields are
-   * personal data, and the console is not a private sink: a browser extension or a support tool
-   * that collects logs reads whatever the entry retained.
+   * L25 logs the whole error object rather than a message. No error reaches that line today,
+   * because L21 names a symbol no module exports and the module never links. Implementing
+   * `updateUserSettings` as an HTTP call turns the line into a disclosure: an Axios error keeps
+   * `config`, `request` and `response`, so the console would then hold the name and email
+   * address submitted at L21 along with the request URL, the request headers and the response
+   * body. Both fields are personal data, and the console is not a private sink: a browser
+   * extension or a support tool that collects logs reads whatever the entry retained.
    */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -220,11 +220,15 @@ async def update_document(document_id: str, document: DocumentUpdate, current_us
     \N{FORM FEED}
     Internal notes.
 
-    Note:
-        Side effect is one write to the Firestore `documents` collection, preceded by
-        two reads: this handler's ownership read plus the service's own
-        read-before-write. The ownership comparison reads `document.user_id` against a
-        contract declaring `owner_id`.
+    Side effects:
+        None. The `TypeError` at L33 precedes the service's Firestore read, so the
+        route reads nothing and writes nothing.
+
+    Once the arity at L33 and L36 is corrected, the route performs one write to
+    the Firestore `documents` collection, preceded by two reads: this handler's
+    ownership read plus the service's own read-before-write. The ownership
+    comparison at L34 reads `document.user_id` against a contract declaring
+    `owner_id` at `app/schema/document.py:L8`.
     """
     document_service = DocumentService()
     existing_document = await document_service.get_document(document_id)
@@ -264,10 +268,14 @@ async def delete_document(document_id: str, current_user: User = Depends(get_cur
     \N{FORM FEED}
     Internal notes.
 
-    Note:
-        Side effect is one hard delete from the Firestore `documents` collection, with
-        no soft-delete flag and no version retained. The ownership comparison reads
-        `document.user_id` against a contract declaring `owner_id`.
+    Side effects:
+        None. The `TypeError` at L42 precedes the service's Firestore read, so the
+        route reads nothing and deletes nothing.
+
+    Once the arity at L42 and L45 is corrected, the route performs one hard delete
+    from the Firestore `documents` collection, with no soft-delete flag and no
+    version retained. The ownership comparison at L43 reads `document.user_id`
+    against a contract declaring `owner_id` at `app/schema/document.py:L8`.
     """
     document_service = DocumentService()
     existing_document = await document_service.get_document(document_id)

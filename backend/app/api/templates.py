@@ -26,8 +26,16 @@ A falsy result cannot separate an absent template from a forbidden one, so the
 detail describes two conditions the handler never distinguishes. Reading that
 wording as evidence of an ownership check would be a mistake.
 
-The consequence is that any authenticated caller reaches all five routes for any
-template identifier, and no committed file narrows that reach.
+No caller reaches a template handler as committed, so every authorization
+statement in this module describes a hypothetical rather than a live control.
+Three independent barriers block that reach, each one sufficient on its own, and
+the three paragraphs below set them out in turn: the import failure at L3, the
+`templates_router` export mismatch against `app/main.py:L6`, and the route
+collision with the document router.
+
+Once all three are repaired, no line below narrows the reach: any authenticated
+caller would then hold every template identifier, because no handler compares an
+owner and no committed file supplies a service that could.
 
 The module cannot import. L3 requests `Template`, `TemplateCreate` and
 `TemplateUpdate` from `app.schema.template`, and L4 requests `TemplateService`
@@ -178,8 +186,8 @@ async def get_template(template_id: str, current_user: User = Depends(get_curren
 
     The handler authenticates and forwards. L26 tests the service result for
     falsity and nothing else, so the route implements no ownership comparison. A
-    caller who supplies another user's `template_id` receives that template
-    unless the absent service refuses, and no contract says it would.
+    caller who supplies another user's `template_id` would receive that template
+    unless the absent service refused, and no contract says it would.
 
     The 404 detail names no authorization condition here, unlike L35 and L43.
     """
@@ -193,8 +201,12 @@ async def get_template(template_id: str, current_user: User = Depends(get_curren
 async def update_template(template_id: str, template: TemplateUpdate, current_user: User = Depends(get_current_user)) -> Template:
     """Apply an update to one template.
 
-    The route requires a bearer token and stores the changed fields. A success returns
-    HTTP status 200, because the decorator sets no `status_code`.
+    The route requires a bearer token. A success returns HTTP status 200,
+    because the decorator sets no `status_code`. Actual side effects are none.
+    The handler is intended to store the changed fields, and no committed file
+    states which fields an update would change or whether the change is partial.
+    documentation/Technical Specifications.md, SYSTEM DESIGN > API DESIGN
+    (L431), declares the route `PUT /templates/{id}` and no persistence detail.
 
     Args:
         template_id: Path parameter, declared `str`, naming the template to
@@ -248,8 +260,13 @@ async def update_template(template_id: str, template: TemplateUpdate, current_us
 async def delete_template(template_id: str, current_user: User = Depends(get_current_user)) -> dict:
     """Delete one template.
 
-    The route requires a bearer token and removes the stored template. A success returns
-    HTTP status 200, because the decorator sets no `status_code`.
+    The route requires a bearer token. A success returns HTTP status 200,
+    because the decorator sets no `status_code`. Actual side effects are none.
+    The handler is intended to remove the stored template, and no committed file
+    states which store a delete would reach or whether the removal is hard or
+    soft. documentation/Technical Specifications.md, SYSTEM DESIGN > API DESIGN
+    (L432), declares the route `DELETE /templates/{id}` and no persistence
+    detail.
 
     Args:
         template_id: Path parameter naming the template to delete.

@@ -6,8 +6,12 @@ itself.
 
 The service writes and compares the owner under the key `user_id`, while the `Document`
 contract declares `owner_id`. Every stored record therefore carries a field the contract
-does not model, and every `Document(**data)` construction leaves `owner_id` at its
-default.
+does not model, and the two keys stay independent. Every `Document(**data)` construction
+keeps the `owner_id` that L18 serializes from the create body and discards the extra
+`user_id`, because Pydantic ignores a field the model does not declare. A returned model
+therefore reports the owner the client chose, or `None` when the client sent no
+`owner_id`, while every authorization comparison reads the stored `user_id` instead. The
+paragraph below traces both keys through the write.
 
 All four methods are declared `async` and contain no `await`. The Firestore calls inside
 are synchronous and blocking, so each one holds the event loop for the duration of the

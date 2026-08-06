@@ -178,14 +178,38 @@ const api = createApiClient();
  * and date values arriving as JSON strings where `DocumentSchema` declares `z.date()` at
  * `frontend/src/schema/document.ts:L8-L9` all reach the caller unconverted and unreported.
  *
- * The request reaches the wrong handler rather than no handler.
- * `backend/app/main.py:L49-L52` mounts every router without a prefix, so the committed
- * document routes are `/` and `/{document_id}`. The path `/documents` is one segment, so it
- * matches `GET /{document_id}` at `backend/app/api/documents.py:L22` with `document_id` bound
- * to the literal string `documents`, and the request arrives at the get-one handler.
+ * Five layers stand between this call and a document list, and each one blocks on its own.
+ * Repairing any single layer leaves the rest standing. In the order a request meets them:
  *
- * The call buffers every document, content included, with no pagination, no page size and no field
- * projection, so the response grows with the collection.
+ * 1. No request leaves the browser. L16 reads `store` before any import defines it, so the
+ *    call rejects before transport. The `createApiClient` block above records that failure
+ *    and the second one waiting behind it.
+ * 2. No bearer credential exists. With L16 repaired, no committed line writes a token where
+ *    L16 reads one, so `token` holds `undefined`, the test at L17 fails and L18 sets no
+ *    `Authorization` header.
+ * 3. The path selects the get-one route rather than the list route.
+ *    `backend/app/main.py:L49-L52` mounts every router without a prefix, so the committed
+ *    document routes are `/` and `/{document_id}`. The path `/documents` is one segment, so
+ *    it matches `GET /{document_id}` at `backend/app/api/documents.py:L22` with `document_id`
+ *    bound to the literal string `documents`. `GET /` at
+ *    `backend/app/api/documents.py:L16`, the only route that returns a list, is never
+ *    selected.
+ * 4. The selected route rejects the request. `backend/app/api/documents.py:L23` injects
+ *    `get_current_user`, which depends on the `OAuth2PasswordBearer` instance at
+ *    `backend/app/api/auth.py:L10`. A request carrying no `Authorization` header answers
+ *    HTTP 401 before the handler body runs.
+ * 5. The handler fails its service call. A request carrying a valid token reaches
+ *    `backend/app/api/documents.py:L25`, which passes one argument where
+ *    `backend/app/services/document_service.py:L26` declares `document_id` and `user_id`, so
+ *    Python raises `TypeError` and FastAPI answers HTTP 500.
+ *
+ * No layer produces a list, so this call buffers nothing. The route the path selects returns
+ * one document, and the list route it bypasses is the only producer of the declared
+ * `Document[]`. Intended behavior per documentation/Technical Specifications.md, SYSTEM
+ * DESIGN > API DESIGN (L417): `GET /documents` returns the caller's documents. A repaired
+ * path would buffer every document, content included, because
+ * `backend/app/api/documents.py:L16-L20` declares no pagination, no page size and no field
+ * projection, so the response would grow with the collection.
  * @example
  * const documents = await getDocuments();
  * // Cannot run today: `axios` is absent from frontend/package.json, and the interceptor raises.

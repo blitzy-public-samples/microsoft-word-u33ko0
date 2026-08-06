@@ -35,8 +35,25 @@ import { setCurrentDocument } from '@/store/documentSlice';
  * @returns The editor page element. The component takes no props, and `App.tsx` mounts the page at
  * `/editor`.
  * @remarks
- * Side effects: the load effect requests a document and dispatches `setCurrentDocument`, the save
- * effect sends the content, and both report failures to the console only.
+ * Actual network and persistence side effects are none. No request leaves the browser and
+ * nothing reaches storage. The one effect that does occur is a single console write five
+ * seconds after mount, from the auto-save catch block. Five separate blockers account for the
+ * rest:
+ *
+ * - `getDocument` is absent from `frontend/src/services/api.ts`, so the load call names an
+ *   undefined symbol.
+ * - No committed path seeds `currentDocument.id`, so the load guard at L30 never passes.
+ * - `services/api.ts:L16` raises inside the request interceptor, so `updateDocument` rejects
+ *   before transport.
+ * - The client path `PUT /documents/{id}` is two segments and matches no registered route, so
+ *   a repaired client receives 404.
+ * - `backend/app/api/documents.py:L33` passes one argument where
+ *   `backend/app/services/document_service.py:L26` declares two, so a repaired client path
+ *   still receives 500.
+ *
+ * Intended behavior once those five are repaired: the load effect requests a document and
+ * dispatches `setCurrentDocument`, the save effect sends the content, and both report failures
+ * to the console only.
  *
  * The load path is unreachable from initial state. `currentDocument` starts at `null` in
  * `frontend/src/store/documentSlice.ts`, the effect runs only when `currentDocument?.id` is set,
@@ -71,9 +88,12 @@ const Editor: React.FC = () => {
    * Fetch the current document whenever its identifier changes.
    *
    * @remarks Runs the fetch only when `currentDocument?.id` is truthy, then stores the content
-   * locally and publishes the document to Redux. Reads `currentDocument.id` unguarded inside
-   * the fetch, so a document that becomes null between the guard and the call raises. Failures
-   * reach the console only, per the outstanding-work note in the catch block.
+   * locally and publishes the document to Redux. L21 reads `currentDocument.id` with no null
+   * test of its own, and no race follows: the closure captures the value the render held, and
+   * L30 calls `fetchDocument` only when that captured value carries an identifier. The
+   * auto-save effect at L35-L47 is where an unguarded read does bite, because L38 reads the
+   * same property with no equivalent test. Failures reach the console only, per the
+   * outstanding-work note in the catch block.
    *
    * The load path is unreachable from initial state. `currentDocument` starts at `null` in
    * `frontend/src/store/documentSlice.ts`, the effect runs only when `currentDocument?.id` is
@@ -115,14 +135,23 @@ const Editor: React.FC = () => {
    * from the store at L15, so opening another document restarts the delay as well.
    *
    * The cleanup cancels a pending timer and nothing else. Once L45 fires and L38 starts its
-   * request, no line cancels that request, and `clearTimeout` has no effect on it. Two saves can
-   * therefore be in flight together: an edit five seconds after a slow save began schedules a
-   * second save while the first is still open. Nothing orders their completions. The server
-   * applies whichever arrives last, so a slow save carrying older content can land after a fast
-   * save carrying newer content and overwrite it. The module holds no request identifier, no
-   * abort signal, no version or revision field and no conditional-write precondition, so neither
-   * end can detect or reject the stale write. Losing the newer edit is silent, because the reader
-   * sees no error and the editor keeps showing the newer text that the server no longer holds.
+   * request, no line cancels that request, and `clearTimeout` has no effect on it.
+   *
+   * No save reaches storage as committed, so the ordering hazard below describes a repaired
+   * path rather than current behavior. Three blockers sit in front of it: `updateDocument`
+   * rejects inside the request interceptor at `services/api.ts:L16`, the client path
+   * `PUT /documents/{id}` is two segments and matches no registered route, and
+   * `backend/app/api/documents.py:L33` passes one argument where
+   * `backend/app/services/document_service.py:L26` declares two.
+   *
+   * Once those three are repaired, two saves can be in flight together: an edit five seconds
+   * after a slow save began schedules a second save while the first is still open. Nothing
+   * orders their completions, so a slow save carrying older content can land after a fast save
+   * carrying newer content and overwrite it. The module holds no request identifier, no abort
+   * signal, no version or revision field and no conditional-write precondition, so neither end
+   * could detect or reject the stale write. Losing the newer edit would be silent, because the
+   * reader sees no error and the editor keeps showing the newer text the server no longer
+   * holds.
    *
    * The load effect checks `currentDocument?.id`; the auto-save effect does not. On mount, the
    * timer can dereference `null` after five seconds.
@@ -138,14 +167,17 @@ const Editor: React.FC = () => {
    *
    * The timer is disconnected from the rendered editor. `DocumentCanvas` declares no props, so
    * `content` and `onContentChange` never reach it, and Draft.js edits never change the string this
-   * effect watches. Once an identifier appears, the save sends the empty initial string.
+   * effect watches. A repaired save path would therefore send the empty initial string, because
+   * `content` still holds the value L16 set.
    *
-   * L40 passes the whole error object, not a message. The failing request carried the document
-   * body in `{ content }`, and an Axios error keeps `config`, `request` and `response`, so the
-   * browser console can end up holding that document text along with the request URL, the request
-   * headers and the response body. The bearer header is absent from those headers today, because
-   * `services/api.ts:L16` reads an `auth` slice that `store/index.ts` does not register, and a
-   * repaired interceptor would place the token there and put it in the same log line.
+   * L40 passes the whole error object, not a message. The object it receives today is the
+   * `TypeError` from the null read at L38, which carries no request detail. A repaired save path
+   * changes what the line exposes: an Axios error keeps `config`, `request` and `response`, so
+   * the console would then hold the document text sent in `{ content }` along with the request
+   * URL, the request headers and the response body. The bearer header is absent from those
+   * headers today, because `services/api.ts:L16` reads an `auth` slice that `store/index.ts`
+   * does not register, and a repaired interceptor would place the token there and put it in the
+   * same log line.
    *
    * Intended behavior per documentation/Software Requirements Specifications (SRS).md, "SAFETY"
    * heading: auto-save every thirty seconds, with a local cache of recent changes for recovery.

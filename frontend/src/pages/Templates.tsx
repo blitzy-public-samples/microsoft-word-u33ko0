@@ -36,7 +36,28 @@ import { getTemplates } from '@/services/api';
 import { useAppSelector } from '@/store';
 import { selectCurrentUser } from '@/store/userSlice';
 
-/** Card fields this page renders for one template. */
+/**
+ * Card fields this page renders for one template.
+ *
+ * @remarks
+ * Two incompatible template shapes exist in the frontend, and this is the narrower one. The
+ * interface below declares `id`, `name`, `description` and `thumbnail` at L9-L12.
+ * `TemplateSchema` at `frontend/src/schema/template.ts:L4-L9` requires `id`, `name`, `content`,
+ * `owner_id`, `created_at` and `updated_at`, and `:L12` exports the inferred `Template` type.
+ *
+ * Only `id` and `name` appear in both. `description` and `thumbnail` exist here alone, so no
+ * server contract models either field. `content`, `owner_id`, `created_at` and `updated_at`
+ * exist in the schema alone, so nothing this page renders reads the template body or its owner.
+ * Neither shape is a subset of the other, so a value satisfying one fails the other.
+ *
+ * This page imports neither `TemplateSchema` nor the schema's `Template` type, and calls no
+ * `parse` and no `safeParse`. Nothing validates the array L24 stores, so a response of any shape
+ * is rendered as written.
+ *
+ * The backend declares no template contract at all. `backend/app/api/templates.py:L3` imports
+ * `Template`, `TemplateCreate` and `TemplateUpdate` from `app.schema.template`, and that module
+ * does not exist, so no Pydantic model states which fields a template carries.
+ */
 interface Template {
   id: string;
   name: string;
@@ -48,8 +69,10 @@ interface Template {
  * Fetch templates once on mount and render one clickable card per template.
  *
  * @returns The templates page element.
- * @remarks Side effects: one network call, two state writes, one store read and one console write.
- * The component dispatches no action and performs no navigation.
+ * @remarks Side effects: one attempted invocation of the absent `getTemplates` helper, two state
+ * writes, one store read and one console write. No outbound HTTP call exists. The component
+ * dispatches no action and performs no navigation. The paragraph below carries the locator for
+ * each effect.
  *
  * Two values are written and never read: `selectedTemplate` is assigned by the click handler, and
  * `currentUser` is never rendered or passed on. The effect closes with an empty dependency array,

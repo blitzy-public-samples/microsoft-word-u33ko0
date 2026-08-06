@@ -40,8 +40,13 @@ import { serializeDocument, deserializeDocument } from '@/utils/documentUtils';
  * `ContentState`, and the change handler passes a `ContentState` to `serializeDocument`. Both
  * errors stay latent, because the unresolved imports leave the helpers untyped.
  *
- * No write reaches the store as committed. Both helpers call `DocumentSchema.isValid`, which is no
- * Zod member, so each raises a `TypeError` before the editor state is replaced or a dispatch runs.
+ * No write reaches the store as committed, and the two paths stop at different lines. The load
+ * path reaches `DocumentSchema.isValid` at `frontend/src/utils/documentUtils.ts:L30`, which is no
+ * Zod member, so the call raises a `TypeError` there and L19 never replaces the editor state. The
+ * change path stops earlier: L25 hands a `ContentState` to `serializeDocument`, whose first
+ * statement at `documentUtils.ts:L9` calls `getCurrentContent()` on the value it received, and a
+ * `ContentState` declares no such method, so the `TypeError` lands on that line and the
+ * `isValid` read at `documentUtils.ts:L13` is never reached.
  *
  * 1. L18 and L19 send an `EditorState` where a `ContentState` belongs. L18 binds the `EditorState`
  *    returned by `deserializeDocument` to a variable named `contentState`, and that name reports

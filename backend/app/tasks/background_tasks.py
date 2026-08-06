@@ -5,8 +5,12 @@ requested from `app.core.config`, which never defines it, so importing this modu
 raises `ImportError`. `REDIS_URL` is declared on the `Settings` model, while the two
 bucket names this module reads are not: `EXPORT_BUCKET_NAME` and `DOCUMENT_BUCKET_NAME`.
 
-`datetime` is used in all three tasks and never imported; the import line brings in
-`timedelta` alone, so each task raises `NameError` at the point it needs the class.
+`datetime` is used in two of the three tasks and never imported; the import line brings
+in `timedelta` alone. `cleanup_expired_documents` reads the name at L43 and
+`update_document_statistics` reads it at L78, so each of those two raises `NameError` at
+the point it needs the class. `process_document_export` reads no `datetime`: its one
+time value is the `timedelta` at L31, which L7 does import, so that task fails first at
+the absent `ExportService.convert_document` instead.
 
 `@celery_app.periodic_task` on the cleanup task is not a Celery 5 API, so applying that
 decorator raises at import. Periodic work belongs in `beat_schedule`.
