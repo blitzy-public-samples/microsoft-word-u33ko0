@@ -69,6 +69,7 @@ import { selectCurrentUser, updateUser } from '@/store/userSlice';
  * // `frontend/package.json:L11` declares `react-router-dom` at `^6.11.1`, which takes an
  * // `element` prop and dropped the v5 `component` prop. `App.tsx:L19-L24` holds the committed
  * // route table, still written in the version 5 form.
+ * // `App.tsx:L23` is the registration this snippet reproduces.
  * // Cannot run today: the five `@/` specifiers at L2-L6 fail module resolution. L2 and L3 import
  * // `Header` and `Footer` as named exports, while `components/Header.tsx:L42` and
  * // `components/Footer.tsx:L23` declare defaults, and the other three symbols,

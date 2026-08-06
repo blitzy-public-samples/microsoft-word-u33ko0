@@ -127,6 +127,7 @@ interface Template {
  * // `frontend/package.json:L11` declares `react-router-dom` at `^6.11.1`, which takes an
  * // `element` prop and dropped the v5 `component` prop. `App.tsx:L19-L24` holds the committed
  * // route table, still written in the version 5 form.
+ * // `App.tsx:L22` is the registration this snippet reproduces.
  * // Cannot run today: the five unresolved `@/` specifiers at L2-L6 stop the bundle from
  * // compiling, so no heading and no card reach the screen.
  */

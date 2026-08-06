@@ -75,6 +75,7 @@ import { setCurrentDocument } from '@/store/documentSlice';
  * // `element` prop and dropped both the v5 `component` prop and `exact`. `App.tsx:L19-L24`
  * // holds the committed route table, still written in the version 5 form, and `App.tsx:L2`
  * // still imports `Switch`, which version 6 replaced with `Routes`.
+ * // `App.tsx:L21` is the registration this snippet reproduces.
  * // Cannot run today: `tsc` raises TS2307 for all seven `@/` specifiers at L2-L8, and the four
  * // named component imports at L2-L5, `getDocument` at L6 and both store hooks at L7 name
  * // bindings that do not exist.

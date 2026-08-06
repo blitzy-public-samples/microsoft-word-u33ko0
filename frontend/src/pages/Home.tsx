@@ -44,6 +44,7 @@ import { selectCurrentUser } from '@/store/userSlice';
  * // `frontend/package.json:L11` declares `react-router-dom` at `^6.11.1`, which takes an
  * // `element` prop and dropped both the v5 `component` prop and `exact`. `App.tsx:L19-L24`
  * // holds the committed route table, still written in the version 5 form.
+ * // `App.tsx:L20` is the registration this snippet reproduces.
  * // Cannot run today: the four `@/` specifiers at L3-L6 fail module resolution, and neither
  * // `useAppSelector` at L5 nor `selectCurrentUser` at L6 is exported by the module it names.
  */
