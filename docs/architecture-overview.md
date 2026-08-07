@@ -138,34 +138,36 @@ The diagram below shows ownership, the four backing services the server tiers fa
 specification boundary.
 
 ```mermaid
-graph LR
+graph TD
+    accTitle: The four tiers, the backing services they fan out to, and the specification boundary
+    accDescr: A browser reaches the client tier, the client calls the HTTP API, a handler calls a service, a service calls an adapter or queues work, and the adapters and tasks reach four backing services. Terraform and Docker provision the runtime, the workflows release into it, and the shell scripts stand up a local equivalent. Every edge is intent rather than verified behaviour.
     BROWSER["Browser"]
 
     subgraph FE["frontend/ client tier"]
         PAGES["src/pages<br/>4 routed pages"]
-        STORE["src/store<br/>2 slices, 1 store"]
+        STORE["src/store<br/>2 slices,<br/>1 store"]
         CLIENT["src/services<br/>axios client"]
     end
 
     subgraph BE["backend/ server tiers"]
         MAIN["app/main.py<br/>composition root"]
-        ROUTERS["app/api<br/>4 routers, 14 handlers"]
+        ROUTERS["app/api<br/>4 routers,<br/>14 handlers"]
         SERVICES["app/services<br/>3 services"]
         ADAPTERS["app/db<br/>2 adapters"]
-        TASKS["app/tasks<br/>3 Celery tasks"]
+        TASKS["app/tasks<br/>3 Celery<br/>tasks"]
     end
 
-    subgraph CLOUD["backing services"]
-        FS[("Google Cloud Firestore")]
-        GCS[("Google Cloud Storage")]
-        PUBSUB["Google Cloud Pub/Sub"]
-        BROKER[("Redis broker")]
+    subgraph CLOUD["backing services: Google Cloud and Redis"]
+        FS[("Firestore")]
+        GCS[("Cloud<br/>Storage")]
+        PUBSUB["Pub/Sub"]
+        BROKER[("Redis<br/>broker")]
     end
 
-    INFRA["infrastructure/<br/>Terraform and Docker"]
-    PIPE[".github/workflows/<br/>CI and CD"]
-    SH["scripts/<br/>deploy and local setup"]
-    SPEC["documentation/<br/>declared intent,<br/>outside the runtime path"]
+    INFRA["infrastructure/<br/>Terraform,<br/>Docker"]
+    PIPE[".github/<br/>workflows/<br/>CI and CD"]
+    SH["scripts/<br/>deploy and<br/>local setup"]
+    SPEC["documentation/<br/>declared intent,<br/>outside the<br/>runtime path"]
 
     BROWSER --> PAGES
     PAGES --> STORE
@@ -229,26 +231,24 @@ backend module import failures on its own.
 
 ```mermaid
 graph LR
-    subgraph FE2["frontend/src"]
-        INDEX["index.tsx<br/>renders and provides the store"]
-        APP["App.tsx<br/>root component"]
-        STORE2["store/index.ts<br/>default export only"]
-        ALIAS["44 @/ imports<br/>across 13 of 26 modules"]
-    end
+    accTitle: The broken-edge overlay, every unresolvable link dashed and labelled
+    accDescr: The same skeleton redrawn so that each link which cannot resolve is dashed and labelled. Seven dashed edges leave the composition root. One solid edge marks the single import form that matches its target.
+    INDEX["frontend/src/index.tsx<br/>renders and provides the store"]
+    APP["frontend/src/App.tsx<br/>root component"]
+    STORE2["frontend/src/store/index.ts<br/>default export only"]
+    ALIAS["frontend/src: 44 @/ imports<br/>across 13 of 26 modules"]
 
-    subgraph BE2["backend/app"]
-        MAIN2["main.py<br/>composition root"]
-        AUTHR["api/auth.py<br/>exports 'router'"]
-        DOCR["api/documents.py<br/>exports 'router'"]
-        USERR["api/users.py<br/>exports 'router'"]
-        TMPLR["api/templates.py<br/>exports 'router'"]
-        CFG["core/config.py<br/>defines Settings,<br/>creates no instance"]
-        SQLA["db/sql.py<br/>defines no init_db"]
-        FSA["db/firestore.py<br/>exports 'db'"]
-    end
+    MAIN2["backend/app/main.py<br/>composition root"]
+    AUTHR["backend/app/api/auth.py<br/>exports 'router'"]
+    DOCR["backend/app/api/documents.py<br/>exports 'router'"]
+    USERR["backend/app/api/users.py<br/>exports 'router'"]
+    TMPLR["backend/app/api/templates.py<br/>exports 'router'"]
+    CFG["backend/app/core/config.py<br/>defines Settings,<br/>creates no instance"]
+    SQLA["backend/app/db/sql.py<br/>defines no init_db"]
+    FSA["backend/app/db/firestore.py<br/>exports 'db'"]
 
     TSC["tsconfig.json<br/>5 aliases, none is @/"]
-    RRD["react-router-dom ^6.11.1<br/>no Switch, no component prop"]
+    RRD["react-router-dom ^6.11.1<br/>no Switch,<br/>no component prop"]
     TERRA["terraform/main.tf<br/>3 module blocks"]
     TFMOD["terraform/modules/<br/>directory absent"]
     CD["workflows/cd.yml<br/>deploy step"]
@@ -271,6 +271,8 @@ graph LR
 
 %% Dashed edges cannot resolve. The solid edge marks the one import form that matches
 %% its target, and contrasts with the dashed edge reaching that same target from App.tsx.
+%% Each node label carries its own directory, so the frontend and backend halves stay legible
+%% without a cluster box around them.
 ```
 
 ## System boundaries

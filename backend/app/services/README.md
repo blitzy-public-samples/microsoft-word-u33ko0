@@ -128,33 +128,33 @@ Diagram 1 traces one editor session through `connect` at L75 and one edit throug
 
 ```mermaid
 sequenceDiagram
+    accTitle: The per-document Pub/Sub collaboration fan-out
+    accDescr: No route calls connect, so the whole exchange is unreachable. Inside it, an early return leaves a socket registered with no subscription, and two undefined module names raise on first delivery and first publish.
     participant WS as Client WebSocket
     participant CS as CollaborationService
     participant PUB as PublisherClient
     participant SUB as SubscriberClient
 
-    Note over WS,CS: connect(), L75
-    WS -->> CS: no route calls connect: zero WebSocket routes under backend/
-    CS ->> CS: register socket in active_connections, L117
-    CS ->> CS: topic projects/PROJECT_ID/topics/document_id, L120
-    CS ->> CS: subscription projects/PROJECT_ID/subscriptions/document_id_user_id, L121
-    CS -->> CS: settings.PROJECT_ID undeclared, L120 L121 L209 L245
+    Note over WS,CS: connect(), L75. No route calls connect:<br/>zero WebSocket routes exist under backend/
+    WS -->> CS: no caller
+    CS ->> CS: register socket, L117
+    CS ->> CS: build topic, L120
+    CS ->> CS: build subscription, L121
+    Note over CS,PUB: Registers into<br/>active_connections at L117.<br/>topic projects/PROJECT_ID/topics/<br/>document_id at L120, subscription<br/>projects/PROJECT_ID/subscriptions/<br/>document_id_user_id at L121.<br/>settings.PROJECT_ID is undeclared,<br/>read at L120, L121, L209 and L245.
     CS ->> SUB: create_subscription, L124
-    SUB -->> CS: on failure, print L127 then return L128
-    Note over CS: early return leaves the L117 socket registered with no subscription
-    CS ->> SUB: subscribe(subscription, callback), L165
-    CS ->> CS: future.result() blocks the event loop, L168
-    SUB ->> CS: callback(message), L131
+    SUB -->> CS: failure, L127
+    Note over CS,PUB: print at L127, then the<br/>early return at L128 leaves<br/>the L117 socket registered<br/>with no subscription
+    CS ->> SUB: subscribe, L165
+    CS ->> CS: future.result(), L168
+    Note over CS,PUB: subscribe(subscription,<br/>callback) at L165, then<br/>future.result() at L168<br/>blocks the event loop
+    SUB ->> CS: callback, L131
     CS ->> CS: message.ack(), L162
-    CS -->> WS: asyncio.run(send_json), L163
-    Note over CS,WS: asyncio never imported: NameError on first delivery
-    Note over CS,WS: message.data is bytes, send_json expects a serializable object
-    Note over CS,WS: asyncio.run opens a new loop on the subscriber thread, not the socket loop
-
+    CS -->> WS: send_json, L163
+    Note over WS,CS: callback(message) at L131, ack at L162, then<br/>asyncio.run(send_json) at L163.<br/>asyncio is never imported, so L163 raises<br/>NameError on first delivery.<br/>message.data is bytes and send_json<br/>expects a serializable object.<br/>asyncio.run opens a new loop on the<br/>subscriber thread, not the socket loop.
     Note over CS,PUB: broadcast_change(), L218
-    CS ->> PUB: publish(topic, json.dumps(change)), L248
-    CS -->> CS: json never imported: NameError on first call
+    CS ->> PUB: publish, L248
     PUB ->> CS: future.result(), L249
+    Note over CS,PUB: publish(topic,<br/>json.dumps(change)) at L248.<br/>json is never imported, so<br/>that call raises NameError<br/>on first use
 ```
 
 Diagram 2 traces the export path. The task tier that drives it is documented in
@@ -171,26 +171,23 @@ The diagram below therefore draws the one call that exists, not the two that do 
 
 ```mermaid
 flowchart TD
-    Q["Celery queue"] -.->|"no producer enqueues this task"| T["process_document_export<br/>tasks/background_tasks.py:L101"]
-    T --> G["get_document(document_id, user_id)<br/>tasks/background_tasks.py:L135"]
-    G -.->|"not awaited: binds a coroutine object"| C
-    T -.->|"the only export call the task makes:<br/>ExportService declares no convert_document"| C["convert_document(document, format)<br/>tasks/background_tasks.py:L138"]
-    C -.->|"unreachable until convert_document exists"| UT["Blob.upload_from_file<br/>tasks/background_tasks.py:L143"]
-    UT -.->|"unreachable: no version argument, so the client default applies"| ST["generate_signed_url<br/>tasks/background_tasks.py:L146"]
-    ST -.-> URL["Signed download link"]
-    C -.->|"key exports/user_id/document_id.format, L142"| K["Divergent object keys"]
+    accTitle: The export job lifecycle across the task and the two service methods
+    accDescr: The task path cannot complete because ExportService declares no convert_document. The two written service methods are dead code with no caller, and the two paths build divergent object keys. The two methods share one column because their structure is identical, and both line numbers appear in each node.
+    Q["Celery queue"] -.->|"no producer<br/>enqueues<br/>this task"| T["process_document_export<br/>background_tasks.py:L101"]
+    T --> G["get_document<br/>:L135"]
+    G -.->|"not awaited:<br/>binds a<br/>coroutine object"| C
+    T -.->|"the only export call<br/>the task makes:<br/>ExportService declares<br/>no convert_document"| C["convert_document<br/>:L138"]
+    C -.->|"unreachable until<br/>convert_document<br/>exists"| UT["upload_from_file<br/>:L143"]
+    UT -.->|"unreachable: no<br/>version argument, so<br/>the client default<br/>applies"| ST["generate_signed_url<br/>:L146"]
+    ST -.-> URL["Signed<br/>download link"]
+    C -.->|"key exports/<br/>user_id/<br/>document_id.format<br/>at L142"| K["Divergent<br/>object keys"]
 
-    NC["No caller in the repository"] -.->|"dead code"| P["export_to_pdf<br/>export_service.py:L87"]
-    NC -.->|"dead code"| D["export_to_docx<br/>export_service.py:L168"]
-    P -->|"key exports/document.id.pdf, L155"| UP["Blob.upload_from_string, L157"]
-    D -->|"key exports/document.id.docx, L229"| UD["Blob.upload_from_string, L231"]
-    UP -.->|"literal string PDF_CONTENT"| PL["Placeholder payload"]
-    UD -.->|"literal string DOCX_CONTENT"| PL
-    UP --> SP["generate_signed_url version=v4, L160-L164"]
-    UD --> SD["generate_signed_url version=v4, L234-L238"]
-    SP --> URL
-    SD --> URL
-    P -.->|"exports/document.id.pdf, L155"| K
+    NC["No caller in<br/>the repository"] -.->|"dead code"| PD["export_to_pdf :L87<br/>export_to_docx :L168<br/>export_service.py"]
+    PD -->|"key exports/<br/>document.id.pdf at L155<br/>and .docx at L229"| UPD["upload_from_string<br/>L157 and L231"]
+    UPD -.->|"literal strings<br/>PDF_CONTENT and<br/>DOCX_CONTENT"| PL["Placeholder<br/>payload"]
+    UPD --> SPD["generate_signed_url<br/>version=v4<br/>L160-L164<br/>and L234-L238"]
+    SPD --> URL
+    PD -.->|"exports/<br/>document.id.pdf<br/>at L155"| K
 %% Dashed edges mark a call that does not exist or cannot resolve.
 %% Solid edges inside export_to_pdf and export_to_docx are written and unreached.
 ```

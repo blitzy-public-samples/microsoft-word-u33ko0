@@ -113,24 +113,24 @@ section that carries the detail.
 | `npm install` succeeds. One observed run resolved 1,532 packages | Installing frontend dependencies | none | Verified in `frontend/`. The count follows the registry rather than this repository. The five packages at [G4](#g4-undeclared-third-party-dependencies) stay missing because no manifest lists them |
 | `pip install -r requirements.txt` fails, no such file | Installing backend dependencies | [G4](#g4-undeclared-third-party-dependencies) | No `requirements.txt` exists anywhere. `README.md:L42` and `scripts/setup_dev_environment.sh:L26` both invoke it |
 | `tsc --noEmit` reports 76 errors, so the build fails | Starting or building the frontend | [G1](#g1-absent-modules-referenced-by-committed-code), [G2](#g2-absent-symbols-inside-modules-that-do-exist), [G4](#g4-undeclared-third-party-dependencies) | Distribution in [the type-check profile](#the-verified-type-check-profile) |
-| The interface renders with no styling at all | Viewing the running frontend | [G8](#tailwind-never-compiles) | No `tailwind.config.js`, no `postcss.config.js` and no committed stylesheet |
+| The interface renders with no styling at all | Viewing the running frontend | [G8 Tailwind](#tailwind-never-compiles) | No `tailwind.config.js`, no `postcss.config.js` and no committed stylesheet |
 | `uvicorn main:app --reload` cannot find the application | Starting the backend from `backend/` per the README | [README](#documentation-inaccuracies-in-the-root-readme) | The application object sits at `backend/app/main.py:L24` (`app = FastAPI()`), one directory deeper |
-| `ImportError: cannot import name 'settings' from 'app.core.config'` | Importing `app.main` from `backend/` | [G2](#the-absent-settings-singleton) | `backend/app/main.py:L16` reaches `backend/app/api/auth.py:L81`, which requests a name `backend/app/core/config.py` never defines |
+| `ImportError: cannot import name 'settings' from 'app.core.config'` | Importing `app.main` from `backend/` | [G2 settings singleton](#the-absent-settings-singleton) | `backend/app/main.py:L16` reaches `backend/app/api/auth.py:L81`, which requests a name `backend/app/core/config.py` never defines |
 | `ModuleNotFoundError: No module named 'app.schema.template'` | Importing `app.api.templates` | [G1](#g1-absent-modules-referenced-by-committed-code) | `backend/app/api/templates.py:L70` |
 | `ModuleNotFoundError: No module named 'app.services.user_service'` | Importing `app.api.users` or `app.api.auth` | [G1](#g1-absent-modules-referenced-by-committed-code) | `backend/app/api/users.py:L24` and `backend/app/api/auth.py:L83` |
 | `NameError: name 'Optional' is not defined` | Importing `app.core.security` | [G3](#g3-undefined-names-that-raise-at-execution) | `backend/app/core/security.py:L48` uses `Optional` with no import behind it |
-| Template endpoints return document responses | Calling any `/{id}` route | [G7](#document-routes-shadow-the-template-and-profile-routes) | `backend/app/main.py:L125-L128` mounts every router with no prefix |
-| `GET /me` returns a document read, or 404 for a document called `me` | Fetching the signed-in profile | [G7](#document-routes-shadow-the-template-and-profile-routes) | `backend/app/api/documents.py:L145` claims every single-segment path ahead of `backend/app/api/users.py:L29` |
-| `POST /documents` answers 405 while `PUT /documents/{id}` answers 404 | Calling the document API from the client | [G7](#the-client-calls-six-routes-and-no-server-route-matches-any-of-them) | `frontend/src/services/api.ts:L246` and `:L288` prefix a segment no route declares |
-| Login answers 422 rather than 401 once the path is corrected | Signing in | [G7](#the-client-calls-six-routes-and-no-server-route-matches-any-of-them) | `frontend/src/services/auth.ts:L146` sends JSON `email`, and `backend/app/api/auth.py:L168` reads a form `username` |
-| `npm ci` fails in continuous integration, reporting `ENOENT` on npm 6 or `EUSAGE` on npm 7 and newer | Running the CI workflow | [G8](#npm-ci-cannot-run-anywhere) | `.github/workflows/ci.yml:L19` runs at the repository root, where no manifest and no lockfile exist. `ci.yml:L17` pins Node 14, which ships npm 6 |
-| `docker compose build` cannot find a Dockerfile | Building the containers | [G8](#compose-points-at-dockerfiles-that-are-not-there) | `infrastructure/docker/docker-compose.yml:L6-L7` and `:L19-L20` |
-| `terraform init` reports `Unreadable module directory` | Initialising the infrastructure | [G8](#three-terraform-module-sources-do-not-exist) | `infrastructure/terraform/main.tf:L67`, `:L76`, `:L85`. No `modules/` directory exists |
-| Celery workers have no broker to attach to | Running background jobs | [G8](#no-redis-service-backs-the-celery-broker) | `backend/app/tasks/background_tasks.py:L98` reads `settings.REDIS_URL`, and no service provides Redis |
-| The deploy step uploads descriptors that do not exist | Running the CD workflow | [G8](#the-cd-workflow-deploys-two-absent-descriptors) | `.github/workflows/cd.yml:L19-L20` deploys `app.yaml` and `dispatch.yaml` |
-| An export uploads and then fails to produce a link | Exporting a document once the earlier blockers clear | [G8](#signed-url-generation-needs-credentials-nothing-supplies) | `backend/app/services/export_service.py:L160-L164` signs version 4 with credentials that carry no private key and no `signBlob` grant |
-| A collaboration subscribe or publish answers `NotFound` | Opening a second editor on one document | [G7](#nothing-creates-the-pubsub-topic-the-server-addresses) | `backend/app/services/collaboration_service.py:L124` and `:L248` address a topic no code and no infrastructure creates |
-| A change publishes silently and never arrives | Editing with collaboration wired up | [G7](#a-failed-publish-is-caught-and-logged-rather-than-raised) | `backend/app/services/collaboration_service.py:L250` catches every publish failure and `:L252` prints it |
+| Template endpoints return document responses | Calling any `/{id}` route | [G7 shadowed routes](#document-routes-shadow-the-template-and-profile-routes) | `backend/app/main.py:L125-L128` mounts every router with no prefix |
+| `GET /me` returns a document read, or 404 for a document called `me` | Fetching the signed-in profile | [G7 shadowed routes](#document-routes-shadow-the-template-and-profile-routes) | `backend/app/api/documents.py:L145` claims every single-segment path ahead of `backend/app/api/users.py:L29` |
+| `POST /documents` answers 405 while `PUT /documents/{id}` answers 404 | Calling the document API from the client | [G7 client routes](#the-client-calls-six-routes-and-no-server-route-matches-any-of-them) | `frontend/src/services/api.ts:L246` and `:L288` prefix a segment no route declares |
+| Login answers 422 rather than 401 once the path is corrected | Signing in | [G7 client routes](#the-client-calls-six-routes-and-no-server-route-matches-any-of-them) | `frontend/src/services/auth.ts:L146` sends JSON `email`, and `backend/app/api/auth.py:L168` reads a form `username` |
+| `npm ci` fails in continuous integration, reporting `ENOENT` on npm 6 or `EUSAGE` on npm 7 and newer | Running the CI workflow | [G8 npm ci](#npm-ci-cannot-run-anywhere) | `.github/workflows/ci.yml:L19` runs at the repository root, where no manifest and no lockfile exist. `ci.yml:L17` pins Node 14, which ships npm 6 |
+| `docker compose build` cannot find a Dockerfile | Building the containers | [G8 Compose contexts](#compose-points-at-dockerfiles-that-are-not-there) | `infrastructure/docker/docker-compose.yml:L6-L7` and `:L19-L20` |
+| `terraform init` reports `Unreadable module directory` | Initialising the infrastructure | [G8 absent modules](#three-terraform-module-sources-do-not-exist) | `infrastructure/terraform/main.tf:L67`, `:L76`, `:L85`. No `modules/` directory exists |
+| Celery workers have no broker to attach to | Running background jobs | [G8 no Redis broker](#no-redis-service-backs-the-celery-broker) | `backend/app/tasks/background_tasks.py:L98` reads `settings.REDIS_URL`, and no service provides Redis |
+| The deploy step uploads descriptors that do not exist | Running the CD workflow | [G8 CD descriptors](#the-cd-workflow-deploys-two-absent-descriptors) | `.github/workflows/cd.yml:L19-L20` deploys `app.yaml` and `dispatch.yaml` |
+| An export uploads and then fails to produce a link | Exporting a document once the earlier blockers clear | [G8 signed URL credentials](#signed-url-generation-needs-credentials-nothing-supplies) | `backend/app/services/export_service.py:L160-L164` signs version 4 with credentials that carry no private key and no `signBlob` grant |
+| A collaboration subscribe or publish answers `NotFound` | Opening a second editor on one document | [G7 absent topic](#nothing-creates-the-pubsub-topic-the-server-addresses) | `backend/app/services/collaboration_service.py:L124` and `:L248` address a topic no code and no infrastructure creates |
+| A change publishes silently and never arrives | Editing with collaboration wired up | [G7 swallowed publish](#a-failed-publish-is-caught-and-logged-rather-than-raised) | `backend/app/services/collaboration_service.py:L250` catches every publish failure and `:L252` prints it |
 
 ## G1 absent modules referenced by committed code
 
@@ -153,7 +153,7 @@ more. Each import below resolves to nothing, so the importing module cannot load
 | The `app` package itself | Every `from app.*` import across 12 modules | the `app`, `app.api`, `app.core`, `app.db`, `app.schema`, `app.services` and `app.tasks` namespaces | No `__init__.py` file exists anywhere under `backend/`, so all seven are implicit namespace packages. They resolve only while `backend/` sits on the import path, and `infrastructure/docker/backend.Dockerfile:L14` copies `./app` to `/app`, which flattens the package and leaves the `app.` prefix unresolvable inside the image |
 
 The five frontend rows above carry a second, independent failure. Each specifier uses the `@/`
-prefix, which the compiler cannot resolve either, as [G4](#the-unmapped-import-prefix) records.
+prefix, which the compiler cannot resolve either, as [G4 unmapped prefix](#the-unmapped-import-prefix) records.
 Creating the five missing files would not clear those five errors on its own.
 
 `backend/app/api/templates.py:L70-L71` is the clearest example of the pattern in the whole
@@ -344,7 +344,7 @@ records both explicitly.
 - **`backend/app/core/security.py:L43` imports `get_settings`, not `settings`.** That name exists,
   at `backend/app/core/config.py:L126`. The configuration import in this one module resolves
   correctly, unlike the eight listed in
-  [G2](#the-absent-settings-singleton). The real defects in this file are the three undefined names
+  [G2 settings singleton](#the-absent-settings-singleton). The real defects in this file are the three undefined names
   above.
 - **`except jwt.JWTError` at `backend/app/core/security.py:L183` resolves correctly and is not a
   defect.** `L41` imports `jwt` from `jose`, and the installed `python-jose` distribution exposes
@@ -666,7 +666,7 @@ protocol at each end.
 | Client call | Locator | Server route | Locator |
 | ------------- | --------- | -------------- | --------- |
 | `POST /auth/login` | `frontend/src/services/auth.ts:L146` | `POST /token` | `backend/app/api/auth.py:L167` |
-| `POST /auth/logout` | `frontend/src/services/auth.ts:L194` | none. No handler implements logout | |
+| `POST /auth/logout` | `frontend/src/services/auth.ts:L194` | none. No handler implements logout | n/a |
 | `GET /auth/me` | `frontend/src/services/auth.ts:L239` | `GET /me` | `backend/app/api/users.py:L29` |
 | `GET /documents` | `frontend/src/services/api.ts:L218` | `GET /` | `backend/app/api/documents.py:L111` |
 | `POST /documents` | `frontend/src/services/api.ts:L246` | `POST /` | `backend/app/api/documents.py:L53` |
@@ -1080,7 +1080,7 @@ No `manage.py` exists anywhere in the repository.
 
 | Line | Command | Defect |
 | ------ | --------- | -------- |
-| `L26` | `pip install -r requirements.txt` | No such file, per [G4](#the-backend-has-no-dependency-manifest) |
+| `L26` | `pip install -r requirements.txt` | No such file, per [G4 no backend manifest](#the-backend-has-no-dependency-manifest) |
 | `L40` | `cp .env.example .env` | No `.env.example` is committed, so the copy fails and every required setting stays unset |
 | `L47` | `python manage.py makemigrations` | A Django command, and no `manage.py` exists. Nothing in this repository provides a migration mechanism of any kind, and this register names no replacement |
 | `L48` | `python manage.py migrate` | A Django command |
@@ -1302,7 +1302,7 @@ is the current state.
 
 ### G9.2 The frontend client
 
-The client cannot build, for the reasons at [G8](#the-verified-type-check-profile). The controls below
+The client cannot build, for the reasons at [G8 type-check profile](#the-verified-type-check-profile). The controls below
 are absent from its source regardless.
 
 | # | Absent control | Evidence | What the absence permits |
@@ -1331,14 +1331,14 @@ path does not run, because both facts matter to whoever repairs it.
 | 20 | Authorization against the document being joined | The same method never checks that `user_id` may read `document_id` before it derives a topic at `:L120` and a subscription at `:L121` | Any caller joins the collaboration stream of any document identifier |
 | 21 | Validation of `document_id` before it names a broker resource | `:L120` and `:L121` interpolate the value straight into Pub/Sub resource paths, and `:L173` does the same on disconnect | An unvalidated identifier selects or creates broker resources |
 | 22 | A payload schema and a size bound on broadcast changes | `:L218` declares `change: dict` with no model behind it, and `:L248` serialises whatever arrives with `json.dumps` | Arbitrary unbounded structures are published to every subscriber |
-| 23 | Producer authentication and authorization on the Celery broker | `backend/app/tasks/background_tasks.py:L98` builds the Celery application from `settings.REDIS_URL` alone. No service provides Redis, so no transport security, no access control list and no credential is configured anywhere. See [G8](#no-redis-service-backs-the-celery-broker) | Anyone who reaches the broker enqueues work that workers execute. What a deployed broker would actually permit cannot be established here, because no broker is provisioned |
+| 23 | Producer authentication and authorization on the Celery broker | `backend/app/tasks/background_tasks.py:L98` builds the Celery application from `settings.REDIS_URL` alone. No service provides Redis, so no transport security, no access control list and no credential is configured anywhere. See [G8 no Redis broker](#no-redis-service-backs-the-celery-broker) | Anyone who reaches the broker enqueues work that workers execute. What a deployed broker would actually permit cannot be established here, because no broker is provisioned |
 | 24 | Format allow-listing and idempotency on the export task | `:L101` accepts `export_format` and `:L142` interpolates it into the object key `exports/{user_id}/{document_id}.{export_format}`. No allowed-value check and no deduplication key exists | A caller influences the stored object path, and a replayed message repeats the work |
 | 25 | An authorization check before a signed link is minted | `backend/app/services/export_service.py:L160-L164` and `:L234-L238` generate a v4 signed URL immediately after upload, with no check that the requester may read the document | A link is issued to whoever reached the call |
 | 26 | A reviewed expiry and a protected signing credential | The two v4 calls read `settings.SIGNED_URL_EXPIRATION`, a field `backend/app/core/config.py:L111-L119` never declares. `backend/app/tasks/background_tasks.py:L146` signs with `expiration=timedelta(hours=1)` and passes no `version`, so the two paths do not even agree on a signing scheme | A signed URL is a bearer credential, and possession alone authorises the read for the whole validity window |
 
 Entries 25 and 26 describe code that never runs. `backend/app/tasks/background_tasks.py:L138` calls
 `convert_document` on the export service, and
-[G2](#absent-methods-on-classes-that-exist) records that the class never defines that method, so the
+[G2 absent methods](#absent-methods-on-classes-that-exist) records that the class never defines that method, so the
 task raises before it reaches any upload or any signing call. `export_to_pdf` and `export_to_docx`
 have no caller in `backend/app/` at all. No signed URL is produced by this repository today.
 
@@ -1401,7 +1401,7 @@ records the six entries rather than correcting them in place. The scope entry be
 | Line | Claim | Reality |
 | ------ | ------- | --------- |
 | `README.md:L29` | `git clone https://github.com/your-organization/microsoft-word.git` | A placeholder organisation. The command cannot succeed as written |
-| `README.md:L42` | `pip install -r requirements.txt`, run from `backend/` | No `requirements.txt` exists anywhere in the repository, per [G4](#the-backend-has-no-dependency-manifest) |
+| `README.md:L42` | `pip install -r requirements.txt`, run from `backend/` | No `requirements.txt` exists anywhere in the repository, per [G4 no backend manifest](#the-backend-has-no-dependency-manifest) |
 | `README.md:L55` | `uvicorn main:app --reload`, run from `backend/` after `cd backend` at `L54` | The application object sits at `backend/app/main.py:L24`, one directory deeper. From `backend/`, the target is `app.main:app` |
 | `README.md:L59-L66` | A project structure listing a root-level `docs/` at `L64` and a root-level `tests/` at `L65` | Half true as of this documentation set. A root-level `docs/` now exists, created by this engagement, so `L64` describes the tree correctly. No root-level `tests/` exists and this engagement creates none, so `L65` stays false. The only test modules sit at `backend/tests/`. Both halves are expanded below the table |
 | `README.md:L81` | Claims an MIT licence and links to a licence file | No `LICENSE` file is committed, so the README's link resolves to nothing. This register quotes that markup as code rather than reproducing it, so no broken link appears here. `frontend/package.json` declares no `license` field either |
@@ -1447,51 +1447,51 @@ measures a preservation obligation, not the coverage denominators used here.
 
 | Location | Kind | What it flags | Class |
 | ---------- | ------ | --------------- | ------- |
-| `backend/app/main.py:L56` | marker | Low confidence in the startup and shutdown block below it | [G2](#the-absent-settings-singleton) |
+| `backend/app/main.py:L56` | marker | Low confidence in the startup and shutdown block below it | [G2 settings singleton](#the-absent-settings-singleton) |
 | `backend/app/main.py:L67` | TODO | Database migration logic is unimplemented, inside the startup handler that awaits the absent `init_db` | [G1](#g1-absent-modules-referenced-by-committed-code) |
 | `backend/app/main.py:L113` | TODO | Shutdown cleanup tasks are unimplemented | none |
 | `backend/app/api/users.py:L73` | marker | The code assumes a `UserService` class with an `update_user` method, and asks for verification | [G1](#g1-absent-modules-referenced-by-committed-code) |
 | `backend/app/core/security.py:L113` | marker | `get_current_user` needs review for its integration with the `User` model and `UserService`, neither of which this module imports | [G3](#g3-undefined-names-that-raise-at-execution) |
-| `backend/app/services/document_service.py:L181` | marker | Asks for error handling and validation on `update_document`, the method the router calls with two arguments against three parameters | [G5](#argument-count-and-type) |
-| `backend/app/services/collaboration_service.py:L73` | marker | `connect` carries a stated confidence of 0.6 and is not production ready | [G7](#the-collaboration-path-has-no-route-and-two-protocols) |
+| `backend/app/services/document_service.py:L181` | marker | Asks for error handling and validation on `update_document`, the method the router calls with two arguments against three parameters | [G5 argument count](#argument-count-and-type) |
+| `backend/app/services/collaboration_service.py:L73` | marker | `connect` carries a stated confidence of 0.6 and is not production ready | [G7 collaboration path](#the-collaboration-path-has-no-route-and-two-protocols) |
 | `backend/app/services/collaboration_service.py:L216` | marker | `broadcast_change` carries a stated confidence of 0.7 and is not production ready | [G3](#g3-undefined-names-that-raise-at-execution) |
-| `backend/app/services/export_service.py:L85` | marker | Both export methods have a low confidence score and need implementation detail or error handling | [G2](#absent-methods-on-classes-that-exist) |
-| `backend/app/services/export_service.py:L151` | TODO | PDF conversion logic is unimplemented | [G2](#absent-methods-on-classes-that-exist) |
-| `backend/app/services/export_service.py:L156` | TODO | The literal `"PDF_CONTENT"` uploaded at `:L157` stands in for a real document | [G2](#absent-methods-on-classes-that-exist) |
-| `backend/app/services/export_service.py:L225` | TODO | DOCX conversion logic is unimplemented | [G2](#absent-methods-on-classes-that-exist) |
-| `backend/app/services/export_service.py:L230` | TODO | The literal `"DOCX_CONTENT"` uploaded at `:L231` stands in for a real document | [G2](#absent-methods-on-classes-that-exist) |
-| `backend/app/tasks/background_tasks.py:L128` | marker | `process_document_export` needs review for production readiness and error handling | [G2](#absent-methods-on-classes-that-exist) |
-| `backend/app/tasks/background_tasks.py:L262` | marker | `cleanup_expired_documents` needs review for readiness, error handling and optimisation | [G3](#g3-undefined-names-that-raise-at-execution), [G5](#other-contract-violations) |
+| `backend/app/services/export_service.py:L85` | marker | Both export methods have a low confidence score and need implementation detail or error handling | [G2 absent methods](#absent-methods-on-classes-that-exist) |
+| `backend/app/services/export_service.py:L151` | TODO | PDF conversion logic is unimplemented | [G2 absent methods](#absent-methods-on-classes-that-exist) |
+| `backend/app/services/export_service.py:L156` | TODO | The literal `"PDF_CONTENT"` uploaded at `:L157` stands in for a real document | [G2 absent methods](#absent-methods-on-classes-that-exist) |
+| `backend/app/services/export_service.py:L225` | TODO | DOCX conversion logic is unimplemented | [G2 absent methods](#absent-methods-on-classes-that-exist) |
+| `backend/app/services/export_service.py:L230` | TODO | The literal `"DOCX_CONTENT"` uploaded at `:L231` stands in for a real document | [G2 absent methods](#absent-methods-on-classes-that-exist) |
+| `backend/app/tasks/background_tasks.py:L128` | marker | `process_document_export` needs review for production readiness and error handling | [G2 absent methods](#absent-methods-on-classes-that-exist) |
+| `backend/app/tasks/background_tasks.py:L262` | marker | `cleanup_expired_documents` needs review for readiness, error handling and optimisation | [G3](#g3-undefined-names-that-raise-at-execution), [G5 other violations](#other-contract-violations) |
 
 ### Frontend markers and TODOs
 
 | Location | Kind | What it flags | Class |
 | ---------- | ------ | --------------- | ------- |
-| `frontend/src/components/DocumentCanvas.tsx:L26` | marker | Component confidence below 0.8, on the component carrying the two inverse type errors | [G5](#type-inversions-in-the-editor-canvas) |
+| `frontend/src/components/DocumentCanvas.tsx:L26` | marker | Component confidence below 0.8, on the component carrying the two inverse type errors | [G5 canvas type inversion](#type-inversions-in-the-editor-canvas) |
 | `frontend/src/components/ImageEditor.tsx:L54` | marker | `handleInsertImage` needs review for production readiness | [G1](#g1-absent-modules-referenced-by-committed-code) |
 | `frontend/src/components/ImageEditor.tsx:L102` | marker | The component's rendered structure is unimplemented | [G1](#g1-absent-modules-referenced-by-committed-code) |
 | `frontend/src/components/TableEditor.tsx:L52` | marker | `handleInsertTable` carries a stated confidence of 0.6 | [G1](#g1-absent-modules-referenced-by-committed-code) |
 | `frontend/src/components/TextEditor.tsx:L80` | marker | `handleKeyCommand` needs review for production readiness | none. The module calls both formatting helpers correctly |
-| `frontend/src/components/Toolbar.tsx:L26` | marker | The component needs refinement and error handling | [G5](#argument-count-and-type) |
+| `frontend/src/components/Toolbar.tsx:L26` | marker | The component needs refinement and error handling | [G5 argument count](#argument-count-and-type) |
 | `frontend/src/components/Toolbar.tsx:L72` | TODO | Insert functionality is unimplemented, so the button at `:L89` does nothing | none |
-| `frontend/src/pages/Editor.tsx:L29` | marker | The page needs review for production readiness | [G5](#argument-count-and-type) |
+| `frontend/src/pages/Editor.tsx:L29` | marker | The page needs review for production readiness | [G5 argument count](#argument-count-and-type) |
 | `frontend/src/pages/Editor.tsx:L113` | TODO | Document load errors reach the console only | none |
 | `frontend/src/pages/Editor.tsx:L210` | TODO | Auto-save errors reach the console only, with no user notification | none |
-| `frontend/src/pages/Settings.tsx:L35` | marker | The page needs refinement for production readiness | [G2](#absent-frontend-exports) |
+| `frontend/src/pages/Settings.tsx:L35` | marker | The page needs refinement for production readiness | [G2 absent frontend exports](#absent-frontend-exports) |
 | `frontend/src/pages/Settings.tsx:L123` | TODO | No success message follows a settings save | none |
 | `frontend/src/pages/Settings.tsx:L126` | TODO | Save errors produce no user feedback | none |
-| `frontend/src/pages/Templates.tsx:L146` | marker | Carries no body text of its own and sits directly above the TODO at `:L147`, on the template fetch path | [G2](#absent-frontend-exports) |
+| `frontend/src/pages/Templates.tsx:L146` | marker | Carries no body text of its own and sits directly above the TODO at `:L147`, on the template fetch path | [G2 absent frontend exports](#absent-frontend-exports) |
 | `frontend/src/pages/Templates.tsx:L147` | TODO | Template fetch errors have no handling or user feedback | none |
-| `frontend/src/pages/Templates.tsx:L165` | marker | Carries no body text of its own and sits directly above the TODO at `:L166`, on template selection | [G6](#field-and-shape-divergences) |
+| `frontend/src/pages/Templates.tsx:L165` | marker | Carries no body text of its own and sits directly above the TODO at `:L166`, on template selection | [G6 divergence table](#field-and-shape-divergences) |
 | `frontend/src/pages/Templates.tsx:L166` | TODO | Selecting a template navigates nowhere, so the card click is terminal | none |
-| `frontend/src/services/collaboration.ts:L89` | marker | Inbound collaboration event listeners are unimplemented, inside the otherwise empty `setupEventListeners` body | [G7](#the-collaboration-path-has-no-route-and-two-protocols) |
-| `frontend/src/services/collaboration.ts:L95` | marker | `joinDocument` emits an event no server route receives | [G7](#the-collaboration-path-has-no-route-and-two-protocols) |
-| `frontend/src/services/collaboration.ts:L159` | marker | `sendChanges` emits a payload shape the server does not expect | [G7](#the-collaboration-path-has-no-route-and-two-protocols) |
-| `frontend/src/store/documentSlice.ts:L171` | marker | The slice lacks asynchronous actions and error handling for document fetch and save | [G2](#absent-frontend-exports) |
-| `frontend/src/store/userSlice.ts:L149` | marker | Names three gaps directly, including an `updateUser` action and selectors for state access, both of which four modules already import | [G2](#absent-frontend-exports) |
-| `frontend/src/utils/documentUtils.ts:L24` | marker | Both functions need error handling, and states that the `DocumentSchema` validation needs to be implemented correctly | [G5](#other-contract-violations) |
-| `frontend/src/utils/documentUtils.ts:L43` | TODO | `DocumentSchema` validation in `serializeDocument` is unimplemented | [G5](#other-contract-violations) |
-| `frontend/src/utils/documentUtils.ts:L72` | TODO | `DocumentSchema` validation in `deserializeDocument` is unimplemented | [G5](#other-contract-violations) |
+| `frontend/src/services/collaboration.ts:L89` | marker | Inbound collaboration event listeners are unimplemented, inside the otherwise empty `setupEventListeners` body | [G7 collaboration path](#the-collaboration-path-has-no-route-and-two-protocols) |
+| `frontend/src/services/collaboration.ts:L95` | marker | `joinDocument` emits an event no server route receives | [G7 collaboration path](#the-collaboration-path-has-no-route-and-two-protocols) |
+| `frontend/src/services/collaboration.ts:L159` | marker | `sendChanges` emits a payload shape the server does not expect | [G7 collaboration path](#the-collaboration-path-has-no-route-and-two-protocols) |
+| `frontend/src/store/documentSlice.ts:L171` | marker | The slice lacks asynchronous actions and error handling for document fetch and save | [G2 absent frontend exports](#absent-frontend-exports) |
+| `frontend/src/store/userSlice.ts:L149` | marker | Names three gaps directly, including an `updateUser` action and selectors for state access, both of which four modules already import | [G2 absent frontend exports](#absent-frontend-exports) |
+| `frontend/src/utils/documentUtils.ts:L24` | marker | Both functions need error handling, and states that the `DocumentSchema` validation needs to be implemented correctly | [G5 other violations](#other-contract-violations) |
+| `frontend/src/utils/documentUtils.ts:L43` | TODO | `DocumentSchema` validation in `serializeDocument` is unimplemented | [G5 other violations](#other-contract-violations) |
+| `frontend/src/utils/documentUtils.ts:L72` | TODO | `DocumentSchema` validation in `deserializeDocument` is unimplemented | [G5 other violations](#other-contract-violations) |
 
 ### Test suite markers
 
@@ -1500,20 +1500,20 @@ These three sit in files that receive no inline documentation. See
 
 | Location | Kind | What it flags | Class |
 | ---------- | ------ | --------------- | ------- |
-| `backend/tests/test_api.py:L13` | marker | The test database connection is unconfigured. The fixture body directly below is a bare `pass` at `:L14` | [G1](#modules-referenced-only-by-the-test-suite) |
-| `backend/tests/test_api.py:L77` | marker | Endpoint coverage is incomplete, with no edge cases and no error scenarios | [G1](#modules-referenced-only-by-the-test-suite) |
-| `backend/tests/test_db.py:L56` | marker | Update, delete and error-handling cases are absent | [G1](#modules-referenced-only-by-the-test-suite) |
+| `backend/tests/test_api.py:L13` | marker | The test database connection is unconfigured. The fixture body directly below is a bare `pass` at `:L14` | [G1 test-suite modules](#modules-referenced-only-by-the-test-suite) |
+| `backend/tests/test_api.py:L77` | marker | Endpoint coverage is incomplete, with no edge cases and no error scenarios | [G1 test-suite modules](#modules-referenced-only-by-the-test-suite) |
+| `backend/tests/test_db.py:L56` | marker | Update, delete and error-handling cases are absent | [G1 test-suite modules](#modules-referenced-only-by-the-test-suite) |
 
 ### Infrastructure, container and script markers
 
 | Location | Kind | What it flags | Class |
 | ---------- | ------ | --------------- | ------- |
-| `infrastructure/terraform/main.tf:L94` | marker | Asks for review of the subnet range, of whether more firewall rules are needed, and of the bucket configuration. The firewall it points at opens every TCP port to the subnet | [G8](#other-terraform-defects) |
-| `infrastructure/terraform/outputs.tf:L58` | marker | States that the outputs may not match the resources the configuration actually creates. Every output reads an AWS address, and the only provider is `google` | [G8](#terraform-outputs-describe-a-different-cloud) |
-| `infrastructure/docker/backend.Dockerfile:L22` | marker | Asks for verification that `requirements.txt` sits in the right place and that the application code is in `./app`. Neither holds: no `requirements.txt` exists, and `:L14` flattens the package | [G8](#the-backend-image-cannot-build-or-start) |
-| `scripts/deploy.sh:L37` | marker | Post-deployment checks are unimplemented, so `:L47` reports success unconditionally | [G8](#the-setup-script-targets-the-wrong-framework) |
-| `scripts/setup_dev_environment.sh:L41` | marker | Environment configuration needs manual completion, immediately after `:L40` copies an `.env.example` that does not exist | [G8](#the-setup-script-targets-the-wrong-framework) |
-| `scripts/setup_dev_environment.sh:L42` | TODO | The `.env` file needs production values, in a file the preceding line failed to create | [G8](#the-setup-script-targets-the-wrong-framework) |
+| `infrastructure/terraform/main.tf:L94` | marker | Asks for review of the subnet range, of whether more firewall rules are needed, and of the bucket configuration. The firewall it points at opens every TCP port to the subnet | [G8 other Terraform defects](#other-terraform-defects) |
+| `infrastructure/terraform/outputs.tf:L58` | marker | States that the outputs may not match the resources the configuration actually creates. Every output reads an AWS address, and the only provider is `google` | [G8 Terraform outputs](#terraform-outputs-describe-a-different-cloud) |
+| `infrastructure/docker/backend.Dockerfile:L22` | marker | Asks for verification that `requirements.txt` sits in the right place and that the application code is in `./app`. Neither holds: no `requirements.txt` exists, and `:L14` flattens the package | [G8 backend image](#the-backend-image-cannot-build-or-start) |
+| `scripts/deploy.sh:L37` | marker | Post-deployment checks are unimplemented, so `:L47` reports success unconditionally | [G8 setup script](#the-setup-script-targets-the-wrong-framework) |
+| `scripts/setup_dev_environment.sh:L41` | marker | Environment configuration needs manual completion, immediately after `:L40` copies an `.env.example` that does not exist | [G8 setup script](#the-setup-script-targets-the-wrong-framework) |
+| `scripts/setup_dev_environment.sh:L42` | TODO | The `.env` file needs production values, in a file the preceding line failed to create | [G8 setup script](#the-setup-script-targets-the-wrong-framework) |
 
 ## Where to go next
 

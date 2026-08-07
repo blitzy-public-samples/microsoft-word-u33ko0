@@ -154,29 +154,27 @@ runs. Nothing downstream executes: no `convertToRaw`, no `JSON.stringify`, and n
 
 ```mermaid
 graph TD
-    PAGE["pages/Editor.tsx<br/>routed page, renders L236 to L239"]
-    PAGE --> TB["Toolbar<br/>Toolbar.tsx:L58"]
-    PAGE --> DC["DocumentCanvas<br/>DocumentCanvas.tsx:L108"]
-    PAGE --> SB["Sidebar<br/>Sidebar.tsx:L20"]
-    DC --> ED["Draft.js Editor<br/>rendered directly at<br/>DocumentCanvas.tsx:L169"]
+    accTitle: The editor component tree and the EditorState journey
+    accDescr: Dashed edges mark a relationship that cannot resolve or a type that does not match. The thick edge marks the one helper call supplying both declared arguments. Two inverse type errors sit on the outbound and inbound halves of the same round trip. Node line numbers refer to the file named in the Key Components table above.
+    PAGE["pages/Editor.tsx<br/>renders<br/>L236-L239"]
+    STORE["Redux store<br/>currentDocument<br/>.content"]
+    PAGE --> TB["Toolbar<br/>:L58"]
+    PAGE --> SB["Sidebar<br/>:L20"]
+    PAGE --> DC["DocumentCanvas<br/>:L108"]
+    STORE --> DC
+    DC --> DES["deserialize<br/>Document<br/>documentUtils<br/>:L63, returns an<br/>EditorState"]
+    DES -.->|"L116 and L117 send<br/>an EditorState where<br/>a ContentState belongs"| CWC["EditorState<br/>.createWithContent<br/>:L117"]
+    CWC --> ED["Draft.js Editor<br/>rendered at :L169"]
+    ED --> GCC["getCurrentContent()<br/>returns a<br/>ContentState"]
+    GCC -.->|"TERMINAL: L163 sends<br/>a ContentState where<br/>an EditorState belongs,<br/>so the helper raises<br/>on getCurrentContent"| SER["serialize<br/>Document<br/>documentUtils<br/>:L39, accepts an<br/>EditorState"]
+    SER -.->|"never reached:<br/>no convertToRaw,<br/>no JSON.stringify,<br/>no dispatch"| DIS["dispatch<br/>:L164"]
 
-    STORE["Redux store<br/>currentDocument.content"] --> DES["deserializeDocument<br/>documentUtils.ts:L63<br/>returns an EditorState"]
-    DES -.->|"L116 and L117 send an EditorState<br/>where a ContentState belongs"| CWC["EditorState.createWithContent<br/>DocumentCanvas.tsx:L117"]
-    CWC --> ED
-    ED --> GCC["getCurrentContent()<br/>returns a ContentState"]
-    GCC -.->|"TERMINAL: L163 sends a ContentState<br/>where an EditorState belongs, so the<br/>helper raises on getCurrentContent"| SER["serializeDocument<br/>documentUtils.ts:L39<br/>accepts an EditorState"]
-    SER -.->|"never reached: no convertToRaw,<br/>no JSON.stringify, no dispatch"| DIS["dispatch<br/>DocumentCanvas.tsx:L164"]
-
-    FMT["utils/formatting.ts<br/>L31 and L61 declare<br/>two parameters each"]
-    TE["TextEditor<br/>TextEditor.tsx:L77"]
-    TE ==>|"L109 and L116 pass both arguments"| FMT
-    TB -.->|"L62 and L67 pass one argument"| FMT
-    PAGE -.->|"no module imports TextEditor"| TE
-
-    SB -.->|"L8, L9 and L10, all three modules absent"| SP["StylePanel, CommentPanel, RevisionPanel"]
-
-    TBE["TableEditor<br/>TableEditor.tsx:L51"] -.->|"L26, module absent"| TU["utils/tableUtils"]
-    IME["ImageEditor<br/>ImageEditor.tsx:L53"] -.->|"L30, module absent"| IU["utils/imageUtils"]
+    TE["TextEditor<br/>:L77"]
+    PAGE -.->|"no module<br/>imports TextEditor"| TE
+    TE ==>|"L109 and L116<br/>pass both arguments"| FMT["utils/formatting<br/>L31 and L61<br/>declare two<br/>parameters each"]
+    TB -.->|"L62 and L67<br/>pass one argument"| FMT
+    SB -.->|"L8, L9 and L10,<br/>all three modules absent"| SP["StylePanel,<br/>CommentPanel,<br/>RevisionPanel"]
+    ORPH["TableEditor :L51 and ImageEditor :L53<br/>no module imports either, and their<br/>L26 and L30 imports of utils/tableUtils<br/>and utils/imageUtils name absent modules"]
 
 %% Dashed edges mark a relationship that cannot resolve or a type that does not match.
 %% The thick edge marks the one helper call supplying both declared arguments.

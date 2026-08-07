@@ -496,35 +496,36 @@ The flowchart below branches on what you want to do and terminates each branch i
 it.
 
 ```mermaid
-graph TD
+graph LR
+    accTitle: What runs today and where each run stops
+    accDescr: A decision node fans out to nine tasks. Three run to completion. Six stop, and each failure node names the file and line that stops it.
     START{"What do you<br/>want to do?"}
 
-    START --> A["Install client dependencies"]
-    START --> B["Type-check the client"]
-    START --> C["Parse the backend"]
-    START --> D["Start the client"]
-    START --> E["Import the backend"]
-    START --> F["Start the server"]
-    START --> G["Build a container"]
-    START --> H["Run the test suite"]
-    START --> I["Apply the Terraform"]
+    START --> A["Install client<br/>dependencies"]
+    START --> B["Type-check<br/>the client"]
+    START --> C["Parse the<br/>backend"]
+    START --> D["Start the<br/>client"]
+    START --> E["Import the<br/>backend"]
+    START --> F["Start the<br/>server"]
+    START --> G["Build a<br/>container"]
+    START --> H["Run the<br/>test suite"]
+    START --> I["Apply the<br/>Terraform"]
 
-    A --> AOK["Succeeds, exit 0<br/>npm install resolves the tree"]
-    B --> BOK["Completes, exit non-zero<br/>tsc --noEmit reports 76 errors"]
-    C --> COK["Succeeds, exit 0<br/>all 18 modules parse"]
+    A -->|"runs"| AOK["Succeeds, exit 0<br/>npm install resolves the tree"]
+    B -->|"runs"| BOK["Completes, exit non-zero<br/>tsc --noEmit reports 76 errors"]
+    C -->|"runs"| COK["Succeeds, exit 0<br/>all 18 modules parse"]
 
-    D -.->|"webpack ignores the tsconfig paths block"| DNO["Stops<br/>frontend/tsconfig.json:L10-L16<br/>declares no '@/*' alias"]
-    E -.->|"ImportError: cannot import name 'settings'"| ENO["Stops<br/>backend/app/api/auth.py:L81<br/>reached from main.py:L16"]
-    F -.->|"the application object never imports"| ENO
-    G -.->|"npm ci with no lockfile"| GNO1["Stops<br/>infrastructure/docker/frontend.Dockerfile:L11"]
-    G -.->|"COPY of an absent requirements.txt"| GNO2["Stops<br/>infrastructure/docker/backend.Dockerfile:L8"]
-    H -.->|"'app' is not on sys.path from the repository root"| HNO1["Stops<br/>backend/tests/test_api.py:L3"]
-    HNO1 -.->|"then, once backend/ and backend/app/ are on the path"| HNO2["Stops again<br/>6 import targets name no file,<br/>3 services modules resolve only<br/>from backend/app/"]
-    I -.->|"three module sources absent"| INO["Stops<br/>infrastructure/terraform/main.tf:L68, :L77, :L86"]
+    D -.->|"stops"| DNO["frontend/tsconfig.json:L10-L16<br/>declares no '@/*' alias, and<br/>webpack ignores the paths block"]
+    E -.->|"stops"| ENO["backend/app/api/auth.py:L81,<br/>reached from main.py:L16<br/>ImportError: cannot import<br/>name 'settings'"]
+    F -.->|"stops"| ENO
+    G -.->|"stops"| GNO1["infrastructure/docker/<br/>frontend.Dockerfile:L11<br/>npm ci with no lockfile"]
+    G -.->|"stops"| GNO2["infrastructure/docker/<br/>backend.Dockerfile:L8<br/>COPY of an absent requirements.txt"]
+    H -.->|"stops"| HNO["backend/tests/test_api.py:L3<br/>'app' is not on sys.path from the<br/>repository root. Then, with backend/<br/>and backend/app/ on the path, stops<br/>again: 6 import targets name no file,<br/>and 3 services modules resolve only<br/>from backend/app/"]
+    I -.->|"stops"| INO["infrastructure/terraform/main.tf<br/>:L68, :L77, :L86<br/>three module sources absent"]
 
 %% A solid edge marks a path that runs to completion, and its node states whether the run succeeded.
-%% A dashed, labelled edge marks a path that stops before completing, and every failure node names the
-%% file and line that stops it.
+%% A dashed edge marks a path that stops before completing, and every failure node names the file
+%% and line that stops it.
 ```
 
 ## Where a run stops, with evidence

@@ -109,16 +109,18 @@ importer anywhere in `frontend/src`.
 
 ```mermaid
 graph TD
-    RTK["@reduxjs/toolkit configureStore<br/>index.ts:L20"] --> STORE["store<br/>index.ts:L41-L46"]
-    DSLICE["documentSlice.ts<br/>reducer is the default export, L169"]
-    USLICE["userSlice.ts<br/>reducer is the default export, L147"]
-    DSLICE -.->|"index.ts:L21 asks for named documentReducer"| STORE
-    USLICE -.->|"index.ts:L22 asks for named userReducer"| STORE
-    STORE --> DKEY["reducer key 'document'<br/>index.ts:L43"]
-    STORE --> UKEY["reducer key 'user'<br/>index.ts:L44"]
-    STORE -.->|"api.ts:L142 reads auth.token"| AKEY["reducer key 'auth'<br/>never registered"]
+    accTitle: Store composition, the two registered slices and the auth key that is never registered
+    accDescr: Dashed edges mark unresolved imports and a reducer key the store never registers. Both slices export their reducer as a default while the store asks for a named export.
+    RTK["configureStore<br/>@reduxjs/toolkit<br/>index.ts:L20"] --> STORE["store<br/>index.ts:L41-L46"]
+    DSLICE["documentSlice.ts<br/>reducer is the<br/>default export, L169"]
+    USLICE["userSlice.ts<br/>reducer is the<br/>default export, L147"]
+    DSLICE -.->|"index.ts:L21 asks for<br/>named documentReducer"| STORE
+    USLICE -.->|"index.ts:L22 asks for<br/>named userReducer"| STORE
+    STORE --> DKEY["reducer key<br/>'document'<br/>index.ts:L43"]
+    STORE --> UKEY["reducer key<br/>'user'<br/>index.ts:L44"]
+    STORE -.->|"api.ts:L142<br/>reads auth.token"| AKEY["reducer key<br/>'auth'<br/>never<br/>registered"]
     STORE --> RS["RootState<br/>index.ts:L54"]
-    RS --> SVC["services/api.ts:L79<br/>auth.ts:L69, collaboration.ts:L14"]
+    RS --> SVC["services/api.ts:L79<br/>auth.ts:L69<br/>collaboration.ts:L14"]
 %% Dashed edges mark unresolved imports and a reducer key the store never registers
 ```
 

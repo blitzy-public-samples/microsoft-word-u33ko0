@@ -116,34 +116,52 @@ Nothing flows back out. All 14 outputs read `aws_*` addresses, and no `google_` 
 `outputs.tf`, so the network, subnetwork, firewall rule and bucket this configuration declares are exported nowhere.
 
 ```mermaid
-graph LR
-    VARS["variables.tf<br/>13 declared, 2 read"]
+graph TD
+    accTitle: The four declared resources against the three absent modules and the AWS outputs
+    accDescr: Solid edges resolve. Dashed edges are relationships Terraform cannot resolve. Every edge carries a key resolved in the table below the diagram.
+    VARS["variables.tf<br/>13 declared,<br/>2 read"]
     PROV["provider google<br/>L9-L12"]
     NET["word_network<br/>L19-L22"]
     SUB["word_subnet<br/>L25-L30"]
     FW["allow_internal<br/>L35-L45"]
     BUCKET["word_documents<br/>L50-L59"]
     MODS["3 module calls<br/>L67-L92"]
-    SRC["./modules/word_*<br/>directories absent"]
+    SRC["./modules/word_*<br/>absent"]
     OUT["outputs.tf<br/>14 outputs"]
-    AWSR["12 aws_* addresses<br/>declared nowhere"]
+    AWSR["12 aws_*<br/>addresses<br/>declared nowhere"]
 
-    VARS -->|"project_id, region"| PROV
-    PROV --> NET
-    NET -->|".id"| SUB
-    NET -->|".name"| FW
-    VARS -->|"region"| SUB
-    VARS -->|"project_id, region"| BUCKET
-    VARS -->|"project_id, region"| MODS
-    NET -->|"network_id"| MODS
-    SUB -->|"subnet_id"| MODS
-    MODS -.->|"source cannot resolve"| SRC
-    OUT -.->|"no matching resource, no AWS provider"| AWSR
-    NET -.->|"never exported"| OUT
-    BUCKET -.->|"never exported"| OUT
+    VARS -->|"T1"| PROV
+    PROV -->|"T2"| NET
+    NET -->|"T3"| SUB
+    NET -->|"T4"| FW
+    VARS -->|"T5"| SUB
+    VARS -->|"T6"| BUCKET
+    VARS -->|"T7"| MODS
+    NET -->|"T8"| MODS
+    SUB -->|"T9"| MODS
+    MODS -.->|"T10"| SRC
+    OUT -.->|"T11"| AWSR
+    NET -.->|"T12"| OUT
+    BUCKET -.->|"T13"| OUT
 
 %% Solid edges resolve. Dashed edges are relationships Terraform cannot resolve.
 ```
+
+| Key | Edge | What passes along it |
+| --- | --- | --- |
+| T1 | `variables.tf` to the provider | `project_id` and `region`, the only two of the thirteen declared variables that any resource reads |
+| T2 | provider to `word_network` | the configured project and region, applied implicitly to every `google_*` resource |
+| T3 | `word_network` to `word_subnet` | `.id`, the network self-link the subnet attaches to |
+| T4 | `word_network` to `allow_internal` | `.name`, the network the firewall rule applies to |
+| T5 | `variables.tf` to `word_subnet` | `region` |
+| T6 | `variables.tf` to `word_documents` | `project_id` and `region`. The bucket sets no storage class, although `storage_class` is declared |
+| T7 | `variables.tf` to the module calls | `project_id` and `region` |
+| T8 | `word_network` to the module calls | `network_id` |
+| T9 | `word_subnet` to the module calls | `subnet_id` |
+| T10 | module calls to their sources | nothing. All three `source = "./modules/word_*"` paths at `main.tf:L68`, `:L77` and `:L86` name directories that do not exist, so `terraform init` fails here |
+| T11 | `outputs.tf` to the AWS addresses | nothing. Fourteen outputs reference twelve distinct `aws_*` addresses across nine resource types, none of which is declared anywhere, and no AWS provider is configured. Two of those outputs interpolate a database password into their value |
+| T12 | `word_network` to `outputs.tf` | nothing. The network is created and never exported |
+| T13 | `word_documents` to `outputs.tf` | nothing. The bucket is created and never exported |
 
 ## Design Patterns
 

@@ -91,45 +91,66 @@ and the repository commits no `.env` file.
 Consumers bypass the helpers in this folder and hold the client instead. `services/document_service.py:L70` assigns the imported client to `self.db`,
 and the Celery tasks in [../tasks/README.md](../tasks/README.md) call the same client on three collections. Nothing flows through `sql.py`.
 
-**No edge below carries data today.** A solid edge marks a call site that resolves in source, not a step that runs. The client at `firestore.py:L40`
-is never constructed, because the settings import at `firestore.py:L36` raises first. A dashed edge marks a relationship that cannot resolve at all.
-Everything downstream of the conditional construction is therefore also unreachable.
+**No edge below carries data today, and every edge below is dashed; no relationship in this module resolves.** Some of those edges are call sites that
+resolve in source, and they still reach no client, because `firestore.py:L40` never constructs one once the settings import at `firestore.py:L36`
+raises. The rest name a target that does not exist at all. Everything downstream of that conditional construction is unreachable as well. Every edge
+carries a key, and the table under the diagram names the reason for each one.
 
 ```mermaid
-graph TD
-    DSVC["services/document_service.py:L59<br/>self.db at L70"]
-    TASKS["tasks/background_tasks.py:L93"]
+graph LR
+    accTitle: The live Firestore path and the dead SQLAlchemy path
+    accDescr: Every edge is dashed because no relationship in this module resolves. Consumers on the left hold the Firestore client directly, the client itself is never constructed, and the SQLAlchemy declarations reach no caller. Every edge carries a key resolved in the table below the diagram.
+    DSVC["document_service.py:L59<br/>self.db at L70"]
+    TASKS["background_tasks.py:L93"]
     MAIN["main.py:L21<br/>imports db"]
-    CLIENT["firestore.py:L40 db = Client(...)<br/>CONDITIONAL: never built, L36 raises first"]
-    HELPERS["firestore.py:L42, L70, L92, L110<br/>the four helpers"]
+    HELPERS["firestore.py:L42, L70,<br/>L92, L110<br/>the four helpers"]
+    SQLBOOT["sql.py:L16 engine<br/>sql.py:L17 SessionLocal"]
+    BASE["sql.py:L19 Base"]
+    TEST["test_api.py:L5<br/>get_db from app.database"]
+
+    CLIENT["firestore.py:L40<br/>db = Client(...)<br/>never built,<br/>L36 raises first"]
+    GETDB["sql.py:L21 get_db<br/>yields at L37"]
+    INITDB["init_db<br/>never defined<br/>in sql.py"]
+    DEAD["no caller<br/>anywhere"]
+
     DOCS[("documents")]
     PERMS[("document_permissions")]
     META[("document_metadata")]
-    SQLBOOT["sql.py:L16 engine<br/>sql.py:L17 SessionLocal"]
-    GETDB["sql.py:L21 get_db<br/>yields at L37"]
-    BASE["sql.py:L19 Base"]
-    DEAD["no caller anywhere"]
-    INITDB["init_db<br/>never defined in sql.py"]
-    TEST["backend/tests/test_api.py:L5<br/>get_db from app.database"]
 
-    DSVC -.->|"L114, L168, L234, L273<br/>call site resolves, client absent"| CLIENT
-    TASKS -.->|"L267, L274, L317<br/>call site resolves, client absent"| CLIENT
-    MAIN -.->|"L21 import raises"| CLIENT
-    CLIENT -.->|"no client, no traffic"| DOCS
-    TASKS -.->|"L283"| PERMS
-    TASKS -.->|"L284"| META
-    SQLBOOT -.->|"L35, engine never built"| GETDB
+    DSVC -.->|"D1"| CLIENT
+    TASKS -.->|"D2"| CLIENT
+    MAIN -.->|"D3"| CLIENT
+    MAIN -.->|"D4"| INITDB
+    MAIN -.->|"D5"| CLIENT
+    MAIN -.->|"D6"| CLIENT
+    CLIENT -.->|"D7"| DOCS
+    TASKS -.->|"D8"| PERMS
+    TASKS -.->|"D9"| META
+    SQLBOOT -.->|"D10"| GETDB
+    HELPERS -.->|"D11"| DEAD
+    GETDB -.->|"D12"| DEAD
+    BASE -.->|"D13"| DEAD
+    TEST -.->|"D14"| GETDB
 
 %% Every edge is dashed: no request-to-database path executes as committed.
-
-    HELPERS -.->|"no module imports them"| DEAD
-    GETDB -.->|"no consumer"| DEAD
-    BASE -.->|"no subclass, zero ORM models"| DEAD
-    MAIN -.->|"main.py:L22 imports, :L60 awaits"| INITDB
-    MAIN -.->|"main.py:L63 is_connected, AttributeError"| CLIENT
-    MAIN -.->|"main.py:L110 await close, TypeError"| CLIENT
-    TEST -.->|"absent module, never called"| GETDB
 ```
+
+| Key | Edge | What the code does | Why it does not resolve |
+| --- | --- | --- | --- |
+| D1 | `document_service.py` to the client | `:L59` imports `db` and `:L70` assigns it to `self.db`, then `:L114`, `:L168`, `:L234` and `:L273` open a collection on it | The call sites resolve in source. The client they reach is never constructed |
+| D2 | `background_tasks.py` to the client | `:L93` imports `db`, and `:L267`, `:L274` and `:L317` open the `documents` collection on it | Same. The call sites resolve and the client is absent |
+| D3 | `main.py` import of the client | `main.py:L21` runs `from app.db.firestore import db` | `firestore.py:L36` imports `settings` from `app.core.config`, which never defines it, so the import raises before `db` is bound |
+| D4 | `main.py` to `init_db` | `main.py:L22` imports `init_db` and `:L60` awaits it | `sql.py` defines no `init_db`, so the import fails |
+| D5 | `main.py` readiness probe | `main.py:L63` calls `db.is_connected()` | `AttributeError`. The Firestore `Client` exposes no `is_connected` |
+| D6 | `main.py` shutdown | `main.py:L110` runs `await db.close()` | `TypeError`. `Client` has no awaitable `close` |
+| D7 | client to the `documents` collection | nothing | No client is constructed, so no traffic reaches the collection |
+| D8 | `background_tasks.py` to `document_permissions` | `:L283` queries the collection and calls `.delete()` on the result | Unreachable, and `.get()` returns a list, which has no `.delete()` |
+| D9 | `background_tasks.py` to `document_metadata` | `:L284` deletes one metadata document | Unreachable. The task raises earlier |
+| D10 | engine to `get_db` | `sql.py:L35` calls `SessionLocal()` inside `get_db` | `sql.py:L16` builds the engine from `settings.DATABASE_URL` at import time, and that import raises first |
+| D11 | the four helpers to no caller | `firestore.py:L42`, `:L70`, `:L92` and `:L110` define `get_document`, `create_document`, `update_document` and `delete_document` | No module in the repository imports any of the four |
+| D12 | `get_db` to no caller | `sql.py:L21` declares the dependency and yields at `:L37` | No handler takes it as a dependency |
+| D13 | `Base` to no caller | `sql.py:L19` calls `declarative_base()` | Nothing subclasses it, so the repository declares zero ORM models |
+| D14 | the test suite to `get_db` | `backend/tests/test_api.py:L5` runs `from app.database import get_db` | `app.database` does not exist. The real module is `app.db.sql`, and the test never calls the fixture either |
 
 ## Design Patterns
 

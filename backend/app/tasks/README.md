@@ -111,45 +111,59 @@ retention sweep cannot name its bucket at `:L278`. No committed file supplies a 
 ## Data Flows
 
 Every flow below starts at the Celery application at `background_tasks.py:L98` and ends in Firestore or Google Cloud Storage. None
-runs, because no producer enqueues a task and no committed file provisions the broker `:L98` names. Dashed edges mark a call that
-cannot complete as committed.
+runs, because no producer enqueues a task and no committed file provisions the broker `:L98` names. Each column lists one task's
+call sites in source order, an edge points to the next call site, and a dashed edge means the site it points to cannot complete as
+committed. Every labelled edge carries a key, and the table under the diagram resolves each key to its call and its blocker.
 
 ```mermaid
 graph TD
-    NOPROD["No producer<br/>zero .delay, zero .apply_async, zero send_task"]
+    accTitle: The three Celery tasks and their call sites in source order
+    accDescr: No producer enqueues any task and no service provisions the broker, so no flow completes. Each column lists one task's call sites in source order. An edge points to the next call site, and a dashed edge means the site it points to cannot complete as committed. Every labelled edge carries a key resolved in the table below the diagram.
+    NOPROD["No producer<br/>zero .delay,<br/>zero .apply_async,<br/>zero send_task"]
+    BROKER["Redis broker<br/>REDIS_URL names it,<br/>nothing provides it"]
     APP["celery_app<br/>background_tasks.py:L98"]
-    BROKER["Redis broker<br/>named by REDIS_URL, no service provisions it"]
 
-    EXPORT["process_document_export<br/>L101"]
-    CLEAN["cleanup_expired_documents<br/>L152"]
-    STATS["update_document_statistics<br/>L287"]
+    NOPROD -.->|"K1"| APP
+    BROKER -.->|"K2"| APP
 
-    DSVC["DocumentService.get_document<br/>services/document_service.py:L123"]
-    ESVC["ExportService<br/>services/export_service.py:L63"]
-    FS["Firestore client<br/>db/firestore.py:L40"]
-    GCS["Google Cloud Storage"]
+    APP --> EXPORT["export task<br/>L101"]
+    APP --> CLEAN["retention sweep<br/>L152"]
+    APP --> STATS["statistics task<br/>L287"]
 
-    NOPROD -.->|"nothing enqueues any of the three"| APP
-    APP -.->|"background_tasks.py:L98 reads REDIS_URL, no service answers"| BROKER
-    APP --> EXPORT
-    APP --> CLEAN
-    APP --> STATS
+    EXPORT -->|"K3"| E1["get_document :L135<br/>DocumentService"]
+    E1 -.->|"K4"| E2["convert_document :L138<br/>ExportService"]
+    E2 -.->|"K5"| E3["upload :L143<br/>Cloud Storage"]
+    E3 -.->|"K6"| E4["signed URL :L146<br/>Cloud Storage"]
 
-    EXPORT -->|"background_tasks.py:L135 passes both arguments, never awaited"| DSVC
-    EXPORT -.->|"background_tasks.py:L138 calls convert_document, not declared"| ESVC
-    EXPORT -.->|"background_tasks.py:L143 upload, unreachable"| GCS
-    EXPORT -.->|"background_tasks.py:L146 signed URL without a version"| GCS
+    CLEAN -.->|"K7"| C1["expired query :L267<br/>Firestore"]
+    C1 -.->|"K8"| C2["document delete :L274<br/>Firestore"]
+    C2 -.->|"K9"| C3["blob delete :L280<br/>Cloud Storage"]
+    C3 -.->|"K10"| C4["permissions delete :L283<br/>Firestore"]
 
-    CLEAN -.->|"background_tasks.py:L267 reads undefined datetime, NameError"| FS
-    CLEAN -.->|"background_tasks.py:L274 document delete, unreachable"| FS
-    CLEAN -.->|"background_tasks.py:L280 deletes key user_id/doc_id"| GCS
-    CLEAN -.->|"background_tasks.py:L283 delete on a list, unreachable"| FS
-
-    STATS -.->|"background_tasks.py:L310 one argument against two, TypeError"| DSVC
-    STATS -.->|"background_tasks.py:L317 statistics update, unreachable"| FS
+    STATS -.->|"K11"| S1["get_document :L310<br/>DocumentService"]
+    S1 -.->|"K12"| S2["statistics update :L317<br/>Firestore"]
 
 %% Dashed edges mark a call that cannot complete as committed.
 ```
+
+Twelve edges carry a key. The three unlabelled edges from `celery_app` are the `@celery_app.task` registrations at `:L100`, `:L150`
+and `:L286`. The retention sweep carries a second decorator, `@celery_app.periodic_task` at `:L151`, which is not a Celery 4 or 5
+application method.
+
+| Key | Edge | Call as committed | What stands in the way |
+| --- | --- | --- | --- |
+| K1 | No producer to `celery_app` | none. The repository contains zero `.delay`, zero `.apply_async` and zero `send_task` calls | Nothing enqueues any of the three tasks, so the queue has no producer |
+| K2 | Redis broker to `celery_app` | `background_tasks.py:L98` passes `broker=settings.REDIS_URL` to `Celery` | No committed file provisions Redis. `REDIS_URL` is declared on `Settings`, but no Compose service and no Terraform resource creates a broker |
+| K3 | `export task` to `get_document :L135` | `background_tasks.py:L135` calls `document_service.get_document(document_id, user_id)` | Nothing. This is the one call site that supplies both arguments declared at `document_service.py:L123`, which is why the edge is solid. The result is never awaited, and the task around it still cannot run |
+| K4 | `get_document :L135` to `convert_document :L138` | `background_tasks.py:L138` calls `export_service.convert_document(document, export_format)` | `ExportService` declares only `__init__`, `export_to_pdf` and `export_to_docx`, so `convert_document` does not exist |
+| K5 | `convert_document :L138` to `upload :L143` | `background_tasks.py:L143` calls `blob.upload_from_file(exported_file)` | Unreachable. `:L138` raises first |
+| K6 | `upload :L143` to `signed URL :L146` | `background_tasks.py:L146` calls `blob.generate_signed_url(expiration=timedelta(hours=1))` | Unreachable, and the call omits `version="v4"` |
+| K7 | `retention sweep` to `expired query :L267` | `background_tasks.py:L267` filters `expiration_date` against `datetime.now()` | `NameError`. `:L96` imports `timedelta` alone, so `datetime` is never bound |
+| K8 | `expired query :L267` to `document delete :L274` | `background_tasks.py:L274` deletes one document by id | Unreachable. `:L267` raises first |
+| K9 | `document delete :L274` to `blob delete :L280` | `background_tasks.py:L280` deletes the blob keyed `{user_id}/{doc_id}` built at `:L279` | Unreachable, and that key does not match the `exports/{user_id}/{document_id}.{export_format}` key the export task writes at `:L142` |
+| K10 | `blob delete :L280` to `permissions delete :L283` | `background_tasks.py:L283` calls `.delete()` on the result of `.get()` | Unreachable, and `.get()` returns a list, which has no `.delete()` |
+| K11 | `statistics task` to `get_document :L310` | `background_tasks.py:L310` calls `document_service.get_document(document_id)` | `TypeError`. One argument against the two declared at `document_service.py:L123` |
+| K12 | `get_document :L310` to `statistics update :L317` | `background_tasks.py:L317` updates the document's `statistics` map | Unreachable, and the map reads `datetime.now()` at `:L321`, so this site carries the same `NameError` as K7 |
 
 The export task writes one object key and the retention sweep reads another. `process_document_export` builds
 `exports/{user_id}/{document_id}.{export_format}` at `:L142`, while `cleanup_expired_documents` builds `{user_id}/{doc_id}` at

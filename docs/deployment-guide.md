@@ -411,47 +411,75 @@ rows 1 through 4 against the images.
 
 ### The intended release pipeline, with its stops marked
 
+Four stages make up the intended pipeline, and the diagram runs them top to bottom in the order an
+operator would reach them: provision with Terraform, build the images, validate on a push to `main`,
+then release. No automation joins one stage to the next. Neither workflow names Terraform, neither
+builds or pushes an image, and neither calls `scripts/deploy.sh`, so the three edges between stages
+are dashed and say so.
+
 ```mermaid
 graph TD
-    COMMIT["Push to main"]
-
-    subgraph CIJOB["Continuous integration: .github/workflows/ci.yml"]
-        A1["checkout@v2, :L13"] --> A2["setup-node 14, :L15-L17"]
-        A2 --> A3["npm ci, :L19"]
-        A3 -.->|"FIRST HIT: no root package.json, no lockfile"| A4["npm test, :L21"]
-        A4 -.-> A5["npm run build, :L23<br/>LATENT: 76 TypeScript errors"]
+    accTitle: The intended release pipeline and the step that stops each stage
+    accDescr: Four stages run top to bottom. Terraform, then container builds, then continuous integration on a push to main, then continuous delivery, then App Engine and the deploy script. A dashed edge marks a step that never runs or automation that does not exist, and its label names the blocker. A dashed node border marks the step that stops.
+    subgraph TFPATH["Stage 1, Terraform: infrastructure/terraform"]
+        direction TB
+        C1["terraform init"]
+        C0["terraform validate and plan"]
+        C2["terraform apply"]
+        C3["4 Google Cloud resources<br/>main.tf:L19-L59, exported by no output"]
+        C1 -.->|"stops: 3 module sources absent,<br/>main.tf:L68, :L77, :L86"| C0
+        C0 -.->|"stops: 14 outputs reference 12 undeclared<br/>aws_ addresses, outputs.tf:L5-L87"| C2
+        C2 -.->|"unreachable until the outputs are fixed"| C3
     end
 
-    subgraph CDJOB["Continuous delivery: .github/workflows/cd.yml"]
-        B1["checkout@v2, :L11"] --> B2["setup-gcloud v0.2.0, :L13-L16"]
-        B2 --> B3["gcloud app deploy app.yaml, :L19"]
-        B3 -.->|"FIRST HIT: app.yaml absent,<br/>bash -e ends the step"| B4["gcloud app deploy dispatch.yaml, :L20<br/>LATENT: dispatch.yaml absent"]
+    subgraph COPATH["Stage 2, containers: infrastructure/docker"]
+        direction TB
+        D1["docker compose build"]
+        D2["frontend image<br/>npm ci, frontend.Dockerfile:L11"]
+        D3["backend image<br/>COPY requirements.txt, backend.Dockerfile:L8"]
+        D4["uvicorn on 8000,<br/>published 5000:5000"]
+        D1 -.->|"stops: context names Dockerfile,<br/>docker-compose.yml:L6-L7"| D2
+        D1 -.->|"stops: context names Dockerfile,<br/>docker-compose.yml:L19-L20"| D3
+        D3 -.->|"app. prefix unresolvable,<br/>backend.Dockerfile:L14 and :L20"| D4
     end
 
-    subgraph TFPATH["Terraform: infrastructure/terraform"]
-        C1["terraform init"] -.->|"stops: 3 module sources absent, main.tf:L68 :L77 :L86"| C0["terraform validate and plan"]
-        C0 -.->|"stops: 14 outputs reference 12 undeclared aws_ addresses, outputs.tf:L5-L87"| C2["terraform apply"]
-        C2 -.->|"unreachable until the outputs are fixed"| C3["4 Google Cloud resources, main.tf:L19-L59"]
-        C2 -.->|"unreachable"| C4["outputs.tf exports"]
+    COMMIT(["Push to main"])
+
+    subgraph CIJOB["Stage 3, integration: .github/workflows/ci.yml"]
+        direction TB
+        A1["checkout@v2, :L13"]
+        A2["setup-node 14, :L15-L17"]
+        A3["npm ci, :L19"]
+        A4["npm test, :L21"]
+        A5["npm run build, :L23<br/>LATENT: 76 TypeScript errors"]
+        A1 --> A2 --> A3
+        A3 -.->|"FIRST HIT: no root package.json,<br/>no lockfile"| A4
+        A4 -.-> A5
     end
 
-    subgraph COPATH["Containers: infrastructure/docker"]
-        D1["docker compose build"] -.->|"stops: context names Dockerfile, :L6-L7"| D2["frontend image, npm ci :L11"]
-        D1 -.->|"stops: context names Dockerfile, :L19-L20"| D3["backend image, COPY requirements.txt :L8"]
-        D3 -.->|"app. prefix unresolvable, :L14 and :L20"| D4["uvicorn on 8000, published 5000:5000"]
+    subgraph CDJOB["Stage 4, delivery: .github/workflows/cd.yml"]
+        direction TB
+        B1["checkout@v2, :L11"]
+        B2["setup-gcloud v0.2.0, :L13-L16"]
+        B3["gcloud app deploy app.yaml, :L19"]
+        B4["gcloud app deploy dispatch.yaml, :L20<br/>LATENT: dispatch.yaml absent"]
+        B1 --> B2 --> B3
+        B3 -.->|"FIRST HIT: app.yaml absent,<br/>bash -e ends the step"| B4
     end
 
+    C3 -.->|"no workflow runs Terraform;<br/>an operator runs these by hand"| D1
+    D4 -.->|"no workflow builds or pushes an image"| COMMIT
     COMMIT --> A1
-    COMMIT --> B1
+    A5 -.->|"ABSENT GATE: no needs, no workflow_run,<br/>so a push starts cd.yml regardless"| B1
     B4 -.->|"no App Engine resource in main.tf"| GAE["Google App Engine"]
-    SH["scripts/deploy.sh"] -.->|"bucket, app.yaml and db_migrations.sql absent; deploy.sh:L47 echoes success"| GAE
+    GAE -.->|"no workflow calls it: deploy.sh:L27 deploys<br/>the same app.yaml by hand"| SH["scripts/deploy.sh<br/>bucket, app.yaml and db_migrations.sql absent;<br/>:L47 echoes success"]
 
     classDef stops stroke-dasharray: 5 5
     class A3,B3,C1,C0,D1,D3,SH stops
 
-%% Convention: a dashed edge marks a step that never runs, and the edge label names the blocker.
-%% A dashed node border marks the step that stops. Solid edges show the declared step order,
-%% not proof that the step is reached.
+%% Convention: a dashed edge marks a step that never runs or automation that does not exist,
+%% and the label names the blocker. A dashed node border marks the step that stops. Solid
+%% edges show the declared step order, not proof that the step is reached.
 ```
 
 ## The deploy script

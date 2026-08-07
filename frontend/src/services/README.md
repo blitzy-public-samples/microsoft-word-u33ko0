@@ -76,22 +76,23 @@ The diagram traces the directory's only committed call site. `frontend/src/pages
 
 ```mermaid
 sequenceDiagram
-    participant Page as Editor.tsx autoSave L205-L212
-    participant Fn as updateDocument api.ts:L287
-    participant Api as api instance api.ts:L162
-    participant Int as request interceptor api.ts:L140-L149
-    participant Srv as FastAPI server
+    accTitle: A REST call from the editor page through the bearer interceptor
+    accDescr: The call stops twice. The argument read raises before updateDocument is entered, and the request interceptor raises because the store is never imported and no auth reducer key exists. The path below the first stop describes intended shape only.
+    participant Page as Editor.tsx<br/>autoSave L205-L212
+    participant Fn as updateDocument<br/>api.ts:L287
+    participant Int as request<br/>interceptor<br/>api.ts:L140-L149
+    participant Srv as FastAPI<br/>server
 
-    Page--xPage: read currentDocument.id at Editor.tsx:L207
-    Note over Page,Fn: FIRST STOP, the argument read raises,<br/>so updateDocument is never entered
-    Page--xFn: updateDocument(id, content)
-
-    Note over Fn,Srv: the steps below run only once the caller is repaired
-    Fn->>Api: api.put on /documents/<id> at api.ts:L288
-    Api->>Int: run request interceptor
-    Int--xInt: SECOND STOP at api.ts:L142,<br/>store never imported,<br/>no 'auth' reducer key
-    Int--xSrv: PUT /documents/<id>, never sent
-    Note over Int,Srv: the committed server exposes PUT /{document_id}<br/>at backend/app/api/documents.py:L188
+    Page--xPage: read id at L207
+    Note over Page,Int: FIRST STOP. Reading<br/>currentDocument.id at Editor.tsx:L207<br/>raises, so updateDocument is<br/>never entered.
+    Page--xFn: updateDocument(...)
+    Note over Fn,Srv: The steps below run only once<br/>the caller is repaired.
+    Fn->>Int: api.put at L288
+    Note over Fn,Srv: Calls api.put on /documents/<id><br/>at api.ts:L288 through the axios<br/>instance created at api.ts:L162.
+    Int--xInt: read auth.token
+    Note over Fn,Srv: SECOND STOP at api.ts:L142.<br/>The store is never imported, and<br/>no 'auth' reducer key is<br/>registered on it.
+    Int--xSrv: PUT, never sent
+    Note over Fn,Srv: The committed server exposes<br/>PUT /{document_id} at<br/>backend/app/api/documents.py:L188.
 ```
 
 ### Caller and server contracts

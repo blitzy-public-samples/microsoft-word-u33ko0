@@ -178,24 +178,18 @@ returning a user.
 
 ```mermaid
 sequenceDiagram
-    participant Client
-    participant FastAPI as FastAPI (Depends)
-    participant Scheme as oauth2_scheme<br/>security.py:L46
+    accTitle: The dependency chain from the bearer scheme to the absent UserService
+    accDescr: A request carries a bearer token into get_current_user, which reads settings, decodes the token and then constructs UserService. UserService is undefined, so the chain raises NameError before it can return a user or reach its 401.
+    participant C as Client
     participant GCU as get_current_user<br/>security.py:L117
-    participant Cfg as get_settings<br/>config.py:L126
-    participant JWT as jose.jwt<br/>security.py:L179
     participant US as UserService<br/>ABSENT
 
-    Client->>FastAPI: Request with Authorization header
-    FastAPI->>Scheme: Extract bearer token
-    Scheme-->>GCU: token (str)
-    GCU->>Cfg: get_settings() at L179
-    Cfg-->>GCU: Settings instance
-    GCU->>JWT: decode(token, SECRET_KEY, ALGORITHM) at L179
-    JWT-->>GCU: payload, sub claim read at L180
-    Note over GCU: 401 at L182 if sub is None<br/>401 at L184 on jwt.JWTError
-    GCU--xUS: UserService() at L186, await get_user_by_id at L187
-    Note over GCU,US: BROKEN EDGE, drawn dashed with a cross:<br/>UserService is undefined, so L186 raises NameError<br/>and the 401 at L189 is never reached
+    C->>GCU: bearer token, L46
+    GCU->>GCU: get_settings(), L179
+    GCU->>GCU: jwt.decode, L179
+    Note over GCU: FastAPI resolves the dependency, and oauth2_scheme<br/>extracts the header at security.py:L46<br/>get_settings() resolves at config.py:L126<br/>jose.jwt.decode reads SECRET_KEY and ALGORITHM at L179<br/>sub claim read at L180<br/>401 at L182 if sub is None, 401 at L184 on jwt.JWTError
+    GCU--xUS: UserService(), L186
+    Note over GCU,US: BROKEN EDGE, drawn dashed with a cross:<br/>UserService is undefined, so L186 raises NameError,<br/>await get_user_by_id at L187 never runs,<br/>and the 401 at L189 is never reached
 ```
 
 ## Design Patterns

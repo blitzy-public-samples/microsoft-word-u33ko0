@@ -123,23 +123,24 @@ Crossed arrows below mark calls that never happen as committed.
 
 ```mermaid
 sequenceDiagram
+    accTitle: Document load and the five-second debounced auto-save on the editor page
+    accDescr: Both flows terminate. The load flow stops because the store exports no useAppSelector and currentDocument stays null, so the guard never passes. The save flow stops because DocumentCanvas takes no props, so the change callback is never called, and the timer that does fire reads an id off null.
     actor User
-    participant Canvas as components/DocumentCanvas.tsx
     participant Page as Editor.tsx
-    participant Store as store/documentSlice.ts
-    participant API as services/api.ts
+    participant Store as store/<br/>documentSlice.ts
+    participant API as services/<br/>api.ts
 
-    User->>Page: navigate to /editor
-    Page->>Store: read state.document.currentDocument at L85
-    Note over Page,Store: currentDocument is null, and store/index.ts exports no useAppSelector
-    Page--xPage: guard on currentDocument?.id at L117 never passes
-    Note over Page,API: TERMINAL, getDocument at L108 never runs, so L109 and L110 never run
-
-    User--xPage: edit the canvas content
-    Note over User,Page: TERMINAL, DocumentCanvas takes no props, so L228 is never called
-    Page->>Page: setTimeout(autoSave, 5000) at L214, once on mount
-    Page->>Page: read currentDocument.id at L207 raises a TypeError
-    Note over Page,API: caught at L208, logged at L209, so updateDocument is never reached
+    User->>Page: open /editor
+    Page->>Store: read currentDocument
+    Note over Page,API: Reads state.document.currentDocument<br/>at L85. currentDocument is null, and<br/>store/index.ts exports no useAppSelector.
+    Page--xPage: guard at L117
+    Note over Page,API: TERMINAL. The guard on<br/>currentDocument?.id at L117 never<br/>passes, so getDocument at L108 never<br/>runs and neither do L109 and L110.
+    User--xPage: edit the canvas
+    Note over User,Store: TERMINAL. DocumentCanvas takes<br/>no props, so the L228 change<br/>callback is never called.
+    Page->>Page: setTimeout at L214
+    Note over Page,API: setTimeout(autoSave, 5000) at L214<br/>fires once on mount, five seconds<br/>after the page loads, with no null<br/>guard and no empty-content guard.
+    Page--xPage: read id at L207
+    Note over Page,API: currentDocument.id at L207 raises a<br/>TypeError, caught at L208 and logged<br/>at L209, so updateDocument is<br/>never reached.
 ```
 
 The other three pages run shorter flows, and one of them reaches nothing. `Templates.tsx:L139-L152` awaits

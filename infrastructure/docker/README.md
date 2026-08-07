@@ -133,6 +133,8 @@ serving reads or writes. A dashed edge below marks a relationship that does not 
 
 ```mermaid
 graph TD
+    accTitle: The Compose topology, the mismatched build contexts and the port mismatch
+    accDescr: The developer host publishes a port to the frontend service and a port to the backend service. Neither published port matches the port its server listens on. Neither service builds, because each names a Dockerfile that does not exist at its context. A dashed edge marks a relationship that does not work.
     HOST["Developer host"]
     FE["frontend service<br/>L4-L15"]
     BE["backend service<br/>L17-L28"]

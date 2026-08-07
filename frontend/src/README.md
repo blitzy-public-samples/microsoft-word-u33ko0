@@ -108,31 +108,43 @@ Each matched page renders its own `Header` again, and three of the four render t
 
 ```mermaid
 graph TD
-    HTML["public/index.html:L12<br/>div id='root'"] --> ROOT["index.tsx:L19<br/>getElementById('root')"]
+    accTitle: Bootstrap to providers to router to the four routed pages
+    accDescr: A solid edge runs today once the alias resolves. A dashed edge marks a defect, and every dashed edge carries a key resolved in the table below the diagram. The store is provided twice and each page renders its own shell.
+    HTML["public/index.html:L12<br/>div id='root'"] --> ROOT["index.tsx:L19<br/>getElementById"]
     ROOT --> CALL["index.tsx:L44<br/>renderApp()"]
-    CALL --> RENDER["index.tsx:L34<br/>ReactDOM.render, React 17 API"]
+    CALL --> RENDER["index.tsx:L34<br/>ReactDOM.render<br/>React 17 API"]
     RENDER --> STRICT["index.tsx:L35<br/>React.StrictMode"]
     STRICT --> P1["index.tsx:L36<br/>Provider, outer"]
     P1 --> APP["App.tsx:L44<br/>App"]
-    APP --> P2["App.tsx:L46<br/>Provider, second wrap<br/>of the same store"]
+    APP --> P2["App.tsx:L46<br/>Provider, second<br/>wrap of the same<br/>store already<br/>provided at<br/>index.tsx:L36"]
     P2 --> BR["App.tsx:L47<br/>BrowserRouter"]
     BR --> HDR["App.tsx:L49<br/>Header"]
-    BR --> SW["App.tsx:L51<br/>Switch, router v5 API"]
+    BR --> SW["App.tsx:L51<br/>Switch<br/>router v5 API"]
     BR --> FTR["App.tsx:L58<br/>Footer"]
-    SW --> HOME["Home, App.tsx:L52<br/>own Header Home.tsx:L56, own Footer Home.tsx:L72"]
-    SW --> EDIT["Editor, App.tsx:L53<br/>own Header Editor.tsx:L234, no Footer"]
-    SW --> TPL["Templates, App.tsx:L54<br/>own Header Templates.tsx:L171, own Footer Templates.tsx:L192"]
-    SW --> SET["Settings, App.tsx:L55<br/>own Header Settings.tsx:L132, own Footer Settings.tsx:L159"]
+    SW --> HOME["Home<br/>:L52"]
+    SW --> EDIT["Editor<br/>:L53"]
+    SW --> TPL["Templates<br/>:L54"]
+    SW --> SET["Settings<br/>:L55"]
 
-    ALIAS["@/ prefix<br/>index.tsx:L16-L17<br/>App.tsx:L17-L23"]
-    ALIAS -.->|"unmapped: tsconfig.json:L10-L16<br/>declares five aliases, none is @/"| TSC["frontend/tsconfig.json"]
-    APP -.->|"App.tsx:L23 names { store }<br/>store/index.ts:L65 exports a default only"| STORE["store/index.ts"]
-    P2 -.->|"redundant: the same store<br/>is already provided at index.tsx:L36"| P1
-    HOME & TPL & SET -.->|"doubled shell: banner and contentinfo twice"| HDR
-    EDIT -.->|"doubled banner only"| HDR
+    APP -.->|"F1"| ALIAS["@/ prefix<br/>unmapped<br/>index.tsx:L16-L17<br/>App.tsx:L17-L23"]
+    APP -.->|"F2"| STORE["store/index.ts"]
+    HOME & TPL & SET -.->|"F3"| HDR
+    EDIT -.->|"F4"| HDR
 
-%% A solid edge runs today once the alias resolves. A dashed edge marks a defect, and its label names it.
+%% A solid edge runs today once the alias resolves. A dashed edge marks a defect,
+%% and the table below the diagram names it.
 ```
+
+The four route nodes carry their `App.tsx` line only. Each page also renders its own shell, which is what `F3` and `F4` record.
+
+| Key | Edge | The defect |
+| --- | --- | --- |
+| F1 | `App` to the `@/` prefix | `tsconfig.json:L10-L16` declares five path aliases and none of them is `@/`, so all 44 `@/` imports across 13 of the 26 modules fail to resolve. `react-scripts` 5 would not apply the `paths` block to webpack resolution in any case |
+| F2 | `App` to `store/index.ts` | `App.tsx:L23` names `{ store }`, while `store/index.ts:L65` exports a default only |
+| F3 | `Home`, `Templates` and `Settings` to `Header` | Doubled shell: banner and contentinfo twice. Each page renders its own `Header` and `Footer` inside the pair `App.tsx:L49` and `:L58` already provides, at `Home.tsx:L56` and `:L72`, `Templates.tsx:L171` and `:L192`, and `Settings.tsx:L132` and `:L159` |
+| F4 | `Editor` to `Header` | Doubled banner only. `Editor.tsx:L234` renders a second `Header` and no `Footer` |
+
+The second `Provider` at `App.tsx:L46` is redundant rather than broken, so the node states it instead of drawing an edge back to `index.tsx:L36`.
 
 ## Design Patterns
 

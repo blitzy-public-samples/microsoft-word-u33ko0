@@ -95,6 +95,8 @@ deployment whether or not validation passed.
 
 ```mermaid
 flowchart TB
+    accTitle: The CI and CD job steps and the first failure in each
+    accDescr: A pull request or a push to main starts the ci.yml build job. A push to main also starts the cd.yml deploy job. Solid edges are steps that run in order. Dashed edges mark relationships that cannot complete as committed, and each label names the blocker. No gate connects the two jobs.
     PR(["pull_request targeting main<br/>ci.yml:L6-L7"])
     PUSH(["push to main<br/>ci.yml:L4-L5, cd.yml:L4-L5"])
     subgraph CIJOB["ci.yml, build job, ubuntu-latest"]

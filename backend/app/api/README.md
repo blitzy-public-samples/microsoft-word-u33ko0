@@ -147,24 +147,26 @@ and the user lookup call `UserService`, which `auth.py:L83` imports from a modul
 
 ```mermaid
 sequenceDiagram
+    accTitle: Token issuance and protected-route validation in the auth router
+    accDescr: A client posts form credentials to the token route, which reaches for an absent UserService and an absent settings instance before it can sign a token. The protected-route path repeats both failures. Neither path is reached, because the module import fails at auth.py:L83.
     participant C as Client
     participant A as auth.py router
-    participant S as settings, absent name
-    participant U as UserService, absent module
+    participant S as settings<br/>absent name
+    participant U as UserService<br/>absent module
 
-    C->>A: POST /token with form credentials, L167
-    A--xU: UserService.authenticate_user, L230
-    Note right of U: BROKEN. app.services.user_service has no file.<br/>Requested at auth.py:L83.
-    A--xS: reads ACCESS_TOKEN_EXPIRE_MINUTES, L234
-    Note right of S: BROKEN. config.py declares Settings at L51<br/>and no module-level instance. Requested at auth.py:L81.
-    A->>A: jwt.encode signs sub and exp, L235-L239
-    A->>C: access_token and token_type bearer, L240
-
-    C->>A: Protected route with a bearer header
-    A->>A: oauth2_scheme reads the header, L85
-    A--xS: jwt.decode with SECRET_KEY and ALGORITHM, L155
-    A--xU: UserService.get_user_by_id, L162
-    A->>C: 401 at L158 and L160, 404 at L164
+    C->>A: POST /token, L167
+    A--xU: authenticate_user, L230
+    Note over A,U: BROKEN. app.services.user_service<br/>has no file. Requested at auth.py:L83.
+    A--xS: reads expiry, L234
+    Note over A,S: Reads<br/>ACCESS_TOKEN_EXPIRE_MINUTES<br/>at L234. BROKEN. config.py<br/>declares Settings at L51 and<br/>no module-level instance.<br/>Requested at auth.py:L81.
+    A->>A: jwt.encode, L235
+    A->>C: bearer token, L240
+    C->>A: bearer header
+    A->>A: oauth2_scheme, L85
+    A--xS: jwt.decode, L155
+    A--xU: get_user_by_id, L162
+    A->>C: 401 or 404
+    Note over C,U: POST /token carries form credentials at L167.<br/>jwt.encode signs sub and exp at L235-L239,<br/>and L240 returns access_token with<br/>token_type bearer. On the guarded path,<br/>L155 decodes with SECRET_KEY and ALGORITHM.<br/>401 at L158 and L160, 404 at L164.<br/>Neither path is reached: the module<br/>import fails at L83.
 ```
 
 Dispatch never begins, and two separate faults stop it. `main.py:L16-L19` requests four `*_router` names that no
@@ -183,20 +185,22 @@ profile handlers are unreachable through the assembled application, seven of the
 
 ```mermaid
 graph TD
-    MAIN["main.py:L125-L128<br/>four include_router calls, no prefix"]
-    NAMES["Modules export the bare name router:<br/>auth.py:L87, documents.py:L51,<br/>users.py:L27, templates.py:L75"]
+    accTitle: Why the documents router owns every colliding path
+    accDescr: main.py mounts all four routers with no prefix, so identical paths collide. The documents router registers first and owns the shared shapes, leaving seven protected handlers unreachable.
+    MAIN["main.py:L125-L128<br/>four include_router<br/>calls, no prefix"]
+    NAMES["modules export<br/>the bare name<br/>router:<br/>auth.py:L87,<br/>documents.py:L51,<br/>users.py:L27,<br/>templates.py:L75"]
 
-    MAIN -.->|"L16-L19 request auth_router, documents_router,<br/>users_router, templates_router. No module exports them."| NAMES
+    MAIN -.->|"L16-L19 request<br/>auth_router,<br/>documents_router,<br/>users_router,<br/>templates_router.<br/>No module<br/>exports them."| NAMES
 
-    MAIN --> D["documents router, mounted at L126"]
-    MAIN --> U["users router, mounted at L127"]
-    MAIN --> T["templates router, mounted at L128"]
+    MAIN --> D["documents<br/>router<br/>at L126"]
+    MAIN --> U["users router<br/>at L127"]
+    MAIN --> T["templates<br/>router<br/>at L128"]
 
-    D --> WIN["Documents registers first, so it owns<br/>POST / L53, GET / L111 and the single-segment<br/>id shape at L145, L188 and L237"]
-    T -.->|"same method and path, or same shape<br/>with the parameter name ignored"| WIN
-    U -.->|"GET /me L29 and PUT /me L50 both match<br/>the single-segment id shape"| WIN
+    D --> WIN["documents registers<br/>first, so it owns<br/>POST / L53,<br/>GET / L111 and the<br/>single-segment id<br/>shape at L145,<br/>L188 and L237"]
+    T -.->|"same method<br/>and path, or<br/>same shape with<br/>the parameter<br/>name ignored"| WIN
+    U -.->|"GET /me L29 and<br/>PUT /me L50 both<br/>match the<br/>single-segment<br/>id shape"| WIN
 
-    WIN --> OUT["Seven protected handlers unreachable:<br/>five template routes and both profile routes"]
+    WIN --> OUT["seven protected<br/>handlers unreachable:<br/>five template routes<br/>and both profile routes"]
 ```
 
 ## Design Patterns

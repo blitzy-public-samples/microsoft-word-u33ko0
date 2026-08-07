@@ -113,12 +113,14 @@ and the deploy at `:L27`.
 
 ```mermaid
 flowchart TD
+    accTitle: The deploy.sh stage sequence and the blocker at each stage
+    accDescr: A deployment run executes eight stages in fixed line order from deploy.sh:L4 to deploy.sh:L47. Seven of the eight fail against the committed repository. A dashed edge leaves a stage that fails, and its label names the reason. The run continues across every failure because nothing checks an exit status.
     G["Credentials guard<br/>deploy.sh:L4-L7"] --> B["npm run build<br/>deploy.sh:L11"]
     B -.->|"build fails: no root package.json"| T["python -m pytest tests/<br/>deploy.sh:L15"]
     T -.->|"pytest fails: no root tests/ directory"| Z["zip -r app.zip<br/>deploy.sh:L19"]
     Z -->|"archives node_modules, venv, .env"| U["gsutil cp to gs://my-word-app-bucket/<br/>deploy.sh:L23"]
     U -.->|"upload fails: gcloud CLI unauthenticated"| D["gcloud app deploy app.yaml<br/>deploy.sh:L27"]
-    D -.->|"deploy fails: no app.yaml tracked"| M["gcloud sql connect &lt; db_migrations.sql<br/>deploy.sh:L31"]
+    D -.->|"deploy fails: no app.yaml tracked"| M["gcloud sql connect < db_migrations.sql<br/>deploy.sh:L31"]
     M -.->|"migration fails: no db_migrations.sql"| C["backend-services update --enable-cdn<br/>deploy.sh:L35"]
     C -.->|"no --global or --region scope"| P["Post-deployment checks<br/>deploy.sh:L37-L44"]
     P -.->|"no check runs: L40-L44 are comments"| S["echo Deployment completed successfully!<br/>deploy.sh:L47"]

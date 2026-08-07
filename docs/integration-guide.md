@@ -94,45 +94,66 @@ code writes rather than a map of live request flow. Two blockers sit in front of
 `settings` name that module never binds, so importing the application raises `ImportError` and no
 route is ever registered. Six of the fifteen settings the code reads are declared nowhere, and no
 committed file supplies a value for any of them. Every edge below is dashed, because no seam is
-complete. Each label names what stands between that call and the external system, including the
-barriers that outlast repairing the import chain and the undeclared settings.
+complete. Each edge carries a seam key, and the seam table under the diagram names the call the code
+writes and what stands between that call and the external system, including the barriers that outlast
+repairing the import chain and the undeclared settings.
 
 ```mermaid
-graph LR
+graph TD
+    accTitle: The integration map, annotated with reachability
+    accDescr: Every edge is dashed because no seam carries traffic today. Each edge carries a seam key, and the seam table below the diagram names the calls the code writes and the barriers in front of them.
     BROWSER["Browser client<br/>frontend/src/"]
-    SOCK["socket.io-client<br/>collaboration.ts:L77<br/>io() with no URL"]
+    SOCK["socket.io-client<br/>collaboration.ts<br/>:L77, io() with<br/>no URL"]
     APP["FastAPI application<br/>main.py:L24"]
-    ROUTERS["4 routers, 14 handlers<br/>main.py:L125-L128<br/>mounted with no prefix"]
-    DOCSVC["DocumentService<br/>document_service.py:L62"]
-    EXPSVC["ExportService<br/>export_service.py:L63"]
-    COLSVC["CollaborationService<br/>collaboration_service.py:L41"]
-    TASKS["3 Celery tasks<br/>background_tasks.py:L101, L152, L287"]
+    ROUTERS["4 routers,<br/>14 handlers<br/>main.py:L125-L128<br/>no prefix"]
+    COLSVC["CollaborationService<br/>collaboration_service<br/>.py:L41, constructed<br/>by no route"]
+    DOCSVC["DocumentService<br/>document_service<br/>.py:L62"]
+    TASKS["3 Celery tasks<br/>background_tasks.py<br/>:L101, :L152, :L287"]
+    EXPSVC["ExportService<br/>export_service<br/>.py:L63"]
 
-    FS["Google Cloud Firestore<br/>WIRED, BLOCKED AT IMPORT"]
-    GCS["Google Cloud Storage<br/>NOT REACHABLE"]
-    PS["Google Cloud Pub/Sub<br/>SCAFFOLDED ONLY"]
-    REDIS["Redis broker<br/>ABSENT"]
+    FS[("Google Cloud<br/>Firestore<br/>WIRED, BLOCKED<br/>AT IMPORT")]
+    GCS[("Google Cloud<br/>Storage<br/>NOT REACHABLE")]
+    PS["Google Cloud<br/>Pub/Sub<br/>SCAFFOLDED ONLY"]
+    REDIS[("Redis broker<br/>ABSENT")]
 
-    BROWSER -.->|"REST over HTTP. Nothing completes: the application cannot import, and past that<br/>repair the client still matches no route, because api.ts:L142 throws inside the request<br/>interceptor and every document call carries a /documents prefix no route declares"| APP
-    APP -.->|"would register 4 routers at main.py:L125-L128, and cannot: :L16-L19 import<br/>auth_router, documents_router, users_router and templates_router, and all four modules<br/>export the bare name router"| ROUTERS
-    ROUTERS -.->|"constructs at documents.py:L107, :L141, :L182, :L230, :L277, and every call<br/>breaks its signature: :L108 hands a User where user_id: str is declared, :L183, :L231<br/>and :L278 pass one argument to a two-parameter get_document, and :L142 calls<br/>get_documents, which the class never defines"| DOCSVC
-    DOCSVC -.->|"set document_service.py:L118, get :L169, update :L246, delete :L284 are written<br/>in full; each read then builds Document(**...) against created_at and updated_at,<br/>required at schema/document.py:L111-L112 and written by nothing"| FS
+    BROWSER -.->|"S1"| APP
+    BROWSER -.->|"S2"| SOCK
+    APP -.->|"S3"| ROUTERS
+    SOCK -.->|"S4"| COLSVC
+    COLSVC -.->|"S5"| PS
+    ROUTERS -.->|"S6"| DOCSVC
+    ROUTERS -.->|"S7"| TASKS
+    DOCSVC -.->|"S8"| FS
+    TASKS -.->|"S9"| FS
+    TASKS -.->|"S10"| EXPSVC
+    TASKS -.->|"S11"| REDIS
+    TASKS -.->|"S12"| GCS
+    EXPSVC -.->|"S13"| GCS
 
-    EXPSVC -.->|"upload export_service.py:L157 and v4 signing :L160-L164 are<br/>written in full; no handler calls either method"| GCS
-    TASKS -.->|"constructs at background_tasks.py:L131, then calls convert_document<br/>at :L138, which the class never defines"| EXPSVC
-    TASKS -.->|"read background_tasks.py:L267, delete :L274, update :L317;<br/>no producer runs them"| FS
-    TASKS -.->|"upload background_tasks.py:L143 and a signed URL at :L146<br/>with no version argument"| GCS
-    TASKS -.->|"broker URL read at background_tasks.py:L98 resolves to no service"| REDIS
-    ROUTERS -.->|"no producer: zero .delay() and .apply_async() call sites exist"| TASKS
-    ROUTERS -.->|"no route constructs CollaborationService"| COLSVC
-    COLSVC -.->|"subscribe collaboration_service.py:L165 and publish :L248 never run"| PS
-    BROWSER -.->|"no module imports collaboration.ts, so nothing constructs the client class"| SOCK
-    SOCK -.->|"no route joins Socket.IO to the FastAPI WebSocket signature"| COLSVC
-
-%% No edge carries traffic today, and every edge is dashed for that reason. Each label names the
-%% barriers on that seam, including the ones that outlast repairing the import chain and the
-%% undeclared settings. Node labels repeat the inventory label.
+%% Every edge is dashed, because no seam is complete. Each edge carries a seam key, and the seam
+%% table below names the call the code writes and the barriers in front of it, including the ones
+%% that outlast repairing the import chain and the undeclared settings.
 ```
+
+Thirteen seams carry a key in the diagram above. One further fact has no edge, because it is the
+absence of a call rather than a call: no route anywhere constructs `CollaborationService`, which the
+`COLSVC` node states in place of an edge.
+
+| Seam | Edge | What the committed code writes | What stands in the way |
+| ------ | ------ | -------------------------------- | ------------------------ |
+| S1 | Browser to FastAPI application | REST over HTTP | Nothing completes. The application cannot import, and past that repair the client still matches no route, because `frontend/src/services/api.ts:L142` throws inside the request interceptor and every document call carries a `/documents` prefix no route declares |
+| S2 | Browser to socket.io-client | `io()` at `frontend/src/services/collaboration.ts:L77` | No module imports `collaboration.ts`, so nothing constructs the client class, and `io()` receives no URL |
+| S3 | Application to the four routers | `backend/app/main.py:L125-L128` would register four routers | `:L16-L19` import `auth_router`, `documents_router`, `users_router` and `templates_router`, and all four modules export the bare name `router` |
+| S4 | socket.io-client to CollaborationService | a Socket.IO connection from the browser | No route joins Socket.IO to the FastAPI WebSocket signature the service declares |
+| S5 | CollaborationService to Pub/Sub | subscribe at `backend/app/services/collaboration_service.py:L165`, publish at `:L248` | Neither runs, because nothing constructs the class. `settings.PROJECT_ID` is undeclared at `:L120`, `:L121`, `:L209` and `:L245` |
+| S6 | Routers to DocumentService | constructed at `backend/app/api/documents.py:L107`, `:L141`, `:L182`, `:L230` and `:L277` | Every call breaks its signature. `:L108` hands a `User` where `user_id: str` is declared, `:L183`, `:L231` and `:L278` pass one argument to a two-parameter `get_document`, and `:L142` calls `get_documents`, which the class never defines |
+| S7 | Routers to the Celery tasks | nothing | No producer. Zero `.delay()` and zero `.apply_async()` call sites exist anywhere |
+| S8 | DocumentService to Firestore | set at `backend/app/services/document_service.py:L118`, get at `:L169`, update at `:L246`, delete at `:L284`, all written in full | Each read then builds `Document(**...)` against `created_at` and `updated_at`, required at `backend/app/schema/document.py:L111-L112` and written by nothing |
+| S9 | Celery tasks to Firestore | read at `backend/app/tasks/background_tasks.py:L267`, delete at `:L274`, update at `:L317` | No producer runs them |
+| S10 | Celery tasks to ExportService | constructed at `backend/app/tasks/background_tasks.py:L131`, then calls `convert_document` at `:L138` | `ExportService` never defines `convert_document` |
+| S11 | Celery tasks to the Redis broker | broker URL read at `backend/app/tasks/background_tasks.py:L98` | The URL resolves to no service. No committed infrastructure provisions a broker |
+| S12 | Celery tasks to Cloud Storage | upload at `backend/app/tasks/background_tasks.py:L143`, signed URL at `:L146` | Unreachable behind S10, and the signing call passes no version argument, so the client default applies |
+| S13 | ExportService to Cloud Storage | upload at `backend/app/services/export_service.py:L157`, V4 signing at `:L160-L164`, both written in full | No handler calls either export method |
 
 ## Google Cloud Firestore
 

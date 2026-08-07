@@ -173,46 +173,78 @@ Read the edges accordingly. **Every edge below is dashed**, because each one eit
 committed, and every label names the reason.
 
 ```mermaid
-graph TD
-    MAIN["main.py:L24<br/>app = FastAPI()"]
-    AUTH["api/auth.py:L87<br/>exports 'router'"]
-    DOCS["api/documents.py:L51<br/>exports 'router'"]
-    USERS["api/users.py:L27<br/>exports 'router'"]
-    TMPL["api/templates.py:L75<br/>exports 'router'"]
-    CFG["core/config.py:L51<br/>Settings, get_settings"]
-    FS["db/firestore.py:L40<br/>module-level db client"]
-    SQL["db/sql.py:L16<br/>engine, Base, get_db"]
-    DSVC["DocumentService<br/>services/document_service.py:L62"]
-    CSVC["CollaborationService<br/>services/collaboration_service.py:L41"]
-    ESVC["ExportService<br/>services/export_service.py:L63"]
-    TASKS["tasks/background_tasks.py:L98<br/>celery_app, 3 tasks"]
-    ABSENT["absent modules:<br/>services/user_service,<br/>services/template_service,<br/>schema/template"]
-    NOPROD["no producer:<br/>zero .delay, zero .apply_async"]
-    NOROUTE["no route, no WebSocket:<br/>class never constructed"]
+graph LR
+    accTitle: The composition root, the four routers, the services and the adapters
+    accDescr: Every edge is dashed because the package import fails at api/auth.py:L81, so no route registers and no client is constructed. Each node names its file and line, and every edge carries a key resolved in the table below the diagram.
+    MAIN["main.py<br/>:L24"]
+    NOPROD["no<br/>producer"]
+    NOROUTE["no<br/>route"]
 
-    MAIN -.->|"L16 imports auth_router"| AUTH
-    MAIN -.->|"L17 imports documents_router"| DOCS
-    MAIN -.->|"L18 imports users_router"| USERS
-    MAIN -.->|"L19 imports templates_router"| TMPL
-    MAIN -.->|"L20 imports settings"| CFG
-    MAIN -.->|"L22 imports init_db"| SQL
-    MAIN -.->|"L21 imports db; the body raises at firestore.py:L36"| FS
-    AUTH -.->|"L83"| ABSENT
-    USERS -.->|"L24"| ABSENT
-    TMPL -.->|"L70 and L71"| ABSENT
-    DOCS -.->|"no route registers"| DSVC
-    DSVC -.->|"client never built"| FS
-    ESVC -.->|"no upload executes"| STORE["Cloud Storage"]
-    CSVC -.->|"no route constructs the service"| PUBSUB["Cloud Pub/Sub"]
-    TASKS -.->|"no worker, no broker"| FS
-    TASKS -.->|"no worker, no broker"| DSVC
-    TASKS -.->|"convert_document undefined"| ESVC
+    AUTH["auth.py:L87"]
+    DOCS["documents.py<br/>:L51"]
+    USERS["users.py:L27"]
+    TMPL["templates.py<br/>:L75"]
+    CFG["config.py:L51"]
+    SQL["sql.py:L16"]
+    TASKS["celery_app<br/>background_tasks.py<br/>:L98"]
+    CSVC["Collaboration<br/>Service<br/>:L41"]
 
-    NOPROD -.->|"never enqueued"| TASKS
-    NOROUTE -.->|"unreachable"| CSVC
+    ABSENT["absent<br/>modules"]
+    DSVC["Document<br/>Service:L62"]
+    ESVC["Export<br/>Service:L63"]
+
+    FS["firestore.py<br/>:L40"]
+    STORE["Cloud<br/>Storage"]
+    PUBSUB["Cloud<br/>Pub/Sub"]
+
+    MAIN -.->|"A1"| AUTH
+    MAIN -.->|"A2"| DOCS
+    MAIN -.->|"A3"| USERS
+    MAIN -.->|"A4"| TMPL
+    MAIN -.->|"A5"| CFG
+    MAIN -.->|"A6"| SQL
+    MAIN -.->|"A7"| FS
+    AUTH -.->|"A8"| ABSENT
+    USERS -.->|"A9"| ABSENT
+    TMPL -.->|"A10"| ABSENT
+    DOCS -.->|"A11"| DSVC
+    DSVC -.->|"A12"| FS
+    ESVC -.->|"A13"| STORE
+    CSVC -.->|"A14"| PUBSUB
+    TASKS -.->|"A15"| FS
+    TASKS -.->|"A16"| DSVC
+    TASKS -.->|"A17"| ESVC
+    NOPROD -.->|"A18"| TASKS
+    NOROUTE -.->|"A19"| CSVC
+
 %% Every edge above is dashed: package import fails at api/auth.py:L81, so no route
 %% registers, no client is ever constructed, and nothing downstream executes.
 ```
+
+The nineteen keys resolve as follows. `A1` through `A7` are the seven import statements the composition root runs before it
+registers anything, and each one is the line that fails.
+
+| Key | Edge | What the code does | Why it does not resolve |
+| --- | --- | --- | --- |
+| A1 | `main.py` to `api/auth.py` | `main.py:L16` runs `from app.api.auth import auth_router` | `auth.py:L87` exports the bare name `router`, not `auth_router` |
+| A2 | `main.py` to `api/documents.py` | `main.py:L17` requests `documents_router` | `documents.py:L51` exports `router` |
+| A3 | `main.py` to `api/users.py` | `main.py:L18` requests `users_router` | `users.py:L27` exports `router` |
+| A4 | `main.py` to `api/templates.py` | `main.py:L19` requests `templates_router` | `templates.py:L75` exports `router` |
+| A5 | `main.py` to `core/config.py` | `main.py:L20` runs `from app.core.config import settings` | `config.py:L51` declares the `Settings` class and creates no module-level instance |
+| A6 | `main.py` to `db/sql.py` | `main.py:L22` runs `from app.db.sql import init_db` | `sql.py` defines no `init_db` |
+| A7 | `main.py` to `db/firestore.py` | `main.py:L21` runs `from app.db.firestore import db` | The module body raises first at `firestore.py:L36`, which imports the same absent `settings` |
+| A8 | `api/auth.py` to the absent modules | `auth.py:L83` runs `from app.services.user_service import UserService` | `app/services/user_service.py` does not exist. This is the import that fails first and stops the whole package |
+| A9 | `api/users.py` to the absent modules | `users.py:L24` requests the same `UserService` | Same absent module |
+| A10 | `api/templates.py` to the absent modules | `templates.py:L70` imports from `app.schema.template` and `:L71` from `app.services.template_service` | Neither module exists |
+| A11 | `api/documents.py` to `DocumentService` | `documents.py` constructs the service and calls it per handler | No route ever registers, because the package import fails at A8 |
+| A12 | `DocumentService` to the Firestore client | `document_service.py:L59` imports `db` and `:L70` assigns it to `self.db` | The client is never constructed. See [db/README.md](db/README.md) |
+| A13 | `ExportService` to Cloud Storage | `export_service.py` uploads the rendered object | No upload executes, and the payload is a literal placeholder string |
+| A14 | `CollaborationService` to Cloud Pub/Sub | `collaboration_service.py:L41` would publish and subscribe per document | No route and no WebSocket endpoint constructs the class |
+| A15 | `tasks` to the Firestore client | the retention sweep and the statistics task open collections on `db` | No worker runs and no broker exists |
+| A16 | `tasks` to `DocumentService` | `background_tasks.py:L135` and `:L310` call `get_document` | Same. `:L310` also passes one argument against two |
+| A17 | `tasks` to `ExportService` | `background_tasks.py:L138` calls `convert_document` | `ExportService` declares no `convert_document` |
+| A18 | no producer to `celery_app` | nothing | The repository contains zero `.delay`, zero `.apply_async` and zero `send_task` calls |
+| A19 | no route to `CollaborationService` | nothing | Zero WebSocket routes exist under `backend/`, so the class is never reached |
 
 Firestore carries the persistence. The SQLAlchemy path at `db/sql.py:L16-L21` builds an engine, a session factory and a
 declarative base that nothing subclasses and no module calls. Both adapters work at import time, so `db/firestore.py:L40`

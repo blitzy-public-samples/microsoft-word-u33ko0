@@ -148,59 +148,80 @@ The version family is declared twice and never reached. No Python code path cons
 written or read in either language.
 
 The entity-relationship (ER) diagram below adds what the table above cannot: the links between the
-four families, and the language that declares each individual field.
+four families, and the language that declares each individual field. Each attribute carries one of
+nine fixed markers naming where that field is declared.
+
+| Marker | Meaning |
+| -------- | --------- |
+| `both languages` | A Pydantic model and a Zod schema both declare the field |
+| `both, optional` | Both declare it, and both make it optional |
+| `both, unread` | Both declare it, and no code path in either language reads it |
+| `Pydantic only` | A Pydantic model declares it and no Zod schema does |
+| `Zod only` | A Zod schema declares it and no Pydantic model does |
+| `Zod plus local` | The Zod schema and the local `Template` interface in `Templates.tsx` both declare it |
+| `local only` | Only the local `Template` interface in `Templates.tsx` declares it |
+| `service only` | No contract declares it. A service writes the key onto the stored record |
+| `task only` | No contract declares it. A Celery task reads it off the record |
+
+Line-level citations for every field below sit in [Pydantic contracts](#pydantic-contracts),
+[Zod contracts](#zod-contracts) and the [contract drift table](#contract-drift-table), which is why
+the diagram carries the marker rather than repeating the locator.
 
 ```mermaid
 erDiagram
-    USER ||--o{ DOCUMENT : "owns, through a field named four ways"
-    DOCUMENT ||--o{ VERSION : "declared in both languages, constructed by neither"
-    USER ||--o{ TEMPLATE : "client contract only, no server contract exists"
+    accTitle: The four entity families, their links, and the language that declares each field
+    accDescr: Four families. User owns documents through a field named four ways. Documents own versions declared in both languages and constructed by neither. Users own templates that carry a client contract only. Each attribute comment names the language and the line that declares the field.
+    USER ||--o{ DOCUMENT : "owns, via a field named four ways"
+    DOCUMENT ||--o{ VERSION : "declared in both, built by neither"
+    USER ||--o{ TEMPLATE : "client contract only"
 
     USER {
-        string id "user.py:L169 and user.ts:L38"
-        string email "user.ts:L39 z.string().email(), user.py:L80 bare str"
-        string username "user.py:L81 and user.ts:L40, spec says display_name"
-        string full_name "optional in both languages"
-        string password "UserCreate at user.py:L94 only, no Zod counterpart"
+        string id "both languages"
+        string email "both languages"
+        string username "both languages"
+        string full_name "both, optional"
+        string password "Pydantic only"
         datetime created_at "both languages"
-        datetime updated_at "user.py:L171 only, absent from UserSchema"
-        boolean is_active "both languages, read by no code path"
-        boolean is_superuser "both languages, read by no code path"
+        datetime updated_at "Pydantic only"
+        boolean is_active "both, unread"
+        boolean is_superuser "both, unread"
     }
 
     DOCUMENT {
-        string id "document.py:L110 and document.ts:L66"
+        string id "both languages"
         string title "both languages"
         string content "both languages"
-        string owner_id "document.py:L66 optional with a default, document.ts:L69 required"
-        string user_id "same concept, written and compared at document_service.py:L116"
-        datetime created_at "required in Pydantic, z.date() in Zod"
-        datetime updated_at "the spec calls the same field last_modified"
-        array collaborators "document.ts:L72 only, no server contract declares it"
-        integer pages "read at background_tasks.py:L314, declared in neither language"
+        string owner_id "both languages"
+        string user_id "service only"
+        datetime created_at "both languages"
+        datetime updated_at "both languages"
+        array collaborators "Zod only"
+        integer pages "task only"
     }
 
     VERSION {
-        string id "document.py:L131 and document.ts:L87"
+        string id "both languages"
         string document_id "both languages"
-        string content "a full snapshot, where the spec models a changes array"
+        string content "both languages"
         datetime created_at "both languages"
-        string user_id "user_id here, owner_id on DOCUMENT above"
+        string user_id "both languages"
     }
 
     TEMPLATE {
-        string id "template.ts:L31 and the local interface at Templates.tsx:L62"
-        string name "the only other field the two client shapes share"
-        string content "template.ts:L33 only"
-        string owner_id "template.ts:L34 only"
-        datetime created_at "template.ts:L35 only"
-        datetime updated_at "template.ts:L36 only"
-        string description "local interface at Templates.tsx:L64 only"
-        string thumbnail "local interface at Templates.tsx:L65 only"
+        string id "Zod plus local"
+        string name "Zod plus local"
+        string content "Zod only"
+        string owner_id "Zod only"
+        datetime created_at "Zod only"
+        datetime updated_at "Zod only"
+        string description "local only"
+        string thumbnail "local only"
     }
 
 %% Both names appear wherever the two languages disagree, because no name is canonical.
 %% A comment naming a single file and line means only that position declares the field.
+%% The Pydantic contracts, Zod contracts and contract drift sections below carry the full
+%% per-field detail that an attribute comment has no room for.
 ```
 
 Email is the one field where the two languages disagree on validation rather than on naming.
@@ -513,55 +534,58 @@ would reject.
 
 ```mermaid
 graph TD
-    subgraph PATHA["Path A, canvas to Redux store. No edit completes it."]
-        ES["Draft.js EditorState<br/>DocumentCanvas.tsx:L161"]
-        ARG["passes ContentState<br/>DocumentCanvas.tsx:L163"]
-        RAW["raw content, blocks and entityMap<br/>convertToRaw, documentUtils.ts:L40"]
-        STR["serialized string<br/>JSON.stringify, documentUtils.ts:L41"]
-        GUARD1["DocumentSchema.isValid<br/>documentUtils.ts:L44"]
-        DISP["dispatch to the store<br/>DocumentCanvas.tsx:L164"]
+    accTitle: The transformation points between editor state and the stored record
+    accDescr: Path A carries canvas state into the Redux store and no edit completes it. Path B carries page state to REST and fires once, five seconds after mount. The inbound path carries a stored record back to editor state. A dashed edge marks a broken step and its label names the fault.
+    subgraph PATHA["Path A, canvas to Redux store"]
+        ES["Draft.js EditorState<br/>DocumentCanvas.tsx<br/>:L161"]
+        ARG["passes ContentState<br/>DocumentCanvas.tsx<br/>:L163"]
+        RAW["raw content, blocks<br/>and entityMap<br/>convertToRaw<br/>documentUtils.ts:L40"]
+        STR["serialized string<br/>JSON.stringify<br/>documentUtils.ts:L41"]
+        GUARD1["DocumentSchema<br/>.isValid<br/>documentUtils.ts:L44"]
+        DISP["dispatch to the store<br/>DocumentCanvas.tsx<br/>:L164"]
     end
 
-    subgraph PATHB["Path B, editor page to REST. Fires once, five seconds after mount."]
-        PSTATE["page content state<br/>Editor.tsx:L228 sets it, nothing calls it"]
-        SAVE["autoSave<br/>Editor.tsx:L205, timer at :L214"]
-        BODY["request body<br/>api.ts:L246 create, :L288 update"]
-        PYD["Pydantic model<br/>DocumentCreate, document.py:L68"]
-        DICT["plain dictionary<br/>document.dict, document_service.py:L115"]
-        KEYS["adds user_id then id<br/>document_service.py:L116-L117"]
+    subgraph PATHB["Path B, editor page to REST"]
+        PSTATE["page content state<br/>Editor.tsx:L228 sets it,<br/>nothing calls it"]
+        SAVE["autoSave<br/>Editor.tsx:L205,<br/>timer at :L214"]
+        BODY["request body<br/>api.ts:L246 create,<br/>:L288 update"]
+        PYD["Pydantic model<br/>DocumentCreate<br/>document.py:L68"]
+        DICT["plain dictionary<br/>document.dict<br/>document_service.py<br/>:L115"]
+        KEYS["adds user_id then id<br/>document_service.py<br/>:L116-L117"]
     end
 
-    ES -.->|"Editor.tsx:L238 passes two props to a<br/>propless component, so no callback links<br/>Path A to Path B"| PSTATE
+    ES -.->|"Editor.tsx:L238 passes two props<br/>to a propless component, so no<br/>callback links Path A to Path B"| PSTATE
 
-    STORE[("Firestore collection documents<br/>set, document_service.py:L118")]
+    STORE[("Firestore collection<br/>documents<br/>set<br/>document_service.py<br/>:L118")]
 
     subgraph IN["Inbound: Firestore to editor state"]
-        READ["snapshot dictionary<br/>to_dict, document_service.py:L169"]
-        MODEL["typed model<br/>Document(**...), document_service.py:L179"]
+        READ["snapshot dictionary<br/>to_dict<br/>document_service.py<br/>:L169"]
+        MODEL["typed model<br/>Document(**...)<br/>document_service.py<br/>:L179"]
         RESP["response body<br/>documents.py:L186"]
-        GUARD2["Zod validation of the response"]
-        PARSE["raw content object<br/>JSON.parse, documentUtils.ts:L67"]
-        GUARD3["DocumentSchema.isValid<br/>documentUtils.ts:L73"]
-        CONTENT["convertFromRaw, unreachable<br/>documentUtils.ts:L77"]
-        ES2["createWithContent, unreachable<br/>documentUtils.ts:L78"]
-        CALLER["setEditorState receives the EditorState<br/>DocumentCanvas.tsx:L117"]
+        GUARD2["Zod validation<br/>of the response"]
+        PARSE["raw content object<br/>JSON.parse<br/>documentUtils.ts:L67"]
+        GUARD3["DocumentSchema<br/>.isValid<br/>documentUtils.ts:L73"]
+        CONTENT["convertFromRaw<br/>unreachable<br/>documentUtils.ts:L77"]
+        ES2["createWithContent<br/>unreachable<br/>documentUtils.ts:L78"]
+        CALLER["setEditorState receives<br/>the EditorState<br/>DocumentCanvas.tsx<br/>:L117"]
     end
 
-    ES -.->|"TERMINAL: a ContentState arrives where documentUtils.ts:L39 declares EditorState, so :L40 raises before convertToRaw is called"| RAW
+    ES -.->|"TERMINAL: a ContentState arrives<br/>where documentUtils.ts:L39 declares<br/>EditorState, so :L40 raises before<br/>convertToRaw is called"| RAW
     RAW --> STR --> GUARD1
-    GUARD1 -.->|"would raise once the caller is repaired: isValid is not a Zod API, and checks content against a metadata schema"| BODY
+    GUARD1 -.->|"would raise once the caller is<br/>repaired: isValid is not a Zod API,<br/>and checks content against a<br/>metadata schema"| BODY
     BODY --> PYD --> DICT --> KEYS --> STORE
     STORE --> READ --> MODEL
-    MODEL -.->|"raises: created_at and updated_at are required at document.py:L111-L112 and never written"| RESP
+    MODEL -.->|"raises: created_at and updated_at<br/>are required at<br/>document.py:L111-L112<br/>and never written"| RESP
     RESP --> GUARD2
-    GUARD2 -.->|"skipped: no response is parsed anywhere, so z.date() never meets the ISO 8601 string it rejects"| PARSE
+    GUARD2 -.->|"skipped: no response is parsed<br/>anywhere, so z.date() never meets<br/>the ISO 8601 string it rejects"| PARSE
     PARSE --> GUARD3
-    GUARD3 -.->|"first inbound fault: isValid is not a Zod API, and checks content against a metadata schema"| CONTENT
+    GUARD3 -.->|"first inbound fault: isValid is not<br/>a Zod API, and checks content<br/>against a metadata schema"| CONTENT
     CONTENT -.-> ES2
-    ES2 -.->|"second inversion, the exact opposite: an EditorState reaches a parameter declared ContentState"| CALLER
+    ES2 -.->|"second inversion, the exact<br/>opposite: an EditorState reaches a<br/>parameter declared ContentState"| CALLER
 
 %% A dashed edge marks a broken step, and its label names the fault. Every step after the first dashed
 %% edge on a path is unreachable, so a solid edge downstream of one describes intended shape only.
+%% Path A completes no edit. Path B fires once, five seconds after mount.
 ```
 
 ## Related documentation
