@@ -161,6 +161,14 @@ Diagram 2 traces the export path. The task tier that drives it is documented in
 [../tasks/README.md](../tasks/README.md), and the absent Redis broker and worker process in
 [../../../docs/deployment-guide.md](../../../docs/deployment-guide.md).
 
+**No export artifact is uploaded and no signed URL is produced by this repository.** The task tier makes exactly one
+call into `ExportService`, naming a method the class never defines. The path raises before any upload or signing
+statement is reached. `export_to_pdf` at `export_service.py:L87` and `export_to_docx` at `:L168` have zero
+callers anywhere in `backend/app/`. The only callers in the repository are two test statements at
+`../../tests/test_services.py:L67` and `:L75`, and both pass a string where a `Document` is declared.
+
+The diagram below therefore draws the one call that exists, not the two that do not.
+
 ```mermaid
 flowchart TD
     Q["Celery queue"] -.->|"no producer enqueues this task"| T["process_document_export<br/>tasks/background_tasks.py:L101"]
@@ -208,26 +216,25 @@ subscription's life. Read-modify-read update follows: `update_document` costs th
 operations for one edit, the read at L237, the write at L248 and the re-read at L251.
 
 Per-document Pub/Sub topic and subscription fan-out. One topic per document at
-`projects/{PROJECT_ID}/topics/{document_id}`, L120 and L245. One subscription per document and user
-pair at `projects/{PROJECT_ID}/subscriptions/{document_id}_{user_id}`, L121 and L209. The pattern
-assumes a topic that already exists: no `create_topic` call sits anywhere in the repository, and
-`create_subscription` at L124 and `publish` at L248 both answer `NotFound` without one.
+`projects/{PROJECT_ID}/topics/{document_id}`, L120 and L245. One subscription per document and user pair at
+`projects/{PROJECT_ID}/subscriptions/{document_id}_{user_id}`, L121 and L209. The pattern assumes a topic that already
+exists: no `create_topic` call sits anywhere in the repository, and `create_subscription` at L124 and `publish` at L248
+both answer `NotFound` without one.
 
-Per-process in-memory connection registry. `active_connections` at `collaboration_service.py:L71` is a plain dictionary with
-no lock and no shared store, so a second worker process sees none of the sockets the first one holds.
+Per-process in-memory connection registry. `active_connections` at `collaboration_service.py:L71` is a plain dictionary
+with no lock and no shared store, so a second worker process sees none of the sockets the first one holds.
 
-Acknowledge-before-send message handling. `message.ack()` at L162 runs before `websocket.send_json(...)` at L163, so Pub/Sub
-treats a delivery as settled before the client receives it and will not redeliver it.
+Acknowledge-before-send message handling. `message.ack()` at L162 runs before `websocket.send_json(...)` at L163, so
+Pub/Sub treats a delivery as settled before the client receives it and will not redeliver it.
 
-Eager client construction in `__init__`. `PublisherClient` and `SubscriberClient` at
-`collaboration_service.py:L69` and `:L70`, and the Cloud Storage `Client()` at
-`export_service.py:L83`, all run at instantiation. Placeholder-payload export completes the set:
-both export methods upload a literal string, `"PDF_CONTENT"` at L157 and `"DOCX_CONTENT"` at
+Eager client construction in `__init__`. `PublisherClient` and `SubscriberClient` at `collaboration_service.py:L69` and
+`:L70`, and the Cloud Storage `Client()` at `export_service.py:L83`, all run at instantiation. Placeholder-payload
+export completes the set: both export methods upload a literal string, `"PDF_CONTENT"` at L157 and `"DOCX_CONTENT"` at
 L231, under the correct content types.
 
-Three patterns a reader might expect are absent: no common base class, no dependency container,
-and no `Depends` provider. Every handler constructs its own instance per request, at
-`../api/documents.py:L107`, `:L141`, `:L182`, `:L230` and `:L277`.
+Three patterns a reader might expect are absent. No service inherits a common base class, no service is registered in a
+dependency container, and FastAPI's `Depends` never yields one. Every handler constructs its own instance per request,
+at `../api/documents.py:L110`, `:L144`, `:L185`, `:L233` and `:L280`.
 
 The order of the two checks decides which status code a caller receives, traced line by line
 below. `create_document` writes the compared value: L116 sets `doc_data['user_id'] = user_id`
@@ -252,24 +259,6 @@ stored key, and the routers that read `.user_id` off a returned `Document` do no
 
 Four `HUMAN ASSISTANCE NEEDED` markers and four `TODO` markers live in this folder, eight in total and
 more than any other backend directory. All eight are preserved in place. The four markers read:
-
-```text
-document_service.py:L183-L184
-    # HUMAN ASSISTANCE NEEDED
-    # This function might need additional error handling and validation
-
-collaboration_service.py:L73-L74
-    # HUMAN ASSISTANCE NEEDED
-    # The following method has a confidence level of 0.6 and may need adjustments for production readiness
-
-collaboration_service.py:L216-L217
-    # HUMAN ASSISTANCE NEEDED
-    # The following method has a confidence level of 0.7 and may need adjustments for production readiness
-
-export_service.py:L85-L86
-    # HUMAN ASSISTANCE NEEDED
-    # The following methods have a low confidence score and may require additional implementation details or error handling
-```
 
 | Location | Second line of the marker |
 | --- | --- |
@@ -344,6 +333,16 @@ Creating a document and then reading it back, using the signatures declared at `
 ```python
 import asyncio
 
+document = await DocumentService().get_document("abc123", "user-42")
+```
+
+The import fails at `document_service.py:L62`, which requests a `settings` name that `app.core.config` never defines.
+Given that name, `Document(**doc.to_dict())` at L181 then raises because no stored record carries the required
+`created_at` and `updated_at` fields.
+
+Creating a document, per the signature at `document_service.py:L74`:
+
+```python
 from app.schema.document import DocumentCreate
 from app.services.document_service import DocumentService
 
@@ -366,11 +365,11 @@ The import fails first, at `document_service.py:L60`, which requests a `settings
 `app.core.config` never defines. Given that name, `Document(**doc_data)` at L121 raises on the two
 missing timestamp fields, and `Document(**doc.to_dict())` at L179 raises for the same reason.
 
-`CollaborationService` has no usage example. No route constructs the class and no WebSocket endpoint
-exists under `backend/`, so no example can show the class in service. An example calling `connect`
-would stop at L120 with `AttributeError` for the undeclared `settings.PROJECT_ID`, and an example
-calling `broadcast_change` would stop at L245 for the same reason. The `NameError` for `json` at L248
-never reaches a caller, because L250 catches it and L252 prints it.
+`CollaborationService` has no usage example. No route constructs the class and no WebSocket endpoint exists under
+`backend/`, so no example can show the class in service. An example calling `connect` would stop at L120 with
+`AttributeError` for the undeclared `settings.PROJECT_ID`, and an example calling `broadcast_change` would stop at L245
+for the same reason. The `NameError` for `json` at L248 never reaches a caller, because L250 catches it and L252 prints
+it.
 
 Exporting to Portable Document Format (PDF), per the signature at `export_service.py:L87`. The method
 takes a `Document`, so the example builds one first, supplying the two timestamp fields

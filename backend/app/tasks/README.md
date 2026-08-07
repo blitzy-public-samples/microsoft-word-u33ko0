@@ -1,28 +1,26 @@
 # backend/app/tasks
 
-The Celery task tier. One module, `background_tasks.py`, holding 332 physical lines, one
-Celery application, three task functions and no classes, documented as committed.
+The Celery task tier. One module, `background_tasks.py`, holding 332 physical lines, one Celery application, three task functions and
+no classes, documented as committed.
 
-*Citation convention: an unqualified `:Lnnn` locator continues the file named most recently before
-it. Every locator numbers the current branch head, which includes the docstrings this pass added.*
+*Citation convention: an unqualified `:Lnnn` locator continues the file named most recently before it. Every locator numbers the
+current branch head, which includes the docstrings this pass added.*
 
 ## Purpose
 
-`backend/app/tasks` moves three jobs off the request path and onto a Celery queue. The three are exporting a document
-to a file, deleting documents past their retention date, and recounting a document's words and pages.
+`backend/app/tasks` moves three jobs off the request path and onto a Celery queue. The three are exporting a document to a file,
+deleting documents past their retention date, and recounting a document's words and pages.
 
-`background_tasks.py` builds the Celery application at `background_tasks.py:L98` and registers the three tasks with
-the `@celery_app.task` decorator at `:L100`, `:L150` and `:L286`. Four `@celery_app` decorators sit across those three
-functions, because `cleanup_expired_documents` carries a second one at `:L151`.
+`background_tasks.py` builds the Celery application at `background_tasks.py:L98` and registers the three tasks with the
+`@celery_app.task` decorator at `:L100`, `:L150` and `:L286`. Four `@celery_app` decorators sit across those three functions, because
+`cleanup_expired_documents` carries a second one at `:L151`.
 
-The module does not import. `background_tasks.py:L92` requests `settings` from
-`app.core.config`, which declares the `Settings` class at `core/config.py:L51` and a
-`get_settings` factory at `:L126` and no module-level instance, so
-`import app.tasks.background_tasks` raises `ImportError`. `:L98` then reads
-`settings.REDIS_URL` while the module body runs.
+The module does not import. `background_tasks.py:L92` requests `settings` from `app.core.config`, which declares the `Settings` class
+at `core/config.py:L51` and a `get_settings` factory at `:L126` and no module-level instance, so `import app.tasks.background_tasks`
+raises `ImportError`. `:L98` then reads `settings.REDIS_URL` while the module body runs.
 
-Nothing enqueues these tasks. The repository holds no `.delay(` call, no `.apply_async` call and no `send_task` call,
-and no module imports `background_tasks`.
+Nothing enqueues these tasks. The repository holds no `.delay(` call, no `.apply_async` call and no `send_task` call, and no module
+imports `background_tasks`.
 
 ## Key Components
 
@@ -35,49 +33,37 @@ and no module imports `background_tasks`.
 
 ## Architecture Fit
 
-The task tier sits beside the service tier and reaches persistence the same way a service
-does. `background_tasks.py:L93` imports the module-level Firestore client built at
-`db/firestore.py:L40`, and `:L92` imports `DocumentService` declared at
-`services/document_service.py:L62`. No route module imports this one, so nothing in the
-application programming interface (API) tier hands work to the queue. Repository-wide layering
-sits in [../../../docs/architecture-overview.md](../../../docs/architecture-overview.md), and
-the package view in [../README.md](../README.md).
+The task tier sits beside the service tier and reaches persistence the same way a service does. `background_tasks.py:L93` imports the
+module-level Firestore client built at `db/firestore.py:L42`, and `:L94` imports `DocumentService` declared at
+`services/document_service.py:L64`. No route module imports this one, so nothing in the application programming interface (API) tier
+hands work to the queue. Repository-wide layering sits in
+[../../../docs/architecture-overview.md](../../../docs/architecture-overview.md), the package view in [../README.md](../README.md).
 
-`documentation/Technical Specifications.md` anticipates both this tier and its broker. The
-document names Celery as a distributed task queue for Python at `:L554`, under the
-`TECHNOLOGY STACK > FRAMEWORKS AND LIBRARIES > Backend` heading at `L548`. The same
-document names Redis on Google Cloud Memorystore at `:L584-L585`, under the
-`TECHNOLOGY STACK > DATABASES` heading at `L563`. The document also names Google Cloud
-Functions at `:L591`, under the `TECHNOLOGY STACK > THIRD-PARTY SERVICES` heading at
-`L587`. The committed repository provisions no worker and no broker, and no committed file uses
-Cloud Functions. [../../../docs/deployment-guide.md](../../../docs/deployment-guide.md) carries
-the infrastructure evidence.
+`documentation/Technical Specifications.md` anticipates both this tier and its broker. The document names Celery as a distributed task
+queue for Python at `:L554`, under the `TECHNOLOGY STACK > FRAMEWORKS AND LIBRARIES > Backend` heading at `L548`. The same document
+names Redis on Google Cloud Memorystore at `:L584-L585`, under the `TECHNOLOGY STACK > DATABASES` heading at `L563`. The document also
+names Google Cloud Functions at `:L591`, under the `TECHNOLOGY STACK > THIRD-PARTY SERVICES` heading at `L587`. The committed
+repository provisions no worker and no broker, and no committed file uses Cloud Functions.
+[../../../docs/deployment-guide.md](../../../docs/deployment-guide.md) carries the infrastructure evidence.
 
 The specification's export path differs from the committed one in two ways.
-`documentation/Technical Specifications.md, SYSTEM ARCHITECTURE > SEQUENCE DIAGRAMS > Export Document Sequence (L241)`
-diagrams six participants at `:L245-L250`: User, Frontend, API Gateway, ExportService,
-DocumentService and Storage. No queue participant and no worker participant appears there.
-The diagrammed flow is synchronous, with `A->>E: Process export` at `:L254` followed by
+`documentation/Technical Specifications.md, SYSTEM ARCHITECTURE > SEQUENCE DIAGRAMS > Export Document Sequence (L241)` diagrams six
+participants at `:L245-L250`: User, Frontend, API Gateway, ExportService, DocumentService and Storage. No queue participant and no
+worker participant appears there. The diagrammed flow is synchronous, with `A->>E: Process export` at `:L254` followed by
 `E->>D: Fetch document` at `:L255`.
 
-The committed code inverts both properties. `process_document_export` at
-`background_tasks.py:L101` carries the `@celery_app.task` decorator at `:L100`, so a queue
-stands between a caller and the work. The task reads from `DocumentService` itself at
-`:L135` and then hands the result to `ExportService` at `:L138`, reversing the
-ExportService-to-DocumentService direction the diagram shows.
+The committed code inverts both properties. `process_document_export` at `background_tasks.py:L101` carries the `@celery_app.task`
+decorator at `:L100`, so a queue stands between a caller and the work. The task reads from `DocumentService` itself at `:L135` and
+then hands the result to `ExportService` at `:L138`, reversing the ExportService-to-DocumentService direction the diagram shows.
 
 ## Dependencies
 
-Three of the seven internal names below do not resolve, and one of the three stops the
-module at import. Every external floor carries a code fact, because the repository commits
-no backend dependency manifest. The planned, not yet committed
-[decision log](../../../docs/decision-log.md) will record those inference
-choices. [../services/README.md](../services/README.md) documents `DocumentService` and
-`ExportService` themselves.
-[../../../docs/integration-guide.md](../../../docs/integration-guide.md) labels the
-external services these packages reach by reachability, and the absent worker, beat
-scheduler and Memorystore instance sit in
-[../../../docs/deployment-guide.md](../../../docs/deployment-guide.md).
+Three of the seven internal names below do not resolve, and one of the three stops the module at import. Every external floor carries
+a code fact, because the repository commits no backend dependency manifest. The planned, not yet committed
+[decision log](../../../docs/decision-log.md) will record those inference choices. [../services/README.md](../services/README.md)
+documents `DocumentService` and `ExportService` themselves. [../../../docs/integration-guide.md](../../../docs/integration-guide.md)
+labels the external services these packages reach by reachability, and the absent worker, beat scheduler and Memorystore instance sit
+in [../../../docs/deployment-guide.md](../../../docs/deployment-guide.md).
 
 ### Internal
 
@@ -93,9 +79,9 @@ scheduler and Memorystore instance sit in
 
 ### External
 
-No Python dependency manifest and no lock file is committed anywhere, so each row records what the code requires
-rather than a supported version. "Unestablished" means nothing here pins the distribution, and is not a statement that
-any release is safe. A reviewed manifest and lock file is required future work.
+No Python dependency manifest and no lock file is committed anywhere, so each row records what the code requires rather than a
+supported version. "Unestablished" means nothing here pins the distribution, and is not a statement that any release is safe. A
+reviewed manifest and lock file is required future work.
 
 | Distribution | Floor | Establishing code fact |
 | --- | --- | --- |
@@ -103,13 +89,13 @@ any release is safe. A reviewed manifest and lock file is required future work.
 | google-cloud-storage | Any | `from google.cloud.storage import Client` at `background_tasks.py:L91`. The module calls `bucket()` at `:L141` and `:L278`, `blob()` at `:L142` and `:L279`, `upload_from_file()` at `:L143`, `generate_signed_url()` at `:L146` and `delete()` at `:L280`. |
 | redis | Any | `background_tasks.py:L98` builds a Redis broker URL. No dependency manifest declares the client library, because the repository commits no Python manifest at all, so Celery reaches no broker until someone installs it. |
 
-Raising the Celery version cannot make `:L151` work. The `periodic_task` attribute that line expects belongs to Celery
-3, so no release in the 4 or 5 series provides it.
+Raising the Celery version cannot make `:L151` work. The `periodic_task` attribute that line expects belongs to Celery 3, so no
+release in the 4 or 5 series provides it.
 
 ## Configuration
 
-`background_tasks.py` reads three settings and `Settings` declares one, with all fifteen backend
-settings classified in [../core/README.md](../core/README.md).
+`background_tasks.py` reads three settings and `Settings` declares one. All fifteen backend settings are classified in
+[../core/README.md](../core/README.md).
 
 | Setting | Read at | Status |
 | --- | --- | --- |
@@ -117,18 +103,16 @@ settings classified in [../core/README.md](../core/README.md).
 | `EXPORT_BUCKET_NAME` | `background_tasks.py:L141`, inside `process_document_export` | READ-BUT-NEVER-DECLARED |
 | `DOCUMENT_BUCKET_NAME` | `background_tasks.py:L278`, inside `cleanup_expired_documents` | READ-BUT-NEVER-DECLARED |
 
-`Settings` at `core/config.py:L51` declares nine fields at `:L111-L119`, and neither bucket
-name is among them. Each undeclared read raises `AttributeError` on a `Settings` instance, so
-the export task cannot name its bucket at `background_tasks.py:L141` and the retention sweep
-cannot name its bucket at `:L278`. No committed file supplies a value for either, and
-`Config.env_file` at `core/config.py:L123` names a `.env` file the repository does not commit.
+`Settings` at `core/config.py:L51` declares nine fields at `:L111-L119`, and neither bucket name is among them. Each undeclared read
+raises `AttributeError` on a `Settings` instance, so the export task cannot name its bucket at `background_tasks.py:L141` and the
+retention sweep cannot name its bucket at `:L278`. No committed file supplies a value for either, and `Config.env_file` at
+`core/config.py:L123` names a `.env` file the repository does not commit.
 
 ## Data Flows
 
-Every flow below starts at the Celery application at `background_tasks.py:L98` and ends in
-Firestore or Google Cloud Storage. None runs, because no producer enqueues a task and no
-committed file provisions the broker `:L98` names. Dashed edges mark a call that cannot
-complete as committed.
+Every flow below starts at the Celery application at `background_tasks.py:L98` and ends in Firestore or Google Cloud Storage. None
+runs, because no producer enqueues a task and no committed file provisions the broker `:L98` names. Dashed edges mark a call that
+cannot complete as committed.
 
 ```mermaid
 graph TD
@@ -168,12 +152,12 @@ graph TD
 ```
 
 The export task writes one object key and the retention sweep reads another. `process_document_export` builds
-`exports/{user_id}/{document_id}.{export_format}` at `:L142`, while `cleanup_expired_documents` builds
-`{user_id}/{doc_id}` at `:L279`. A file written by the first task is not found by the second, so the sweep at `:L280`
-addresses a key no writer in the repository creates.
+`exports/{user_id}/{document_id}.{export_format}` at `:L142`, while `cleanup_expired_documents` builds `{user_id}/{doc_id}` at
+`:L279`. A file written by the first task is not found by the second, so the sweep at `:L280` addresses a key no writer in the
+repository creates.
 
-Seven Firestore document fields cross this boundary. Three are written here and nowhere else,
-and two are read here with no writer anywhere.
+Seven Firestore document fields cross this boundary. Three are written here and nowhere else, and two are read here with no writer
+anywhere.
 
 | Field | Task and site | Direction | Writer in the repository |
 | --- | --- | --- | --- |
@@ -195,31 +179,23 @@ under one map key written at `:L317`, and no reader consumes them. Neither
 
 ## Design Patterns
 
-Four patterns are present in the code. `celery_app` at `background_tasks.py:L98` applies
-task-queue offloading, moving work off the request path and onto a broker. `:L151` states an
-intended scheduled retention sweep with `run_every=timedelta(days=1)`. `:L146` applies
-signed-URL delivery, handing a caller a time-limited link instead of file bytes. `:L98` also
-builds the application as a module-level instance during import, the same import-time
-construction `db/firestore.py:L40` uses for the Firestore client.
+Four patterns are present in the code. `celery_app` at `background_tasks.py:L98` applies task-queue offloading, moving work off the
+request path and onto a broker. `:L151` states an intended scheduled retention sweep with `run_every=timedelta(days=1)`. `:L146`
+applies signed-URL delivery, handing a caller a time-limited link instead of file bytes. `:L98` also builds the application as a
+module-level instance during import, the same import-time construction `db/firestore.py:L42` uses for the Firestore client.
 
-Six pieces that a working Celery deployment needs are absent, and each absence belongs to
-this module rather than to Celery. No producer exists: no tracked file calls `.delay(`,
-`.apply_async` or `send_task`. No worker descriptor and no beat schedule appears in the
-repository, so the daily sweep `background_tasks.py:L151` asks for has nothing to run it.
-`:L98` passes a broker argument and no `backend` argument, so no result backend stores a
-return value, and the `str` that `:L101` declares has nowhere to go. The three
-`@celery_app.task` decorators at `:L100`, `:L150` and `:L286` pass no arguments, so no
-`autoretry_for`, `max_retries`, `acks_late` or `time_limit` applies, and no task body holds
-a `try` block.
+Six pieces that a working Celery deployment needs are absent, and each absence belongs to this module rather than to Celery. No
+producer exists: no tracked file calls `.delay(`, `.apply_async` or `send_task`. No worker descriptor and no beat schedule appears in
+the repository, so the daily sweep `background_tasks.py:L151` asks for has nothing to run it. `:L98` passes a broker argument and no
+`backend` argument, so no result backend stores a return value, and the `str` that `:L101` declares has nowhere to go. The three
+`@celery_app.task` decorators at `:L100`, `:L150` and `:L286` pass no arguments, so no `autoretry_for`, `max_retries`, `acks_late` or
+`time_limit` applies, and no task body holds a `try` block.
 
-The retention sweep carries no idempotency guard and deletes in an order that cannot be
-undone. Its loop body raises at five successive points once the earlier layers clear:
-`:L271` on a record with no `user_id` key, `:L278` on the undeclared
-`settings.DOCUMENT_BUCKET_NAME`, `:L280` on an object key no writer produces, `:L283` on
-`.delete()` against a list, and nothing at all after `:L284`. The Firestore document goes
-first, at `:L274`, so every one of those raises leaves the record gone and its file,
-permissions and metadata behind. No `try` guards the loop, so the first raise abandons every
-remaining expired document too.
+The retention sweep carries no idempotency guard and deletes in an order that cannot be undone. Its loop body raises at five
+successive points once the earlier layers clear: `:L271` on a record with no `user_id` key, `:L278` on the undeclared
+`settings.DOCUMENT_BUCKET_NAME`, `:L280` on an object key no writer produces, `:L283` on `.delete()` against a list, and nothing at
+all after `:L284`. The Firestore document goes first, at `:L274`, so every one of those raises leaves the record gone and its file,
+permissions and metadata behind. No `try` guards the loop, so the first raise abandons every remaining expired document too.
 [../../../docs/troubleshooting.md](../../../docs/troubleshooting.md#the-retention-sweep-fails-partway-and-leaves-records-behind)
 traces each step and the state it leaves.
 
@@ -227,15 +203,15 @@ traces each step and the state it leaves.
 
 ### Broker trust boundary
 
-The queue is absent, and its absence is not a control. Every task here treats the message as trusted input. `:L101`
-declares `document_id`, `export_format` and `user_id` as plain parameters, and no line in any task body checks any of
-the three. A publisher that reaches the broker therefore chooses the identity the work runs under, and the worker runs
-that work with the ambient service credentials `db/firestore.py:L39` discovers and `:L40` binds. The eight
-prerequisites below have to exist before any enqueue path is exposed, and none exists today.
+The queue is absent, and its absence is not a control. Every task here treats the message as trusted input. `:L101` declares
+`document_id`, `export_format` and `user_id` as plain parameters, and no line in any task body checks any of the three. A publisher
+that reaches the broker therefore chooses the identity the work runs under, and the worker runs that work with the ambient service
+credentials `db/firestore.py:L39` discovers and `:L40` binds. The eight prerequisites below have to exist before any enqueue path is
+exposed, and none exists today.
 
 | Prerequisite | State as committed | Evidence |
 | --- | --- | --- |
-| Authenticated and authorized producers | Absent. The publisher asserts identity through `user_id`, and `:L135` calls `get_document(document_id, user_id)` on an `async def` without awaiting it, so the ownership comparison at `services/document_service.py:L175` never runs. Awaiting it would check only the pair the message supplied, so knowledge of any document identifier and its owner would authorize the export. | `:L101`, `:L135` |
+| Authenticated and authorized producers | Absent. The publisher asserts identity through `user_id`, and `:L135` calls `get_document(document_id, user_id)` on an `async def` without awaiting it, so the ownership comparison at `services/document_service.py:L177` never runs. Awaiting it would check only the pair the message supplied, so knowledge of any document identifier and its owner would authorize the export. | `:L101`, `:L135` |
 | Broker transport security and access control | Unestablished. `:L98` reads `settings.REDIS_URL`, a bare string at `core/config.py:L119` with no scheme, credential or peer requirement, and no committed file provisions the instance, so no password, no access control list and no `rediss://` transport exists to review. | `:L98`, `core/config.py:L119` |
 | Message schema and size validation | Absent. Celery binds the three declared arguments, and no body line validates the type, the length or the content of any of them. | `:L101` |
 | `export_format` allow-listing | Absent. `:L138` hands the value to a conversion call and `:L142` interpolates it into the object key extension, so a publisher chooses the extension the stored object carries. | `:L138`, `:L142` |
@@ -244,9 +220,8 @@ prerequisites below have to exist before any enqueue path is exposed, and none e
 | Least-privilege workers | Absent. `:L93` binds the module-level Firestore client, `:L141` and `:L277` construct Cloud Storage clients, and the sweep deletes documents, stored files, permission records and metadata, so a publisher who can enqueue reaches delete authority across the project. | `:L93`, `:L274`, `:L280`, `:L283`, `:L284` |
 | Result confidentiality | `:L148` returns a signed URL, which is a bearer credential, and `:L98` configures no result backend, so no reviewed store and no retention rule covers the returned value. | `:L98`, `:L146`, `:L148` |
 
-Two of those rows belong to a broker deployment rather than to this code: producer authentication and transport
-security are Redis configuration, and no committed file provisions Redis. The other six are code changes in this
-module.
+Two of those rows belong to a broker deployment rather than to this code: producer authentication and transport security are Redis
+configuration, and no committed file provisions Redis. The other six are code changes in this module.
 
 ### Markers and per-file defects
 
@@ -258,71 +233,57 @@ both are reproduced verbatim below.
 | `background_tasks.py:L128-L129` | `process_document_export` | "This function needs review for production readiness and error handling" |
 | `background_tasks.py:L262-L263` | `cleanup_expired_documents` | "This function needs review for production readiness, error handling, and optimization" |
 
-Failures arrive in three layers, and the first hides the other two. A reader who repairs one
-layer meets the next.
+Failures arrive in three layers, and the first hides the other two. A reader who repairs one layer meets the next.
 
-1. **The module raises at import.** `background_tasks.py:L92` imports `settings`, which
-   `app.core.config` never defines, and `:L98` dereferences it in the module body.
-2. **The stacked decorator raises next.** `@celery_app.periodic_task` at `:L151` is not a
-   Celery 4 or 5 application attribute, so evaluating that attribute raises `AttributeError`
-   while the module body runs. `:L151` sits below `@celery_app.task` at `:L150`, so Python
-   would apply `:L151` first, and neither application happens.
-3. **Each task then fails on its own line.** The three first-failure points are `:L138`,
-   `:L267` and `:L310`, listed per task below.
+1. **The module raises at import.** `background_tasks.py:L92` imports `settings`, which `app.core.config` never defines, and `:L98`
+   dereferences it in the module body.
+2. **The stacked decorator raises next.** `@celery_app.periodic_task` at `:L151` is not a Celery 4 or 5 application attribute, so
+   evaluating that attribute raises `AttributeError` while the module body runs. `:L151` sits below `@celery_app.task` at `:L150`, so
+   Python would apply `:L151` first, and neither application happens.
+3. **Each task then fails on its own line.** The three first-failure points are `:L138`, `:L267` and `:L310`, listed per task below.
 
 Per-task first failure and what the failure hides:
 
-- **`process_document_export` raises `AttributeError` at `:L138`.** The call at `:L135` passes
-  both required arguments, so binding succeeds, and `document` binds to a coroutine because the
-  `async def` at `services/document_service.py:L123` is never awaited.
-  `background_tasks.py:L138` then calls `convert_document`, which `services/export_service.py`
-  does not declare. `background_tasks.py:L141`, `:L143`, `:L146` and the `return signed_url` at
-  `:L148` never run, so the declared `-> str` at `:L101` delivers no value.
-- **`cleanup_expired_documents` raises `NameError` at `background_tasks.py:L267`.** `:L271`,
-  `:L274`, `:L280`, `:L283` and `:L284` are all unreachable. The list `.delete()` at `:L283`
-  is a real defect and is not the one that fires first.
-- **`update_document_statistics` raises `TypeError` at `background_tasks.py:L310`.**
-  `get_document` declares `(self, document_id, user_id)` at
-  `services/document_service.py:L123`, and `background_tasks.py:L310` passes `document_id`
-  alone. Python binds arguments at call time even for an `async def`, so `document` never binds
-  at all. `:L313`, `:L314`, `:L317` and `:L321` are all unreachable, and the two defects at
-  `:L314` and `:L321` surface only once `:L310` is fixed.
+- **`process_document_export` raises `AttributeError` at `:L138`.** The call at `:L135` passes both required arguments, so binding
+  succeeds, and `document` binds to a coroutine because the `async def` at `services/document_service.py:L123` is never awaited.
+  `background_tasks.py:L138` then calls `convert_document`, which `services/export_service.py` does not declare.
+  `background_tasks.py:L141`, `:L143`, `:L146` and the `return signed_url` at `:L148` never run, so the declared `-> str` at `:L101`
+  delivers no value.
+- **`cleanup_expired_documents` raises `NameError` at `background_tasks.py:L267`.** `:L271`, `:L274`, `:L280`, `:L283` and `:L284` are
+  all unreachable. The list `.delete()` at `:L283` is a real defect and is not the one that fires first.
+- **`update_document_statistics` raises `TypeError` at `background_tasks.py:L310`.** `get_document` declares
+  `(self, document_id, user_id)` at `services/document_service.py:L123`, and `background_tasks.py:L310` passes `document_id` alone.
+  Python binds arguments at call time even for an `async def`, so `document` never binds at all. `:L313`, `:L314`, `:L317` and `:L321`
+  are all unreachable, and the two defects at `:L314` and `:L321` surface only once `:L310` is fixed.
 
 The remaining defects, each latent behind a failure above:
 
 - **`background_tasks.py:L283` calls `.delete()` on a list.**
-  `db.collection('document_permissions').where('document_id', '==', doc_id).get()` returns
-  a list of snapshots, and a list carries no `delete` method.
-- **`background_tasks.py:L314` reads `document.pages`, which no contract declares.**
-  `Document` at
-  `schema/document.py:L96` declares `id` at `:L110`, `created_at` at `:L111` and
-  `updated_at` at `:L112`. The model inherits `title` at `schema/document.py:L64`, `content`
-  at `:L65` and `owner_id` at `:L66` from `DocumentBase` at `:L55`. Six fields, and no `pages`.
-- **`background_tasks.py:L321` reads the undefined `datetime`,** as does `:L267`. `:L96`
-  imports `timedelta` alone.
-- **`background_tasks.py:L146` generates a signed URL with no `version` argument,** so the
-  call defaults to version 2. `services/export_service.py:L161` and `:L235` both pass
-  `version="v4"` for the same kind of artifact, so the two paths sign differently.
-- **Two object-key layouts describe the same artifact.** `background_tasks.py:L142` writes
-  `exports/{user_id}/{document_id}.{export_format}` and `:L279` deletes
-  `{user_id}/{doc_id}`.
-- **`background_tasks.py:L264` binds `document_service` and no later line in
-  `cleanup_expired_documents` reads it.** The name appears exactly once across the body.
-- **`background_tasks.py:L141` and `:L278` read settings that `Settings` never declares,** so
-  each raises `AttributeError` once the import failure clears.
-- **The queue has no producer, no worker and no broker.** Nothing enqueues the three tasks,
-  and no worker process or beat scheduler appears in the repository. No committed file
-  provisions the Redis instance `:L98` names, so every task stays unrun even after the code
-  defects above are fixed.
+  `db.collection('document_permissions').where('document_id', '==', doc_id).get()` returns a list of snapshots, and a list carries no
+  `delete` method.
+- **`background_tasks.py:L314` reads `document.pages`, which no contract declares.** `Document` at `schema/document.py:L98` declares
+  `id` at `:L112`, `created_at` at `:L113` and `updated_at` at `:L114`. The model inherits `title` at `schema/document.py:L66`,
+  `content` at `:L67` and `owner_id` at `:L68` from `DocumentBase` at `:L57`. Six fields, and no `pages`.
+- **`background_tasks.py:L321` reads the undefined `datetime`,** as does `:L267`. `:L96` imports `timedelta` alone.
+- **`background_tasks.py:L146` generates a signed URL with no `version` argument,** so the call defaults to version 2.
+  `services/export_service.py:L161` and `:L235` both pass `version="v4"` for the same kind of artifact, so the two paths sign
+  differently.
+- **Two object-key layouts describe the same artifact,** `exports/{user_id}/{document_id}.{export_format}` at
+  `background_tasks.py:L142` against `{user_id}/{doc_id}` at `:L279`, as the Data Flows section traces.
+- **`background_tasks.py:L264` binds `document_service` and no later line in `cleanup_expired_documents` reads it.** The name appears
+  exactly once across the body.
+- **`background_tasks.py:L141` and `:L278` read settings that `Settings` never declares,** so each raises `AttributeError` once the
+  import failure clears.
+- **The queue has no producer, no worker and no broker,** so every task stays unrun even after the code defects above are fixed. The
+  Design Patterns section lists the six missing deployment pieces with their evidence.
 
 The repository-wide defect register, with the same evidence grouped by symptom, sits in
 [../../../docs/troubleshooting.md](../../../docs/troubleshooting.md).
 
 ## Usage Examples
 
-The three declared task shapes are below, taken from each signature line and shown with an
-elided body so the block parses. No example here runs today: the module raises `ImportError`
-at `background_tasks.py:L92`, so no name inside it can be reached.
+The three declared task shapes are below, taken from each signature line and shown with an elided body so the block parses. No example
+here runs today: the module raises `ImportError` at `background_tasks.py:L92`, so no name inside it can be reached.
 
 ```python
 # background_tasks.py:L98
@@ -338,11 +299,11 @@ def cleanup_expired_documents(): ...
 def update_document_statistics(document_id: str): ...
 ```
 
-A caller would enqueue the export task through the Celery task interface, naming the three declared parameters. **Do
-not run this shape against a reachable broker.** The enqueue below is privileged: the publisher supplies all three
-arguments, and the worker adopts the supplied `user_id` as the acting identity. `export_format` reaches the stored
-object key at `:L142`. Read it as the declared task signature rather than as a usage pattern, and satisfy the eight
-prerequisites in [Broker trust boundary](#broker-trust-boundary) before any producer is allowed to publish.
+A caller would enqueue the export task through the Celery task interface, naming the three declared parameters. **Do not run this
+shape against a reachable broker.** The enqueue below is privileged: the publisher supplies all three arguments, and the worker adopts
+the supplied `user_id` as the acting identity. `export_format` reaches the stored object key at `:L142`. Read it as the declared task
+signature rather than as a usage pattern, and satisfy the eight prerequisites in [Broker trust boundary](#broker-trust-boundary)
+before any producer is allowed to publish.
 
 ```python
 from app.tasks.background_tasks import process_document_export
@@ -354,13 +315,11 @@ process_document_export.delay(
 )
 ```
 
-The call above cannot run. The import on its first line raises `ImportError` at
-`background_tasks.py:L92`. No tracked file makes a call of this shape either: the repository
-holds zero `.delay(`, zero `.apply_async` and zero `send_task` calls, and no module imports
+The call above cannot run. The import on its first line raises `ImportError` at `background_tasks.py:L92`. No tracked file makes a
+call of this shape either: the repository holds zero `.delay(`, zero `.apply_async` and zero `send_task` calls, and no module imports
 `background_tasks`.
 
-Reproduce the import failure from the `backend` directory, the root that makes the `app.*`
-prefix resolvable:
+Reproduce the import failure from the `backend` directory, the root that makes the `app.*` prefix resolvable:
 
 ```bash
 cd backend
@@ -375,16 +334,14 @@ File "app/tasks/background_tasks.py", line 92, in <module>
 ImportError: cannot import name 'settings' from 'app.core.config'
 ```
 
-A worker would attach to the application object by module path, and a second process would run the daily sweep the
-decorator at `:L151` asks for:
+A worker would attach to the application object by module path, and a second process would run the daily sweep the decorator at
+`:L151` asks for:
 
 ```bash
 celery -A app.tasks.background_tasks worker --loglevel=info
 celery -A app.tasks.background_tasks beat --loglevel=info
 ```
 
-Neither command works as committed. Both import the module and hit `:L92`, and both need the
-Redis broker `:L98` names and no committed file provisions. The `beat` command also has no
-schedule to read, because `:L151` raises rather than registering one. Environment steps,
-version prerequisites and the repair order belong in
-[../../../docs/onboarding.md](../../../docs/onboarding.md).
+Neither command works as committed. Both import the module and hit `:L92`, and both need the Redis broker `:L98` names and no
+committed file provisions. The `beat` command also has no schedule to read, because `:L151` raises rather than registering one.
+Environment steps, version prerequisites and the repair order belong in [../../../docs/onboarding.md](../../../docs/onboarding.md).

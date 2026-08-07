@@ -1,5 +1,7 @@
 # frontend/src/services
 
+*Line citations in this document use the current numbering of each module at `HEAD`, counting the comment blocks the inline documentation pass added. Each citation names its symbol as well as its line, so a reader can confirm the target after any later edit.*
+
 ## Purpose
 
 The directory holds the client's three outbound integration points: document calls over REST (Representational State Transfer), authentication calls, and a Socket.IO collaboration client. `api.ts` builds one shared Axios instance and exports three document functions. `auth.ts` exports three authentication functions that bypass that shared instance and call the bare Axios global. `collaboration.ts` exports a class that wraps a Socket.IO connection. Only `api.ts` has importers anywhere in `frontend/src`, and each of its three importers names a symbol the module never defines.
@@ -128,6 +130,7 @@ Every item below comes from the committed code. Two of the three modules have no
 - `createApiClient` at `api.ts:L133` is declared `const` with no `export`, so no other module can build a client.
 - The response interceptor at `api.ts:L151-L157` adds no behavior, because both of its branches return their argument unchanged.
 - `api.ts:L82` reads `REACT_APP_API_BASE_URL` while `infrastructure/docker/docker-compose.yml:L11` injects `REACT_APP_API_URL`, so `baseURL` is `undefined`.
+- The three `/documents` paths fail three different ways once the blockers above clear, because `backend/app/main.py:L125-L128` mounts every router with no prefix. `GET /documents` at `api.ts:L218` is a single path segment, so it matches `GET /{document_id}` at `backend/app/api/documents.py:L148` and returns one document whose id is the literal string `documents`, where the caller declared `Document[]`. `POST /documents` at `api.ts:L246` matches the same single-segment shape for which no router declares `POST`, so Starlette answers 405 rather than 404. `PUT /documents/${documentId}` at `api.ts:L288` carries two segments that no route declares, so it answers 404.
 - Three importers name symbols this module never defines: `getDocument` (`frontend/src/pages/Editor.tsx:L25`), `getTemplates` (`frontend/src/pages/Templates.tsx:L35`) and `updateUserSettings` (`frontend/src/pages/Settings.tsx:L31`). All three imports use the `@/` prefix, which `frontend/tsconfig.json:L10-L16` never maps, so each import fails module resolution before the compiler checks the member name. The parent [`../README.md`](../README.md) owns the alias root cause.
 - `api.ts:L287` runs to 110 characters, above the 100-character width the other modules keep.
 

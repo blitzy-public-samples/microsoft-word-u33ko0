@@ -5,16 +5,16 @@
 `user.ts:L56` declares `export type User`, and `template.ts:L40` declares `export type Template`. The three importers that
 ask `document.ts` for a type sit at `store/documentSlice.ts:L22`, `services/api.ts:L80` and `services/collaboration.ts:L15`.
 
-Those three sites name five absent type references. `Document` is missing at all three, while `DocumentCreate` and
-`DocumentUpdate` are missing at `services/api.ts:L80` alone. All three imports use relative paths, so the module itself
-resolves and each import fails on the missing member rather than on the path.
+Those three sites name five absent type references. `Document` is missing at all three, while `DocumentCreate` and `DocumentUpdate` are missing at
+`services/api.ts:L80` alone. All three imports use relative paths, so the module itself resolves and each import fails on the missing member
+rather than on the path.
 
 ## Purpose
 
-The directory declares the client-side contracts for the three records the browser application exchanges with the server: a
-document, a user and a template. Each module declares Zod object schemas, and two of the three also export a TypeScript type
-inferred from their schema. Consumers take the inferred types and leave the schema values almost entirely unused, so nothing
-in the running application validates against them. No module reaches the network, reads configuration or holds state.
+The directory declares the client-side contracts for the three records the browser application exchanges with the server: a document, a user and a
+template. Each module declares Zod object schemas, and two of the three also export a TypeScript type inferred from their schema. Consumers take
+the inferred types and leave the schema values almost entirely unused, so nothing in the running application validates against them. No module
+reaches the network, reads configuration or holds state.
 
 ## Key Components
 
@@ -27,24 +27,22 @@ in the running application validates against them. No module reaches the network
 | `TemplateSchema` | Zod object schema | `template.ts:L30-L37` | Six required fields: `id` L31, `name` L32, `content` L33, `owner_id` L34, `created_at` L35, `updated_at` L36. No module imports the value either. |
 | `Template` | Inferred TypeScript type | `template.ts:L40` | `z.infer<typeof TemplateSchema>`. No module imports the name. |
 
-`document.ts` and `template.ts` declare no `.optional()` and no `.nullable()` call, so every field in both files is required
-and rejects null. `full_name` at `user.ts:L41` is the only optional field here, and `email` at `user.ts:L39` carries the only format check.
+`document.ts` and `template.ts` declare no `.optional()` and no `.nullable()` call, so every field in both files is required and rejects null.
+`full_name` at `user.ts:L41` is the only optional field here, and `email` at `user.ts:L39` carries the only format check.
 
 ## Architecture Fit
 
-The directory forms the client half of the contract boundary between the React application and the FastAPI service. Its
-consumers split two ways. The store slices and the service clients import inferred types, which the compiler erases, so no
-schema reaches the running program. One module imports a schema value, `utils/documentUtils.ts:L22`, whose two calls name a
-method Zod does not define. The directory sits below every frontend consumer, beside `backend/app/schema/` across the
-boundary, and enforces nothing at either edge as committed.
+The directory forms the client half of the contract boundary between the React application and the FastAPI service. Its consumers split two ways.
+The store slices and the service clients import inferred types, which the compiler erases, so no schema reaches the running program. One module
+imports a schema value, `utils/documentUtils.ts:L22`, whose two calls name a method Zod does not define. The directory sits below every frontend
+consumer, beside `backend/app/schema/` across the boundary, and enforces nothing at either edge as committed.
 
-The in-repository specification serves as a point of comparison rather than a source of truth for this code. Its
-`## DATABASE DESIGN` heading at `documentation/Technical Specifications.md:L315` describes a Firestore Documents collection
-holding `document_id`, `title`, `owner_id`, `created_at`, `last_modified` and `content` at L331-L336. `DocumentSchema`
-matches that list on `title`, `content`, `owner_id` and `created_at`, names the primary key `id` at `document.ts:L66`, names
-the modification timestamp `updated_at` at `document.ts:L71`, and adds `collaborators` at `document.ts:L72`. The
-`## API DESIGN` heading at `documentation/Technical Specifications.md:L402` describes the endpoints these shapes travel over.
-See the [architecture overview](../../../docs/architecture-overview.md) for the wider map and the
+The in-repository specification serves as a point of comparison rather than a source of truth for this code. Its `## DATABASE DESIGN` heading at
+`documentation/Technical Specifications.md:L315` describes a Firestore Documents collection holding `document_id`, `title`, `owner_id`,
+`created_at`, `last_modified` and `content` at L331-L336. `DocumentSchema` matches that list on `title`, `content`, `owner_id` and `created_at`,
+names the primary key `id` at `document.ts:L66`, names the modification timestamp `updated_at` at `document.ts:L71`, and adds `collaborators` at
+`document.ts:L72`. The `## API DESIGN` heading at `documentation/Technical Specifications.md:L402` describes the endpoints these shapes travel
+over. See the [architecture overview](../../../docs/architecture-overview.md) for the wider map and the
 [Pydantic contracts](../../../backend/app/schema/README.md) for the server half of this boundary.
 
 ## Dependencies
@@ -69,18 +67,18 @@ The three modules import no internal module. Every relationship below points inw
 | --- | --- | --- | --- |
 | `zod` | `document.ts:L43`, `user.ts:L15`, `template.ts:L20` | No | Imported but undeclared |
 
-`frontend/package.json:L6-L14` declares seven runtime dependencies and omits `zod`, so all three modules resolve their only
-import to nothing. Three of the frontend's thirteen undeclared-package resolution errors originate here, and a fourth `zod`
-import sits at `utils/validation.ts:L13`. The specification does not name `zod` either: its `## FRAMEWORKS AND LIBRARIES`
-heading declares Axios at `documentation/Technical Specifications.md:L544` and Draft.js at `:L545`.
+`frontend/package.json:L6-L14` declares seven runtime dependencies and omits `zod`, so all three modules resolve their only import to nothing.
+Three of the frontend's thirteen undeclared-package resolution errors originate here, and a fourth `zod` import sits at `utils/validation.ts:L13`.
+The specification does not name `zod` either: its `## FRAMEWORKS AND LIBRARIES` heading declares Axios at
+`documentation/Technical Specifications.md:L544` and Draft.js at `:L545`.
 
-The [frontend source README](../README.md) owns the consolidated register: the full undeclared-package list, the `@/` alias
-analysis and the complete type-check profile. The [data model reference](../../../docs/data-model.md) consolidates the drift.
+The [frontend source README](../README.md) owns the consolidated register: the full undeclared-package list, the `@/` alias analysis and the
+complete type-check profile. The [data model reference](../../../docs/data-model.md) consolidates the drift.
 
 ## Configuration
 
-These three modules read no configuration. No `process.env` reference, no imported constant and no schema default appears in
-any of the three files, and the frontend's one environment variable read sits elsewhere, at `services/api.ts:L82`.
+These three modules read no configuration. No `process.env` reference, no imported constant and no schema default appears in any of the three
+files, and the frontend's one environment variable read sits elsewhere, at `services/api.ts:L82`.
 
 | Surface | Value | Location |
 | --- | --- | --- |
@@ -90,26 +88,25 @@ any of the three files, and the frontend's one environment variable read sits el
 
 ## Data Flows
 
-Two paths leave the directory, and neither delivers a validated value. The type path is severed at `document.ts`, so the three
-importers that ask for a document type receive nothing. The two that resolve, `store/userSlice.ts:L22` and
-`services/auth.ts:L70`, receive a compile-time type that the emitted JavaScript no longer carries.
+Two paths leave the directory, and neither delivers a validated value. The type path is severed at `document.ts`, so the three importers that ask
+for a document type receive nothing. The two that resolve, `store/userSlice.ts:L22` and `services/auth.ts:L70`, receive a compile-time type that
+the emitted JavaScript no longer carries.
 
-The value path resolves and then reaches a broken call. `utils/documentUtils.ts:L22` is the only module anywhere that imports
-a schema value, and `:L44` and `:L73` both call `DocumentSchema.isValid`, which Zod does not define. Zod exposes `parse` and
-`safeParse` instead. The two sites also disagree on the argument. `L44` passes the JavaScript Object Notation (JSON) string
-built at `L41` and `L73` passes the object parsed at `L67`. Neither value is the document record `DocumentSchema` models.
-`UserSchema`, `DocumentVersionSchema` and `TemplateSchema` are imported by no module at all, so no third path exists. The
-[utilities README](../utils/README.md) carries the fuller treatment.
+The value path resolves and then reaches a broken call. `utils/documentUtils.ts:L22` is the only module anywhere that imports a schema value, and
+`:L44` and `:L73` both call `DocumentSchema.isValid`, which Zod does not define. Zod exposes `parse` and `safeParse` instead. The two sites also
+disagree on the argument. `L44` passes the JavaScript Object Notation (JSON) string built at `L41` and `L73` passes the object parsed at `L67`.
+Neither value is the document record `DocumentSchema` models. `UserSchema`, `DocumentVersionSchema` and `TemplateSchema` are imported by no module
+at all, so no third path exists. The [utilities README](../utils/README.md) carries the fuller treatment.
 
 ## Design Patterns
 
-Schema at the boundary, declared but not yet enforced. Each record shape is declared once, in one module, at the edge of the
-application, and consumers import the declaration instead of restating it. `pages/Templates.tsx:L61-L66` departs from the
-pattern with its own `interface Template`.
+Schema at the boundary, declared but not yet enforced. Each record shape is declared once, in one module, at the edge of the application, and
+consumers import the declaration instead of restating it. `pages/Templates.tsx:L61-L66` departs from the pattern with its own
+`interface Template`.
 
-Runtime validation, available and unused. A Zod schema is a value, so it can check a shape while the program runs rather than
-only while the compiler runs. No consumer here does that: the one attempt, at `utils/documentUtils.ts:L44` and `:L73`, names a
-method the library does not expose. `utils/validation.ts:L25` and `:L45` build their own schemas from `zod` directly.
+Runtime validation, available and unused. A Zod schema is a value, so it can check a shape while the program runs rather than only while the
+compiler runs. No consumer here does that: the one attempt, at `utils/documentUtils.ts:L44` and `:L73`, names a method the library does not
+expose. `utils/validation.ts:L25` and `:L45` build their own schemas from `zod` directly.
 
 Type inference from a runtime schema. `user.ts:L56` and `template.ts:L40` derive a static TypeScript type from their schema
 through `z.infer`, so the runtime contract and the static type cannot drift apart inside those two modules. `document.ts`
@@ -117,12 +114,11 @@ applies the pattern to neither of its schemas, which is what severs the type pat
 
 ## Known Limitations
 
-No artifact keeps the two sides of the contract in agreement. The repository commits no OpenAPI document, generates no
-client and ships no shared schema package spanning TypeScript and Python. The Zod definitions here and the Pydantic
-definitions in `backend/app/schema/` are maintained by hand, so nothing detects a divergence and nothing prevents one. The
-table below records the divergences that exist. The repository holds no record of how any of them arose, so manual
-synchronization is stated here as the risk that permits drift rather than as its proven cause. The specification declares no
-cross-language contract tool either: its `### Shared` heading lists ESLint, Prettier and Git at
+No artifact keeps the two sides of the contract in agreement. The repository commits no OpenAPI document, generates no client and ships no shared
+schema package spanning TypeScript and Python. The Zod definitions here and the Pydantic definitions in `backend/app/schema/` are maintained by
+hand, so nothing detects a divergence and nothing prevents one. The table below records the divergences that exist. The repository holds no record
+of how any of them arose, so manual synchronization is stated here as the risk that permits drift rather than as its proven cause. The
+specification declares no cross-language contract tool either: its `### Shared` heading lists ESLint, Prettier and Git at
 `documentation/Technical Specifications.md:L557-L561`.
 
 | Concept | This directory | `backend/app/schema/` | `documentation/Technical Specifications.md` |
@@ -163,8 +159,8 @@ One row agrees across both code contracts: `full_name` is optional at `user.ts:L
   `template.ts:L35` and `:L36` each accept only a `Date` instance, while the server declares `datetime` and JSON carries a datetime as a string.
 - **`zod` is imported and undeclared.** `document.ts:L43`, `user.ts:L15` and `template.ts:L20` import the package, and
   `frontend/package.json:L6-L14` omits it. No code in this directory runs until the package is installed.
-- **The directory carries no assistance marker and no unfinished-work comment of its own.** The nearest ones sit in the
-  consumers, at `utils/documentUtils.ts:L24-L26`, `:L43`, `:L72` and `store/documentSlice.ts:L171`.
+- **The directory carries no assistance marker and no unfinished-work comment of its own.** The nearest ones sit in the consumers, at
+  `utils/documentUtils.ts:L24-L26`, `:L43`, `:L72` and `store/documentSlice.ts:L171`.
 
 The [troubleshooting register](../../../docs/troubleshooting.md) carries every defect above with file and line evidence.
 
@@ -184,9 +180,9 @@ const user: User | null = result.success ? result.data : null;
 if (!result.success) console.error(result.error.issues);
 ```
 
-The example matches the declared contract at `user.ts:L37-L45` and `user.ts:L56`. Passing a server response straight through
-fails on two fields. `created_at` at `user.ts:L42` declares `z.date()` and receives a string, and `full_name` at
-`user.ts:L41` rejects the null that a server declaring `Optional[str] = None` at `user.py:L82` sends.
+The example matches the declared contract at `user.ts:L37-L45` and `user.ts:L56`. Passing a server response straight through fails on two fields.
+`created_at` at `user.ts:L42` declares `z.date()` and receives a string, and `full_name` at `user.ts:L41` rejects the null that a server declaring
+`Optional[str] = None` at `user.py:L82` sends.
 
 Importing a document type is not currently possible:
 
@@ -194,8 +190,8 @@ Importing a document type is not currently possible:
 import { Document } from '../schema/document';
 ```
 
-The import fails, because `document.ts` declares two schema values at `L65-L73` and `L86-L92` and exports no type. The three
-committed importers at `store/documentSlice.ts:L22`, `services/api.ts:L80` and `services/collaboration.ts:L15` fail the same way.
+The import fails, because `document.ts` declares two schema values at `L65-L73` and `L86-L92` and exports no type. The three committed importers
+at `store/documentSlice.ts:L22`, `services/api.ts:L80` and `services/collaboration.ts:L15` fail the same way.
 
-Three changes would unblock the directory, recorded rather than performed: export an inferred `Document` type from
-`document.ts`, export the `DocumentCreate` and `DocumentUpdate` shapes `services/api.ts:L80` asks for, and declare `zod`.
+Three changes would unblock the directory, recorded rather than performed: export an inferred `Document` type from `document.ts`, export the
+`DocumentCreate` and `DocumentUpdate` shapes `services/api.ts:L80` asks for, and declare `zod`.

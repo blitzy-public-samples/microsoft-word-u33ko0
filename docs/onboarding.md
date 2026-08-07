@@ -1,10 +1,9 @@
 # Onboarding Guide
 
-The `microsoft-word-u33ko0` repository does not run. Three commands complete on a clean machine, and
-every path past them stops at a line named below. Completing and succeeding are different outcomes
-here: two of the three report success, and the type-checker finishes its work and then exits
-non-zero because it found 76 errors. Work through the setup, expect the failures this guide predicts,
-then use the closing task list to choose what to repair first.
+The `microsoft-word-u33ko0` repository does not run. Two commands succeed on a clean machine, a third
+runs to completion and exits nonzero by design, and every path past those three stops at a line named
+below. Work through the setup, expect the failures this guide predicts, then use the closing task list
+to choose what to repair first.
 
 The [root README](../README.md) is the only other onboarding document here, and six of its statements
 contradict the committed tree, one of them only in part. Three sit in the README's installation and run
@@ -338,6 +337,11 @@ cd backend
 py -3.9 -m venv venv
 .\venv\Scripts\Activate.ps1       # Windows PowerShell
 ```
+
+Seventeen distributions from the Python Package Index (PyPI) remove every dependency error; first-party
+import defects still prevent the application from starting. Eleven of the seventeen sit behind an
+import statement. The other six appear in no import statement at all, which is what makes a first-time
+build fail more than once.
 
 Those are the two commands with a Windows PowerShell equivalent. Outside WSL they read
 `py -3.9 -m venv venv` and `venv\Scripts\Activate.ps1`, and every command after them is identical on

@@ -2,19 +2,14 @@
 
 ## Purpose
 
-`core/` holds two modules: application configuration and the authentication
-primitives. `config.py` declares a Pydantic `BaseSettings` model with nine
-configuration keys at `config.py:L51-L119`, plus a `get_settings()` factory at
-`config.py:L126`. `security.py` declares a password-hashing context at
-`security.py:L45`, a bearer-token scheme at `security.py:L46`, and four functions
-covering JSON Web Token (JWT) issuance, password verification, password hashing,
-and request-time user resolution.
-Nothing in the repository imports `app.core.security`. A search for
-`core.security` across every committed source and configuration file returns no
-result, so all four functions in that module have zero callers. The twelve protected routes take
-their `get_current_user` dependency from `app.api.auth` instead, at
-`api/documents.py:L48`, `api/templates.py:L72` and `api/users.py:L25`. `config.py`
-is consumed; `security.py` is not.
+`core/` holds two modules: application configuration and the authentication primitives. `config.py` declares a Pydantic
+`BaseSettings` model with nine configuration keys at `config.py:L51-L119`, plus a `get_settings()` factory at
+`config.py:L126`. `security.py` declares a password-hashing context at `security.py:L45`, a bearer-token scheme at
+`security.py:L46`, and four functions covering JSON Web Token (JWT) issuance, password verification, password hashing,
+and request-time user resolution. Nothing in the repository imports `app.core.security`. A search for `core.security`
+across every committed source and configuration file returns no result, so all four functions in that module have zero
+callers. The twelve protected routes take their `get_current_user` dependency from `app.api.auth` instead, at
+`api/documents.py:L48`, `api/templates.py:L72` and `api/users.py:L25`. `config.py` is consumed; `security.py` is not.
 
 ## Key Components
 
@@ -32,42 +27,30 @@ is consumed; `security.py` is not.
 
 ## Architecture Fit
 
-`core/` is the shared foundation layer of the backend. Both the Application
-Programming Interface (API) routers and the persistence adapters depend on it,
-and it depends on nothing inside the application. `config.py` sits at the bottom
-of every import chain: eight modules request a `settings` object from it, and
-`security.py:L43` requests the `get_settings` factory. Package composition and the
-wider import graph are documented in [../README.md](../README.md), and the
-system-wide view sits in
-[../../../docs/architecture-overview.md](../../../docs/architecture-overview.md).
-The in-repository specification is a comparison point here, not ground truth. The
-relevant heading is `SECURITY CONSIDERATIONS > AUTHENTICATION AND AUTHORIZATION`,
-which opens at `documentation/Technical Specifications.md:L622`. That section
-names Google Cloud Identity Platform and Cloud Identity and Access Management
-(IAM) at `documentation/Technical Specifications.md:L624`. The same section names
-Multi-Factor Authentication (MFA) at `documentation/Technical Specifications.md:L628-L630`,
-Single Sign-On (SSO) at `documentation/Technical Specifications.md:L632`, and
-Role-Based Access Control (RBAC) with the roles Reader, Editor and Admin at
-`documentation/Technical Specifications.md:L646-L647`. Its `Implementation`
-subsection at `documentation/Technical Specifications.md:L662` carries a sequence
-diagram at `documentation/Technical Specifications.md:L664-L680` whose participants
-are User, Frontend, AuthService, GoogleCloudIdentity and Backend.
-The divergence is one of model, not of mechanism. The specification does name
-JSON Web Tokens, at `documentation/Technical Specifications.md:L655` under API
-access control, and the committed code does
-issue them. What the code omits is everything the specification wraps around
-them. `security.py:L45` and `security.py:L98` hash passwords locally with bcrypt,
-`security.py:L79` signs tokens locally with `python-jose`, and no module
-references an Identity Platform, an MFA challenge or an SSO provider. The
-committed code therefore implements a local credential model where the
-specification describes a federated one.
-Role handling needs one qualification. Two role-adjacent artifacts exist outside
-this package: `schema/user.py:L173` declares an `is_superuser: bool` that no code
-path reads, and `tasks/background_tasks.py:L283` names a `document_permissions`
-Firestore collection. Neither is a role model. The authorization the backend
-actually performs is a single owner-equality check in the service tier, under the
-three `# Check user permissions` comments at `services/document_service.py:L174`,
-`:L240` and `:L279`.
+`core/` is the shared foundation layer of the backend. Both the Application Programming Interface (API) routers and the
+persistence adapters depend on it, and it depends on nothing inside the application. `config.py` sits at the bottom of
+every import chain: eight modules request a `settings` object from it, and `security.py:L43` requests the `get_settings`
+factory. Package composition and the wider import graph are documented in [../README.md](../README.md), and the
+system-wide view sits in [../../../docs/architecture-overview.md](../../../docs/architecture-overview.md). The
+in-repository specification is a comparison point here, not ground truth. The relevant heading is
+`SECURITY CONSIDERATIONS > AUTHENTICATION AND AUTHORIZATION`, which opens at
+`documentation/Technical Specifications.md:L622`. That section names Google Cloud Identity Platform and Cloud Identity
+and Access Management (IAM) at `documentation/Technical Specifications.md:L624`. The same section names Multi-Factor
+Authentication (MFA) at `documentation/Technical Specifications.md:L628-L630`, Single Sign-On (SSO) at
+`documentation/Technical Specifications.md:L632`, and Role-Based Access Control (RBAC) with the roles Reader, Editor and
+Admin at `documentation/Technical Specifications.md:L646-L647`. Its `Implementation` subsection at
+`documentation/Technical Specifications.md:L662` carries a sequence diagram at
+`documentation/Technical Specifications.md:L664-L680` whose participants are User, Frontend, AuthService,
+GoogleCloudIdentity and Backend. The divergence is one of model, not of mechanism. The specification does name JSON Web
+Tokens, at `documentation/Technical Specifications.md:L655` under API access control, and the committed code does issue
+them. What the code omits is everything the specification wraps around them. `security.py:L45` and `security.py:L98`
+hash passwords locally with bcrypt, `security.py:L79` signs tokens locally with `python-jose`, and no module references
+an Identity Platform, an MFA challenge or an SSO provider. The committed code therefore implements a local credential
+model where the specification describes a federated one. Role handling needs one qualification. Two role-adjacent
+artifacts exist outside this package: `schema/user.py:L173` declares an `is_superuser: bool` that no code path reads,
+and `tasks/background_tasks.py:L283` names a `document_permissions` Firestore collection. Neither is a role model. The
+authorization the backend actually performs is a single owner-equality check in the service tier, under the three
+`# Check user permissions` comments at `services/document_service.py:L174`, `:L240` and `:L279`.
 
 ## Dependencies
 
@@ -81,18 +64,15 @@ three `# Check user permissions` comments at `services/document_service.py:L174`
 | `User` | Used by `security.py` | `security.py:L117`, the return annotation | Undefined. Declared in `schema/user.py:L114` and never imported here. |
 | `UserService` | Used by `security.py` | `security.py:L186` | Undefined. No `app.services.user_service` module exists. |
 
-Seven of the eight modules above dereference the `settings` object;
-`services/document_service.py:L60` imports it and never uses it. `config.py`
-itself has no unresolved import: `pydantic` at `L48` and `typing.Optional` at `L49`
-both resolve, and `Optional` is genuinely used at `L116` and `L117`. Contract
-definitions are documented in
+Seven of the eight modules above dereference the `settings` object; `services/document_service.py:L60` imports it and
+never uses it. `config.py` itself has no unresolved import: `pydantic` at `L48` and `typing.Optional` at `L49` both
+resolve, and `Optional` is genuinely used at `L116` and `L117`. Contract definitions are documented in
 [../../../docs/data-model.md](../../../docs/data-model.md).
 
 ### External
 
-Only the four distributions these two modules import are listed. Package-wide
-version floors across the whole backend live in [../README.md](../README.md), and
-the external services the backend reaches sit in
+Only the four distributions these two modules import are listed. Package-wide version floors across the whole backend
+live in [../README.md](../README.md), and the external services the backend reaches sit in
 [../../../docs/integration-guide.md](../../../docs/integration-guide.md).
 
 | Distribution | Constraint | Evidence in this package |
@@ -102,16 +82,14 @@ the external services the backend reaches sit in
 | `passlib` with a bcrypt backend | Unestablished | `security.py:L40` imports `CryptContext`, and `security.py:L45` configures it with `schemes=['bcrypt']`. |
 | `fastapi` | Unestablished | `security.py:L41` imports `Depends`, `HTTPException` and `status`; `security.py:L42` imports `OAuth2PasswordBearer`. |
 
-No manifest and no lock file is committed anywhere in `backend/`, so each row records what the code
-requires. "Unestablished" means nothing pins the distribution, not that any release is safe.
+No manifest and no lock file is committed anywhere in `backend/`, so each row records what the code requires.
+"Unestablished" means nothing pins the distribution, not that any release is safe.
 
 ## Configuration
 
-Fifteen configuration keys reach the backend through the `Settings` model. Nine
-are declared at `config.py:L111-L119`. Six more are read from a `settings` object by
-other modules and are declared nowhere, so each one raises `AttributeError` even
-after the absent singleton is restored. The Status column below classifies all
-fifteen.
+Fifteen configuration keys reach the backend through the `Settings` model. Nine are declared at `config.py:L111-L119`.
+Six more are read from a `settings` object by other modules and are declared nowhere, so each one raises
+`AttributeError` even after the absent singleton is restored. The Status column below classifies all fifteen.
 
 | Key | Status | Declared at | Read at |
 | --- | --- | --- | --- |
@@ -131,27 +109,21 @@ fifteen.
 | `EXPORT_BUCKET_NAME` | READ-BUT-NEVER-DECLARED | Nowhere | `tasks/background_tasks.py:L141` |
 | `DOCUMENT_BUCKET_NAME` | READ-BUT-NEVER-DECLARED | Nowhere | `tasks/background_tasks.py:L278` |
 
-Three details qualify the table.
+Four details qualify the table.
 
-**Seven of the nine declared keys are strictly required, not nine.** No field
-carries an explicit default. Under Pydantic 1.x, however, an `Optional[X]` field
-without a default is not required and receives an implicit `None`. That covers
-`GOOGLE_CLOUD_PROJECT` at `config.py:L116` and `GOOGLE_APPLICATION_CREDENTIALS` at
-`config.py:L117`, both annotated `Optional[str]`. The remaining seven raise
-`ValidationError` when absent.
+**Seven of the nine declared keys are strictly required, not nine.** No field carries an explicit default. Under
+Pydantic 1.x, however, an `Optional[X]` field without a default is not required and receives an implicit `None`. That
+covers `GOOGLE_CLOUD_PROJECT` at `config.py:L116` and `GOOGLE_APPLICATION_CREDENTIALS` at `config.py:L117`, both
+annotated `Optional[str]`. The remaining seven raise `ValidationError` when absent.
 
-**`GOOGLE_APPLICATION_CREDENTIALS` is unread through `settings` yet still
-load-bearing.** The settings field is never dereferenced. The like-named
-operating-system environment variable is read directly by the Google
-authentication library through Application Default Credentials (ADC) at
-`db/firestore.py:L39`, where `credentials, project = default()` runs at import
-time. `scripts/deploy.sh:L4` aborts the deploy when that variable is unset.
-Removing the field would change nothing; unsetting the environment variable
-breaks both Firestore and the deploy script.
+**`GOOGLE_APPLICATION_CREDENTIALS` is unread through `settings` yet still load-bearing.** The settings field is never
+dereferenced. The like-named operating-system environment variable is read directly by the Google authentication library
+through Application Default Credentials (ADC) at `db/firestore.py:L39`, where `credentials, project = default()` runs at
+import time. `scripts/deploy.sh:L4` aborts the deploy when that variable is unset. Removing the field would change
+nothing; unsetting the environment variable breaks both Firestore and the deploy script.
 
-**No `.env` file is committed.** `config.py:L123` points `env_file` at `.env`, and
-no such file exists in the repository, so every required key must arrive from the
-process environment.
+**No `.env` file is committed.** `config.py:L123` points `env_file` at `.env`, and no such file exists in the
+repository, so every required key must arrive from the process environment.
 
 **`SIGNED_URL_EXPIRATION` has no declared type, no default and no bound.** The key
 sets the lifetime of a bearer credential. A signed URL needs no authentication:
@@ -188,25 +160,21 @@ call-site and integration views.
 
 ## Data Flows
 
-Two flows pass through this package. Configuration flows outward: a caller
-invokes `get_settings()` at `config.py:L126`, and a fresh `Settings` instance
-returns at `config.py:L140`. Pydantic reads the process environment and the absent
+Two flows pass through this package. Configuration flows outward: a caller invokes `get_settings()` at `config.py:L126`,
+and a fresh `Settings` instance returns at `config.py:L140`. Pydantic reads the process environment and the absent
 `.env` file named at `config.py:L123`.
 
-Token validation is the longer flow, and it stops before it finishes. FastAPI
-extracts the bearer token through `Depends(oauth2_scheme)` at `security.py:L117`,
-against the scheme declared at `security.py:L46`. `get_settings()` runs at
-`security.py:L177`. `jwt.decode` verifies the signature at `security.py:L179` using
-`SECRET_KEY` and `ALGORITHM`. The `sub` claim is read at `security.py:L180`.
+Token validation is the longer flow, and it stops before it finishes. FastAPI extracts the bearer token through
+`Depends(oauth2_scheme)` at `security.py:L117`, against the scheme declared at `security.py:L46`. `get_settings()` runs
+at `security.py:L177`. `jwt.decode` verifies the signature at `security.py:L179` using `SECRET_KEY` and `ALGORITHM`. The
+`sub` claim is read at `security.py:L180`.
 
-A missing subject raises 401 at `security.py:L182`, and a `jwt.JWTError` raises
-401 at `security.py:L184`. `UserService()` is then instantiated at
-`security.py:L186` and `get_user_by_id` is awaited at `security.py:L187`. A `None`
-result raises 401 at `security.py:L189`, and the user returns at
-`security.py:L190`.
+A missing subject raises 401 at `security.py:L182`, and a `jwt.JWTError` raises 401 at `security.py:L184`.
+`UserService()` is then instantiated at `security.py:L186` and `get_user_by_id` is awaited at `security.py:L187`. A
+`None` result raises 401 at `security.py:L189`, and the user returns at `security.py:L190`.
 
-The flow reaches `security.py:L186` and stops. `UserService` is undefined, so the
-lookup raises `NameError` instead of returning a user.
+The flow reaches `security.py:L186` and stops. `UserService` is undefined, so the lookup raises `NameError` instead of
+returning a user.
 
 ```mermaid
 sequenceDiagram
@@ -232,23 +200,18 @@ sequenceDiagram
 
 ## Design Patterns
 
-`core/` applies five patterns. Configuration uses a settings object: one Pydantic
-`BaseSettings` model at `config.py:L51` gathers every key, so no module reads the
-environment directly. Access to that model runs through a factory,
-`get_settings()` at `config.py:L126`, rather than an exported instance.
+`core/` applies five patterns. Configuration uses a settings object: one Pydantic `BaseSettings` model at
+`config.py:L51` gathers every key, so no module reads the environment directly. Access to that model runs through a
+factory, `get_settings()` at `config.py:L126`, rather than an exported instance.
 
-Two primitives are module-level singletons constructed at import: `pwd_context`
-at `security.py:L45` and `oauth2_scheme` at `security.py:L46`. Authentication
-arrives by dependency injection, through `Depends(oauth2_scheme)` in the
-`get_current_user` signature at `security.py:L117`. Token validation is stateless:
-`jwt.decode` at `security.py:L179` verifies a signature and reads a claim, with no
-session store and no revocation list.
-One absence shapes runtime behavior. `get_settings()` performs no caching. The
-module declares no `functools.lru_cache` decorator and holds no module-level
-memo, so every call constructs a new `Settings` instance and re-reads the
-environment. `security.py` calls it twice, at `security.py:L72` and
-`security.py:L177`, which means one construction per token issued and one per
-request validated.
+Two primitives are module-level singletons constructed at import: `pwd_context` at `security.py:L45` and `oauth2_scheme`
+at `security.py:L46`. Authentication arrives by dependency injection, through `Depends(oauth2_scheme)` in the
+`get_current_user` signature at `security.py:L117`. Token validation is stateless: `jwt.decode` at `security.py:L179`
+verifies a signature and reads a claim, with no session store and no revocation list. One absence shapes runtime
+behavior. `get_settings()` performs no caching. The module declares no `functools.lru_cache` decorator and holds no
+module-level memo, so every call constructs a new `Settings` instance and re-reads the environment. `security.py` calls
+it twice, at `security.py:L72` and `security.py:L177`, which means one construction per token issued and one per request
+validated.
 
 ## Known Limitations
 
@@ -275,18 +238,18 @@ actually import from `app.api.auth`. Every row is an absent control rather than 
 | `WWW-Authenticate: Bearer` on a missing-header 401 | Present, from the framework | `security.py:L46` and `api/auth.py:L85` construct `OAuth2PasswordBearer` without `auto_error=False`, so FastAPI answers a missing or non-bearer `Authorization` header itself, with 401 `Not authenticated` and the challenge attached. Only the raises inside the dependency bodies omit it |
 | Reviewed cryptography dependency floor | Absent | No backend manifest or lock file is committed, so nothing pins `python-jose`. Releases through 3.3.0 carry CVE-2024-33663, an algorithm confusion weakness fixed in 3.4.0, and the unconstrained `ALGORITHM` above is exactly the condition that advisory concerns |
 
-A safe floor cannot be asserted from this repository, because no committed file names a version. Establishing one belongs
-to the reviewed manifest and lock recorded as future work in [../../../docs/onboarding.md](../../../docs/onboarding.md).
+A safe floor cannot be asserted from this repository, because no committed file names a version. Establishing one
+belongs to the reviewed manifest and lock recorded as future work in
+[../../../docs/onboarding.md](../../../docs/onboarding.md).
 
-- **The whole `security.py` module is unconsumed.** A search for `core.security` across every tracked file returns
-  no result. `create_access_token` (`security.py:L48`), `verify_password` (`security.py:L82`) and
-  `get_password_hash` (`security.py:L98`) appear only at their own definitions and have zero callers. The twelve
-  protected routes import `get_current_user` from `app.api.auth` at `api/documents.py:L48`, `api/templates.py:L72`
-  and `api/users.py:L25`.
+- **The whole `security.py` module is unconsumed.** A search for `core.security` across every tracked file returns no
+  result. `create_access_token` (`security.py:L48`), `verify_password` (`security.py:L82`) and `get_password_hash`
+  (`security.py:L98`) appear only at their own definitions and have zero callers. The twelve protected routes import
+  `get_current_user` from `app.api.auth` at `api/documents.py:L48`, `api/templates.py:L72` and `api/users.py:L25`.
 - **No module-level `settings` instance exists.** `config.py` declares the `Settings` class at `L51` and the
   `get_settings` factory at `L126`, and never creates a `settings` object. Eight modules import one by name, listed
-  under Dependencies above. That single absent line is the root cause of the backend's import failure; the full
-  chain is documented in [../README.md](../README.md).
+  under Dependencies above. That single absent line is the root cause of the backend's import failure; the full chain is
+  documented in [../README.md](../README.md).
 - **Three undefined names in `security.py` fail at three different moments.** Python evaluates annotations when the
   `def` statement runs, and no module here uses `from __future__ import annotations`.
   - `Optional` at `security.py:L48`, inside `Optional[timedelta]`, raises `NameError: name 'Optional' is not
@@ -298,41 +261,39 @@ to the reviewed manifest and lock recorded as future work in [../../../docs/onbo
   `python-jose`, which exposes `JWTError` on the `jwt` module imported at `security.py:L39`. `api/auth.py:L78`
   imports the same exception by bare name and catches it at `api/auth.py:L159`. Both forms work.
 - **The package's only marker is a four-line `HUMAN ASSISTANCE NEEDED` block at `security.py:L115-L118`**, directly
-  above `get_current_user`. The block reads: "This function needs to be reviewed and potentially modified to ensure
-  it correctly integrates with the User model and UserService. The exact implementation may vary depending on how
-  these are set up in your project." `backend/app/core` contains zero `TODO` comments.
+  above `get_current_user`. The block reads: "This function needs to be reviewed and potentially modified to ensure it
+  correctly integrates with the User model and UserService. The exact implementation may vary depending on how these are
+  set up in your project." `backend/app/core` contains zero `TODO` comments.
 - **Token issuance and user resolution each exist twice, and the copy outside this package is the one in use.**
   `create_access_token` at `security.py:L48-L80` is duplicated by the inlined `jwt.encode` call at
   `api/auth.py:L235-L239`. `get_current_user` at `security.py:L117` is duplicated at `api/auth.py:L89`.
 - **The two copies of `get_current_user` disagree on status code and on message.** For a user that cannot be found,
   `security.py:L189` raises 401 with detail "User not found" while `api/auth.py:L164` raises 404. On the
-  invalid-credentials path, `security.py:L182` and `:L184` use "Could not validate credentials" while
-  `api/auth.py:L158` and `:L160` use "Invalid authentication credentials".
+  invalid-credentials path, `security.py:L182` and `:L184` use "Could not validate credentials" while `api/auth.py:L158`
+  and `:L160` use "Invalid authentication credentials".
 - **The absent `UserService` is called two incompatible ways.** `security.py:L186-L187` instantiates the class and
-  awaits an instance method, while `api/auth.py:L162`, `:L230`, `:L319` and `:L324` call methods on the class
-  unbound. Any future implementation must satisfy one form or the other.
-- **Two configuration access paths exist and one works.** `security.py:L43` imports the `get_settings` factory,
-  which `config.py:L126` defines. Eight other modules import the `settings` singleton, which `config.py` does not
-  define.
-- **Three declared keys have no consumer.** `PROJECT_NAME` at `config.py:L111` is unread because `main.py:L131` uses
-  a string literal. `API_V1_STR` at `config.py:L112` appears once, at its own declaration.
-  `GOOGLE_APPLICATION_CREDENTIALS` at `config.py:L117` is never dereferenced through `settings`, though the
-  like-named environment variable is read by ADC at `db/firestore.py:L39` and guarded at `scripts/deploy.sh:L4`.
-- **401 is the only status code in this package**, raised at `security.py:L182`, `:L184` and `:L189`. No 403, 404 or
-  400 appears in either module, so ownership checks and duplicate-registration handling live elsewhere.
+  awaits an instance method, while `api/auth.py:L162`, `:L230`, `:L319` and `:L324` call methods on the class unbound.
+  Any future implementation must satisfy one form or the other.
+- **Two configuration access paths exist and one works.** `security.py:L43` imports the `get_settings` factory, which
+  `config.py:L126` defines. Eight other modules import the `settings` singleton, which `config.py` does not define.
+- **Three declared keys have no consumer.** `PROJECT_NAME` at `config.py:L111` is unread because `main.py:L131` uses a
+  string literal. `API_V1_STR` at `config.py:L112` appears once, at its own declaration.
+  `GOOGLE_APPLICATION_CREDENTIALS` at `config.py:L117` is never dereferenced through `settings`, though the like-named
+  environment variable is read by ADC at `db/firestore.py:L39` and guarded at `scripts/deploy.sh:L4`.
+- **401 is the only status code in this package**, raised at `security.py:L182`, `:L184` and `:L189`. No 403, 404 or 400
+  appears in either module, so ownership checks and duplicate-registration handling live elsewhere.
 
 Deployment consequences of the absent `.env` file and the unset credential variable are documented in
 [../../../docs/deployment-guide.md](../../../docs/deployment-guide.md).
 
 ## Usage Examples
 
-Both examples below fail at the import statement. Importing
-`app.core.security` raises `NameError: name 'Optional' is not defined` at
-`security.py:L48`, before any function in the module becomes callable. Each
-example shows the declared contract, taken from the signature at its cited line.
+Both examples below fail at the import statement. Importing `app.core.security` raises
+`NameError: name 'Optional' is not defined` at `security.py:L48`, before any function in the module becomes callable.
+Each example shows the declared contract, taken from the signature at its cited line.
 
-`create_access_token` at `security.py:L48` takes a payload dictionary and an
-optional lifetime, and returns the encoded token as `str`.
+`create_access_token` at `security.py:L48` takes a payload dictionary and an optional lifetime, and returns the encoded
+token as `str`.
 
 ```python
 from datetime import timedelta
@@ -346,14 +307,12 @@ token = create_access_token({"sub": "user-123"})
 short_lived = create_access_token({"sub": "user-123"}, timedelta(minutes=5))
 ```
 
-The call above cannot execute: the import raises `NameError` at
-`security.py:L48`. Both forms also require `SECRET_KEY` and `ALGORITHM` in the
-environment, because `jwt.encode` at `security.py:L79` reads them from a freshly
-constructed `Settings`.
+The call above cannot execute: the import raises `NameError` at `security.py:L48`. Both forms also require `SECRET_KEY`
+and `ALGORITHM` in the environment, because `jwt.encode` at `security.py:L79` reads them from a freshly constructed
+`Settings`.
 
-`get_current_user` at `security.py:L117` is a FastAPI dependency, not a function
-to call directly. Its only parameter is the bearer token, supplied by
-`Depends(oauth2_scheme)`, so a route declares it as a dependency instead.
+`get_current_user` at `security.py:L117` is a FastAPI dependency, not a function to call directly. Its only parameter is
+the bearer token, supplied by `Depends(oauth2_scheme)`, so a route declares it as a dependency instead.
 
 ```python
 from fastapi import APIRouter, Depends
@@ -368,16 +327,13 @@ async def read_profile(current_user=Depends(get_current_user)):
     return current_user
 ```
 
-The route above cannot execute either: the import raises `NameError` at
-`security.py:L48`, and reaching `security.py:L186` would raise a second
-`NameError` for the undefined `UserService`. No route in this repository depends
-on this function, so the example shows intended use with no in-repository call
-site. The twelve routes that do guard access use the copy at `api/auth.py:L89`.
+The route above cannot execute either: the import raises `NameError` at `security.py:L48`, and reaching
+`security.py:L186` would raise a second `NameError` for the undefined `UserService`. No route in this repository depends
+on this function, so the example shows intended use with no in-repository call site. The twelve routes that do guard
+access use the copy at `api/auth.py:L89`.
 
-`get_settings()` at `config.py:L126` is the one construct in this package that
-runs today. The import `from app.core.config import get_settings` resolves, and
-the call returns a `Settings` instance whenever the seven required keys are in the
-environment. `verify_password` at `security.py:L82` and `get_password_hash` at
-`security.py:L98` are single-line wrappers over `pwd_context` and carry no
-example here. For environment setup and a first run, see
-[../../../docs/onboarding.md](../../../docs/onboarding.md).
+`get_settings()` at `config.py:L126` is the one construct in this package that runs today. The import
+`from app.core.config import get_settings` resolves, and the call returns a `Settings` instance whenever the seven
+required keys are in the environment. `verify_password` at `security.py:L82` and `get_password_hash` at
+`security.py:L98` are single-line wrappers over `pwd_context` and carry no example here. For environment setup and a
+first run, see [../../../docs/onboarding.md](../../../docs/onboarding.md).

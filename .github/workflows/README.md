@@ -150,48 +150,27 @@ at the same time.
 Neither workflow can complete as committed. The `build` job stops at step 3 of 5 (`ci.yml:L19`), and the `deploy` job stops on the first command of step 3 of 3
 (`cd.yml:L19`). Every claim below was checked against the two workflow files and the 61-file tracked set.
 
-Each list separates the blocker a run actually hits from the latent blockers behind it. A latent blocker is real and unfixed but never reached, so clearing the first
-blocker exposes the next one rather than producing a green run.
+The table separates the blocker a run actually hits from the latent blockers behind it. A latent blocker is real and unfixed but never reached, so clearing the
+first blocker exposes the next one rather than producing a green run.
 
-### `ci.yml`
-
-- `npm ci` runs at the checkout root (`ci.yml:L19`), where no `package.json` exists. The only manifest is `frontend/package.json`, and no step sets
-  `working-directory` in either file. The step exits non-zero, so `npm test` (`ci.yml:L21`) and `npm run build` (`ci.yml:L23`) never run.
-- Scoping the command to `frontend/` would still fail, because no lockfile is committed. `npm ci` requires one, and the repository holds no
-  `package-lock.json`, `yarn.lock` or `pnpm-lock.yaml`. Running `npm install` inside `frontend/` does succeed.
-- The front-door install instructions and the CI command disagree. `README.md:L35-L36` documents `cd frontend` followed by `npm install`, while `ci.yml:L19` runs
-  `npm ci` at the root: different directory, different command.
-- No job runs Python. All 18 committed Python files go unexercised, including the three test modules under `backend/tests/`.
-- LATENT: the `Build` step would fail even once installation is fixed. `npm run build` (`ci.yml:L23`) runs `react-scripts build`
-  (`frontend/package.json:L33`), which type-checks the project and treats a TypeScript error as a build failure. Create React App downgrades those errors to
-  warnings only when `TSC_COMPILE_ON_ERROR=true` is set, and no committed file sets it, because no `.env` file exists. `npx tsc --noEmit` reports 76 errors, so the
-  build step fails on the second attempt at a green run.
-- No dedicated lint step and no dedicated type-check step exist, although both tools are already configured. `frontend/package.json:L36` defines a `lint` script,
-  and `frontend/tsconfig.json:L25` sets `"noEmit": true`, which supports a standalone type check. The `Build` step type-checks as a side effect, which reports the
-  errors at the wrong stage and gives no separate signal.
-- `actions/checkout@v2` (`ci.yml:L13`) and `actions/setup-node@v2` (`ci.yml:L15`) are deprecated pins.
-- Node 14 (`ci.yml:L17`) reached end of life on 30 April 2023 and is unsupported as of 6 August 2026. Three files declare the floor while nothing enforces it:
-  `README.md:L22`, `ci.yml:L17` and `infrastructure/docker/frontend.Dockerfile:L2`. No `engines` field and no `.nvmrc` is committed.
-- The `build` job runs one configuration with no caching and no explicit token scope. Neither file declares `strategy`, `matrix`, `cache`, `permissions`, `env:`,
-  `if:`, `timeout-minutes`, `continue-on-error`, `concurrency`, `schedule`, `workflow_dispatch`, `defaults`, `container`, `services:` or `outputs:`.
-
-### `cd.yml`
-
-- Both deployment descriptors are absent, so the deploy cannot succeed. `cd.yml:L19` deploys `app.yaml` and `cd.yml:L20` deploys `dispatch.yaml`. Neither
-  filename appears anywhere in the 61-file tracked set.
-- The two commands share one step, and only the first runs. GitHub executes a `run:` block on a Linux runner through `bash -e` by default, so the first non-zero
-  exit ends the step. `cd.yml:L19` is the failure a run reports, and `cd.yml:L20` is LATENT: the missing `dispatch.yaml` never gets a chance to be reported.
-  Supplying `app.yaml` alone therefore moves the failure to `cd.yml:L20` rather than producing a release.
-- `google-github-actions/setup-gcloud@v0.2.0` (`cd.yml:L13`) is a deprecated pin, and a mutable one. See the Dependencies note above on supply chain exposure,
-  because this is the step the service-account key passes through.
-- No validation gates the deployment. A push to `main` starts `deploy` (`cd.yml:L3-L5`) whatever the `ci.yml` result, and both files contain zero occurrences
-  of `needs:` and `workflow_run`. Because `ci.yml` already fails at `ci.yml:L19`, nothing is validated before a deploy is attempted.
-- No rollback step, no environment protection and no artifact handoff exist. Both files contain zero occurrences of `environment`, `upload-artifact` and
-  `download-artifact`. `ci.yml:L23` would discard its build output, and `cd.yml` deploys from a fresh checkout (`cd.yml:L11`).
-- Nothing in the repository provisions the deploy target. `cd.yml:L19-L20` deploys to Google App Engine, and a search of `infrastructure/terraform/` for
-  `app_engine` and `appengine` returns zero matches. The Terraform root declares one provider, `google` (`infrastructure/terraform/main.tf:L9`), and four
-  resources: a network (`:L19`), a subnetwork (`:L25`), a firewall rule (`:L35`) and a storage bucket (`:L50`).
-- Neither workflow publishes documentation. GitHub renders the Markdown in this repository directly, so no documentation build step exists.
+| Workflow | Limitation | Evidence |
+| --- | --- | --- |
+| `ci.yml` | `npm ci` runs at the checkout root, where no `package.json` exists | `ci.yml:L19`. The only manifest is `frontend/package.json`, and no step sets `working-directory` in either file. The step exits non-zero, so `npm test` (`ci.yml:L21`) and `npm run build` (`ci.yml:L23`) never run |
+| `ci.yml` | Scoping the command to `frontend/` would still fail, because no lockfile is committed | `npm ci` requires one, and the repository holds no `package-lock.json`, `yarn.lock` or `pnpm-lock.yaml`. Running `npm install` inside `frontend/` does succeed |
+| `ci.yml` | The front-door install instructions and the CI command disagree | `README.md:L35-L36` documents `cd frontend` followed by `npm install`, while `ci.yml:L19` runs `npm ci` at the root: different directory, different command |
+| `ci.yml` | No job runs Python | All 18 committed Python files go unexercised, including the three test modules under `backend/tests/` |
+| `ci.yml` | LATENT: the `Build` step would fail even once installation is fixed | `npm run build` (`ci.yml:L23`) runs `react-scripts build` (`frontend/package.json:L33`), which type-checks the project and treats a TypeScript error as a build failure. Create React App downgrades those errors to warnings only when `TSC_COMPILE_ON_ERROR=true` is set, and no committed file sets it, because no `.env` file exists. `npx tsc --noEmit` reports 76 errors, so the build step fails on the second attempt at a green run |
+| `ci.yml` | No dedicated lint step and no dedicated type-check step exist, although both tools are already configured | `frontend/package.json:L36` defines a `lint` script, and `frontend/tsconfig.json:L25` sets `"noEmit": true`, which supports a standalone type check. The `Build` step type-checks as a side effect, which reports the errors at the wrong stage and gives no separate signal |
+| `ci.yml` | Two deprecated action pins | `actions/checkout@v2` (`ci.yml:L13`) and `actions/setup-node@v2` (`ci.yml:L15`) |
+| `ci.yml` | Node 14 reached end of life on 30 April 2023 and is unsupported as of 6 August 2026 | `ci.yml:L17`. Three files declare the floor while nothing enforces it: `README.md:L22`, `ci.yml:L17` and `infrastructure/docker/frontend.Dockerfile:L2`. No `engines` field and no `.nvmrc` is committed |
+| both | The `build` job runs one configuration with no caching and no explicit token scope | Neither file declares `strategy`, `matrix`, `cache`, `permissions`, `env:`, `if:`, `timeout-minutes`, `continue-on-error`, `concurrency`, `schedule`, `workflow_dispatch`, `defaults`, `container`, `services:` or `outputs:` |
+| `cd.yml` | Both deployment descriptors are absent, so the deploy cannot succeed | `cd.yml:L19` deploys `app.yaml` and `cd.yml:L20` deploys `dispatch.yaml`. Neither filename appears anywhere in the 61-file tracked set |
+| `cd.yml` | The two commands share one step, and only the first runs | GitHub executes a `run:` block on a Linux runner through `bash -e` by default, so the first non-zero exit ends the step. `cd.yml:L19` is the failure a run reports, and `cd.yml:L20` is LATENT: the missing `dispatch.yaml` never gets a chance to be reported. Supplying `app.yaml` alone therefore moves the failure to `cd.yml:L20` rather than producing a release |
+| `cd.yml` | A deprecated, mutable action pin on the step the service-account key passes through | `google-github-actions/setup-gcloud@v0.2.0` (`cd.yml:L13`). See the Dependencies note above on supply chain exposure |
+| `cd.yml` | No validation gates the deployment | A push to `main` starts `deploy` (`cd.yml:L3-L5`) whatever the `ci.yml` result, and both files contain zero occurrences of `needs:` and `workflow_run`. Because `ci.yml` already fails at `ci.yml:L19`, nothing is validated before a deploy is attempted |
+| `cd.yml` | No rollback step, no environment protection and no artifact handoff exist | Both files contain zero occurrences of `environment`, `upload-artifact` and `download-artifact`. `ci.yml:L23` would discard its build output, and `cd.yml` deploys from a fresh checkout (`cd.yml:L11`) |
+| `cd.yml` | Nothing in the repository provisions the deploy target | `cd.yml:L19-L20` deploys to Google App Engine, and a search of `infrastructure/terraform/` for `app_engine` and `appengine` returns zero matches. The Terraform root declares one provider, `google` (`infrastructure/terraform/main.tf:L9`), and four resources: a network (`:L19`), a subnetwork (`:L25`), a firewall rule (`:L35`) and a storage bucket (`:L50`) |
+| both | Neither workflow publishes documentation | GitHub renders the Markdown in this repository directly, so no documentation build step exists |
 
 ### Supply chain and workflow identity
 

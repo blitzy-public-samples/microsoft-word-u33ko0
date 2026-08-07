@@ -72,8 +72,12 @@ Four labels carry one fixed meaning in this guide and in the rest of the documen
 | **SCAFFOLDED ONLY** | Committed code constructs the client library and writes the calls, and nothing in the application constructs the class holding them, so no call site can run |
 | **ABSENT** | Configuration names the integration and code reads that value, and no committed infrastructure provisions the service |
 
-Two qualifiers in the table need their reach spelled out, because a label invites the question
-"reachable from where?"
+No label in this table means a call reaches Google Cloud today. Every backend module that touches an
+external system imports `settings` from `app.core.config`, which never creates a module-level
+instance, so the module raises `ImportError` before any client is built. The import sites are
+`backend/app/db/firestore.py:L38`, `backend/app/services/export_service.py:L61`,
+`backend/app/services/collaboration_service.py:L39` and
+`backend/app/tasks/background_tasks.py:L92`. Everything below describes the call the code declares.
 
 - Firestore is the one external system an HTTP handler calls. Five document handlers construct
   `DocumentService`, and each of its four methods issues a Firestore call. No request reaches a
@@ -269,7 +273,7 @@ Neither the upload nor the signature completes as committed. Three prerequisites
 fail in this order inside `export_to_pdf`.
 
 | Order | Statement | Locator | What it needs |
-|-------|-----------|---------|---------------|
+| ------- | ----------- | --------- | --------------- |
 | 1 | `self.storage_client.bucket(settings.STORAGE_BUCKET_NAME)` | `export_service.py:L154` | A declared `STORAGE_BUCKET_NAME`. `Settings` declares nine fields at `backend/app/core/config.py:L111-L119` and this is not among them, so attribute access raises `AttributeError` before any network call |
 | 2 | `blob.upload_from_string(...)` | `export_service.py:L157` | Credentials that authenticate and carry write permission on the bucket. `backend/app/db/firestore.py:L39` is the only Application Default Credentials resolution in the repository, and no committed file supplies `GOOGLE_APPLICATION_CREDENTIALS` |
 | 3 | `blob.generate_signed_url(version="v4", ...)` | `export_service.py:L160-L164` | Sign-capable credentials, and an expiry inside the version 4 limit |
@@ -396,7 +400,7 @@ one of these links as a secret in transit and at rest. The constraints below are
 committed code and become prerequisites the moment a caller reaches the signing calls.
 
 | # | Constraint | Committed state |
-|---|------------|-----------------|
+| --- | ------------ | ----------------- |
 | 1 | A reviewed expiry, short enough to bound exposure | `export_service.py:L162` and `:L236` read `settings.SIGNED_URL_EXPIRATION`, which `Settings` never declares, so no value and no ceiling exists in the repository. `background_tasks.py:L146` hard-codes `timedelta(hours=1)` instead, so the two paths would expire differently even once the field exists |
 | 2 | One signing scheme | The service passes `version="v4"` at `:L161` and `:L235`. The task passes no `version` argument at `:L146`. A consumer of both paths receives links signed under two different schemes |
 | 3 | An authorization check before a link is minted | Neither export method takes a caller identity. `export_to_pdf` at `:L87` and `export_to_docx` at `:L168` accept a `Document` and sign a link for it, and nothing compares a requesting user against the document's owner first. `process_document_export` at `background_tasks.py:L101` takes `user_id` and puts it to two uses. `:L135` passes it to `document_service.get_document(document_id, user_id)`, an ownership handoff with the right arity that no `await` drives, so the coroutine is created, never executed and discarded, and the comparison inside it never runs. `:L142` then builds the object key from the same value |
@@ -460,7 +464,7 @@ derived per document at `backend/app/services/collaboration_service.py:L120`, so
 need one topic per document identifier, created outside this repository before any editor connects.
 
 | Call | Locator | Needs a topic | Status without a pre-created topic |
-|------|---------|---------------|-------------------------------------|
+| ------ | --------- | --------------- | ------------------------------------- |
 | `create_subscription` | `collaboration_service.py:L124` | Yes, as the `topic` argument | **BLOCKED.** `NotFound`, caught at `:L125`, printed at `:L127`, then `:L128` returns |
 | `subscribe` | `collaboration_service.py:L165` | No, it names the subscription | Never reached, because `:L128` returned first |
 | `delete_subscription` | `collaboration_service.py:L211` | No, it names the subscription | `NotFound` for a subscription that was never created, caught at `:L212` and printed at `:L214` |

@@ -394,7 +394,7 @@ none surfaces from a green pipeline. Each row names the committed evidence and t
 closes it. Every one is future work; this documentation pass changes no manifest, image or workflow.
 
 | # | Risk | Committed evidence | Prerequisite |
-|---|------|--------------------|--------------|
+| --- | ------ | -------------------- | -------------- |
 | 1 | Python 3.9 receives no security fix | `infrastructure/docker/backend.Dockerfile:L2` names `python:3.9-slim`, and `../README.md:L23` states Python 3.8 or later. Python 3.9 reached end of support on 31 October 2025 | Move to a supported Python and pin it in one place, with a reviewed backend dependency manifest behind it |
 | 2 | Node.js 14 receives no security fix | `.github/workflows/ci.yml:L17` sets `node-version: '14'`, `infrastructure/docker/frontend.Dockerfile:L2` names `node:14-alpine`, and `../README.md:L22` states Node 14 or later. Node.js 14 left support on 30 April 2023, and its final release, 14.21.3, shipped on 16 February 2023 | Move to a supported Node major, declare it in `engines` and in the workflow, and add a lockfile so `npm ci` can run |
 | 3 | PostgreSQL 13 receives no security fix | `infrastructure/docker/docker-compose.yml:L31` names `image: postgres:13`. PostgreSQL 13 reached end of life on 13 November 2025, so the community ships no further fix for the 13 branch | Move to a supported major, and plan the upgrade path for any data already written |

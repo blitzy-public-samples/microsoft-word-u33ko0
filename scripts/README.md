@@ -152,31 +152,18 @@ Every entry below cites the line that establishes it.
 
 `deploy.sh` reports success it did not achieve:
 
-- `deploy.sh:L47` echoes `Deployment completed successfully!` unconditionally. Nothing between L8 and L46 checks an exit status, so the message prints after any
-  number of failed stages.
-- See the HUMAN ASSISTANCE NEEDED marker at `deploy.sh:L37`: the post-deployment checks were left for a human to write. `deploy.sh:L39` prints `Running
-  post-deployment checks...`, and L40-L44 remain comments covering responsiveness (L42), database connections (L43) and critical functionality (L44).
-- `deploy.sh:L11` runs `npm run build` from the repository root with no `cd frontend` first, and only `frontend/package.json` is tracked, so the build fails.
-- `deploy.sh:L15` runs `python -m pytest tests/`, and no root `tests/` directory exists. `README.md:L65` claims one and remains wrong. The root `docs/` that
-  `README.md:L64` claims does now exist, because this documentation pass created it.
-- `deploy.sh:L19` packages whatever earlier stages left on disk, and `:L23` uploads it. The three `-x` patterns are `*.git*`, `node_modules/*` and `venv/*`, and
-  the last two are anchored at the archive root, so neither matches `frontend/node_modules/` or `backend/venv/`. A machine that ran
-  `setup_dev_environment.sh:L14` and `:L20` first therefore packages both trees. Nothing excludes `.env`, which `:L40` writes into the repository root, and
-  nothing excludes a service-account JSON key left in the tree. Credentials and dependency trees leave the machine on the `gsutil cp` at `:L23`.
-- `deploy.sh:L27` deploys `app.yaml`, and the repository tracks no `*.yaml` file anywhere. That one check also settles `dispatch.yaml` at
-  `.github/workflows/cd.yml:L20`.
-- `deploy.sh:L31` pipes `db_migrations.sql` into `gcloud sql connect`, and no `*.sql` file is tracked. The flag `--user=root` names no role that either
-  provisioning path creates.
-- `deploy.sh:L35` updates a backend service without naming its scope. `gcloud compute backend-services update` needs either `--global` or `--region`, and L35
-  passes neither, so the command prompts or errors rather than applying the change unattended. L35 also omits the `--quiet` that `:L27` and
-  `.github/workflows/cd.yml:L19-L20` pass, so this stage can block on a prompt in an unattended script.
-- `deploy.sh:L23`, `:L31` and `:L35` hard-code three cloud resource names, and `infrastructure/terraform/main.tf:L51` declares the only tracked bucket as
-  `word-documents-${var.project_id}`, which does not match `:L23`.
-- The credentials guard authenticates nothing. `deploy.sh:L4-L7` tests only that `GOOGLE_APPLICATION_CREDENTIALS` is non-empty: it checks no path, verifies no
-  key, and runs neither `gcloud auth activate-service-account --key-file` nor `gcloud config set project`. That variable configures Application Default
-  Credentials, which Google client libraries read, while the `gcloud` and `gsutil` CLIs use their own credential store. `gsutil cp` at `:L23` is the first cloud
-  command and where the gap surfaces. That upload fails on missing credentials or a missing default project unless the host already carries an authenticated
-  `gcloud` configuration, so a passing guard predicts nothing about the four cloud stages.
+| Limitation | Evidence |
+| --- | --- |
+| `deploy.sh:L47` echoes `Deployment completed successfully!` unconditionally | Nothing between L8 and L46 checks an exit status, so the message prints after any number of failed stages |
+| The post-deployment checks were left for a human to write | See the HUMAN ASSISTANCE NEEDED marker at `deploy.sh:L37`. `deploy.sh:L39` prints `Running post-deployment checks...`, and L40-L44 remain comments covering responsiveness (L42), database connections (L43) and critical functionality (L44) |
+| The frontend build runs in the wrong directory | `deploy.sh:L11` runs `npm run build` from the repository root with no `cd frontend` first, and only `frontend/package.json` is tracked, so the build fails |
+| The test stage names a directory that does not exist | `deploy.sh:L15` runs `python -m pytest tests/`, and no root `tests/` directory exists. `README.md:L65` claims one and remains wrong. The root `docs/` that `README.md:L64` claims does now exist, because this documentation pass created it |
+| The archive can carry credentials and dependency trees off the machine | `deploy.sh:L19` packages whatever earlier stages left on disk and `:L23` uploads it. The three `-x` patterns are `*.git*`, `node_modules/*` and `venv/*`, and the last two are anchored at the archive root, so neither matches `frontend/node_modules/` or `backend/venv/`. A machine that ran `setup_dev_environment.sh:L14` and `:L20` first therefore packages both trees. Nothing excludes `.env`, which `:L40` writes into the repository root, and nothing excludes a service-account JSON key left in the tree |
+| The App Engine deploy names an absent descriptor | `deploy.sh:L27` deploys `app.yaml`, and the repository tracks no `*.yaml` file anywhere. That one check also settles `dispatch.yaml` at `.github/workflows/cd.yml:L20` |
+| The migration stage names an absent file and an absent role | `deploy.sh:L31` pipes `db_migrations.sql` into `gcloud sql connect`, and no `*.sql` file is tracked. The flag `--user=root` names no role that either provisioning path creates |
+| The backend-service update names no scope and can block on a prompt | `gcloud compute backend-services update` needs either `--global` or `--region`, and `deploy.sh:L35` passes neither, so the command prompts or errors rather than applying the change unattended. L35 also omits the `--quiet` that `:L27` and `.github/workflows/cd.yml:L19-L20` pass |
+| Three cloud resource names are hard-coded, and one contradicts Terraform | `deploy.sh:L23`, `:L31` and `:L35` hard-code them, and `infrastructure/terraform/main.tf:L51` declares the only tracked bucket as `word-documents-${var.project_id}`, which does not match `:L23` |
+| The credentials guard authenticates nothing | `deploy.sh:L4-L7` tests only that `GOOGLE_APPLICATION_CREDENTIALS` is non-empty: it checks no path, verifies no key, and runs neither `gcloud auth activate-service-account --key-file` nor `gcloud config set project`. That variable configures Application Default Credentials, which Google client libraries read, while the `gcloud` and `gsutil` CLIs use their own credential store. `gsutil cp` at `:L23` is the first cloud command and where the gap surfaces, so a passing guard predicts nothing about the four cloud stages |
 
 `setup_dev_environment.sh` ends in partial success, and reports unqualified success:
 

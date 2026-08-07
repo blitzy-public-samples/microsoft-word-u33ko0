@@ -302,7 +302,7 @@ name needs its own export. Counting the names rather than the positions is what 
 much work the repair is.
 
 | Missing name | Requested at | Positions | Remediation |
-|--------------|--------------|-----------|-------------|
+| -------------- | -------------- | ----------- | ------------- |
 | `Document` | `frontend/src/services/api.ts:L80`, `frontend/src/services/collaboration.ts:L15`, `frontend/src/store/documentSlice.ts:L22` | 3 | Add `export type Document = z.infer<typeof DocumentSchema>;` beside `DocumentSchema` at `L65-L73`. One line clears all three positions |
 | `DocumentCreate` | `frontend/src/services/api.ts:L80` | 1 | No schema models a create payload. Declare one, or narrow `DocumentSchema` by omitting the server-assigned `id`, `created_at` and `updated_at` |
 | `DocumentUpdate` | `frontend/src/services/api.ts:L80` | 1 | No schema models an update payload. Declare one, or derive a partial of `DocumentSchema` |
@@ -451,7 +451,7 @@ on the server and run only for a request the committed client never sends. Each 
 shape change the code would perform once the caller is repaired.
 
 | # | Step | Where | What changes |
-|---|------|-------|--------------|
+| --- | ------ | ------- | -------------- |
 | 1 | Draft.js `EditorState` | `frontend/src/components/DocumentCanvas.tsx:L163` calls the serializer | Nothing reaches step 2. `:L163` passes `newEditorState.getCurrentContent()`, a `ContentState`, where `frontend/src/utils/documentUtils.ts:L39` declares `EditorState`. **First failure.** `:L40` immediately calls `.getCurrentContent()` on that argument, and `ContentState` carries no such method, so a `TypeError` raises before `convertToRaw` is entered |
 | 2 | `convertToRaw` | `frontend/src/utils/documentUtils.ts:L40` | `EditorState` would become a raw content object of `blocks` and `entityMap`. Unreached from the one caller |
 | 3 | `JSON.stringify` | `:L41` | The raw object becomes one string. Unreached |
@@ -547,15 +547,10 @@ graph TD
         CALLER["setEditorState receives the EditorState<br/>DocumentCanvas.tsx:L117"]
     end
 
-    ES --> ARG
-    ARG -.->|"raises TypeError: .getCurrentContent() called on a ContentState<br/>at documentUtils.ts:L40, before convertToRaw runs. FIRST FAILURE"| RAW
+    ES -.->|"TERMINAL: a ContentState arrives where documentUtils.ts:L39 declares EditorState, so :L40 raises before convertToRaw is called"| RAW
     RAW --> STR --> GUARD1
-    GUARD1 -.->|"raises: isValid is not a Zod API, and checks content against a metadata schema"| DISP
-    PSTATE --> SAVE
-    SAVE -.->|"raises TypeError: Editor.tsx:L207 dereferences currentDocument.id with no<br/>guard, five seconds after mount, so no request body is ever built. FIRST FAILURE"| BODY
-    BODY -.->|"nothing is sent, and nothing would match: the request interceptor reads .auth on<br/>state that has no such key at api.ts:L142 and throws, and main.py:L125-L128 mounts<br/>every router with no prefix, so POST /documents and PUT /documents/ID match no route"| PYD
-    PYD -.->|"the service is never entered as invoked: documents.py:L108 hands a User where<br/>user_id: str is declared, and :L234 passes two arguments to a three-parameter signature"| DICT
-    DICT --> KEYS --> STORE
+    GUARD1 -.->|"would raise once the caller is repaired: isValid is not a Zod API, and checks content against a metadata schema"| BODY
+    BODY --> PYD --> DICT --> KEYS --> STORE
     STORE --> READ --> MODEL
     MODEL -.->|"raises: created_at and updated_at are required at document.py:L111-L112 and never written"| RESP
     RESP --> GUARD2
@@ -565,9 +560,8 @@ graph TD
     CONTENT -.-> ES2
     ES2 -.->|"second inversion, the exact opposite: an EditorState reaches a parameter declared ContentState"| CALLER
 
-%% A solid edge is a step that would carry data once the dashed steps ahead of it are repaired.
-%% A dashed edge marks a broken or absent step, and its label names the fault.
-%% Path A and Path B are drawn apart because no committed line connects them.
+%% A dashed edge marks a broken step, and its label names the fault. Every step after the first dashed
+%% edge on a path is unreachable, so a solid edge downstream of one describes intended shape only.
 ```
 
 ## Related documentation

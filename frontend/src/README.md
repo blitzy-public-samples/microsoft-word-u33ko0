@@ -70,10 +70,8 @@ region and `Footer` only, and `pages/Editor.tsx` renders the other three.
 `frontend/package.json:L15-L30` declares fourteen development dependencies, with `react-scripts` pinned
 exactly at `5.0.1` on `:L29` and no caret.
 
-Four packages appear in import statements under this tree and in no dependency block: `axios`, `draft-js`,
-`zod` and `socket.io-client`. A fifth gap is `@types/draft-js`, which no module imports and which TypeScript
-needs in order to type the six `draft-js` importers. Two of the four imported packages are named by the
-specification, Axios at
+Five packages appear in import statements under this tree and in no dependency block: `axios`, `draft-js`,
+`@types/draft-js`, `zod` and `socket.io-client`. Two of the five are named by the specification, Axios at
 `documentation/Technical Specifications.md:L544` and Draft.js at `:L545`, while Zod and socket.io-client
 appear nowhere in `documentation/`. Contract shapes travel through
 [the data model](../../docs/data-model.md), and the external services these clients target are listed in
@@ -225,7 +223,7 @@ Installing and type-checking the client:
 
 ```bash
 cd frontend
-npm install            # succeeds, resolves 1,532 packages
+npm install            # succeeds; the resolved package count is not fixed
 npx tsc --noEmit       # runs to completion and exits nonzero, reporting 76 errors
 npm ci                 # fails, no lockfile is committed
 ```
@@ -235,6 +233,7 @@ Registering a route follows the shape `App.tsx:L51-L56` already uses:
 ```tsx
 <Switch>
   <Route exact path="/" component={Home} />
+  <Route path="/editor" component={Editor} />
   <Route path="/documents" component={Documents} />
 </Switch>
 ```

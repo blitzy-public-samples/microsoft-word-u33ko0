@@ -6,8 +6,7 @@ The directory holds the HyperText Transfer Protocol (HTTP) Application Programmi
 Four modules each build one FastAPI `APIRouter` and register the fourteen handlers that answer requests. `auth.py`
 issues tokens, `documents.py` covers documents, `users.py` covers the current profile, and `templates.py` covers
 templates. The handler families behave differently, so the tables below give per-handler detail rather than one
-universal rule. None of the fourteen answers a request as committed, and the Reachability column below names the
-reason for each one.
+universal rule. None of the fourteen answers a request as committed, and the Reachability column names each reason.
 
 ## Key Components
 
@@ -66,15 +65,14 @@ DESIGN > API DESIGN (L402)` places the same responsibility there. Handlers accep
 service class, and return the service result. Repository-wide layering sits in
 [../../../docs/architecture-overview.md](../../../docs/architecture-overview.md).
 
-The specification and the committed code diverge on the route surface. That file diagrams every path behind a prefix
-at `Technical Specifications.md:L406-L433`, grouping routes under `/auth`, `/documents`, `/users` and `/templates`.
-The committed code mounts all four routers with no prefix at `main.py:L125-L128`, so every path lands at the
-application root. The prefix absence is what puts the document and template paths on the same addresses.
+The specification and the committed code diverge on the route surface. That file diagrams every path behind a prefix at
+`Technical Specifications.md:L406-L433`, grouping routes under `/auth`, `/documents`, `/users` and `/templates`. The
+committed code mounts all four routers with no prefix at `main.py:L125-L128`, so every path lands at the application
+root. The prefix absence is what puts the document and template paths on the same addresses.
 
-Four routes the specification declares have no committed handler: `POST /logout` at
-`Technical Specifications.md:L414`, `POST /refresh` at `:L415`, `POST /documents/{id}/share`
-at `:L422` and `GET /users/{id}/documents` at `:L426`. One committed route runs the other way.
-`POST /register` at `auth.py:L242` has no counterpart anywhere in that diagram.
+Four routes the specification declares have no committed handler: `POST /logout` at `Technical Specifications.md:L414`,
+`POST /refresh` at `:L415`, `POST /documents/{id}/share` at `:L422` and `GET /users/{id}/documents` at `:L426`. One
+committed route runs the other way. `POST /register` at `auth.py:L242` has no counterpart anywhere in that diagram.
 
 The specification's own handler example sits at `Technical Specifications.md:L437-L445` and differs from the committed
 handlers in two measurable ways. `:L438` declares `response_model=Document`, and no handler in this directory passes
@@ -311,8 +309,8 @@ order alongside the frontend and infrastructure gaps.
 - **All five template routes are shadowed as well.** Registration order at `main.py:L126` and `main.py:L128` gives
   every colliding path to the documents router, as the Data Flows section sets out.
 - **Object authorization is unimplemented and unverifiable here.** Every template handler carries
-  `Depends(get_current_user)`, so a caller is authenticated, and no handler compares the template
-  against that caller. The absent `TemplateService` means no committed file could supply the check.
+  `Depends(get_current_user)`, so a caller is authenticated, and no handler compares the template against that caller.
+  The absent `TemplateService` means no committed file could supply the check.
 
 `users.py` limitations:
 

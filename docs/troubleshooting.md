@@ -123,7 +123,7 @@ section that carries the detail.
 | `GET /me` returns a document read, or 404 for a document called `me` | Fetching the signed-in profile | [G7](#document-routes-shadow-the-template-and-profile-routes) | `backend/app/api/documents.py:L145` claims every single-segment path ahead of `backend/app/api/users.py:L29` |
 | `POST /documents` answers 405 while `PUT /documents/{id}` answers 404 | Calling the document API from the client | [G7](#the-client-calls-six-routes-and-no-server-route-matches-any-of-them) | `frontend/src/services/api.ts:L246` and `:L288` prefix a segment no route declares |
 | Login answers 422 rather than 401 once the path is corrected | Signing in | [G7](#the-client-calls-six-routes-and-no-server-route-matches-any-of-them) | `frontend/src/services/auth.ts:L146` sends JSON `email`, and `backend/app/api/auth.py:L168` reads a form `username` |
-| `npm ci` fails with `EUSAGE` in continuous integration | Running the CI workflow | [G8](#npm-ci-cannot-run-anywhere) | `.github/workflows/ci.yml:L19` runs at the repository root, where no manifest and no lockfile exist |
+| `npm ci` fails in continuous integration, reporting `ENOENT` on npm 6 or `EUSAGE` on npm 7 and newer | Running the CI workflow | [G8](#npm-ci-cannot-run-anywhere) | `.github/workflows/ci.yml:L19` runs at the repository root, where no manifest and no lockfile exist. `ci.yml:L17` pins Node 14, which ships npm 6 |
 | `docker compose build` cannot find a Dockerfile | Building the containers | [G8](#compose-points-at-dockerfiles-that-are-not-there) | `infrastructure/docker/docker-compose.yml:L6-L7` and `:L19-L20` |
 | `terraform init` reports `Unreadable module directory` | Initialising the infrastructure | [G8](#three-terraform-module-sources-do-not-exist) | `infrastructure/terraform/main.tf:L67`, `:L76`, `:L85`. No `modules/` directory exists |
 | Celery workers have no broker to attach to | Running background jobs | [G8](#no-redis-service-backs-the-celery-broker) | `backend/app/tasks/background_tasks.py:L98` reads `settings.REDIS_URL`, and no service provides Redis |
@@ -272,7 +272,7 @@ a `z.infer` declaration. The three omissions together produce five of the six `T
 whole frontend, because the compiler reports one error per requested name per import statement.
 
 | Requested name | Requested at | Positions | What closing it needs |
-|----------------|--------------|-----------|------------------------|
+| ---------------- | -------------- | ----------- | ------------------------ |
 | `Document` | `frontend/src/services/api.ts:L80`, `frontend/src/services/collaboration.ts:L15`, `frontend/src/store/documentSlice.ts:L22` | 3 | One line. `DocumentSchema` already exists at `frontend/src/schema/document.ts:L65`, so a `z.infer` export beside it closes all three positions at once |
 | `DocumentCreate` | `frontend/src/services/api.ts:L80` | 1 | A schema first. No Zod object in the module models a creation payload, so nothing exists to infer from. `backend/app/schema/document.py:L68` declares the server-side equivalent |
 | `DocumentUpdate` | `frontend/src/services/api.ts:L80` | 1 | A schema first. `backend/app/schema/document.py:L82` declares the server-side equivalent and inherits nothing, so neither side holds a field list to mirror |
@@ -549,7 +549,7 @@ The table below walks the loop body in execution order. Rows 1 and 2 sit above t
 every row from 4 onward runs after the Firestore document is already gone.
 
 | Step | Statement | Locator | What happens |
-|------|-----------|---------|--------------|
+| ------ | ----------- | --------- | -------------- |
 | 1 | `db.collection('documents').where('expiration_date', ...).get()` | `:L267` | `datetime.now()` raises `NameError`, because `:L96` imports `timedelta` alone. Nothing else in the task runs |
 | 2 | The same query, once `datetime` is imported | `:L267` | No committed line writes `expiration_date` and `backend/app/schema/document.py` never declares it, so no record the application created can match. Which records return depends on what the collection already holds |
 | 3 | `user_id = doc.get('user_id')` | `background_tasks.py:L271` | Raises for a matched record that carries no `user_id`. `doc.id` at `:L270` always exists, so this is the only read that can fail before the first delete |
@@ -562,7 +562,7 @@ every row from 4 onward runs after the Firestore document is already gone.
 Four partial states follow, one per failure point after the first delete:
 
 | Stops at | Document record | Stored file | Permissions | Metadata |
-|----------|-----------------|-------------|-------------|----------|
+| ---------- | ----------------- | ------------- | ------------- | ---------- |
 | Step 5 | Deleted | Present | Present | Present |
 | Step 6 | Deleted | Present, delete failed on the wrong key | Present | Present |
 | Step 7 | Deleted | Deleted | Present | Present |
@@ -773,7 +773,7 @@ derived per document at `backend/app/services/collaboration_service.py:L120`, so
 topic per document identifier, created outside this repository before any editor connects.
 
 | Call | Locator | Needs a topic | Result without a pre-created topic |
-|------|---------|---------------|-------------------------------------|
+| ------ | --------- | --------------- | ------------------------------------- |
 | `create_subscription` | `collaboration_service.py:L124` | Yes | `NotFound`, caught at `:L125`, printed at `:L127`, and `:L128` returns |
 | `subscribe` | `collaboration_service.py:L165` | No | Never reached, because `:L128` returned first |
 | `delete_subscription` | `collaboration_service.py:L211` | No | `NotFound` for a subscription never created, caught at `:L212`, printed at `:L214` |
@@ -858,13 +858,17 @@ registers only the two reducer keys at `frontend/src/store/index.ts:L43-L44` and
 ### `npm ci` cannot run anywhere
 
 The repository commits no lockfile. No `package-lock.json`, `yarn.lock` or `pnpm-lock.yaml` exists,
-and the repository root holds no `package.json` either. Both invocations fail with
-`npm error code EUSAGE`.
+and the repository root holds no `package.json` either. Both invocations fail, and the diagnostic
+depends on the npm major. On npm 7 or newer the code reads `npm error code EUSAGE`. The npm 6 that
+ships with the Node 14 this repository pins reports different codes (`.github/workflows/ci.yml:L17`
+and `infrastructure/docker/frontend.Dockerfile:L2`). The root invocation reports
+`npm ERR! code ENOENT` for the absent `package.json`, and the container build reports
+`npm ERR! cipm can only install packages with an existing package-lock.json`.
 
 | Invocation | Locator | Working directory | Result |
 | ------------ | --------- | ------------------- | -------- |
-| Continuous integration | `.github/workflows/ci.yml:L19` | the repository root, because the step sets no `working-directory` | Fails. No manifest and no lockfile |
-| Container build | `infrastructure/docker/frontend.Dockerfile:L11` | `/app`, after `L8` copies `package*.json` | Fails. The glob at `L8` matches only `package.json` |
+| Continuous integration | `.github/workflows/ci.yml:L19` | the repository root, because the step sets no `working-directory` | Fails. No manifest and no lockfile. npm 6 reports `ENOENT`, npm 7 or newer reports `EUSAGE` |
+| Container build | `infrastructure/docker/frontend.Dockerfile:L11` | `/app`, after `L8` copies `package*.json` | Fails. The glob at `L8` matches only `package.json`. npm 6 reports the `cipm` message, npm 7 or newer reports `EUSAGE` |
 
 `npm install` inside `frontend/` succeeds, so a developer working by hand gets further than either
 automated path. One observed run on Node 14 resolved 1,532 packages, and no lockfile fixes that
@@ -988,7 +992,7 @@ calls `.delay()` or `.apply_async()` anywhere in the repository.
 prerequisites are missing, and they fail in this order inside `export_to_pdf`.
 
 | Order | Statement | Locator | What it needs |
-|-------|-----------|---------|---------------|
+| ------- | ----------- | --------- | --------------- |
 | 1 | `self.storage_client.bucket(settings.STORAGE_BUCKET_NAME)` | `backend/app/services/export_service.py:L154` | A declared `STORAGE_BUCKET_NAME`. `Settings` declares nine fields at `backend/app/core/config.py:L111-L119` and this is not one, so attribute access raises `AttributeError` before any network call |
 | 2 | `blob.upload_from_string(...)` | `backend/app/services/export_service.py:L157` | Credentials that authenticate and can write to the bucket. `backend/app/db/firestore.py:L39` holds the repository's only Application Default Credentials resolution, and no committed file supplies `GOOGLE_APPLICATION_CREDENTIALS` |
 | 3 | `blob.generate_signed_url(version="v4", ...)` | `backend/app/services/export_service.py:L160-L164` | Sign-capable credentials, plus an expiry inside the version 4 limit |
@@ -996,10 +1000,9 @@ prerequisites are missing, and they fail in this order inside `export_to_pdf`.
 Step 3 is the prerequisite most easily missed, because authentication alone does not satisfy it. A
 version 4 signature is computed locally, so the credentials must be able to sign bytes. Two shapes do
 that. The first is a service-account private key, referenced through `GOOGLE_APPLICATION_CREDENTIALS`,
-which `backend/app/core/config.py:L117` declares as `Optional[str]` with no explicit default,
-which Pydantic 1.x treats as optional with a `None` default, so the
-contract never requires it, and no committed `.env` supplies it, with
-`Config.env_file` at `:L123` naming the uncommitted file. The second is an IAM `signBlob` grant, which
+which `backend/app/core/config.py:L117` declares as `Optional[str]` so the field defaults to `None`.
+No committed `.env` supplies a value, and `Config.env_file` at `:L123` names the uncommitted file that
+Pydantic would read. The second is an IAM `signBlob` grant, which
 credentials with no private key must use by delegating to the IAM Credentials application programming
 interface (API). That path needs `iam.serviceAccounts.signBlob` on the signing service account, granted
 through the Service Account Token Creator role, and the caller must name the signer explicitly. Neither
@@ -1323,7 +1326,7 @@ None of these paths executes as committed. Each entry names the absent control a
 path does not run, because both facts matter to whoever repairs it.
 
 | # | Absent control | Evidence | What the absence permits once the path runs |
-|---|----------------|----------|---------------------------------------------|
+| --- | ---------------- | ---------- | --------------------------------------------- |
 | 19 | Authentication on the collaboration handshake | `backend/app/services/collaboration_service.py:L75` accepts `websocket`, `document_id` and `user_id` as plain arguments, and no route constructs the service, so nothing verifies a token before a socket is registered at `:L115-L117` | A caller supplies any `user_id` and joins as that identity |
 | 20 | Authorization against the document being joined | The same method never checks that `user_id` may read `document_id` before it derives a topic at `:L120` and a subscription at `:L121` | Any caller joins the collaboration stream of any document identifier |
 | 21 | Validation of `document_id` before it names a broker resource | `:L120` and `:L121` interpolate the value straight into Pub/Sub resource paths, and `:L173` does the same on disconnect | An unvalidated identifier selects or creates broker resources |
@@ -1342,7 +1345,7 @@ have no caller in `backend/app/` at all. No signed URL is produced by this repos
 ### G9.4 Supply chain and workflow identity
 
 | # | Absent control | Evidence | What the absence permits |
-|---|----------------|----------|--------------------------|
+| --- | ---------------- | ---------- | -------------------------- |
 | 27 | Immutable action references | `.github/workflows/ci.yml:L13` and `:L15` and `.github/workflows/cd.yml:L11` and `:L13` each name a mutable tag. A tag can be moved or deleted by whoever controls the action repository, so a tag is a reference and not a pin. Only a full-length commit SHA is immutable. The March 2025 compromise of `tj-actions/changed-files` moved every tag in that repository | A third party changes the code your workflow runs without any change to this repository |
 | 28 | A pinned runner and pinned base images | Both workflows request `ubuntu-latest`, at `ci.yml:L11` and `cd.yml:L9`. `infrastructure/docker/backend.Dockerfile:L2`, `frontend.Dockerfile:L2` and `:L20`, and `infrastructure/docker/docker-compose.yml:L31` each name a mutable tag rather than an `image@sha256:` digest | The build environment and the image contents change underneath an unchanged repository |
 | 29 | A least-privilege `permissions:` block | Neither workflow file declares `permissions:` at any level, so `GITHUB_TOKEN` receives the repository default rather than the minimum each job needs | Every step in every job holds broader repository access than its work requires |
@@ -1353,7 +1356,7 @@ have no caller in `backend/app/` at all. No signed URL is produced by this repos
 ### G9.5 Secrets, state and data retention
 
 | # | Absent control | Evidence | What the absence permits |
-|---|----------------|----------|--------------------------|
+| --- | ---------------- | ---------- | -------------------------- |
 | 33 | Any ignore rule protecting generated state | No `.gitignore`, `.dockerignore` or `.terraformignore` is tracked anywhere in this repository. `infrastructure/terraform/main.tf` declares no `backend` block, so state is written locally, and Terraform state records resource attributes in clear text | A local state file, which can contain secret values, is one `git add` away from the history |
 | 34 | A secret allow-list or a preflight on the deploy archive | `scripts/deploy.sh:L19` runs `zip -r app.zip . -x "*.git*" -x "node_modules/*" -x "venv/*"`, a deny-list of three patterns, and `:L23` uploads the archive with `gsutil cp`. Any `.env`, key file, credential or state file outside those three patterns is included | Local secrets leave the machine inside a deployed artifact |
 | 35 | Failure handling in the deploy script | `scripts/deploy.sh` sets no `set -e`, installs no `trap` and inspects `$?` nowhere. Its only guard is the credentials check at `:L4-L7`. `:L47` prints `Deployment completed successfully!` unconditionally | Every stage failure is ignored, and the run reports success after failing |
@@ -1404,7 +1407,7 @@ records the six entries rather than correcting them in place. The scope entry be
 | `README.md:L81` | Claims an MIT licence and links to a licence file | No `LICENSE` file is committed, so the README's link resolves to nothing. This register quotes that markup as code rather than reproducing it, so no broken link appears here. `frontend/package.json` declares no `license` field either |
 | `README.md:L86-L87` | `John Doe` and `Jane Smith` as project maintainers, with `example.com` addresses | Placeholder contacts |
 
-Two notes on the structure claim at `README.md:L59-L66`, because the two halves of it diverge once
+Two notes on the structure claim at `../README.md:L59-L66`, because the two halves of it diverge once
 this documentation set lands.
 
 The `docs/` claim at `L64` becomes accidentally true. A root-level `docs/` directory now exists,
