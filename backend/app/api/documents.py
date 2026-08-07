@@ -9,40 +9,37 @@ defines `router`. The template router registers the same five path shapes with n
 prefix either. Starlette matches in registration order, so these handlers take every
 request and the template routes never run.
 
-The module cannot import. L4 requests `app.services.document_service`, whose
+The module cannot import. L47 requests `app.services.document_service`, whose
 own chain reaches `settings` in `app.core.config` through
-`app/db/firestore.py:L38`, and `app.core.config` defines only the `Settings`
-class and a `get_settings()` factory. L4 therefore raises `ImportError` first.
-L5 requests `app.api.auth` for the `get_current_user` defined at
-`app/api/auth.py:L92`, and `app/api/auth.py:L84` requests that same absent
-`settings`. `app/core/security.py:L119` defines a second `get_current_user`,
+`app/db/firestore.py:L36`, and `app.core.config` defines only the `Settings`
+class and a `get_settings()` factory. L47 therefore raises `ImportError` first.
+L48 requests `app.api.auth` for the `get_current_user` defined at
+`app/api/auth.py:L89`, and `app/api/auth.py:L81` requests that same absent
+`settings`. `app/core/security.py:L117` defines a second `get_current_user`,
 which this module does not import.
 
 Ten sites disagree with the service contract in
 `app/services/document_service.py`: seven service calls and three field reads,
-grouped below into four categories. Locators for the declarations follow in
-parentheses.
+grouped below into four categories, each naming the declaration it disagrees with.
 
-- L13 passes the whole `current_user` object where `user_id: str` is
-  declared (L11).
-- L19 calls `get_documents`, and `DocumentService` defines no such method.
-- L25, L33 and L42 pass one argument where two are declared (L26). L36 passes
-  two where three are declared (L43), and L45 passes one where two are
-  declared (L63).
-- L26, L34 and L43 read `user_id` from a `Document`, and that contract
-  declares `owner_id` at `app/schema/document.py:L68`.
+- L108 passes the whole `current_user` object where `user_id: str` is
+  declared (`app/services/document_service.py:L72`).
+- L142 calls `get_documents`, and `DocumentService` defines no such method.
+- L183, L231 and L278 pass one argument where two are declared
+  (`app/services/document_service.py:L123`). L234 passes two where three are
+  declared (`app/services/document_service.py:L183`). L281 passes one where two
+  are declared (`app/services/document_service.py:L252`).
+- L184, L232 and L279 read `user_id` from a `Document`, and that contract
+  declares `owner_id` at `app/schema/document.py:L66`.
 - The arity mismatches above raise `TypeError`, not `HTTPException`. FastAPI
   leaves an uncaught `TypeError` to the server error handler, so a caller
   receives HTTP 500 rather than a document, a 403 or a 404.
 
-Each handler below splits its docstring at a form-feed marker, spelled as the
-Unicode named escape for that character. FastAPI publishes the text above that
-marker as the route description in the generated OpenAPI document and drops
-everything below it. Each lower section is labelled "Internal notes" and carries
-locators, storage details and contract-failure analysis.
+Each handler docstring below closes with a paragraph labelled "Internal notes",
+carrying locators, storage details and contract-failure analysis.
 
-Line references point at the pre-documentation layout of commit `06be74c`, so
-they exclude docstrings added by this pass.
+Every `Lnn` reference below points at the current layout of the file it names. A
+bare `Lnn` points into this file, and a `path:Lnn` points into the named file.
 """
 from fastapi import APIRouter, Depends, HTTPException
 from typing import List
@@ -71,22 +68,22 @@ async def create_document(document: DocumentCreate, current_user: User = Depends
 
     Raises:
         TypeError: Raised inside the service, from the Firestore encoder, for the
-            reason the internal notes below record. The handler wraps L13 in no
+            reason the internal notes below record. The handler wraps L108 in no
             `try` block, so FastAPI converts the uncaught error into a 500
             response.
-    \N{FORM FEED}
+
     Internal notes.
 
-    The decorator sits at L10 and L14 returns the service result.
+    The decorator sits at L53 and L109 returns the service result.
 
     Side effects:
         None can be established from this route. Writing one document to the
         Firestore `documents` collection is the intended effect, and the write
-        does not reach the service's `set` remote procedure call. L13 passes the
+        does not reach the service's `set` remote procedure call. L108 passes the
         whole `current_user` object where
-        `app/services/document_service.py:L74` declares `user_id: str`.
-        `app/services/document_service.py:L118` places that Pydantic model under
-        the `user_id` key of the dictionary, and `:L21` hands the dictionary to
+        `app/services/document_service.py:L72` declares `user_id: str`.
+        `app/services/document_service.py:L116` places that Pydantic model under
+        the `user_id` key of the dictionary, and `:L118` hands the dictionary to
         `DocumentReference.set`. The Firestore encoder accepts `None`, `bool`,
         `int`, `float`, `str`, `bytes`, `datetime`, `GeoPoint`,
         `DocumentReference`, `list` and `dict`, and rejects an arbitrary
@@ -122,23 +119,23 @@ async def get_documents(current_user: User = Depends(get_current_user)) -> List[
         The `List[Document]` named in the return annotation.
 
     Raises:
-        AttributeError: At L19, because `DocumentService` defines no
+        AttributeError: At L142, because `DocumentService` defines no
             `get_documents` method. The attribute lookup fails before any argument
             is passed, so the failure is certain on every request rather than
-            conditional. The handler wraps L19 in no `try` block, so FastAPI
+            conditional. The handler wraps L142 in no `try` block, so FastAPI
             converts the uncaught error into a 500 response and the declared
             `List[Document]` is never produced.
-    \N{FORM FEED}
+
     Internal notes.
 
-    L19 awaits `document_service.get_documents(current_user)`, and
+    L142 awaits `document_service.get_documents(current_user)`, and
     `DocumentService` defines no `get_documents` method. That class declares
     `create_document`, `get_document`, `update_document` and `delete_document`
-    at `app/services/document_service.py:L74`, `:L26`, `:L43` and `:L63`. The
-    declared `List[Document]` cannot be produced, and L20 never runs.
+    at `app/services/document_service.py:L72`, `:L123`, `:L183` and `:L252`. The
+    declared `List[Document]` cannot be produced, and L143 never runs.
 
     Side effects:
-        None. The failure at L19 precedes every Firestore call, so the route
+        None. The failure at L142 precedes every Firestore call, so the route
         reads nothing and writes nothing.
     """
     document_service = DocumentService()
@@ -157,28 +154,28 @@ async def get_document(document_id: str, current_user: User = Depends(get_curren
         The `Document` named in the return annotation.
 
     Raises:
-        TypeError: At L25, because the call passes one argument where
-            `app/services/document_service.py:L125` declares `document_id` and
+        TypeError: At L183, because the call passes one argument where
+            `app/services/document_service.py:L123` declares `document_id` and
             `user_id` after `self`. Python raises before the method body runs, so
-            the failure is certain on every request. The handler wraps L25 in no
+            the failure is certain on every request. The handler wraps L183 in no
             `try` block, so FastAPI converts the uncaught error into a 500
             response, and the 403 below is unreachable as committed.
         HTTPException: HTTP 403, detail
             `"Not authorized to access this document"`, when the caller does not
-            own the document. Reachable only once the arity at L25 is corrected.
-    \N{FORM FEED}
+            own the document. Reachable only once the arity at L183 is corrected.
+
     Internal notes.
 
-    The decorator sits at L22, the 403 at L27, and L28 returns the document.
+    The decorator sits at L145, the 403 at L185, and L186 returns the document.
 
     Side effects:
-        None. The failure at L25 precedes the service's Firestore read, so the
+        None. The failure at L183 precedes the service's Firestore read, so the
         route reads nothing and writes nothing.
 
-    Two call sites disagree with their contracts. L25 passes one argument where
-    `app/services/document_service.py:L125` declares two, `document_id` and
-    `user_id`. L26 reads `user_id` from a `Document`, and that contract declares
-    `owner_id` at `app/schema/document.py:L68`. `owner_id` is optional and
+    Two call sites disagree with their contracts. L183 passes one argument where
+    `app/services/document_service.py:L123` declares two, `document_id` and
+    `user_id`. L184 reads `user_id` from a `Document`, and that contract declares
+    `owner_id` at `app/schema/document.py:L66`. `owner_id` is optional and
     defaults to `None`, so a `Document` validates without the value the
     ownership check reads.
     """
@@ -202,33 +199,33 @@ async def update_document(document_id: str, document: DocumentUpdate, current_us
         The updated `Document` named in the return annotation.
 
     Raises:
-        TypeError: At L33, because the call passes one argument where
-            `app/services/document_service.py:L125` declares `document_id` and
+        TypeError: At L231, because the call passes one argument where
+            `app/services/document_service.py:L123` declares `document_id` and
             `user_id` after `self`. Python raises before the method body runs, so
             the failure is certain on every request.
-        TypeError: At L36, for the same class of mistake, because the call passes
-            two arguments where `app/services/document_service.py:L185` declares
-            `document_id`, `document` and `user_id` after `self`. L36 is
-            unreachable while L33 raises first.
+        TypeError: At L234, for the same class of mistake, because the call passes
+            two arguments where `app/services/document_service.py:L183` declares
+            `document_id`, `document` and `user_id` after `self`. L234 is
+            unreachable while L231 raises first.
         HTTPException: HTTP 403, detail
             `"Not authorized to update this document"`, when the caller does not
-            own the document. Reachable only once the arity at L33 is corrected.
+            own the document. Reachable only once the arity at L231 is corrected.
 
         The handler wraps neither call in a `try` block, so FastAPI converts the
         uncaught `TypeError` into a 500 response and the caller sees a server
         error rather than a document.
-    \N{FORM FEED}
+
     Internal notes.
 
     Side effects:
-        None. The `TypeError` at L33 precedes the service's Firestore read, so the
+        None. The `TypeError` at L231 precedes the service's Firestore read, so the
         route reads nothing and writes nothing.
 
-    Once the arity at L33 and L36 is corrected, the route performs one write to
+    Once the arity at L231 and L234 is corrected, the route performs one write to
     the Firestore `documents` collection, preceded by two reads: this handler's
     ownership read plus the service's own read-before-write. The ownership
-    comparison at L34 reads `document.user_id` against a contract declaring
-    `owner_id` at `app/schema/document.py:L68`.
+    comparison at L232 reads `document.user_id` against a contract declaring
+    `owner_id` at `app/schema/document.py:L66`.
     """
     document_service = DocumentService()
     existing_document = await document_service.get_document(document_id)
@@ -250,32 +247,32 @@ async def delete_document(document_id: str, current_user: User = Depends(get_cur
         route answers HTTP 200 rather than 204.
 
     Raises:
-        TypeError: At L42, because the call passes one argument where
-            `app/services/document_service.py:L125` declares `document_id` and
+        TypeError: At L278, because the call passes one argument where
+            `app/services/document_service.py:L123` declares `document_id` and
             `user_id` after `self`. Python raises before the method body runs, so
             the failure is certain on every request.
-        TypeError: At L45, for the same class of mistake, because the call passes
-            one argument where `app/services/document_service.py:L254` declares
-            `document_id` and `user_id` after `self`. L45 is unreachable while L42
+        TypeError: At L281, for the same class of mistake, because the call passes
+            one argument where `app/services/document_service.py:L252` declares
+            `document_id` and `user_id` after `self`. L281 is unreachable while L278
             raises first.
         HTTPException: HTTP 403, detail
             `"Not authorized to delete this document"`, when the caller does not
-            own the document. Reachable only once the arity at L42 is corrected.
+            own the document. Reachable only once the arity at L278 is corrected.
 
         The handler wraps neither call in a `try` block, so FastAPI converts the
         uncaught `TypeError` into a 500 response and the caller sees a server
         error rather than the success message.
-    \N{FORM FEED}
+
     Internal notes.
 
     Side effects:
-        None. The `TypeError` at L42 precedes the service's Firestore read, so the
+        None. The `TypeError` at L278 precedes the service's Firestore read, so the
         route reads nothing and deletes nothing.
 
-    Once the arity at L42 and L45 is corrected, the route performs one hard delete
+    Once the arity at L278 and L281 is corrected, the route performs one hard delete
     from the Firestore `documents` collection, with no soft-delete flag and no
-    version retained. The ownership comparison at L43 reads `document.user_id`
-    against a contract declaring `owner_id` at `app/schema/document.py:L68`.
+    version retained. The ownership comparison at L279 reads `document.user_id`
+    against a contract declaring `owner_id` at `app/schema/document.py:L66`.
     """
     document_service = DocumentService()
     existing_document = await document_service.get_document(document_id)

@@ -47,8 +47,8 @@ import { setCurrentDocument } from '@/store/documentSlice';
  *   before transport.
  * - The client path `PUT /documents/{id}` is two segments and matches no registered route, so
  *   a repaired client receives 404.
- * - `backend/app/api/documents.py:L234` passes one argument where
- *   `backend/app/services/document_service.py:L125` declares two, so a repaired client path
+ * - `backend/app/api/documents.py:L231` passes one argument where
+ *   `backend/app/services/document_service.py:L123` declares two, so a repaired client path
  *   still receives 500.
  *
  * Intended behavior once those five are repaired: the load effect requests a document and
@@ -142,8 +142,8 @@ const Editor: React.FC = () => {
    * path rather than current behavior. Three blockers sit in front of it: `updateDocument`
    * rejects inside the request interceptor at `services/api.ts:L142`, the client path
    * `PUT /documents/{id}` is two segments and matches no registered route, and
-   * `backend/app/api/documents.py:L234` passes one argument where
-   * `backend/app/services/document_service.py:L125` declares two.
+   * `backend/app/api/documents.py:L231` passes one argument where
+   * `backend/app/services/document_service.py:L123` declares two.
    *
    * Once those three are repaired, two saves can be in flight together: an edit five seconds
    * after a slow save began schedules a second save while the first is still open. Nothing

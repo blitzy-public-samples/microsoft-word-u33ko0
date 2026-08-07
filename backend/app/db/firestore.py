@@ -28,10 +28,8 @@ surface is whatever the resolved release provides.
 None of the four helpers opens a transaction, sets a retry policy, sets a
 timeout, or catches an exception.
 
-Line locators: every `Lnn` reference below numbers the tree at commit
-06be74c7c88aa6bca652d465eaa00ad480a9e5c5, the frozen revision that precedes this
-documentation pass. A bare `Lnn` points into this file, and a `path:Lnn` points into
-the named file. Current HEAD numbers each documented file higher.
+Every `Lnn` reference below points at the current layout of the file it names. A
+bare `Lnn` points into this file, and a `path:Lnn` points into the named file.
 """
 from google.cloud.firestore import Client
 from google.auth import default
@@ -59,8 +57,8 @@ def get_document(collection: str, document_id: str) -> dict:
         if fields is not None:
             title = fields["title"]
 
-        The guard is required, because `L14` returns None for a missing
-        snapshot. The example cannot run as committed, because `L3` imports a
+        The guard is required, because `L68` returns None for a missing
+        snapshot. The example cannot run as committed, because `L36` imports a
         `settings` name that `app/core/config.py` never defines.
     """
     doc_ref = db.collection(collection).document(document_id)

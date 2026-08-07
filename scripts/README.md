@@ -196,7 +196,7 @@ Every entry below cites the line that establishes it.
 - `setup_dev_environment.sh:L55` prints `python manage.py runserver`, naming Django's server in a FastAPI project. The front-door alternative does not work
   either. `README.md:L54-L55` gives `cd backend` then `uvicorn main:app --reload`, and `backend/` holds no `main.py`: the application object lives at
   `backend/app/main.py`, so the target would have to be `app.main:app`. Correcting it still starts no server, because `import app.main` raises at
-  `backend/app/api/auth.py:L84` with `cannot import name 'settings' from 'app.core.config'`. Both printed instructions are non-working.
+  `backend/app/api/auth.py:L81` with `cannot import name 'settings' from 'app.core.config'`. Both printed instructions are non-working.
 - `setup_dev_environment.sh:L32` embeds the literal password `password` in the script.
 - `setup_dev_environment.sh:L5` and `:L6` mutate the host with `sudo apt-get update` and `upgrade -y`, which restricts the script to Debian-family Linux.
 - `setup_dev_environment.sh` holds no idempotency guard. A second run repeats the `CREATE DATABASE` at `:L31` and the `CREATE USER` at `:L32`, and PostgreSQL

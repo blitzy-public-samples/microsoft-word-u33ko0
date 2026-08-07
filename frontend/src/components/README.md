@@ -106,9 +106,10 @@ one.
 | `react-redux ^8.0.5` | `frontend/package.json:L10` | Reached indirectly, through the absent store hooks |
 | `react-router-dom ^6.11.1` | `frontend/package.json:L11` | `Header.tsx:L21`, for `Link` |
 | `draft-js` | Absent from the manifest | `DocumentCanvas.tsx:L21`, `ImageEditor.tsx:L29`, `TableEditor.tsx:L25`, `TextEditor.tsx:L42` |
-| `@types/draft-js` | Absent from the manifest | Required by the same four modules |
+| `@types/draft-js` | Absent from the manifest | No module imports it. TypeScript needs it to type the four `draft-js` importers above |
 
-`draft-js` and `@types/draft-js` are imported but never declared. `frontend/package.json:L6-L14`
+`draft-js` is imported here and never declared, and its companion type package `@types/draft-js` is
+declared nowhere either, though no module imports it directly. `frontend/package.json:L6-L14`
 lists exactly seven runtime dependencies: `@reduxjs/toolkit`, `react`, `react-dom`, `react-redux`,
 `react-router-dom`, `tailwindcss` and `typescript`. Neither Draft.js package appears there or in the
 development dependencies. Four of the thirteen undeclared-package `TS2307` errors originate here,

@@ -107,7 +107,7 @@ them through Pydantic. The matrix covers all 15.
 | `SECRET_KEY` | `config.py:L113` | Yes | No | `ValidationError`. Signs and verifies every token. |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | `config.py:L114` | Yes | No | `ValidationError`. Sets token lifetime. |
 | `ALGORITHM` | `config.py:L115` | Yes | No | `ValidationError`. Names the JWT algorithm. |
-| `GOOGLE_CLOUD_PROJECT` | `config.py:L116` | No, `Optional` | No | Resolves to `None`, and `backend/app/db/firestore.py:L42` passes it as the Firestore project. |
+| `GOOGLE_CLOUD_PROJECT` | `config.py:L116` | No, `Optional` | No | Resolves to `None`, and `backend/app/db/firestore.py:L40` passes it as the Firestore project. |
 | `GOOGLE_APPLICATION_CREDENTIALS` | `config.py:L117` | No, `Optional` | No | Resolves to `None`. No credential file is mounted into any container. |
 | `DATABASE_URL` | `config.py:L118` | Yes | Yes, `docker-compose.yml:L24` | Satisfied. Read at `backend/app/db/sql.py:L16`. |
 | `REDIS_URL` | `config.py:L119` | Yes | No | `ValidationError`. Compose declares no Redis service to point it at. |
@@ -158,7 +158,7 @@ The final hop is wired but unused. Compose hands the backend a `DATABASE_URL`
 (`docker-compose.yml:L24`) and `backend/app/db/sql.py:L16` builds an engine from it. No router
 or service calls `get_db` (`:L21`), nothing subclasses `Base` (`:L19`), and no migration
 tooling is committed. Application persistence targets Firestore instead
-(`backend/app/db/firestore.py:L42`), so the `db` service is provisioned and running rather
+(`backend/app/db/firestore.py:L40`), so the `db` service is provisioned and running rather
 than serving reads or writes. A dashed edge below marks a relationship that does not work.
 
 ```mermaid

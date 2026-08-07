@@ -42,7 +42,7 @@ import { updateDocument } from '@/store/documentSlice';
  * inline styles and `unstyled`, `header-one` and `header-two` for block types.
  *
  * A second mismatch sits on those same two lines, and it stays latent. Both helpers declare an
- * `EditorState` return, per the `EditorState.push` returns at `formatting.ts:L41` and `:L26`. L62
+ * `EditorState` return, per the `EditorState.push` returns at `formatting.ts:L41` and `:L71`. L62
  * and L67 bind that declared type to `updatedContent`, and L63 and L68 would pass it as a `content`
  * value. No diagnostic covers either point today: the three `@/` specifiers at L22, L23 and L24 fail
  * to resolve, so the checker types the two helpers and the dispatched action as `any` and reports

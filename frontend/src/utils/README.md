@@ -11,11 +11,11 @@ return a value. None writes to the Redux store, the network, or the browser, and
 
 | Component | Type | Location | Description |
 | --- | --- | --- | --- |
-| `applyInlineStyle` | Exported function | `formatting.ts:L31` | Applies an inline style to the current selection. Declares two parameters, reads content and selection at `:L32-L33`, calls `Modifier.applyInlineStyle` at `:L7-L11`, and returns a new `EditorState` from `EditorState.push` with change type `'apply-inline-style'` at `:L13`. |
-| `applyBlockStyle` | Exported function | `formatting.ts:L61` | Sets the block type of the current selection. Declares two parameters, reads content and selection at `:L62-L63`, calls `Modifier.setBlockType` at `:L20-L24`, and returns a new `EditorState` from `EditorState.push` with change type `'change-block-type'` at `:L26`. |
-| `validateEmail` | Exported arrow function | `validation.ts:L24` | Checks one string against `z.string().email()` at `:L4` and returns the `safeParse` `.success` flag at `:L5`. |
+| `applyInlineStyle` | Exported function | `formatting.ts:L31` | Applies an inline style to the current selection. Declares two parameters, reads content and selection at `:L32-L33`, calls `Modifier.applyInlineStyle` at `:L35-L39`, and returns a new `EditorState` from `EditorState.push` with change type `'apply-inline-style'` at `:L41`. |
+| `applyBlockStyle` | Exported function | `formatting.ts:L61` | Sets the block type of the current selection. Declares two parameters, reads content and selection at `:L62-L63`, calls `Modifier.setBlockType` at `:L65-L69`, and returns a new `EditorState` from `EditorState.push` with change type `'change-block-type'` at `:L71`. |
+| `validateEmail` | Exported arrow function | `validation.ts:L24` | Checks one string against `z.string().email()` at `:L25` and returns the `safeParse` `.success` flag at `:L26`. |
 | `validatePassword` | Exported arrow function | `validation.ts:L44` | Checks one string against the policy built at `:L45-L49` and returns the `.success` flag at `:L50`. |
-| `serializeDocument` | Exported function | `documentUtils.ts:L39` | Declares an `EditorState` parameter, converts its content with `convertToRaw` at `:L40`, and returns the `JSON.stringify` value built at `:L10`. |
+| `serializeDocument` | Exported function | `documentUtils.ts:L39` | Declares an `EditorState` parameter, converts its content with `convertToRaw` at `:L40`, and returns the `JSON.stringify` value built at `:L41`. |
 | `deserializeDocument` | Exported function | `documentUtils.ts:L63` | Parses JSON text at `:L67`, rebuilds a `ContentState` with `convertFromRaw` at `:L77`, and returns an `EditorState` from `:L78`. |
 
 ## Architecture Fit
@@ -131,7 +131,7 @@ modules carry faults in their own logic, and their callers add more.
 - **The one caller inverts both signatures, and the two errors are exact inverses.** `serializeDocument` at
   `documentUtils.ts:L39` declares an `EditorState` parameter, and `deserializeDocument` at `:L63` declares an `EditorState`
   return. `frontend/src/components/DocumentCanvas.tsx:L116` binds the returned `EditorState` to a variable named
-  `contentState`, then `:L117` hands it to `EditorState.createWithContent()`, which accepts a `ContentState`. `:L25` passes a
+  `contentState`, then `:L117` hands it to `EditorState.createWithContent()`, which accepts a `ContentState`. `:L163` passes a
   `ContentState` from `getCurrentContent()` into `serializeDocument`. Correcting either site alone, in the direction its own
   variable name suggests, breaks the other.
 - **Both external packages are imported and undeclared.** `draft-js` at `formatting.ts:L13` and `documentUtils.ts:L21`, and

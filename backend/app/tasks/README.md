@@ -37,8 +37,8 @@ and no module imports `background_tasks`.
 
 The task tier sits beside the service tier and reaches persistence the same way a service
 does. `background_tasks.py:L93` imports the module-level Firestore client built at
-`db/firestore.py:L42`, and `:L94` imports `DocumentService` declared at
-`services/document_service.py:L64`. No route module imports this one, so nothing in the
+`db/firestore.py:L40`, and `:L92` imports `DocumentService` declared at
+`services/document_service.py:L62`. No route module imports this one, so nothing in the
 application programming interface (API) tier hands work to the queue. Repository-wide layering
 sits in [../../../docs/architecture-overview.md](../../../docs/architecture-overview.md), and
 the package view in [../README.md](../README.md).
@@ -84,8 +84,8 @@ scheduler and Memorystore instance sit in
 | Imported or called name | Site | Resolves | Evidence |
 | --- | --- | --- | --- |
 | `settings` from `app.core.config` | `background_tasks.py:L92` | No | `core/config.py` declares the `Settings` class at `:L51` and `get_settings` at `:L126`, and no module-level instance. `:L98` dereferences the name while the module body runs. |
-| `db` from `app.db.firestore` | `background_tasks.py:L93` | Yes | `db/firestore.py:L42` builds the Firestore client at import time. |
-| `DocumentService` from `app.services.document_service` | `background_tasks.py:L94` | Yes | Declared at `services/document_service.py:L64`. Both call sites are wrong: `background_tasks.py:L135` never awaits the coroutine, and `:L310` passes one argument against two. |
+| `db` from `app.db.firestore` | `background_tasks.py:L93` | Yes | `db/firestore.py:L40` builds the Firestore client at import time. |
+| `DocumentService` from `app.services.document_service` | `background_tasks.py:L94` | Yes | Declared at `services/document_service.py:L62`. Both call sites are wrong: `background_tasks.py:L135` never awaits the coroutine, and `:L310` passes one argument against two. |
 | `ExportService` from `app.services.export_service` | `background_tasks.py:L95` | Yes | Declared at `services/export_service.py:L63`. The method `:L138` calls is not one of its two. |
 | `convert_document` on `ExportService` | Called at `background_tasks.py:L138` | No | `services/export_service.py` declares `export_to_pdf` at `:L87` and `export_to_docx` at `:L168`, and no `convert_document`. |
 | `timedelta` from `datetime` | `background_tasks.py:L96` | Yes | Read at `:L146` for the signed-URL expiry and at `:L151` for the decorator argument. |
@@ -140,9 +140,9 @@ graph TD
     CLEAN["cleanup_expired_documents<br/>L152"]
     STATS["update_document_statistics<br/>L287"]
 
-    DSVC["DocumentService.get_document<br/>services/document_service.py:L125"]
+    DSVC["DocumentService.get_document<br/>services/document_service.py:L123"]
     ESVC["ExportService<br/>services/export_service.py:L63"]
-    FS["Firestore client<br/>db/firestore.py:L42"]
+    FS["Firestore client<br/>db/firestore.py:L40"]
     GCS["Google Cloud Storage"]
 
     NOPROD -.->|"nothing enqueues any of the three"| APP
@@ -178,8 +178,8 @@ and two are read here with no writer anywhere.
 | Field | Task and site | Direction | Writer in the repository |
 | --- | --- | --- | --- |
 | `expiration_date` | `cleanup_expired_documents`, filter at `:L267` | Read | **None.** No committed line writes this field |
-| `user_id` | `cleanup_expired_documents`, `doc.get('user_id')` at `:L271` | Read | `services/document_service.py:L118` |
-| `content` | `update_document_statistics`, `:L313` | Read | `services/document_service.py:L120`, from `DocumentCreate` |
+| `user_id` | `cleanup_expired_documents`, `doc.get('user_id')` at `:L271` | Read | `services/document_service.py:L116` |
+| `content` | `update_document_statistics`, `:L313` | Read | `services/document_service.py:L118`, from `DocumentCreate` |
 | `pages` | `update_document_statistics`, `:L314` | Read | **None.** No contract declares the field |
 | `statistics.word_count` | `update_document_statistics`, `:L319` | Write | This task only |
 | `statistics.page_count` | `update_document_statistics`, `:L320` | Write | This task only |
@@ -200,7 +200,7 @@ task-queue offloading, moving work off the request path and onto a broker. `:L15
 intended scheduled retention sweep with `run_every=timedelta(days=1)`. `:L146` applies
 signed-URL delivery, handing a caller a time-limited link instead of file bytes. `:L98` also
 builds the application as a module-level instance during import, the same import-time
-construction `db/firestore.py:L42` uses for the Firestore client.
+construction `db/firestore.py:L40` uses for the Firestore client.
 
 Six pieces that a working Celery deployment needs are absent, and each absence belongs to
 this module rather than to Celery. No producer exists: no tracked file calls `.delay(`,
@@ -230,12 +230,12 @@ traces each step and the state it leaves.
 The queue is absent, and its absence is not a control. Every task here treats the message as trusted input. `:L101`
 declares `document_id`, `export_format` and `user_id` as plain parameters, and no line in any task body checks any of
 the three. A publisher that reaches the broker therefore chooses the identity the work runs under, and the worker runs
-that work with the ambient service credentials `db/firestore.py:L41` discovers and `:L42` binds. The eight
+that work with the ambient service credentials `db/firestore.py:L39` discovers and `:L40` binds. The eight
 prerequisites below have to exist before any enqueue path is exposed, and none exists today.
 
 | Prerequisite | State as committed | Evidence |
 | --- | --- | --- |
-| Authenticated and authorized producers | Absent. The publisher asserts identity through `user_id`, and `:L135` calls `get_document(document_id, user_id)` on an `async def` without awaiting it, so the ownership comparison at `services/document_service.py:L177` never runs. Awaiting it would check only the pair the message supplied, so knowledge of any document identifier and its owner would authorize the export. | `:L101`, `:L135` |
+| Authenticated and authorized producers | Absent. The publisher asserts identity through `user_id`, and `:L135` calls `get_document(document_id, user_id)` on an `async def` without awaiting it, so the ownership comparison at `services/document_service.py:L175` never runs. Awaiting it would check only the pair the message supplied, so knowledge of any document identifier and its owner would authorize the export. | `:L101`, `:L135` |
 | Broker transport security and access control | Unestablished. `:L98` reads `settings.REDIS_URL`, a bare string at `core/config.py:L119` with no scheme, credential or peer requirement, and no committed file provisions the instance, so no password, no access control list and no `rediss://` transport exists to review. | `:L98`, `core/config.py:L119` |
 | Message schema and size validation | Absent. Celery binds the three declared arguments, and no body line validates the type, the length or the content of any of them. | `:L101` |
 | `export_format` allow-listing | Absent. `:L138` hands the value to a conversion call and `:L142` interpolates it into the object key extension, so a publisher chooses the extension the stored object carries. | `:L138`, `:L142` |
@@ -274,7 +274,7 @@ Per-task first failure and what the failure hides:
 
 - **`process_document_export` raises `AttributeError` at `:L138`.** The call at `:L135` passes
   both required arguments, so binding succeeds, and `document` binds to a coroutine because the
-  `async def` at `services/document_service.py:L125` is never awaited.
+  `async def` at `services/document_service.py:L123` is never awaited.
   `background_tasks.py:L138` then calls `convert_document`, which `services/export_service.py`
   does not declare. `background_tasks.py:L141`, `:L143`, `:L146` and the `return signed_url` at
   `:L148` never run, so the declared `-> str` at `:L101` delivers no value.
@@ -283,7 +283,7 @@ Per-task first failure and what the failure hides:
   is a real defect and is not the one that fires first.
 - **`update_document_statistics` raises `TypeError` at `background_tasks.py:L310`.**
   `get_document` declares `(self, document_id, user_id)` at
-  `services/document_service.py:L125`, and `background_tasks.py:L310` passes `document_id`
+  `services/document_service.py:L123`, and `background_tasks.py:L310` passes `document_id`
   alone. Python binds arguments at call time even for an `async def`, so `document` never binds
   at all. `:L313`, `:L314`, `:L317` and `:L321` are all unreachable, and the two defects at
   `:L314` and `:L321` surface only once `:L310` is fixed.
@@ -295,9 +295,9 @@ The remaining defects, each latent behind a failure above:
   a list of snapshots, and a list carries no `delete` method.
 - **`background_tasks.py:L314` reads `document.pages`, which no contract declares.**
   `Document` at
-  `schema/document.py:L98` declares `id` at `:L112`, `created_at` at `:L113` and
-  `updated_at` at `:L114`. The model inherits `title` at `schema/document.py:L66`, `content`
-  at `:L67` and `owner_id` at `:L68` from `DocumentBase` at `:L57`. Six fields, and no `pages`.
+  `schema/document.py:L96` declares `id` at `:L110`, `created_at` at `:L111` and
+  `updated_at` at `:L112`. The model inherits `title` at `schema/document.py:L64`, `content`
+  at `:L65` and `owner_id` at `:L66` from `DocumentBase` at `:L55`. Six fields, and no `pages`.
 - **`background_tasks.py:L321` reads the undefined `datetime`,** as does `:L267`. `:L96`
   imports `timedelta` alone.
 - **`background_tasks.py:L146` generates a signed URL with no `version` argument,** so the

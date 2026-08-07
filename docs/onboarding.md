@@ -105,7 +105,7 @@ Git, to obtain the code, and `zip`, which `scripts/deploy.sh:L19` calls and
 | Python | 3.9 | `infrastructure/docker/backend.Dockerfile:L2` pins `python:3.9-slim` | Declared three ways and enforced nowhere. `../README.md:L23` asks for 3.8 or later, and `scripts/setup_dev_environment.sh:L10` installs unpinned `apt-get` packages. No `.python-version` and no dependency manifest exists. 3.9 is also below the floor the current `google-cloud-firestore` release sets, covered below the table |
 | Node.js | 14 | `.github/workflows/ci.yml:L17` sets `node-version: '14'`, and `infrastructure/docker/frontend.Dockerfile:L2` pins `node:14-alpine` | Declared three ways and enforced nowhere. `../README.md:L22` asks for 14 or later. `frontend/package.json` declares no `engines` field, and no `.nvmrc` exists |
 | PostgreSQL | 13 | `infrastructure/docker/docker-compose.yml:L31` pins `postgres:13` | The database and user Compose provisions disagree with the ones `scripts/setup_dev_environment.sh:L31-L32` creates. [../infrastructure/docker/README.md](../infrastructure/docker/README.md) owns this citation |
-| Google Cloud SDK | Latest release from Google's own installer | `../README.md:L24` names the SDK and no version | The declaration pins nothing, and no pin is needed. The SDK is a host tool that ships its own bundled Python, so it takes no part in the resolution below. `backend/app/db/firestore.py:L42` constructs a Firestore client at import time, so Application Default Credentials, usually shortened to ADC, must already resolve before the module loads |
+| Google Cloud SDK | Latest release from Google's own installer | `../README.md:L24` names the SDK and no version | The declaration pins nothing, and no pin is needed. The SDK is a host tool that ships its own bundled Python, so it takes no part in the resolution below. `backend/app/db/firestore.py:L40` constructs a Firestore client at import time, so Application Default Credentials, usually shortened to ADC, must already resolve before the module loads |
 
 **All three declared runtimes have passed end of life, often written EOL.** Python 3.9 ended support
 on 31 October 2025, with 3.9.25 as its final security release. Node 14 ended support on 30 April
@@ -159,7 +159,7 @@ support only the interpreter versions in active or maintenance support, and the 
 `google-cloud-firestore` release requires Python 3.10 or newer. A 3.9 interpreter therefore resolves
 `pip install google-cloud-firestore` to an older release rather than failing outright, so the
 environment pins an unmaintained client without saying so.
-`backend/app/db/firestore.py:L36` and `backend/app/services/document_service.py:L59` both import from
+`backend/app/db/firestore.py:L34` and `backend/app/services/document_service.py:L57` both import from
 it. [../backend/app/README.md](../backend/app/README.md) states the boundary as a release whose
 `Requires-Python` accepts the interpreter in use, for exactly this reason.
 
@@ -193,7 +193,7 @@ Three consequences follow, and each one shapes how the next two sections should 
   through 3.3.0 carries CVE-2024-33663, an algorithm confusion weakness with OpenSSH ECDSA and other
   key formats, fixed in 3.4.0. That advisory lands directly on this code.
   `backend/app/core/config.py:L115` declares `ALGORITHM: str` with no allowed-value check, and
-  `backend/app/core/security.py:L81` passes the value straight through to `jwt.encode`. Pydantic 1.x,
+  `backend/app/core/security.py:L79` passes the value straight through to `jwt.encode`. Pydantic 1.x,
   `python-multipart` and `celery` each carry published advisories of their own across their release
   histories. None of the four can be assessed here, because no version is pinned.
 - **A newer runtime is not automatically safer.** Current releases of FastAPI and of the Google Cloud
@@ -344,29 +344,37 @@ Those are the two commands with a Windows PowerShell equivalent. Outside WSL the
 all three platforms.
 
 **One authoritative Python dependency inventory exists, and it is not in this file.**
-[../backend/app/README.md](../backend/app/README.md) carries it. Thirteen distributions from the
-Python Package Index (PyPI) appear there: ten direct imports, one runtime-only and two conditional.
-Each row gives the version boundary the code establishes and the code fact that establishes it. Every
-other document in this set, this one included, defers to that table rather than restating a list, so
-there is one list to keep correct. Install from it.
+[../backend/app/README.md](../backend/app/README.md) carries it, and it defines the model every
+count in this documentation set uses. Seventeen distributions from the Python Package Index (PyPI)
+are required: ten named by an `import` statement under `backend/app/`, and seven runtime companions
+that no import names. Thirteen of the seventeen have to be named to a package manager, because
+`starlette`, `ecdsa`, `rsa` and `pyasn1` arrive transitively. Each row there gives the version
+boundary the code establishes and the code fact that establishes it. Every other document in this
+set, this one included, defers to that table rather than restating a list, so there is one list to
+keep correct. Install from it.
 
-Three definitions carry the weight there, and knowing them tells you when each package fails. A
-**direct** distribution is named by an `import` statement under `backend/app/`. A **runtime**
-distribution runs the application while no module imports it, which is `uvicorn` alone. A
-**conditional** distribution is needed only when one code path executes, so a build looks complete and
-a later request fails. `bcrypt` and `python-multipart` are the two, and each surfaces at the first
-login rather than at install.
+Three categories carry the weight there, and knowing them tells you when each package fails. A
+**directly imported** distribution is named by an `import` statement under `backend/app/`, so a
+grep finds it and a resolver reports it by name. A **runtime companion** is needed by the running
+system while no import names it, which covers `uvicorn`, `starlette`, `python-multipart`, `bcrypt`,
+`ecdsa`, `rsa` and `pyasn1`. Four of those seven arrive transitively, and `uvicorn`, `bcrypt` and
+`python-multipart` do not, so those three must be named explicitly. `bcrypt` and
+`python-multipart` block a route rather than a build, and each surfaces at the first login rather
+than at install. A **configuration-selected** distribution is chosen by a configuration value
+rather than by code, and the three of those sit outside the seventeen, in the table below.
 
-Reading import statements alone therefore builds an incomplete environment. Ten names are visible that
-way and three are not, so the build stops once per missing distribution rather than once in total.
+Reading import statements alone therefore builds an incomplete environment. Ten names are visible
+that way and seven are not, and three of those seven still have to be installed by name, so the
+build stops once per missing distribution rather than once in total.
 [troubleshooting.md](troubleshooting.md#the-progressive-python-dependency-resolution-failure) names
 that pattern the progressive dependency-resolution failure and records why import statements cannot
 produce a working environment on their own.
 
-`starlette` needs no entry of its own. `backend/app/services/collaboration_service.py:L36` imports
-`WebSocket` and `WebSocketDisconnect` through FastAPI, which re-exports both from Starlette, so the
-installer resolves it from `fastapi`. The inventory lists no transitive distribution for the same
-reason.
+`starlette` needs no line in an install command.
+`backend/app/services/collaboration_service.py:L36` imports `WebSocket` and `WebSocketDisconnect`
+through FastAPI, which re-exports both from Starlette, so the installer resolves it from `fastapi`.
+The inventory still lists it, as one of the seven runtime companions, and marks it among the four
+that arrive transitively.
 
 Three further distributions are chosen by a configuration value rather than by an import or by a
 committed command. The inventory therefore does not count them, and a running environment still needs
@@ -377,7 +385,7 @@ repository.
 | --- | --- | --- |
 | A PostgreSQL driver, for example `psycopg2-binary` | The `postgresql://` scheme in `settings.DATABASE_URL`, supplied by `infrastructure/docker/docker-compose.yml:L24` and declared at `backend/app/core/config.py:L118` | `backend/app/db/sql.py:L16` builds an engine at import time, and SQLAlchemy resolves a driver from the scheme in the URL |
 | A Redis client | The `redis://` scheme in `settings.REDIS_URL`, declared at `backend/app/core/config.py:L119` | `backend/app/tasks/background_tasks.py:L98` hands Celery that broker URL, and a worker needs the client to attach. [../backend/app/tasks/README.md](../backend/app/tasks/README.md) records that no dependency manifest declares it |
-| `cryptography` | An RSA or ECDSA name in `settings.ALGORITHM`, declared as a bare `str` at `backend/app/core/config.py:L115` with no allowed-value check | `backend/app/core/security.py:L81` passes the value straight to `jwt.encode`. A symmetric algorithm such as HS256 needs nothing extra |
+| `cryptography` | An RSA or ECDSA name in `settings.ALGORITHM`, declared as a bare `str` at `backend/app/core/config.py:L115` with no allowed-value check | `backend/app/core/security.py:L79` passes the value straight to `jwt.encode`. A symmetric algorithm such as HS256 needs nothing extra |
 
 **Installing every one of them still leaves the backend unable to import.** Dependencies are
 third-party, and all four blockers here are first-party: the absent `settings` instance, the four
@@ -387,8 +395,10 @@ from `ModuleNotFoundError` to the `ImportError` that
 [the next section](#where-a-run-stops-with-evidence) traces. Nothing else moves, and no package
 install makes this application start.
 
-Install all seventeen in one command. The `pydantic` upper bound is the one constraint that matters,
-for the reason the table above gives.
+One command covers the whole set, and it names sixteen distributions: the thirteen of the seventeen
+that have to be named, plus the three the table above selects by configuration. The four transitive
+arrivals come with them. The `pydantic` upper bound is the one constraint that matters, for the
+reason the table above gives.
 
 ```bash
 pip install \
@@ -500,7 +510,7 @@ graph TD
     C --> COK["Succeeds, exit 0<br/>all 18 modules parse"]
 
     D -.->|"webpack ignores the tsconfig paths block"| DNO["Stops<br/>frontend/tsconfig.json:L10-L16<br/>declares no '@/*' alias"]
-    E -.->|"ImportError: cannot import name 'settings'"| ENO["Stops<br/>backend/app/api/auth.py:L84<br/>reached from main.py:L16"]
+    E -.->|"ImportError: cannot import name 'settings'"| ENO["Stops<br/>backend/app/api/auth.py:L81<br/>reached from main.py:L16"]
     F -.->|"the application object never imports"| ENO
     G -.->|"npm ci with no lockfile"| GNO1["Stops<br/>infrastructure/docker/frontend.Dockerfile:L11"]
     G -.->|"COPY of an absent requirements.txt"| GNO2["Stops<br/>infrastructure/docker/backend.Dockerfile:L8"]
@@ -526,18 +536,18 @@ subsections below separate the first hit from what is latent behind it.
 chain has three links:
 
 1. `backend/app/main.py:L16` imports `auth_router` from `app.api.auth`.
-2. `backend/app/api/auth.py:L84` imports `settings` from `app.core.config`.
+2. `backend/app/api/auth.py:L81` imports `settings` from `app.core.config`.
 3. `backend/app/core/config.py` defines the `Settings` class at `L51` and the `get_settings()`
    factory at `L126`, and creates no module-level `settings` instance. No `settings =` assignment
    exists at any line in the file.
 
-Eight modules import that absent name: `backend/app/main.py:L20`, `backend/app/api/auth.py:L84`,
-`backend/app/db/firestore.py:L38`, `backend/app/db/sql.py:L14`,
+Eight modules import that absent name: `backend/app/main.py:L20`, `backend/app/api/auth.py:L81`,
+`backend/app/db/firestore.py:L36`, `backend/app/db/sql.py:L14`,
 `backend/app/services/collaboration_service.py:L39`,
-`backend/app/services/document_service.py:L62`, `backend/app/services/export_service.py:L61` and
+`backend/app/services/document_service.py:L60`, `backend/app/services/export_service.py:L61` and
 `backend/app/tasks/background_tasks.py:L92`. Nine module import failures trace to it, because
 `app.api.documents` reaches the same name indirectly through the adapter at
-`backend/app/db/firestore.py:L38`.
+`backend/app/db/firestore.py:L36`.
 
 A census imported each of the 15 modules under `backend/app/` in a fresh interpreter. The census ran
 with third-party packages present and Pydantic pinned to the 1.x line the code requires. Only **3 of
@@ -545,17 +555,23 @@ the 15 modules** import successfully, and 12 fail. The three that import are `ap
 `app.schema.document` and `app.schema.user`.
 [../backend/app/README.md](../backend/app/README.md) owns the census.
 
-Three causes sit behind that one error message, and only the first is visible today.
+Six causes sit behind that one error message, and only the first is visible today. Each row below
+surfaces only once every row above it is repaired.
 
 | Order | Cause | Locator | What a run reports now |
 | --- | --- | --- | --- |
 | First hit | No module-level `settings` instance | `backend/app/core/config.py`, which defines `Settings` at `L51` and `get_settings()` at `L126` and assigns `settings` at no line | `ImportError: cannot import name 'settings' from 'app.core.config'` |
-| Latent | Four router names that no module exports | `backend/app/main.py:L16-L19` imports `auth_router`, `documents_router`, `users_router` and `templates_router`, and all four modules export the bare name `router` | Nothing. All four `ImportError`s surface the moment the row above is fixed |
-| Latent | Two absent modules and one undefined name | Registered in [troubleshooting.md](troubleshooting.md#the-verified-import-census) | Nothing. Three of the twelve failing modules stay broken after both rows above are fixed |
+| Second | The absent `app.services.user_service` module | `backend/app/api/auth.py:L83` imports `UserService` from it, and `backend/app/api/users.py:L24` imports it too. No file exists at that path | Nothing. `ModuleNotFoundError` surfaces from the same file the row above stops in, before `main.py` evaluates any router name |
+| Third | Four router names that no module exports | `backend/app/main.py:L16-L19` imports `auth_router`, `documents_router`, `users_router` and `templates_router`, and all four modules export the bare name `router` | Nothing. The four `ImportError`s surface one at a time, because each import line stops `main.py` on its own |
+| Fourth | Two absent template modules | `backend/app/api/templates.py:L70` imports from `app.schema.template` and `:L71` from `app.services.template_service`, and neither file exists | Nothing. Reached when `backend/app/main.py:L19` executes `app.api.templates` |
+| Fifth | The absent `init_db` symbol | `backend/app/main.py:L22` imports `init_db` from `app.db.sql`, which defines `engine`, `SessionLocal`, `Base` and `get_db` and no `init_db` | Nothing. Reached once all four router imports resolve |
+| Latent | Undefined names that raise at execution rather than at import | Registered in [troubleshooting.md](troubleshooting.md#the-verified-import-census) | Nothing, and nothing above clears them. `Optional`, `User` and `UserService` in `backend/app/core/security.py`, `asyncio` and `json` in `backend/app/services/collaboration_service.py`, and `datetime` in `backend/app/tasks/background_tasks.py` |
 
-A future contributor would add the `settings` instance and reconcile the router names in one change.
-The `settings` line alone clears nine of the twelve failures, and the router names then block
-`backend/app/main.py` on their own, which is why splitting the two repairs buys nothing.
+A future contributor cannot stop after two repairs. Adding the `settings` instance clears nine of
+the twelve failing modules, and the next error comes from the same file rather than from
+`main.py`: `backend/app/api/auth.py:L83` asks for a module nobody wrote. Only once that module
+exists do the four router names become the blocker, and two more repairs sit behind them. Plan the
+work as the table's order, not as a pair of changes.
 
 One more note on starting the server, because the README sends you to the wrong target.
 `../README.md:L54-L55` runs `cd backend` and then `uvicorn main:app --reload`. The application object
@@ -565,8 +581,9 @@ sits at `backend/app/main.py:L24`, one directory deeper, so from `backend/` the 
 ### The client cannot typecheck
 
 `tsc --noEmit` reports 76 errors, and 57 of them say the compiler cannot find a module. **The first
-hit is an import prefix that nothing maps.** Forty-five import statements across `frontend/src/` use
-a `@/` prefix, and `frontend/tsconfig.json:L10-L16` declares five aliases that do not include it:
+hit is an import prefix that nothing maps.** Forty-four import statements, spread across thirteen
+modules under `frontend/src/`, use a `@/` prefix, and `frontend/tsconfig.json:L10-L16` declares
+five aliases that do not include it:
 
 ```text
 "paths": {
@@ -687,14 +704,19 @@ is neither, so the second is the one that gets skipped. Step 4 sits ahead of ste
 reason. Making an integration reachable publishes an interface, and the controls that interface needs
 are absent from the committed code rather than merely disabled in it.
 
-1. **Make the backend package import.** Add a module-level `settings` instance to
-   `backend/app/core/config.py`, then reconcile the four router names imported at
-   `backend/app/main.py:L16-L19` against the bare `router` each module exports. The `settings` line
-   alone clears nine of the twelve failing modules. The router names then block `main.py` on their own,
-   so both repairs belong in one change. Until both land, `import app.main` raises before any other
-   work can be tested. The remaining three failures need separate work: two absent modules and one
-   undefined name, both covered in
-   [troubleshooting.md](troubleshooting.md#the-verified-import-census).
+1. **Make the backend package import.** Five repairs stand between the committed tree and a
+   package that imports, and they surface in a fixed order. Add a module-level `settings` instance
+   to `backend/app/core/config.py`, which clears nine of the twelve failing modules. Write
+   `app.services.user_service`, which `backend/app/api/auth.py:L83` and
+   `backend/app/api/users.py:L24` both import and which fails next, from the same file the first
+   error came from. Reconcile the four router names imported at `backend/app/main.py:L16-L19`
+   against the bare `router` each module exports. Write `app.schema.template` and
+   `app.services.template_service`, which `backend/app/api/templates.py:L70` and `:L71` import.
+   Add `init_db` to `app.db.sql`, which `backend/app/main.py:L22` imports and which that module
+   does not define. Until all five land, `import app.main` raises before any other work can be
+   tested, and the undefined names registered in
+   [troubleshooting.md](troubleshooting.md#the-verified-import-census) still raise at execution
+   afterwards.
 2. **Make the client typecheck.** `frontend/src/schema/document.ts` omits three requested names, not
    one. Export an inferred `Document` type first, following the pattern its sibling already uses at
    `frontend/src/schema/user.ts:L56`, which clears three of the five request positions on its own.

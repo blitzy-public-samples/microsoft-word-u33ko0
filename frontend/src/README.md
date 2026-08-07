@@ -70,8 +70,10 @@ region and `Footer` only, and `pages/Editor.tsx` renders the other three.
 `frontend/package.json:L15-L30` declares fourteen development dependencies, with `react-scripts` pinned
 exactly at `5.0.1` on `:L29` and no caret.
 
-Five packages appear in import statements under this tree and in no dependency block: `axios`, `draft-js`,
-`@types/draft-js`, `zod` and `socket.io-client`. Two of the five are named by the specification, Axios at
+Four packages appear in import statements under this tree and in no dependency block: `axios`, `draft-js`,
+`zod` and `socket.io-client`. A fifth gap is `@types/draft-js`, which no module imports and which TypeScript
+needs in order to type the six `draft-js` importers. Two of the four imported packages are named by the
+specification, Axios at
 `documentation/Technical Specifications.md:L544` and Draft.js at `:L545`, while Zod and socket.io-client
 appear nowhere in `documentation/`. Contract shapes travel through
 [the data model](../../docs/data-model.md), and the external services these clients target are listed in
@@ -119,10 +121,10 @@ graph TD
     BR --> HDR["App.tsx:L49<br/>Header"]
     BR --> SW["App.tsx:L51<br/>Switch, router v5 API"]
     BR --> FTR["App.tsx:L58<br/>Footer"]
-    SW --> HOME["Home, App.tsx:L52<br/>own Header L56, own Footer L72"]
-    SW --> EDIT["Editor, App.tsx:L53<br/>own Header L234, no Footer"]
-    SW --> TPL["Templates, App.tsx:L54<br/>own Header L171, own Footer L192"]
-    SW --> SET["Settings, App.tsx:L55<br/>own Header L132, own Footer L159"]
+    SW --> HOME["Home, App.tsx:L52<br/>own Header Home.tsx:L56, own Footer Home.tsx:L72"]
+    SW --> EDIT["Editor, App.tsx:L53<br/>own Header Editor.tsx:L234, no Footer"]
+    SW --> TPL["Templates, App.tsx:L54<br/>own Header Templates.tsx:L171, own Footer Templates.tsx:L192"]
+    SW --> SET["Settings, App.tsx:L55<br/>own Header Settings.tsx:L132, own Footer Settings.tsx:L159"]
 
     ALIAS["@/ prefix<br/>index.tsx:L16-L17<br/>App.tsx:L17-L23"]
     ALIAS -.->|"unmapped: tsconfig.json:L10-L16<br/>declares five aliases, none is @/"| TSC["frontend/tsconfig.json"]

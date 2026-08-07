@@ -7,7 +7,7 @@ The service layer holds the three domain classes that sit between the routers de
 Firestore and decides access by comparing a stored `user_id` against the caller. `CollaborationService` registers
 editor sockets and moves edits over Cloud Pub/Sub, one topic per document. `ExportService` uploads an export artifact
 to Google Cloud Storage and returns a signed download link. None of the three runs as committed, because each imports
-a `settings` object that `app.core.config` never creates, at `document_service.py:L62`, `collaboration_service.py:L39`
+a `settings` object that `app.core.config` never creates, at `document_service.py:L60`, `collaboration_service.py:L39`
 and `export_service.py:L61`.
 
 ## Key Components
@@ -16,12 +16,12 @@ Three classes and thirteen `def` statements, located against the committed files
 
 | Component | Type | Location | Description |
 | --- | --- | --- | --- |
-| `DocumentService` | Class | `document_service.py:L64` | Document create, read, update and delete against the `documents` Firestore collection. Declares four public methods and no `get_documents`. |
-| `DocumentService.__init__` | Constructor | `document_service.py:L70` | Binds the shared Firestore client to `self.db` at L72. Takes no arguments, so the client cannot be substituted for a test double. |
-| `create_document` | Async method | `document_service.py:L74` | Rejects an empty title or body with HTTP 400 at L113, writes `user_id` at L118 and the generated `id` at L119, then persists at L120 and returns `Document(**doc_data)` at L123. |
-| `get_document` | Async method | `document_service.py:L125` | Declares `(document_id: str, user_id: str)`. Raises 404 at L174 when the record is absent and 403 at L178 when `user_id` does not match. Returns the record at L181. |
-| `update_document` | Async method | `document_service.py:L185` | Declares `(document_id, document: DocumentUpdate, user_id)`. Runs three Firestore operations: read at L237, write at L248, re-read at L251. Serializes with `.dict(exclude_unset=True)` at L247. |
-| `delete_document` | Async method | `document_service.py:L254` | Declares `(document_id: str, user_id: str)`. Deletes at L286 and returns the literal `True` at L289 whatever the delete did. |
+| `DocumentService` | Class | `document_service.py:L62` | Document create, read, update and delete against the `documents` Firestore collection. Declares four public methods and no `get_documents`. |
+| `DocumentService.__init__` | Constructor | `document_service.py:L68` | Binds the shared Firestore client to `self.db` at L70. Takes no arguments, so the client cannot be substituted for a test double. |
+| `create_document` | Async method | `document_service.py:L72` | Rejects an empty title or body with HTTP 400 at L111, writes `user_id` at L116 and the generated `id` at L117, then persists at L118 and returns `Document(**doc_data)` at L121. |
+| `get_document` | Async method | `document_service.py:L123` | Declares `(document_id: str, user_id: str)`. Raises 404 at L172 when the record is absent and 403 at L176 when `user_id` does not match. Returns the record at L179. |
+| `update_document` | Async method | `document_service.py:L183` | Declares `(document_id, document: DocumentUpdate, user_id)`. Runs three Firestore operations: read at L235, write at L246, re-read at L249. Serializes with `.dict(exclude_unset=True)` at L245. |
+| `delete_document` | Async method | `document_service.py:L252` | Declares `(document_id: str, user_id: str)`. Deletes at L284 and returns the literal `True` at L287 whatever the delete did. |
 | `CollaborationService` | Class | `collaboration_service.py:L41` | Socket registry plus Pub/Sub publish and subscribe. No application module imports this class. |
 | `CollaborationService.__init__` | Constructor | `collaboration_service.py:L67` | Builds a `PublisherClient` at L69 and a `SubscriberClient` at L70, then sets `active_connections = {}` at L71. Both clients are built eagerly. |
 | `connect` | Async method | `collaboration_service.py:L75` | Registers the socket at L117, derives the topic at L120 and the subscription at L121, creates the subscription at L124, subscribes at L165, then blocks on `future.result()` at L168. |
@@ -36,31 +36,31 @@ Three classes and thirteen `def` statements, located against the committed files
 ## Architecture Fit
 
 The specification places these three classes in the service tier below the application programming
-interface (API) gateway, and the committed code matches that placement for all three. The router
-constructs a service and calls a method, and the service owns the cloud call. See
+interface (API) gateway, and the committed code matches that placement for all three. Each class
+owns its own cloud call, and the three differ in who reaches them. `DocumentService` is the only
+one a router constructs, at `../api/documents.py:L107`, `:L141`, `:L182`, `:L230` and `:L277`.
+`ExportService` is constructed once, by the task module at `../tasks/background_tasks.py:L131`,
+and no handler calls either of its methods. `CollaborationService` is constructed nowhere: no
+route, task or module in the tree names it. See
 [../../../docs/architecture-overview.md](../../../docs/architecture-overview.md) for the tier map.
 
 The placement matches, and the surrounding components do not exist.
-`documentation/Technical Specifications.md, SYSTEM ARCHITECTURE > COMPONENT DIAGRAMS > Backend
-Components (L201-L217)` names twelve backend components. Three of them exist as code, and all three
-live in this folder: `DocumentService`, `CollaborationService` and `ExportService`. The other nine
-have no implementing file anywhere in the repository.
+`documentation/Technical Specifications.md, SYSTEM ARCHITECTURE > COMPONENT DIAGRAMS > Backend Components (L201-L217)`
+names twelve backend components. Three of them exist as code, and all three live in this folder: `DocumentService`,
+`CollaborationService` and `ExportService`. The other nine have no implementing file anywhere in the repository.
 
 Six of the nine absent components sit directly beneath the three that exist. The specification draws
-`DocumentRepository` and `VersionControl` under `DocumentService`, and `DocumentService` instead
-calls `self.db.collection('documents')` inline at L116, L170, L236 and L275. No repository layer
-stands between the service and Firestore, and the four module-level helpers at
-`../db/firestore.py:L44`, `:L72`, `:L94` and `:L112`, described in
-[../db/README.md](../db/README.md), go unused. The specification draws `WebSocketManager` and
-`ConflictResolver` under `CollaborationService`, and neither exists, so nothing merges two concurrent
-edits. The specification draws `PDFGenerator` and `DOCXGenerator` under `ExportService`, and neither
-exists, so L157 and L231 upload literal strings.
+`DocumentRepository` and `VersionControl` under `DocumentService`, and `DocumentService` instead calls
+`self.db.collection('documents')` inline at L114, L168, L234 and L273. No repository layer stands between the service
+and Firestore, and the four module-level helpers at `../db/firestore.py:L42`, `:L70`, `:L92` and `:L110`, described in
+[../db/README.md](../db/README.md), go unused. The specification draws `WebSocketManager` and `ConflictResolver` under
+`CollaborationService`, and neither exists, so nothing merges two concurrent edits. The specification draws
+`PDFGenerator` and `DOCXGenerator` under `ExportService`, and neither exists, so L157 and L231 upload literal strings.
 
-Reachability differs sharply across the three. Every `DocumentService` method has a caller in
-`../api/documents.py`, at L111, L145, L186, L234, L237, L281 and L284. `ExportService` has exactly one
-application importer, `../tasks/background_tasks.py:L95`, so the only path to an export runs through a
-Celery task. `CollaborationService` has none: no application module imports the class, and no
-WebSocket route exists under `backend/`.
+Reachability differs sharply across the three. Every `DocumentService` method has a caller in `../api/documents.py`,
+at L108, L142, L183, L231, L234, L278 and L281. `ExportService` has exactly one application importer,
+`../tasks/background_tasks.py:L95`, so the only path to an export runs through a Celery task. `CollaborationService`
+has none: no application module imports the class, and no WebSocket route exists under `backend/`.
 
 ## Dependencies
 
@@ -73,19 +73,19 @@ described in [../../../docs/integration-guide.md](../../../docs/integration-guid
 
 | Imported or expected name | Site | Resolves | Evidence |
 | --- | --- | --- | --- |
-| `db` from `app.db.firestore` | `document_service.py:L61` | Yes | `../db/firestore.py:L42` builds the client at import time. `DocumentService` binds it at L72. |
-| `Document`, `DocumentCreate`, `DocumentUpdate` from `app.schema.document` | `document_service.py:L60` | Yes | Declared at `../schema/document.py:L98`, `:L70` and `:L84`. |
+| `db` from `app.db.firestore` | `document_service.py:L59` | Yes | `../db/firestore.py:L40` builds the client at import time. `DocumentService` binds it at L70. |
+| `Document`, `DocumentCreate`, `DocumentUpdate` from `app.schema.document` | `document_service.py:L58` | Yes | Declared at `../schema/document.py:L96`, `:L68` and `:L82`. |
 | `Document` from `app.schema.document` | `collaboration_service.py:L38` | Yes, and unused | No code line and no type annotation in the module uses the name. |
 | `Document` from `app.schema.document` | `export_service.py:L60` | Yes | Both methods read `document.id` at L155 and L229. |
-| `settings` from `app.core.config` | `document_service.py:L62`, `collaboration_service.py:L39`, `export_service.py:L61` | No | `../core/config.py` declares the `Settings` class at L51 and no module-level instance. All three modules fail at import. |
-| `Client` from `google.cloud.firestore` | `document_service.py:L59` | Yes, and unused | The module never names `Client` again. Only the pre-built `db` is used. |
+| `settings` from `app.core.config` | `document_service.py:L60`, `collaboration_service.py:L39`, `export_service.py:L61` | No | `../core/config.py` declares the `Settings` class at L51 and no module-level instance. All three modules fail at import. |
+| `Client` from `google.cloud.firestore` | `document_service.py:L57` | Yes, and unused | The module never names `Client` again. Only the pre-built `db` is used. |
 | `WebSocketDisconnect` from `fastapi` | `collaboration_service.py:L36` | Yes, and unused | No `except WebSocketDisconnect` clause exists in the module. |
 | `asyncio` | Used at `collaboration_service.py:L163` | No | No import statement for `asyncio` exists. The name raises `NameError` on the first message delivered, not at import. |
 | `json` | Used at `collaboration_service.py:L248` | No | No import statement for `json` exists. The name raises `NameError` on the first `broadcast_change` call, not at import. |
-| `DocumentService.get_documents` | Called at `../api/documents.py:L145` | No | The class declares four methods at L74, L125, L185 and L254, and no `get_documents`. |
+| `DocumentService.get_documents` | Called at `../api/documents.py:L142` | No | The class declares four methods at L72, L123, L183 and L252, and no `get_documents`. |
 | `ExportService.convert_document` | Called at `../tasks/background_tasks.py:L138` | No | The class declares `export_to_pdf` at L87 and `export_to_docx` at L168, and no `convert_document`. |
-| `app.services.user_service` | Imported at `../api/auth.py:L86` and `../api/users.py:L27` | No | No `user_service.py` exists in this folder. |
-| `app.services.template_service` | Imported at `../api/templates.py:L76` | No | No `template_service.py` exists in this folder. |
+| `app.services.user_service` | Imported at `../api/auth.py:L83` and `../api/users.py:L24` | No | No `user_service.py` exists in this folder. |
+| `app.services.template_service` | Imported at `../api/templates.py:L71` | No | No `template_service.py` exists in this folder. |
 
 Five modules are imported from the `app.services.*` namespace and three exist. The two absent names
 are `user_service` and `template_service`.
@@ -98,10 +98,10 @@ covering FastAPI, SQLAlchemy, python-jose, passlib, google-auth, Celery and uvic
 
 | Package | Floor | Establishing code fact |
 | --- | --- | --- |
-| `google-cloud-firestore` | Unestablished | `from google.cloud.firestore import Client` at `document_service.py:L59`, plus the `db` client the module binds at L72. |
+| `google-cloud-firestore` | Unestablished | `from google.cloud.firestore import Client` at `document_service.py:L57`, plus the `db` client the module binds at L70. |
 | `google-cloud-pubsub` | Unestablished | `from google.cloud.pubsub_v1 import PublisherClient, SubscriberClient` at `collaboration_service.py:L37`. The `pubsub_v1` path is the version 1 client surface. |
 | `google-cloud-storage` | Unestablished | `from google.cloud.storage import Client` at `export_service.py:L59`. `Blob.generate_signed_url` accepts `version="v4"` at L161 and L235. |
-| `pydantic` | 1.x only | `document.dict(exclude_unset=True)` at `document_service.py:L247` is the version 1 method name. Pydantic 2 renamed it to `model_dump`. |
+| `pydantic` | 1.x only | `document.dict(exclude_unset=True)` at `document_service.py:L245` is the version 1 method name. Pydantic 2 renamed it to `model_dump`. |
 
 ## Configuration
 
@@ -196,17 +196,16 @@ The two object key layouts do not agree. `ExportService` writes `exports/{docume
 Eight patterns are visible in the three modules.
 
 Ownership-based authorization through a `user_id` comparison. `DocumentService` decides access in
-the service, not in a policy object, and the comparison appears three times: L177, L243 and L282.
-All three subscript `doc.to_dict()['user_id']` directly, so a stored document missing that key raises
-`KeyError` instead of returning 403, and FastAPI answers 500 because `KeyError` is not an
-`HTTPException`.
+the service rather than in a policy object, and the comparison appears three times, at L177, L243
+and L282. All three subscript `doc.to_dict()['user_id']` directly, so a stored document missing
+that key raises `KeyError` rather than returning 403, and FastAPI answers 500 because `KeyError`
+is not an `HTTPException`.
 
 Async signatures wrapping a synchronous software development kit (SDK). Seven of the nine public
-methods are `async def`, and every Firestore and Pub/Sub call inside them is synchronous and blocking.
-`future.result()` at `collaboration_service.py:L168` blocks the event loop for the subscription's life.
-
-Read-modify-read update. `update_document` costs three Firestore operations for one edit: the read at L237, the write at
-L248, and the re-read at L251.
+methods are `async def`, and every Firestore and Pub/Sub call inside them is synchronous and
+blocking. `future.result()` at `collaboration_service.py:L168` blocks the event loop for the
+subscription's life. Read-modify-read update follows: `update_document` costs three Firestore
+operations for one edit, the read at L237, the write at L248 and the re-read at L251.
 
 Per-document Pub/Sub topic and subscription fan-out. One topic per document at
 `projects/{PROJECT_ID}/topics/{document_id}`, L120 and L245. One subscription per document and user
@@ -222,32 +221,30 @@ treats a delivery as settled before the client receives it and will not redelive
 
 Eager client construction in `__init__`. `PublisherClient` and `SubscriberClient` at
 `collaboration_service.py:L69` and `:L70`, and the Cloud Storage `Client()` at
-`export_service.py:L83`, all run at instantiation. Placeholder-payload export completes the set: both
-export methods upload a literal string, `"PDF_CONTENT"` at L157 and `"DOCX_CONTENT"` at L231, under
-the correct content types.
+`export_service.py:L83`, all run at instantiation. Placeholder-payload export completes the set:
+both export methods upload a literal string, `"PDF_CONTENT"` at L157 and `"DOCX_CONTENT"` at
+L231, under the correct content types.
 
-Three patterns a reader might expect are absent. No service inherits a common base class, no service
-is registered in a dependency container, and FastAPI's `Depends` never yields one. Every handler
-constructs its own instance per request, at `../api/documents.py:L110`, `:L144`, `:L185`, `:L233` and
-`:L280`.
+Three patterns a reader might expect are absent: no common base class, no dependency container,
+and no `Depends` provider. Every handler constructs its own instance per request, at
+`../api/documents.py:L107`, `:L141`, `:L182`, `:L230` and `:L277`.
 
-The order of the two checks decides which status code a caller receives, traced line by line below.
+The order of the two checks decides which status code a caller receives, traced line by line
+below. `create_document` writes the compared value: L116 sets `doc_data['user_id'] = user_id`
+from the caller's argument and L118 persists that dictionary, so every later comparison reads
+that stored key.
 
-`create_document` writes the compared value. L118 sets `doc_data['user_id'] = user_id` from the
-caller's argument, and L120 persists that dictionary. Every later comparison reads that stored key.
+Existence is checked first in all three guarded methods. `if not doc.exists` runs at L171, L237
+and L276, and each raises HTTP 404 immediately after, at L172, L238 and L277. Ownership is never
+evaluated for a document that does not exist.
 
-Existence is checked first in all three guarded methods. `if not doc.exists` runs at L173, L239 and
-L278, and each raises HTTP 404 immediately after, at L174, L240 and L279. Ownership is never evaluated
-for a document that does not exist.
+Ownership is checked second. `doc.to_dict()['user_id'] != user_id` runs at L175, L241 and L280, and each raises HTTP
+403 at L176, L242 and L281. A caller asking for another user's document therefore receives 403, and a caller asking
+for a document that was never stored receives 404. The two cases are distinguishable from outside, so any
+authenticated caller can learn whether a given identifier exists.
 
-Ownership is checked second. `doc.to_dict()['user_id'] != user_id` runs at L177, L243 and L282, and
-each raises HTTP 403 at L178, L244 and L283. A caller asking for another user's document therefore
-receives 403, and a caller asking for a document that was never stored receives 404. The two cases
-are distinguishable from outside, so any authenticated caller can learn whether a given identifier
-exists.
-
-Two facts change what the comparison actually reads. The stored key is `user_id`, written at L118,
-while the `Document` contract declares `owner_id` at `../schema/document.py:L68`. The comparison
+Two facts change what the comparison actually reads. The stored key is `user_id`, written at L116,
+while the `Document` contract declares `owner_id` at `../schema/document.py:L66`. The comparison
 reads the raw Firestore dictionary rather than the model, so the comparison itself works on the
 stored key, and the routers that read `.user_id` off a returned `Document` do not.
 
@@ -281,23 +278,23 @@ export_service.py:L85-L86
 | `collaboration_service.py:L216-L217` | `# The following method has a confidence level of 0.7 and may need adjustments for production readiness` |
 | `export_service.py:L85-L86` | `# The following methods have a low confidence score and may require additional implementation details or error handling` |
 
-Each marker opens with `# HUMAN ASSISTANCE NEEDED` on its own first line. The
-`export_service.py:L85` marker says "methods", plural, so it annotates both `export_to_pdf` at L87
-and `export_to_docx` at L168. All four `TODO` markers sit in the same file: L151, L156, L225 and
-L230.
+Each marker opens with `# HUMAN ASSISTANCE NEEDED` on its own first line. The `export_service.py:L85` marker says
+"methods", plural, so it annotates both `export_to_pdf` at L87 and `export_to_docx` at L168. All four `TODO` markers
+sit in the same file: L151, L156, L225 and L230.
 
-Nine call sites violate a contract this folder declares. None is repaired here.
+Thirteen call sites violate a contract this folder declares, grouped below into nine rows
+because two rows carry three sites each. None is repaired here.
 
 | Call site | Defect |
 | --- | --- |
-| `../api/documents.py:L111` | Passes `current_user`, a `User` object, where `create_document` declares `user_id: str` at L74. The specification's own example at `documentation/Technical Specifications.md:L443` passes `current_user.id`, a string, so the specification contradicts the committed call. |
-| `../api/documents.py:L145` | Calls `get_documents`, which `DocumentService` does not define. |
-| `../api/documents.py:L186`, `:L234`, `:L281` | Call `get_document(document_id)` with one argument against the two-argument signature at L125. |
+| `../api/documents.py:L108` | Passes `current_user`, a `User` object, where `create_document` declares `user_id: str` at L72. The specification's own example at `documentation/Technical Specifications.md:L443` passes `current_user.id`, a string, so the specification contradicts the committed call. |
+| `../api/documents.py:L142` | Calls `get_documents`, which `DocumentService` does not define. |
+| `../api/documents.py:L183`, `:L231`, `:L278` | Call `get_document(document_id)` with one argument against the two-argument signature at L123. |
 | `../tasks/background_tasks.py:L310` | The fourth one-argument `get_document` call site. |
 | `../tasks/background_tasks.py:L135` | Correct arity, and not awaited on an `async def`, so the name binds a coroutine object that L138 passes onward. |
-| `../api/documents.py:L237` | Supplies two of the three arguments `update_document` declares at L185, omitting `user_id`. |
-| `../api/documents.py:L284` | Supplies one of the two arguments `delete_document` declares at L254, omitting `user_id`. |
-| `../api/documents.py:L187`, `:L235`, `:L282` | Read `.user_id` off a `Document` that declares `owner_id` at `../schema/document.py:L68`. |
+| `../api/documents.py:L234` | Supplies two of the three arguments `update_document` declares at L183, omitting `user_id`. |
+| `../api/documents.py:L281` | Supplies one of the two arguments `delete_document` declares at L252, omitting `user_id`. |
+| `../api/documents.py:L184`, `:L232`, `:L279` | Read `.user_id` off a `Document` that declares `owner_id` at `../schema/document.py:L66`. |
 | `../tasks/background_tasks.py:L138` | Calls `convert_document`, which `ExportService` does not define. |
 
 Beyond the call sites:
@@ -311,43 +308,38 @@ Beyond the call sites:
   nor the version 4 signature completes today: `settings.STORAGE_BUCKET_NAME` at `:L154` is undeclared,
   and signing needs credentials able to sign bytes, meaning a private key or an IAM `signBlob` grant.
 - **Three sites fail Pydantic validation on missing timestamps.** `../schema/document.py` declares
-  `created_at` at L113 and `updated_at` at L114 as required, and `create_document` assembles
-  `doc_data` at `document_service.py:L117` to `:L119` without either, so `Document(**doc_data)` at
+  `created_at` at L111 and `updated_at` at L112 as required, and `create_document` assembles
+  `doc_data` at `document_service.py:L115` to `:L117` without either, so `Document(**doc_data)` at
   `:L123` raises. Nothing writes them to Firestore, so `:L181` and `:L252` raise for the same reason.
 - **Two sibling service modules are imported and absent.** `app.services.user_service` at
-  `../api/auth.py:L86` and `../api/users.py:L27`; `app.services.template_service` at `../api/templates.py:L76`.
+  `../api/auth.py:L83` and `../api/users.py:L24`; `app.services.template_service` at `../api/templates.py:L71`.
 - **Two undefined names raise at first call, not at import.** `asyncio` at
   `collaboration_service.py:L163` and `json` at `:L248`, neither imported. `:L250` catches the second
   and `:L252` prints it, so a publish failure never reaches the caller. A failed subscription is silent
   too: `:L127` prints, `:L128` returns, and the socket registered at `:L117` keeps its registry entry.
-- **Four imports are unused.** `Client` at `document_service.py:L59` and `settings` at `:L62`, which
-  the module never dereferences, plus `WebSocketDisconnect` at `collaboration_service.py:L36` and
-  `Document` at `:L38`.
-- **`delete_document` reports success unconditionally.** `document_service.py:L289` returns the
-  literal `True` whatever `doc_ref.delete()` at `:L286` did. The value means the method reached its
-  last line, not that a document was removed, and a Firestore delete of a missing document succeeds
-  silently.
+- **Four imports are unused.** `Client` at `document_service.py:L57` and `settings` at `:L60`, which the module never
+  dereferences, plus `WebSocketDisconnect` at `collaboration_service.py:L36` and `Document` at `:L38`.
+- **`delete_document` reports success unconditionally.** `document_service.py:L287` returns the literal `True`
+  whatever `doc_ref.delete()` at `:L284` did. The value means the method reached its last line, not that a document
+  was removed, and a Firestore delete of a missing document succeeds silently.
 - **Both mutating methods check, then write, with nothing between.** `update_document` reads at
-  `document_service.py:L237`, tests existence at `:L239` and ownership at `:L243`, then writes at
-  `:L248` with no transaction and no precondition. `delete_document` repeats the shape at `:L276`,
-  `:L279`, `:L282` and `:L286`. A concurrent owner change between the read and the write is silently
+  `document_service.py:L235`, tests existence at `:L237` and ownership at `:L241`, then writes at
+  `:L246` with no transaction and no precondition. `delete_document` repeats the shape at `:L274`,
+  `:L276`, `:L280` and `:L284`. A concurrent owner change between the read and the write is silently
   overwritten, and a concurrent delete makes the `update()` fail on a document the check said existed.
-- **The folder is inconsistent on `async`.** Both `ExportService` methods are plain `def` at
-  `export_service.py:L87` and `:L168`, while the seven public methods in the other two modules
-  are all `async def`.
+- **The folder is inconsistent on `async`.** Both `ExportService` methods are plain `def` at `export_service.py:L87`
+  and `:L168`, while the seven public methods in the other two modules are all `async def`.
 
 Every defect above is listed with its symptom and remediation in
-[../../../docs/troubleshooting.md](../../../docs/troubleshooting.md). Judgement calls behind the
-documentation choices belong in the planned, not yet committed
-[decision log](../../../docs/decision-log.md).
+[../../../docs/troubleshooting.md](../../../docs/troubleshooting.md). Judgement calls behind the documentation choices
+belong in the planned, not yet committed [decision log](../../../docs/decision-log.md).
 
 ## Usage Examples
 
 Every example below uses a signature declared in the committed code. No example runs today, and each one names the
 defect that stops it. Setup steps live in [../../../docs/onboarding.md](../../../docs/onboarding.md).
 
-Creating a document and then reading it back, using the signatures declared at
-`document_service.py:L74` and `:L125`:
+Creating a document and then reading it back, using the signatures declared at `document_service.py:L72` and `:L123`:
 
 ```python
 import asyncio
@@ -367,13 +359,12 @@ async def main() -> None:
 asyncio.run(main())
 ```
 
-Both second arguments are strings, matching the declared `user_id: str`. The committed router passes
-the whole `User` object at `../api/documents.py:L111`, and calls `get_document` with one argument at
-`:L186`, `:L234` and `:L281`.
+Both second arguments are strings, matching the declared `user_id: str`. The committed router passes the whole `User`
+object at `../api/documents.py:L108`, and calls `get_document` with one argument at `:L183`, `:L231` and `:L278`.
 
-The import fails first, at `document_service.py:L62`, which requests a `settings` name
-`app.core.config` never defines. Given that name, `Document(**doc_data)` at L123 raises on the two
-missing timestamp fields, and `Document(**doc.to_dict())` at L181 raises for the same reason.
+The import fails first, at `document_service.py:L60`, which requests a `settings` name
+`app.core.config` never defines. Given that name, `Document(**doc_data)` at L121 raises on the two
+missing timestamp fields, and `Document(**doc.to_dict())` at L179 raises for the same reason.
 
 `CollaborationService` has no usage example. No route constructs the class and no WebSocket endpoint
 exists under `backend/`, so no example can show the class in service. An example calling `connect`
@@ -383,7 +374,7 @@ never reaches a caller, because L250 catches it and L252 prints it.
 
 Exporting to Portable Document Format (PDF), per the signature at `export_service.py:L87`. The method
 takes a `Document`, so the example builds one first, supplying the two timestamp fields
-`../schema/document.py:L113` and `:L114` declare as required:
+`../schema/document.py:L111` and `:L112` declare as required:
 
 ```python
 from datetime import datetime
@@ -397,13 +388,11 @@ document = Document(id="doc-123", title="Quarterly report",
 signed_url = ExportService().export_to_pdf(document)
 ```
 
-`Document` at `../schema/document.py:L98` requires `id`, `created_at` and `updated_at`, so the example
-supplies all three. The method is a plain `def`, so no `await` belongs here. The import fails at
-`export_service.py:L61` on the same absent `settings` name. Given that name,
-`settings.STORAGE_BUCKET_NAME` at L154 raises `AttributeError`, and given that field, the upload at
-L157 stores the literal string `"PDF_CONTENT"` rather than a PDF.
+`Document` at `../schema/document.py:L96` requires `id`, `created_at` and `updated_at`, so the example supplies all
+three. The method is a plain `def`, so no `await` belongs here. The import fails at `export_service.py:L61` on the
+same absent `settings` name. Given that name, `settings.STORAGE_BUCKET_NAME` at L154 raises `AttributeError`, and
+given that field, the upload at L157 stores the literal string `"PDF_CONTENT"` rather than a PDF.
 
-The three test modules under `../../tests/` cannot supply a working example.
-`../../tests/test_services.py:L4` imports through a bare `services.*` root that does not resolve, and
-the suite calls and patches six names no service in this folder defines.
-[../../tests/README.md](../../tests/README.md) enumerates every one.
+The three test modules under `../../tests/` cannot supply a working example. `../../tests/test_services.py:L4` imports
+through a bare `services.*` root that does not resolve, and the suite calls and patches six names no service in this
+folder defines. [../../tests/README.md](../../tests/README.md) enumerates every one.

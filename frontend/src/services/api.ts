@@ -96,7 +96,7 @@ const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
  * copies it into Redux, and `frontend/src/store/index.ts` registers only the `document` and
  * `user` reducer keys.
  *
- * The request interceptor at L140-L23 reads a token and, when one is present, sets the
+ * The request interceptor at L140-L149 reads a token and, when one is present, sets the
  * `Authorization` header to `Bearer <token>`. L142 fails twice, and the two failures are
  * sequential rather than simultaneous. No import brings `store` into this module, so the
  * first request raises `ReferenceError: store is not defined`. Supplying that import moves
@@ -109,7 +109,7 @@ const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
  * writer and the reader use different stores. `frontend/src/services/auth.ts:L148` writes to
  * browser `localStorage` under the key `accessToken`. The value it writes comes from
  * `response.data.accessToken` at `auth.ts:L147`, a camelCase field that
- * `backend/app/api/auth.py:L243` never sends, so the stored string is `"undefined"`. No
+ * `backend/app/api/auth.py:L240` never sends, so the stored string is `"undefined"`. No
  * module under `frontend/src` calls `localStorage.getItem('accessToken')`, and no module
  * dispatches a token into the Redux store, so the path L142 reads has no writer at all. The
  * flow is broken at both ends: the one writer stores a useless value where nothing reads,
@@ -117,12 +117,12 @@ const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
  * after the logout request resolves, and `auth.ts:L196-L198` swallows the error, so a failed
  * logout keeps the stored value while reporting success.
  *
- * The response interceptor at L151-L31 passes both outcomes straight through: L152 returns the
+ * The response interceptor at L151-L157 passes both outcomes straight through: L152 returns the
  * response unchanged and L155 re-rejects the error unchanged. L154 carries the file's only
  * pre-existing comment, inside that error branch.
  *
  * Resilience is absent from this module, and every absence below belongs to the application
- * rather than to the library. `axios.create` at L134-L10 receives `baseURL` alone, so no
+ * rather than to the library. `axios.create` at L134-L136 receives `baseURL` alone, so no
  * `timeout`, no `signal` and no `validateStatus` is configured. No `AbortController` and no
  * cancellation token reaches any request. No retry, no backoff, no jitter, no circuit
  * breaker and no fallback response exists anywhere in the module, and L155 re-rejects instead
@@ -190,17 +190,17 @@ const api = createApiClient();
  * 3. The path selects the get-one route rather than the list route.
  *    `backend/app/main.py:L125-L128` mounts every router without a prefix, so the committed
  *    document routes are `/` and `/{document_id}`. The path `/documents` is one segment, so
- *    it matches `GET /{document_id}` at `backend/app/api/documents.py:L148` with `document_id`
+ *    it matches `GET /{document_id}` at `backend/app/api/documents.py:L145` with `document_id`
  *    bound to the literal string `documents`. `GET /` at
- *    `backend/app/api/documents.py:L114`, the only route that returns a list, is never
+ *    `backend/app/api/documents.py:L111`, the only route that returns a list, is never
  *    selected.
- * 4. The selected route rejects the request. `backend/app/api/documents.py:L149` injects
+ * 4. The selected route rejects the request. `backend/app/api/documents.py:L146` injects
  *    `get_current_user`, which depends on the `OAuth2PasswordBearer` instance at
- *    `backend/app/api/auth.py:L88`. A request carrying no `Authorization` header answers
+ *    `backend/app/api/auth.py:L85`. A request carrying no `Authorization` header answers
  *    HTTP 401 before the handler body runs.
  * 5. The handler fails its service call. A request carrying a valid token reaches
- *    `backend/app/api/documents.py:L186`, which passes one argument where
- *    `backend/app/services/document_service.py:L125` declares `document_id` and `user_id`, so
+ *    `backend/app/api/documents.py:L183`, which passes one argument where
+ *    `backend/app/services/document_service.py:L123` declares `document_id` and `user_id`, so
  *    Python raises `TypeError` and FastAPI answers HTTP 500.
  *
  * No layer produces a list, so this call buffers nothing. The route the path selects returns
@@ -208,7 +208,7 @@ const api = createApiClient();
  * `Document[]`. Intended behavior per documentation/Technical Specifications.md, SYSTEM
  * DESIGN > API DESIGN (L417): `GET /documents` returns the caller's documents. A repaired
  * path would buffer every document, content included, because
- * `backend/app/api/documents.py:L114-L146` declares no pagination, no page size and no field
+ * `backend/app/api/documents.py:L111-L143` declares no pagination, no page size and no field
  * projection, so the response would grow with the collection.
  * @example
  * const documents = await getDocuments();
@@ -232,10 +232,10 @@ export const getDocuments = async (): Promise<Document[]> => {
  * as recorded on `getDocuments`.
  *
  * The dispatch outcome differs from `getDocuments`. No `POST /{document_id}` route exists,
- * because `backend/app/api/documents.py:L148`, `:L30` and `:L39` register that path template
+ * because `backend/app/api/documents.py:L145`, `:L188` and `:L237` register that path template
  * for GET, PUT and DELETE only. Starlette matches the one-segment path `/documents` against
  * that template, finds no handler for the method, and answers 405 Method Not Allowed. The
- * request never reaches `POST /` at `backend/app/api/documents.py:L56`.
+ * request never reaches `POST /` at `backend/app/api/documents.py:L53`.
  *
  * @example
  * const created = await createDocument(documentData);
@@ -256,8 +256,8 @@ export const createDocument = async (documentData: DocumentCreate): Promise<Docu
  * carry. L288 sends the value as the request body without inspecting it.
  * @returns A promise resolving to the Axios `response.data`, typed as `Document`.
  * @remarks The request replaces no field the caller leaves out. The server contract for this
- * operation is a partial patch: `backend/app/schema/document.py:L84-L96` declares only `title` and
- * `content` on `DocumentUpdate`, and `backend/app/services/document_service.py:L247` calls
+ * operation is a partial patch: `backend/app/schema/document.py:L82-L94` declares only `title` and
+ * `content` on `DocumentUpdate`, and `backend/app/services/document_service.py:L245` calls
  * `dict(exclude_unset=True)`, so only the fields a caller sets explicitly reach storage.
  *
  * The shared `api` instance applies the same request interceptor, so the call fails
@@ -274,8 +274,8 @@ export const createDocument = async (documentData: DocumentCreate): Promise<Docu
  * The dispatch outcome differs again. `/documents/${documentId}` is two segments, and every
  * route the application registers is either the root or a single segment.
  * `backend/app/api/documents.py` registers `/` and `/{document_id}`,
- * `backend/app/api/users.py:L32` and `:L12` register `/me`, `backend/app/api/auth.py:L170` and
- * `:L42` register `/token` and `/register`, and `backend/app/api/templates.py` repeats the
+ * `backend/app/api/users.py:L29` and `:L50` register `/me`, `backend/app/api/auth.py:L167` and
+ * `:L242` register `/token` and `/register`, and `backend/app/api/templates.py` repeats the
  * document templates. No registered template matches two segments, so the response is 404
  * rather than the 405 that `createDocument` receives.
  *

@@ -7,7 +7,7 @@ itself.
 The service writes and compares the owner under the key `user_id`, while the `Document`
 contract declares `owner_id`. Every stored record therefore carries a field the contract
 does not model, and the two keys stay independent. Every `Document(**data)` construction
-keeps the `owner_id` that L18 serializes from the create body and discards the extra
+keeps the `owner_id` that L115 serializes from the create body and discards the extra
 `user_id`, because Pydantic ignores a field the model does not declare. A returned model
 therefore reports the owner the client chose, or `None` when the client sent no
 `owner_id`, while every authorization comparison reads the stored `user_id` instead. The
@@ -17,43 +17,41 @@ All four methods are declared `async` and contain no `await`. The Firestore call
 are synchronous and blocking, so each one holds the event loop for the duration of the
 round trip.
 
-- `get_document` at L26, `update_document` at L43 and `delete_document` at L63
-  each read the stored `user_id` and compare it against the argument, at L35,
-  L52 and L72, and raise 403 on a mismatch.
-- `create_document` at L11 performs no comparison. L19 assigns the supplied
+- `get_document` at L123, `update_document` at L183 and `delete_document` at L252
+  each read the stored `user_id` and compare it against the argument, at L175,
+  L241 and L72, and raise 403 on a mismatch.
+- `create_document` at L72 performs no comparison. L116 assigns the supplied
   `user_id` onto the record, so the caller names the owner outright.
 
-Two owner identities land in one stored record. L18 serializes the
+Two owner identities land in one stored record. L115 serializes the
 `DocumentCreate` body, which carries the client-supplied `owner_id` that
-`app/schema/document.py:L68` declares as `Optional[str]` with a default of `None`.
-L19 then adds a separate `user_id` key. A stored document therefore holds a
+`app/schema/document.py:L66` declares as `Optional[str]` with a default of `None`.
+L116 then adds a separate `user_id` key. A stored document therefore holds a
 client-controlled `owner_id` alongside the `user_id` that every later comparison
 reads, and nothing reconciles the two.
 
 The ownership field carries two names across four positions, and no evidence in
-the repository makes either name canonical. L19, L35, L52 and L72 in this module
-write and read `user_id`. `app/schema/document.py:L68` declares `owner_id` on
-`DocumentBase`, while `:L27` declares `user_id` on `DocumentVersion`. The
+the repository makes either name canonical. L116, L175, L241 and L72 in this module
+write and read `user_id`. `app/schema/document.py:L66` declares `owner_id` on
+`DocumentBase`, while `:L135` declares `user_id` on `DocumentVersion`. The
 specification names the field `owner_id` at
 `documentation/Technical Specifications.md:L333`. All four positions are recorded
 here, and no committed file establishes which name the others should follow.
 
-Import state: `settings` at L5 does not exist. `app.core.config` defines the
+Import state: `settings` at L60 does not exist. `app.core.config` defines the
 `Settings` class and the `get_settings()` factory and never creates a
 module-level instance, so the import raises ImportError. `app.db.firestore` at
-L4 reads the same absent name, so this module fails to import either way.
+L59 reads the same absent name, so this module fails to import either way.
 
-Unused imports: `Client` at L2 and `settings` at L5. Neither name appears
+Unused imports: `Client` at L57 and `settings` at L60. Neither name appears
 again below. Eight backend modules import `settings`, and this one alone never
 reads an attribute from it.
 
 Absent method: `DocumentService` defines no `get_documents`, and
-`app/api/documents.py:L145` calls one.
+`app/api/documents.py:L142` calls one.
 
-Line locators: every `Lnn` reference below numbers the tree at commit
-06be74c7c88aa6bca652d465eaa00ad480a9e5c5, the frozen revision that precedes this
-documentation pass. A bare `Lnn` points into this file, and a `path:Lnn` points into
-the named file. Current HEAD numbers each documented file higher.
+Every `Lnn` reference below points at the current layout of the file it names. A
+bare `Lnn` points into this file, and a `path:Lnn` points into the named file.
 """
 from fastapi import HTTPException
 from google.cloud.firestore import Client
@@ -83,27 +81,27 @@ class DocumentService:
             The created `Document`, built from the same dictionary that was written.
 
         Raises:
-            HTTPException: 400 at L14 when `title` or `content` is falsy.
-            pydantic.ValidationError: At L24, because `Document` in
+            HTTPException: 400 at L111 when `title` or `content` is falsy.
+            pydantic.ValidationError: At L121, because `Document` in
                 `app/schema/document.py` requires `created_at` and `updated_at`
-                and `doc_data` carries neither key. The write at L21 has already
+                and `doc_data` carries neither key. The write at L118 has already
                 committed when the error is raised, so the document exists in
                 Firestore while the caller receives an exception instead of it.
                 The condition holds on every successful write, because no line in
                 this method sets either field.
-            TypeError: From the Firestore encoder at L21, when a caller passes a
+            TypeError: From the Firestore encoder at L118, when a caller passes a
                 value the encoder cannot serialize under a key of `doc_data`.
-                `app/api/documents.py:L111` passes a Pydantic `User` for the
-                `user_id` parameter, which L19 places in the dictionary, and the
+                `app/api/documents.py:L108` passes a Pydantic `User` for the
+                `user_id` parameter, which L116 places in the dictionary, and the
                 encoder rejects an arbitrary `BaseModel`. The encoding runs before
                 the network call, so no document is written on that path.
 
         Side effects:
-            Writes one document to the `documents` collection. L17 allocates a
-            reference with a generated identifier, L18 serializes the model,
-            L19 adds `user_id`, L20 adds `id`, and L21 commits the dictionary
+            Writes one document to the `documents` collection. L114 allocates a
+            reference with a generated identifier, L115 serializes the model,
+            L116 adds `user_id`, L117 adds `id`, and L118 commits the dictionary
             with `set`. The committed dictionary carries both the
-            client-supplied `owner_id` from L18 and the `user_id` from L19, so
+            client-supplied `owner_id` from L115 and the `user_id` from L116, so
             one record stores two owner identities. No transaction and no
             precondition covers the write, so a second call for the same
             generated identifier would overwrite rather than conflict.
@@ -134,32 +132,32 @@ class DocumentService:
             The matching Document.
 
         Raises:
-            HTTPException: 404 at L32 if not found, 403 at L36 if `user_id`
+            HTTPException: 404 at L172 if not found, 403 at L176 if `user_id`
                 does not match the stored owner.
-            KeyError: At L35, when the stored dictionary holds no `user_id` key.
-                L35 subscripts the dictionary directly instead of using `.get`,
+            KeyError: At L175, when the stored dictionary holds no `user_id` key.
+                L175 subscripts the dictionary directly instead of using `.get`,
                 so a record written by any path other than `create_document`
                 fails the lookup rather than the comparison. FastAPI converts an
                 uncaught `KeyError` into a 500 response, so the caller sees a
                 server error rather than a 403.
-            pydantic.ValidationError: At L39, because `Document` requires
+            pydantic.ValidationError: At L179, because `Document` requires
                 `created_at` and `updated_at` and no path in this repository
                 writes either field to Firestore, so the stored dictionary carries
-                neither. The read at L29 has already happened, and the method
+                neither. The read at L169 has already happened, and the method
                 raises instead of returning the document it fetched. The condition
                 holds for every record `create_document` wrote.
 
         Ownership comparison, step by step. `create_document` writes the owner
-        into the `user_id` key at L19, and L35 reads that key back and compares it
+        into the `user_id` key at L116, and L175 reads that key back and compares it
         for exact string equality against the `user_id` argument. The comparison
         is the whole authorization decision: no role, no access-control list and
         no share list takes part, and the `owner_id` field that
-        `app/schema/document.py:L68` declares is not consulted.
+        `app/schema/document.py:L66` declares is not consulted.
 
-        The order of the two guards decides which status a caller sees. L31 tests
-        existence first, so a missing document raises 404 at L32 and never reaches
-        the comparison. A document that exists under a different owner reaches L35
-        and raises 403 at L36. The two statuses therefore report different facts
+        The order of the two guards decides which status a caller sees. L171 tests
+        existence first, so a missing document raises 404 at L172 and never reaches
+        the comparison. A document that exists under a different owner reaches L175
+        and raises 403 at L176. The two statuses therefore report different facts
         to an authenticated caller, and the difference discloses information: a
         404 means no document carries that identifier, and a 403 means one does
         and belongs to somebody else. A caller who walks a range of identifiers
@@ -196,37 +194,37 @@ class DocumentService:
             The updated `Document`, rebuilt from a second read.
 
         Raises:
-            HTTPException: 404 at L49 if not found, 403 at L53 if `user_id`
+            HTTPException: 404 at L238 if not found, 403 at L242 if `user_id`
                 does not match the stored owner.
-            KeyError: At L52, when the stored dictionary holds no `user_id` key,
+            KeyError: At L241, when the stored dictionary holds no `user_id` key,
                 for the reason documented on `get_document`. FastAPI converts the
                 uncaught error into a 500 response.
-            pydantic.ValidationError: At L61, because `Document` requires
-                `created_at` and `updated_at` and the second read at L60 returns a
-                dictionary carrying neither. The write at L57 has already committed
+            pydantic.ValidationError: At L250, because `Document` requires
+                `created_at` and `updated_at` and the second read at L249 returns a
+                dictionary carrying neither. The write at L246 has already committed
                 when the error is raised, so the change is stored while the caller
                 receives an exception instead of the refreshed document. The
                 condition holds on every call that passes the ownership check,
                 because `DocumentUpdate` declares only `title` and `content` at
-                `app/schema/document.py:L84-L96` and nothing sets a timestamp.
+                `app/schema/document.py:L82-L94` and nothing sets a timestamp.
 
         Side effects:
-            Spends three Firestore round trips on every call: a read at L46, a
-            write at L57, and a second read at L60.
+            Spends three Firestore round trips on every call: a read at L235, a
+            write at L246, and a second read at L249.
 
         The ownership comparison follows the pattern documented on `get_document`,
-        including the 404-before-403 ordering at L48 and L52 and the information
+        including the 404-before-403 ordering at L237 and L241 and the information
         that ordering discloses.
 
-        The authorization decision and the write are separate operations. L46
-        reads the document, L52 compares the owner from that snapshot, and L57
+        The authorization decision and the write are separate operations. L235
+        reads the document, L241 compares the owner from that snapshot, and L246
         writes. No Firestore transaction and no precondition covers the three
         lines, so the check runs against a snapshot the write does not re-verify.
-        An ownership change committed between L46 and L57 is not observed, and the
+        An ownership change committed between L235 and L246 is not observed, and the
         write proceeds on the strength of the stale snapshot. The write itself
-        cannot reassign ownership: `app/schema/document.py:L84-L96` declares only
+        cannot reassign ownership: `app/schema/document.py:L82-L94` declares only
         `title` and `content` on `DocumentUpdate`, and Pydantic 1.x drops
-        undeclared keys, so L56 can emit no owner field for L57 to store.
+        undeclared keys, so L245 can emit no owner field for L246 to store.
 
         Note:
             See the human-assistance marker directly above this signature: the

@@ -61,9 +61,11 @@ Three conventions govern the locators:
 - Locators point at the **committed state at the current branch head**, which includes the inline
   documentation added to 44 source files. A locator therefore matches what you see when you open
   the file today, not what an earlier revision held.
-- Line numbers are **physical**. No tracked file in this repository ends with a newline, so
-  `wc -l` reports one line fewer than each file contains. Counting tools that rely on trailing
-  newlines will disagree with this register by one line.
+- Line numbers are **physical**. No source or configuration file in this repository ends with a
+  newline, so `wc -l` reports one line fewer than each of those files contains. Counting tools
+  that rely on trailing newlines will disagree with this register by one line. The Markdown this
+  engagement added does end with a newline, so no README and no file under `docs/` carries that
+  discrepancy.
 - A range such as `backend/app/core/config.py:L111-L119` covers every line in the span,
   inclusive.
 
@@ -113,14 +115,14 @@ section that carries the detail.
 | `tsc --noEmit` reports 76 errors, so the build fails | Starting or building the frontend | [G1](#g1-absent-modules-referenced-by-committed-code), [G2](#g2-absent-symbols-inside-modules-that-do-exist), [G4](#g4-undeclared-third-party-dependencies) | Distribution in [the type-check profile](#the-verified-type-check-profile) |
 | The interface renders with no styling at all | Viewing the running frontend | [G8](#tailwind-never-compiles) | No `tailwind.config.js`, no `postcss.config.js` and no committed stylesheet |
 | `uvicorn main:app --reload` cannot find the application | Starting the backend from `backend/` per the README | [README](#documentation-inaccuracies-in-the-root-readme) | The application object sits at `backend/app/main.py:L24` (`app = FastAPI()`), one directory deeper |
-| `ImportError: cannot import name 'settings' from 'app.core.config'` | Importing `app.main` from `backend/` | [G2](#the-absent-settings-singleton) | `backend/app/main.py:L16` reaches `backend/app/api/auth.py:L84`, which requests a name `backend/app/core/config.py` never defines |
-| `ModuleNotFoundError: No module named 'app.schema.template'` | Importing `app.api.templates` | [G1](#g1-absent-modules-referenced-by-committed-code) | `backend/app/api/templates.py:L75` |
-| `ModuleNotFoundError: No module named 'app.services.user_service'` | Importing `app.api.users` or `app.api.auth` | [G1](#g1-absent-modules-referenced-by-committed-code) | `backend/app/api/users.py:L27` and `backend/app/api/auth.py:L86` |
-| `NameError: name 'Optional' is not defined` | Importing `app.core.security` | [G3](#g3-undefined-names-that-raise-at-execution) | `backend/app/core/security.py:L50` uses `Optional` with no import behind it |
+| `ImportError: cannot import name 'settings' from 'app.core.config'` | Importing `app.main` from `backend/` | [G2](#the-absent-settings-singleton) | `backend/app/main.py:L16` reaches `backend/app/api/auth.py:L81`, which requests a name `backend/app/core/config.py` never defines |
+| `ModuleNotFoundError: No module named 'app.schema.template'` | Importing `app.api.templates` | [G1](#g1-absent-modules-referenced-by-committed-code) | `backend/app/api/templates.py:L70` |
+| `ModuleNotFoundError: No module named 'app.services.user_service'` | Importing `app.api.users` or `app.api.auth` | [G1](#g1-absent-modules-referenced-by-committed-code) | `backend/app/api/users.py:L24` and `backend/app/api/auth.py:L83` |
+| `NameError: name 'Optional' is not defined` | Importing `app.core.security` | [G3](#g3-undefined-names-that-raise-at-execution) | `backend/app/core/security.py:L48` uses `Optional` with no import behind it |
 | Template endpoints return document responses | Calling any `/{id}` route | [G7](#document-routes-shadow-the-template-and-profile-routes) | `backend/app/main.py:L125-L128` mounts every router with no prefix |
-| `GET /me` returns a document read, or 404 for a document called `me` | Fetching the signed-in profile | [G7](#document-routes-shadow-the-template-and-profile-routes) | `backend/app/api/documents.py:L148` claims every single-segment path ahead of `backend/app/api/users.py:L32` |
-| `POST /documents` answers 405 while `PUT /documents/{id}` answers 404 | Calling the document API from the client | [G7](#the-client-calls-three-routes-that-do-not-exist) | `frontend/src/services/api.ts:L246` and `:L288` prefix a segment no route declares |
-| Login answers 422 rather than 401 once the path is corrected | Signing in | [G7](#the-client-calls-three-routes-that-do-not-exist) | `frontend/src/services/auth.ts:L146` sends JSON `email`, and `backend/app/api/auth.py:L171` reads a form `username` |
+| `GET /me` returns a document read, or 404 for a document called `me` | Fetching the signed-in profile | [G7](#document-routes-shadow-the-template-and-profile-routes) | `backend/app/api/documents.py:L145` claims every single-segment path ahead of `backend/app/api/users.py:L29` |
+| `POST /documents` answers 405 while `PUT /documents/{id}` answers 404 | Calling the document API from the client | [G7](#the-client-calls-six-routes-and-no-server-route-matches-any-of-them) | `frontend/src/services/api.ts:L246` and `:L288` prefix a segment no route declares |
+| Login answers 422 rather than 401 once the path is corrected | Signing in | [G7](#the-client-calls-six-routes-and-no-server-route-matches-any-of-them) | `frontend/src/services/auth.ts:L146` sends JSON `email`, and `backend/app/api/auth.py:L168` reads a form `username` |
 | `npm ci` fails with `EUSAGE` in continuous integration | Running the CI workflow | [G8](#npm-ci-cannot-run-anywhere) | `.github/workflows/ci.yml:L19` runs at the repository root, where no manifest and no lockfile exist |
 | `docker compose build` cannot find a Dockerfile | Building the containers | [G8](#compose-points-at-dockerfiles-that-are-not-there) | `infrastructure/docker/docker-compose.yml:L6-L7` and `:L19-L20` |
 | `terraform init` reports `Unreadable module directory` | Initialising the infrastructure | [G8](#three-terraform-module-sources-do-not-exist) | `infrastructure/terraform/main.tf:L67`, `:L76`, `:L85`. No `modules/` directory exists |
@@ -139,9 +141,9 @@ more. Each import below resolves to nothing, so the importing module cannot load
 
 | Absent module | Requested at | Symbols requested | Effect |
 | --------------- | -------------- | ------------------- | -------- |
-| `app.services.user_service` | `backend/app/api/auth.py:L86`, `backend/app/api/users.py:L27` | `UserService` | Both routers fail to import. `backend/app/core/security.py:L188` also constructs `UserService()` with no import at all, covered in [G3](#g3-undefined-names-that-raise-at-execution) |
-| `app.schema.template` | `backend/app/api/templates.py:L75` | `Template`, `TemplateCreate`, `TemplateUpdate` | The template router fails to import. No Pydantic contract for a template exists anywhere in the backend |
-| `app.services.template_service` | `backend/app/api/templates.py:L76` | `TemplateService` | The template router has no service tier behind its five handlers |
+| `app.services.user_service` | `backend/app/api/auth.py:L83`, `backend/app/api/users.py:L24` | `UserService` | Both routers fail to import. `backend/app/core/security.py:L186` also constructs `UserService()` with no import at all, covered in [G3](#g3-undefined-names-that-raise-at-execution) |
+| `app.schema.template` | `backend/app/api/templates.py:L70` | `Template`, `TemplateCreate`, `TemplateUpdate` | The template router fails to import. No Pydantic contract for a template exists anywhere in the backend |
+| `app.services.template_service` | `backend/app/api/templates.py:L71` | `TemplateService` | The template router has no service tier behind its five handlers |
 | `@/components/StylePanel` | `frontend/src/components/Sidebar.tsx:L8` | `StylePanel` | Rendered unconditionally at `Sidebar.tsx:L23` |
 | `@/components/CommentPanel` | `frontend/src/components/Sidebar.tsx:L9` | `CommentPanel` | Rendered unconditionally at `Sidebar.tsx:L24` |
 | `@/components/RevisionPanel` | `frontend/src/components/Sidebar.tsx:L10` | `RevisionPanel` | Rendered unconditionally at `Sidebar.tsx:L25` |
@@ -154,7 +156,7 @@ The five frontend rows above carry a second, independent failure. Each specifier
 prefix, which the compiler cannot resolve either, as [G4](#the-unmapped-import-prefix) records.
 Creating the five missing files would not clear those five errors on its own.
 
-`backend/app/api/templates.py:L75-L76` is the clearest example of the pattern in the whole
+`backend/app/api/templates.py:L70-L71` is the clearest example of the pattern in the whole
 repository: one module, two imports, neither target present. The engagement that produced this
 register corrected an earlier attribution of this example to
 `backend/app/services/document_service.py`, which carries no such import.
@@ -199,16 +201,16 @@ assignment at any line. Eight modules import that name:
 | Importing module | Line |
 | ------------------ | ------ |
 | `backend/app/main.py` | `L20` |
-| `backend/app/api/auth.py` | `L84` |
-| `backend/app/db/firestore.py` | `L38` |
+| `backend/app/api/auth.py` | `L81` |
+| `backend/app/db/firestore.py` | `L36` |
 | `backend/app/db/sql.py` | `L14` |
 | `backend/app/services/collaboration_service.py` | `L39` |
-| `backend/app/services/document_service.py` | `L62` |
+| `backend/app/services/document_service.py` | `L60` |
 | `backend/app/services/export_service.py` | `L61` |
 | `backend/app/tasks/background_tasks.py` | `L92` |
 
 Each import raises `ImportError: cannot import name 'settings' from 'app.core.config'`.
-`backend/app/core/security.py:L45` imports `get_settings` instead, which exists, so that module's
+`backend/app/core/security.py:L43` imports `get_settings` instead, which exists, so that module's
 configuration import resolves. [G3](#g3-undefined-names-that-raise-at-execution) records why
 `app.core.security` still fails.
 
@@ -232,10 +234,10 @@ them:
 | An absent module, per [G1](#g1-absent-modules-referenced-by-committed-code) | 2 | `app.api.templates` (`app.schema.template`), `app.api.users` (`app.services.user_service`) |
 | An undefined name, per [G3](#g3-undefined-names-that-raise-at-execution) | 1 | `app.core.security` (`Optional`) |
 
-`app.main` surfaces its failure at `backend/app/api/auth.py:L84`, reached through
+`app.main` surfaces its failure at `backend/app/api/auth.py:L81`, reached through
 `backend/app/main.py:L16`. Two modules fail indirectly through the Firestore adapter:
 `app.api.documents` and `app.services.document_service` both surface at
-`backend/app/db/firestore.py:L38`. See [../backend/app/README.md](../backend/app/README.md), which
+`backend/app/db/firestore.py:L36`. See [../backend/app/README.md](../backend/app/README.md), which
 owns the census figure and the package-boundary statement.
 
 ### The four router names
@@ -256,7 +258,7 @@ All four names are then passed to `include_router` at `backend/app/main.py:L125-
 
 | Symbol | Called at | Defined on |
 | -------- | ----------- | ------------ |
-| `DocumentService.get_documents` | `backend/app/api/documents.py:L145` | nothing. `DocumentService` defines `create_document` (`L74`), `get_document` (`L125`), `update_document` (`L185`) and `delete_document` (`L254`) |
+| `DocumentService.get_documents` | `backend/app/api/documents.py:L142` | nothing. `DocumentService` defines `create_document` at `backend/app/services/document_service.py:L72`, `get_document` at `:L123`, `update_document` at `:L183` and `delete_document` at `:L252` |
 | `ExportService.convert_document` | `backend/app/tasks/background_tasks.py:L138` | nothing. `ExportService` defines `export_to_pdf` (`L87`) and `export_to_docx` (`L168`) |
 
 ### Absent frontend exports
@@ -265,15 +267,15 @@ All four names are then passed to `include_router` at `backend/app/main.py:L125-
 `Document`, `DocumentCreate` and `DocumentUpdate` across five positions, and the module declares none
 of the three. Its two exports are both Zod schema values, `DocumentSchema` at `L65` and
 `DocumentVersionSchema` at `L86`, and it exports **no inferred type**. Both sibling schema modules do
-export one: `frontend/src/schema/user.ts:L56` and `frontend/src/schema/template.ts:L41` each end with
+export one: `frontend/src/schema/user.ts:L56` and `frontend/src/schema/template.ts:L40` each end with
 a `z.infer` declaration. The three omissions together produce five of the six `TS2305` errors in the
 whole frontend, because the compiler reports one error per requested name per import statement.
 
 | Requested name | Requested at | Positions | What closing it needs |
 |----------------|--------------|-----------|------------------------|
 | `Document` | `frontend/src/services/api.ts:L80`, `frontend/src/services/collaboration.ts:L15`, `frontend/src/store/documentSlice.ts:L22` | 3 | One line. `DocumentSchema` already exists at `frontend/src/schema/document.ts:L65`, so a `z.infer` export beside it closes all three positions at once |
-| `DocumentCreate` | `frontend/src/services/api.ts:L80` | 1 | A schema first. No Zod object in the module models a creation payload, so nothing exists to infer from. `backend/app/schema/document.py:L70` declares the server-side equivalent |
-| `DocumentUpdate` | `frontend/src/services/api.ts:L80` | 1 | A schema first. `backend/app/schema/document.py:L84` declares the server-side equivalent and inherits nothing, so neither side holds a field list to mirror |
+| `DocumentCreate` | `frontend/src/services/api.ts:L80` | 1 | A schema first. No Zod object in the module models a creation payload, so nothing exists to infer from. `backend/app/schema/document.py:L68` declares the server-side equivalent |
+| `DocumentUpdate` | `frontend/src/services/api.ts:L80` | 1 | A schema first. `backend/app/schema/document.py:L82` declares the server-side equivalent and inherits nothing, so neither side holds a field list to mirror |
 
 | Requested symbol | Requested at |
 | ------------------ | -------------- |
@@ -310,9 +312,9 @@ diagnose. The name looks ordinary at the point of use, and the failure arrives l
 
 | Name | Referenced at | Raises when |
 | ------ | --------------- | ------------- |
-| `Optional` | `backend/app/core/security.py:L50`, in the `create_access_token` signature | the module body executes, so at import |
-| `User` | `backend/app/core/security.py:L119`, as the `get_current_user` return annotation | the module body executes, so at import |
-| `UserService` | `backend/app/core/security.py:L188`, inside `get_current_user` | `get_current_user` first runs |
+| `Optional` | `backend/app/core/security.py:L48`, in the `create_access_token` signature | the module body executes, so at import |
+| `User` | `backend/app/core/security.py:L117`, as the `get_current_user` return annotation | the module body executes, so at import |
+| `UserService` | `backend/app/core/security.py:L186`, inside `get_current_user` | `get_current_user` first runs |
 | `asyncio` | `backend/app/services/collaboration_service.py:L163`, inside the Pub/Sub `callback` | a published message first arrives |
 | `json` | `backend/app/services/collaboration_service.py:L248`, inside `broadcast_change` | `broadcast_change` first runs |
 | `datetime` | `backend/app/tasks/background_tasks.py:L267`, inside `cleanup_expired_documents` | the retention sweep first runs |
@@ -325,9 +327,9 @@ both `L146` and `L151` while `datetime` resolves nowhere.
 
 Python evaluates a function's annotations when the `def` statement runs, so an undefined name in a
 signature fails as the module loads rather than when the function is called. `Optional` at
-`backend/app/core/security.py:L50` therefore raises
+`backend/app/core/security.py:L48` therefore raises
 `NameError: name 'Optional' is not defined` during import of `app.core.security`, and the module
-cannot import at all. `User` at `L119` would raise the same way, and `L50` raises first, so
+cannot import at all. `User` at `L117` would raise the same way, and `L48` raises first, so
 execution never reaches it.
 
 The remaining five references sit inside function bodies and raise only when that function runs.
@@ -339,12 +341,12 @@ failure appears in an import traceback, and a body failure appears only under ex
 Diagnosing `backend/app/core/security.py` goes wrong in two predictable ways, so this register
 records both explicitly.
 
-- **`backend/app/core/security.py:L45` imports `get_settings`, not `settings`.** That name exists,
+- **`backend/app/core/security.py:L43` imports `get_settings`, not `settings`.** That name exists,
   at `backend/app/core/config.py:L126`. The configuration import in this one module resolves
   correctly, unlike the eight listed in
   [G2](#the-absent-settings-singleton). The real defects in this file are the three undefined names
   above.
-- **`except jwt.JWTError` at `backend/app/core/security.py:L185` resolves correctly and is not a
+- **`except jwt.JWTError` at `backend/app/core/security.py:L183` resolves correctly and is not a
   defect.** `L41` imports `jwt` from `jose`, and the installed `python-jose` distribution exposes
   `JWTError` on that module. Recording the line as broken would send a reader after a working
   import.
@@ -401,20 +403,23 @@ appear across `backend/app/`:
 | `fastapi` | `fastapi`, 0.89.0 or newer | Response models come from return annotations, and no handler passes `response_model=` |
 | `pydantic` | `pydantic`, 1.x only | `backend/app/core/config.py:L48` imports `BaseSettings` from the main package, and `backend/app/schema/user.py:L177` sets `orm_mode`. Pydantic 2 moved `BaseSettings` to `pydantic-settings` and renamed `orm_mode` |
 | `sqlalchemy` | `SQLAlchemy`, 1.4 or newer | `backend/app/db/sql.py:L13` imports `declarative_base` from `sqlalchemy.orm`, where 1.4 moved it |
-| `jose` | `python-jose` | `backend/app/api/auth.py` and `backend/app/core/security.py:L41`. The import name and the distribution name differ |
+| `jose` | `python-jose` | `backend/app/api/auth.py` and `backend/app/core/security.py:L39`. The import name and the distribution name differ |
 | `passlib` | `passlib` | `CryptContext` in the same two modules |
 | `celery` | `celery` | `backend/app/tasks/background_tasks.py:L98` |
 | `google` | `google-cloud-firestore`, `google-cloud-pubsub`, `google-cloud-storage` and `google-auth` | one namespace splits across four distributions: `google.cloud.firestore`, `google.cloud.pubsub_v1`, `google.cloud.storage` and `google.auth` |
 
 ### The progressive Python dependency-resolution failure
 
-The backend requires seventeen distributions to run, and only ten of them appear in an `import` line.
-`uvicorn` is named by a run command instead, at `infrastructure/docker/backend.Dockerfile:L20` and
-`../README.md:L55`. The remaining six are transitive-only: `starlette` arrives with `fastapi`, `ecdsa`,
-`rsa` and `pyasn1` arrive with `python-jose`, and `bcrypt` and `python-multipart` are runtime backends
-that nothing declares at all. A developer building an environment by reading import statements
-installs the visible packages, retries, and hits the next missing piece. The build fails progressively
-rather than once. Four properties of this repository cause that pattern:
+The backend requires seventeen distributions to run, and only ten of them appear in an `import`
+line. [../backend/app/README.md](../backend/app/README.md) defines that count and the categories
+behind it, and every dependency figure in this document uses them. `uvicorn` is named by a run
+command instead, at `infrastructure/docker/backend.Dockerfile:L20` and `../README.md:L55`. The
+remaining six divide two ways. Four arrive transitively and need no naming: `starlette` with
+`fastapi`, and `ecdsa`, `rsa` and `pyasn1` with `python-jose`. Two do not arrive at all: `bcrypt`
+and `python-multipart` are runtime backends that nothing declares, so thirteen of the seventeen
+have to be named to a package manager. A developer building an environment by reading import
+statements installs the visible packages, retries, and hits the next missing piece. The build
+fails progressively rather than once. Four properties of this repository cause that pattern:
 
 - **One import name does not match its distribution name.** `import jose` needs `python-jose`.
   Guessing `pip install jose` installs an unrelated package, and the real one pulls `ecdsa`, `rsa` and
@@ -422,8 +427,8 @@ rather than once. Four properties of this repository cause that pattern:
 - **One namespace maps to four distributions.** `from google.cloud... import` gives no hint that
   Firestore, Pub/Sub, Cloud Storage and authentication ship separately.
 - **Two runtime needs are declared by nothing.** `passlib` performs bcrypt hashing at
-  `backend/app/api/auth.py:L89` and does not depend on `bcrypt`, so password hashing fails until a
-  developer adds `bcrypt` by hand. FastAPI parses the form body at `backend/app/api/auth.py:L171`
+  `backend/app/api/auth.py:L86` and does not depend on `bcrypt`, so password hashing fails until a
+  developer adds `bcrypt` by hand. FastAPI parses the form body at `backend/app/api/auth.py:L168`
   through `python-multipart` and does not require it, so a login post fails the same way.
 - **Two version ceilings are invisible without reading the code.** Installing the current
   `pydantic` breaks `backend/app/core/config.py:L48` immediately, because the 1.x constraint lives
@@ -471,12 +476,12 @@ catches none of them on the Python side, because the modules fail earlier at imp
 
 | Call site | Call | Target signature | Disagreement |
 | ----------- | ------ | ------------------ | -------------- |
-| `backend/app/api/documents.py:L111` | `create_document(document, current_user)` | `create_document(self, document: DocumentCreate, user_id: str)` at `backend/app/services/document_service.py:L74` | Passes a `User` object where the signature declares `user_id: str` |
-| `backend/app/api/documents.py:L186` | `get_document(document_id)` | `get_document(self, document_id: str, user_id: str)` at `backend/app/services/document_service.py:L125` | One argument against two parameters, so the ownership check cannot run |
-| `backend/app/api/documents.py:L234` | `get_document(document_id)` | the same two-parameter signature | One argument against two |
-| `backend/app/api/documents.py:L281` | `get_document(document_id)` | the same two-parameter signature | One argument against two |
-| `backend/app/api/documents.py:L237` | `update_document(document_id, document)` | `update_document(self, document_id: str, document: DocumentUpdate, user_id: str)` at `backend/app/services/document_service.py:L185` | Two arguments against three parameters |
-| `backend/app/api/documents.py:L284` | `delete_document(document_id)` | `delete_document(self, document_id: str, user_id: str)` at `backend/app/services/document_service.py:L254` | One argument against two |
+| `backend/app/api/documents.py:L108` | `create_document(document, current_user)` | `create_document(self, document: DocumentCreate, user_id: str)` at `backend/app/services/document_service.py:L72` | Passes a `User` object where the signature declares `user_id: str` |
+| `backend/app/api/documents.py:L183` | `get_document(document_id)` | `get_document(self, document_id: str, user_id: str)` at `backend/app/services/document_service.py:L123` | One argument against two parameters, so the ownership check cannot run |
+| `backend/app/api/documents.py:L231` | `get_document(document_id)` | the same two-parameter signature | One argument against two |
+| `backend/app/api/documents.py:L278` | `get_document(document_id)` | the same two-parameter signature | One argument against two |
+| `backend/app/api/documents.py:L234` | `update_document(document_id, document)` | `update_document(self, document_id: str, document: DocumentUpdate, user_id: str)` at `backend/app/services/document_service.py:L183` | Two arguments against three parameters |
+| `backend/app/api/documents.py:L281` | `delete_document(document_id)` | `delete_document(self, document_id: str, user_id: str)` at `backend/app/services/document_service.py:L252` | One argument against two |
 | `backend/app/tasks/background_tasks.py:L310` | `get_document(document_id)` | the same two-parameter signature | One argument against two |
 | `frontend/src/components/Toolbar.tsx:L62` | `applyInlineStyle(style)` | `applyInlineStyle(editorState: EditorState, inlineStyle: string)` at `frontend/src/utils/formatting.ts:L31` | One argument against two, and the missing argument is the editor state the helper transforms |
 | `frontend/src/components/Toolbar.tsx:L67` | `applyBlockStyle(style)` | `applyBlockStyle(editorState: EditorState, blockType: string)` at `frontend/src/utils/formatting.ts:L61` | One argument against two |
@@ -514,21 +519,21 @@ correcting one in isolation risks reinforcing the other.
 | Site | Violation |
 | ------ | ----------- |
 | `backend/app/tasks/background_tasks.py:L283` | Calls `.delete()` on the result of `.get()`, which returns a list of documents rather than a reference. Lists carry no `delete` method |
-| `backend/app/api/users.py:L80` | Calls `user_service.update_user(...)` from the synchronous handler declared at `L54`, so the call cannot be awaited. A coroutine object is always truthy, so if the absent `UserService` declares the method `async`, the guard at `L81` can never observe a failure. `app.services.user_service` does not exist, so no contract settles which it is |
-| `backend/app/api/users.py:L33`, `:L54` | Both handlers use plain `def` while all 12 other handlers use `async def` |
+| `backend/app/api/users.py:L77` | Calls `user_service.update_user(...)` from the synchronous handler declared at `L51`, so the call cannot be awaited. A coroutine object is always truthy, so if the absent `UserService` declares the method `async`, the guard at `L78` can never observe a failure. `app.services.user_service` does not exist, so no contract settles which it is |
+| `backend/app/api/users.py:L30`, `:L51` | Both handlers use plain `def` while all 12 other handlers use `async def` |
 | `backend/app/tasks/background_tasks.py:L151` | Stacks `@celery_app.periodic_task(run_every=timedelta(days=1))` beneath `@celery_app.task` at `L150`. Celery 5 exposes no `periodic_task` decorator, so the module raises `AttributeError` once the earlier import failures clear |
-| `backend/app/db/firestore.py:L44-L70` | `get_document` is annotated `-> dict` and returns `None` at `L70` when the document is absent |
+| `backend/app/db/firestore.py:L42-L68` | `get_document` is annotated `-> dict` and returns `None` at `L68` when the document is absent |
 | `frontend/src/utils/documentUtils.ts:L44`, `:L73` | Calls `DocumentSchema.isValid(...)`. Zod exposes `parse` and `safeParse` and no `isValid`, and the argument is Draft.js content while `DocumentSchema` models document metadata, so the check targets the wrong contract twice over |
 
 ### The ownership check subscripts a key it does not verify
 
 All three guarded `DocumentService` methods compare ownership by subscripting the raw Firestore
-dictionary. `backend/app/services/document_service.py:L177`, `:L243` and `:L282` each evaluate
+dictionary. `backend/app/services/document_service.py:L175`, `:L241` and `:L280` each evaluate
 `doc.to_dict()['user_id'] != user_id`, and none of the three tests for the key first.
 
 `create_document` is the only writer of that key, at `:L118`, so a document this service created
 carries it. A record written any other way does not, and the `Document` contract itself declares
-`owner_id` rather than `user_id` at `backend/app/schema/document.py:L68`. A stored record without a
+`owner_id` rather than `user_id` at `backend/app/schema/document.py:L66`. A stored record without a
 `user_id` key therefore raises `KeyError` on the subscript.
 
 `KeyError` is not an `HTTPException`, and no handler in `backend/app/api/documents.py` wraps the
@@ -550,7 +555,7 @@ every row from 4 onward runs after the Firestore document is already gone.
 | 3 | `user_id = doc.get('user_id')` | `background_tasks.py:L271` | Raises for a matched record that carries no `user_id`. `doc.id` at `:L270` always exists, so this is the only read that can fail before the first delete |
 | 4 | `db.collection('documents').document(doc_id).delete()` | `background_tasks.py:L274` | **The first destructive step, and it succeeds.** Everything below can now fail with the document already gone |
 | 5 | `storage_client.bucket(settings.DOCUMENT_BUCKET_NAME)` | `background_tasks.py:L278` | `Settings` declares no `DOCUMENT_BUCKET_NAME`, so this raises `AttributeError` |
-| 6 | `blob.delete()` on the key `{user_id}/{doc_id}` | `background_tasks.py:L279`, `:L280` | The only writer of an export object uses `exports/{user_id}/{document_id}.{export_format}` at `:L142`, so this key matches nothing and the delete raises `NotFound` |
+| 6 | `blob.delete()` on the key `{user_id}/{doc_id}` | `background_tasks.py:L279`, `:L280` | No writer uses that layout. Three writers produce export objects, and each uses a different key: `backend/app/services/export_service.py:L155` writes `exports/{document.id}.pdf`, `:L229` writes `exports/{document.id}.docx`, and `background_tasks.py:L142` writes `exports/{user_id}/{document_id}.{export_format}`. The retention key matches none of the three, and it addresses `DOCUMENT_BUCKET_NAME` while the three writers address `STORAGE_BUCKET_NAME` and `EXPORT_BUCKET_NAME`, so the delete raises `NotFound` |
 | 7 | `db.collection('document_permissions').where(...).get().delete()` | `background_tasks.py:L283` | `.get()` returns a list of snapshots, and a list carries no `delete` method, so this raises `AttributeError` |
 | 8 | `db.collection('document_metadata').document(doc_id).delete()` | `background_tasks.py:L284` | The last statement. Reached only if every step above succeeded |
 
@@ -576,16 +581,16 @@ time-of-check to time-of-use race.
 
 | Method | Read | Existence check | Ownership check | Write |
 |--------|------|-----------------|-----------------|-------|
-| `update_document` at `backend/app/services/document_service.py:L185` | `:L237` | `:L239`, 404 at `:L240` | `:L243`, 403 at `:L244` | `:L248` |
-| `delete_document` at `backend/app/services/document_service.py:L254` | `:L276` | `:L278`, 404 at `:L279` | `:L282`, 403 at `:L283` | `:L286` |
+| `update_document` at `backend/app/services/document_service.py:L183` | `:L235` | `:L237`, 404 at `:L238` | `:L241`, 403 at `:L242` | `:L246` |
+| `delete_document` at `backend/app/services/document_service.py:L252` | `:L274` | `:L276`, 404 at `:L277` | `:L280`, 403 at `:L281` | `:L284` |
 
 Two outcomes follow. A concurrent owner change between the read and the write is overwritten silently,
-because `update()` at `:L248` sends only the caller's fields and asserts nothing about the document it
-found. A concurrent delete makes that same `update()` fail on a document the check at `:L239` reported
+because `update()` at `:L246` sends only the caller's fields and asserts nothing about the document it
+found. A concurrent delete makes that same `update()` fail on a document the check at `:L237` reported
 as present. Firestore supports both a transaction and a precondition, and neither method uses either.
 
-`delete_document` compounds the problem by reporting success unconditionally. `:L289` returns the
-literal `True` whatever `doc_ref.delete()` at `:L286` did, so the value means the method reached its
+`delete_document` compounds the problem by reporting success unconditionally. `:L287` returns the
+literal `True` whatever `doc_ref.delete()` at `:L284` did, so the value means the method reached its
 last line rather than that a document was removed. A Firestore delete of an already-absent document
 succeeds silently, so the return value cannot distinguish a deletion from a no-op.
 
@@ -606,19 +611,19 @@ that planned file is committed.
 
 | Position | Locator | Field |
 | ---------- | --------- | ------- |
-| The Pydantic document contract | `backend/app/schema/document.py:L68`, on `DocumentBase` and inherited by `Document` | `owner_id: Optional[str] = None` |
-| The Pydantic version contract | `backend/app/schema/document.py:L137`, on `DocumentVersion` | `user_id: str` |
-| The document service | `backend/app/services/document_service.py:L118` writes it, and `:L177`, `:L243` and `:L282` compare it | `user_id` |
+| The Pydantic document contract | `backend/app/schema/document.py:L66`, on `DocumentBase` and inherited by `Document` | `owner_id: Optional[str] = None` |
+| The Pydantic version contract | `backend/app/schema/document.py:L135`, on `DocumentVersion` | `user_id: str` |
+| The document service | `backend/app/services/document_service.py:L116` writes it, and `:L175`, `:L241` and `:L280` compare it | `user_id` |
 | The in-repository specification, declared intent | `documentation/Technical Specifications.md:L333`, `:L375`, `:L383`, under the SYSTEM DESIGN heading at `L300` | `owner_id` |
 
 Two details make the drift worse than a naming disagreement.
 
-The first: `owner_id` at `backend/app/schema/document.py:L68` is optional and defaults to `None`, so
+The first: `owner_id` at `backend/app/schema/document.py:L66` is optional and defaults to `None`, so
 a `Document` validates successfully without the field that authorization depends on. The contract
 never requires the value the ownership check reads.
 
 The second: the document router reads `.user_id` off objects typed as `Document` at
-`backend/app/api/documents.py:L187`, `:L235` and `:L282`. The router follows the service convention
+`backend/app/api/documents.py:L184`, `:L232` and `:L279`. The router follows the service convention
 rather than the contract its own type annotation names. The client repeats the same split, with
 `owner_id` at `frontend/src/schema/document.ts:L69` and `user_id` at `:L91`.
 
@@ -626,25 +631,25 @@ rather than the contract its own type annotation names. The client repeats the s
 
 | Divergence | Client or consumer | Server or contract |
 | ------------ | -------------------- | -------------------- |
-| Access token field | `frontend/src/services/auth.ts:L147` reads `response.data.accessToken` and stores it at `:L148` | The token handler at `backend/app/api/auth.py:L170-L171` follows the OAuth2 convention and returns `access_token` |
+| Access token field | `frontend/src/services/auth.ts:L147` reads `response.data.accessToken` and stores it at `:L148` | The token handler at `backend/app/api/auth.py:L167-L168` follows the OAuth2 convention and returns `access_token` |
 | Base URL variable | `frontend/src/services/api.ts:L82` reads `process.env.REACT_APP_API_BASE_URL` | `infrastructure/docker/docker-compose.yml:L11` injects `REACT_APP_API_URL`. The names never meet, so the client resolves an undefined base URL |
 | User display name | `frontend/src/components/Header.tsx:L77-L78`, `frontend/src/pages/Home.tsx:L59` and `frontend/src/pages/Settings.tsx:L82` read `currentUser.name` | `backend/app/schema/user.py:L81-L82` models `username` and `full_name`. No contract declares `name` |
 | User avatar | `frontend/src/components/Header.tsx:L77` reads `currentUser.avatar` | No contract in either language declares `avatar` |
 | Page count | `backend/app/tasks/background_tasks.py:L314` reads `len(document.pages)` | `backend/app/schema/document.py` declares no `pages` field on any of its five models |
 | User update timestamp | `frontend/src/schema/user.ts` omits `updated_at` | `backend/app/schema/user.py:L171` declares `updated_at: datetime` as required |
-| Template shape | `frontend/src/pages/Templates.tsx` declares a local `Template` interface incompatible with the Zod schema at `frontend/src/schema/template.ts:L41` | The backend declares no template contract at all, per [G1](#g1-absent-modules-referenced-by-committed-code) |
+| Template shape | `frontend/src/pages/Templates.tsx` declares a local `Template` interface incompatible with the Zod schema at `frontend/src/schema/template.ts:L40` | The backend declares no template contract at all, per [G1](#g1-absent-modules-referenced-by-committed-code) |
 | Timestamp type | `frontend/src/schema/document.ts:L70-L71` and `:L90` use `z.date()`, which rejects a string | Every timestamp crossing the boundary arrives as a JavaScript Object Notation (JSON) string, so validation fails on well-formed server data |
 | Collaborator list | `frontend/src/schema/document.ts:L72` declares `collaborators: z.array(z.string())` | No Pydantic model declares a collaborator field, and no handler returns one |
-| Password storage | `backend/app/api/auth.py:L326` computes a bcrypt hash during registration | The `User` contract at `backend/app/schema/user.py:L114` declares no password field, so the response model has nowhere to carry the hash. `UserCreate` declares `password` at `:L94` |
+| Password storage | `backend/app/api/auth.py:L323` computes a bcrypt hash during registration | The `User` contract at `backend/app/schema/user.py:L114` declares no password field, so the response model has nowhere to carry the hash. `UserCreate` declares `password` at `:L94` |
 
-Required fields that no code path writes compound the drift. `backend/app/schema/document.py:L113`
-and `:L114` declare `created_at` and `updated_at` as required on `Document`, and no service method
+Required fields that no code path writes compound the drift. `backend/app/schema/document.py:L111`
+and `:L112` declare `created_at` and `updated_at` as required on `Document`, and no service method
 sets either. `backend/app/schema/user.py:L172-L173` declare `is_active` and `is_superuser`, and no
 code path reads either.
 
-`backend/app/schema/document.py:L84` declares `DocumentUpdate` without inheriting `DocumentBase`,
+`backend/app/schema/document.py:L82` declares `DocumentUpdate` without inheriting `DocumentBase`,
 so the update contract shares no field definitions with the model it updates. Both schema modules
-import `List` and never use it, at `backend/app/schema/document.py:L54` and
+import `List` and never use it, at `backend/app/schema/document.py:L52` and
 `backend/app/schema/user.py:L68`.
 
 See [data-model.md](data-model.md),
@@ -656,24 +661,24 @@ See [data-model.md](data-model.md),
 The client calls routes the server does not expose, and the collaboration path has a different
 protocol at each end.
 
-### The client calls three routes that do not exist
+### The client calls six routes, and no server route matches any of them
 
 | Client call | Locator | Server route | Locator |
 | ------------- | --------- | -------------- | --------- |
-| `POST /auth/login` | `frontend/src/services/auth.ts:L146` | `POST /token` | `backend/app/api/auth.py:L170` |
+| `POST /auth/login` | `frontend/src/services/auth.ts:L146` | `POST /token` | `backend/app/api/auth.py:L167` |
 | `POST /auth/logout` | `frontend/src/services/auth.ts:L194` | none. No handler implements logout | |
-| `GET /auth/me` | `frontend/src/services/auth.ts:L239` | `GET /me` | `backend/app/api/users.py:L32` |
-| `GET /documents` | `frontend/src/services/api.ts:L218` | `GET /` | `backend/app/api/documents.py:L114` |
-| `POST /documents` | `frontend/src/services/api.ts:L246` | `POST /` | `backend/app/api/documents.py:L56` |
-| `PUT /documents/{id}` | `frontend/src/services/api.ts:L288` | `PUT /{document_id}` | `backend/app/api/documents.py:L191` |
+| `GET /auth/me` | `frontend/src/services/auth.ts:L239` | `GET /me` | `backend/app/api/users.py:L29` |
+| `GET /documents` | `frontend/src/services/api.ts:L218` | `GET /` | `backend/app/api/documents.py:L111` |
+| `POST /documents` | `frontend/src/services/api.ts:L246` | `POST /` | `backend/app/api/documents.py:L53` |
+| `PUT /documents/{id}` | `frontend/src/services/api.ts:L288` | `PUT /{document_id}` | `backend/app/api/documents.py:L188` |
 
 The login call carries two further mismatches that survive a path correction. First, encoding:
 `frontend/src/services/auth.ts:L146` passes a plain object to `axios.post`, and Axios serializes a
 plain object as JSON under `Content-Type: application/json`, while
-`form_data: OAuth2PasswordRequestForm = Depends()` at `backend/app/api/auth.py:L171` reads an
+`form_data: OAuth2PasswordRequestForm = Depends()` at `backend/app/api/auth.py:L168` reads an
 `application/x-www-form-urlencoded` body. FastAPI answers **422** before the handler body runs. Second,
 field name: the client sends `email` and `password`, and `OAuth2PasswordRequestForm` supplies
-`username` and `password`, which `backend/app/api/auth.py:L233` reads as `form_data.username`. No
+`username` and `password`, which `backend/app/api/auth.py:L230` reads as `form_data.username`. No
 submitted field carries the identifier the handler reads.
 
 The document prefix mismatch has a single cause. `backend/app/main.py:L125-L128` calls
@@ -687,11 +692,11 @@ are repaired, so dispatch actually happens.
 
 | Client call | Locator | Dispatch outcome |
 |-------------|---------|------------------|
-| `GET /documents` | `frontend/src/services/api.ts:L218` | `/documents` is one path segment, so it matches `GET /{document_id}` at `backend/app/api/documents.py:L148`. The single-document read runs with `document_id` bound to the literal string `documents`, and the caller receives one object where it declared `Document[]` |
-| `POST /documents` | `frontend/src/services/api.ts:L246` | The single-segment shape matches `GET`, `PUT` and `DELETE` at `backend/app/api/documents.py:L148`, `:L191` and `:L240`, and no router declares `POST /{document_id}`. Starlette answers **405 Method Not Allowed**, not 404 |
+| `GET /documents` | `frontend/src/services/api.ts:L218` | `/documents` is one path segment, so it matches `GET /{document_id}` at `backend/app/api/documents.py:L145` and `document_id` binds to the literal string `documents`. No body follows. That handler raises first: `:L183` passes one argument to the two-parameter `get_document` signature at `backend/app/services/document_service.py:L123`, so a `TypeError` propagates and the response is a 500. The declared `Document[]` never meets a document object |
+| `POST /documents` | `frontend/src/services/api.ts:L246` | The single-segment shape matches `GET`, `PUT` and `DELETE` at `backend/app/api/documents.py:L145`, `:L188` and `:L237`, and no router declares `POST /{document_id}`. Starlette answers **405 Method Not Allowed**, not 404 |
 | `PUT /documents/{id}` | `frontend/src/services/api.ts:L288` | Two path segments, and no two-segment route exists in any of the four routers. The response is **404** |
 
-A silent wrong-shape success, a 405 and a 404 are three distinct symptoms from one root cause, so a
+A 500 from a raising handler, a 405 and a 404 are three distinct symptoms from one root cause, so a
 developer who repairs only the call that returns 404 leaves the other two in place.
 
 `frontend/src/services/auth.ts:L68` imports the bare `axios` global and uses it at `L146`, `:L194`
@@ -709,19 +714,19 @@ compile to the same single-segment pattern.
 
 | Method and shape | Document handler | Template handler |
 | ------------------ | ------------------ | ------------------ |
-| `POST /` | `backend/app/api/documents.py:L56` | `backend/app/api/templates.py:L82` |
-| `GET /` | `backend/app/api/documents.py:L114` | `backend/app/api/templates.py:L123` |
-| `GET /{id}` | `backend/app/api/documents.py:L148` | `backend/app/api/templates.py:L156` |
-| `PUT /{id}` | `backend/app/api/documents.py:L191` | `backend/app/api/templates.py:L200` |
-| `DELETE /{id}` | `backend/app/api/documents.py:L240` | `backend/app/api/templates.py:L259` |
+| `POST /` | `backend/app/api/documents.py:L53` | `backend/app/api/templates.py:L77` |
+| `GET /` | `backend/app/api/documents.py:L111` | `backend/app/api/templates.py:L118` |
+| `GET /{id}` | `backend/app/api/documents.py:L145` | `backend/app/api/templates.py:L151` |
+| `PUT /{id}` | `backend/app/api/documents.py:L188` | `backend/app/api/templates.py:L195` |
+| `DELETE /{id}` | `backend/app/api/documents.py:L237` | `backend/app/api/templates.py:L254` |
 
 The profile router declares two literal single-segment paths, and a literal path is still a single
 segment. Both fall inside the pattern the document router already claimed.
 
 | Method and path | Profile handler | Shadowing document handler |
 |-----------------|-----------------|----------------------------|
-| `GET /me` | `backend/app/api/users.py:L32` | `GET /{document_id}` at `backend/app/api/documents.py:L148` |
-| `PUT /me` | `backend/app/api/users.py:L53` | `PUT /{document_id}` at `backend/app/api/documents.py:L191` |
+| `GET /me` | `backend/app/api/users.py:L29` | `GET /{document_id}` at `backend/app/api/documents.py:L145` |
+| `PUT /me` | `backend/app/api/users.py:L50` | `PUT /{document_id}` at `backend/app/api/documents.py:L188` |
 
 `backend/app/main.py:L126` registers the document router first, then `:L127` the profile router and
 `:L128` the template router. Starlette matches routes in registration order and returns the first
@@ -735,6 +740,15 @@ to `GET /me` reaches the single-document read with `document_id` bound to the li
 | ----- | ---------- | --------- |
 | Client | Socket.IO, with `io()` called at `frontend/src/services/collaboration.ts:L77` and no URL argument | `L13` imports `io` from `socket.io-client` |
 | Server | A FastAPI `WebSocket`, per the `connect(self, websocket: WebSocket, ...)` signature | `backend/app/services/collaboration_service.py:L36` and `:L75` |
+
+The client emits three events, and each has a server method that was clearly meant to receive it.
+None of the three pairs can meet.
+
+| Client event | Emitted payload | Nearest server counterpart | Why the pair cannot meet |
+| -------------- | ----------------- | ---------------------------- | -------------------------- |
+| `join_document` | the bare `documentId` string, at `frontend/src/services/collaboration.ts:L126` | `CollaborationService.connect` at `backend/app/services/collaboration_service.py:L75` | `connect` declares a `WebSocket`, a `document_id` and a `user_id`. The emit carries one string, no socket object and no user identity |
+| `leave_document` | the bare `currentDocumentId` string, at `:L154` | `CollaborationService.disconnect` at `backend/app/services/collaboration_service.py:L173` | `disconnect` declares `document_id` and `user_id`. The emit carries the identifier alone, and `:L155` clears it immediately with nothing confirming delivery |
+| `document_changes` | the envelope `{ documentId, changes }`, at `:L201-L204` | `CollaborationService.broadcast_change` at `backend/app/services/collaboration_service.py:L218` | `broadcast_change` declares `document_id` and a `change` dictionary and publishes `json.dumps(change)` at `:L248`. The client nests the change inside an envelope, so the shapes differ even with a route in place |
 
 Socket.IO is a protocol layered over WebSocket rather than a WebSocket client, so the two ends could
 not complete a handshake even with a route between them. No route exists: no module constructs
@@ -803,15 +817,15 @@ Three more faults in the same path deserve their own statement:
 ### Route registration and protection
 
 Fourteen handlers exist across the four routers, and twelve sit behind the `get_current_user`
-dependency. The two public handlers are `POST /token` at `backend/app/api/auth.py:L170` and
-`POST /register` at `:L245`. The full route table lives in
+dependency. The two public handlers are `POST /token` at `backend/app/api/auth.py:L167` and
+`POST /register` at `:L242`. The full route table lives in
 [../backend/app/api/README.md](../backend/app/api/README.md).
 
 Two `get_current_user` implementations exist and disagree on status codes. The routers all import
-the one at `backend/app/api/auth.py:L92`, for example at
-`backend/app/api/documents.py:L51`, which raises **404** at `backend/app/api/auth.py:L167` when the
-user is absent. The unused implementation at `backend/app/core/security.py:L119` raises **401** for
-the same condition at `:L191`. A missing user is an authentication failure rather than a missing
+the one at `backend/app/api/auth.py:L89`, for example at
+`backend/app/api/documents.py:L48`, which raises **404** at `backend/app/api/auth.py:L164` when the
+user is absent. The unused implementation at `backend/app/core/security.py:L117` raises **401** for
+the same condition at `:L189`. A missing user is an authentication failure rather than a missing
 resource, and the reachable handler reports the latter.
 
 See [../backend/app/api/README.md](../backend/app/api/README.md),
@@ -938,7 +952,7 @@ matrix covers all 15.
 | `SECRET_KEY` | `config.py:L113` | Yes | No | `ValidationError`. Signs and verifies every token |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | `config.py:L114` | Yes | No | `ValidationError`. Sets token lifetime |
 | `ALGORITHM` | `config.py:L115` | Yes | No | `ValidationError`. Names the JWT algorithm |
-| `GOOGLE_CLOUD_PROJECT` | `config.py:L116` | No, `Optional` | No | Resolves to `None`, and `backend/app/db/firestore.py:L42` passes it as the Firestore project |
+| `GOOGLE_CLOUD_PROJECT` | `config.py:L116` | No, `Optional` | No | Resolves to `None`, and `backend/app/db/firestore.py:L40` passes it as the Firestore project |
 | `GOOGLE_APPLICATION_CREDENTIALS` | `config.py:L117` | No, `Optional` | No | Resolves to `None`. No credential file is mounted into any container |
 | `DATABASE_URL` | `config.py:L118` | Yes | Yes, at `docker-compose.yml:L24` | Satisfied. Read at `backend/app/db/sql.py:L16` |
 | `REDIS_URL` | `config.py:L119` | Yes | No | `ValidationError`. Compose declares no Redis service to point it at |
@@ -976,13 +990,15 @@ prerequisites are missing, and they fail in this order inside `export_to_pdf`.
 | Order | Statement | Locator | What it needs |
 |-------|-----------|---------|---------------|
 | 1 | `self.storage_client.bucket(settings.STORAGE_BUCKET_NAME)` | `backend/app/services/export_service.py:L154` | A declared `STORAGE_BUCKET_NAME`. `Settings` declares nine fields at `backend/app/core/config.py:L111-L119` and this is not one, so attribute access raises `AttributeError` before any network call |
-| 2 | `blob.upload_from_string(...)` | `backend/app/services/export_service.py:L157` | Credentials that authenticate and can write to the bucket. `backend/app/db/firestore.py:L41` holds the repository's only Application Default Credentials resolution, and no committed file supplies `GOOGLE_APPLICATION_CREDENTIALS` |
+| 2 | `blob.upload_from_string(...)` | `backend/app/services/export_service.py:L157` | Credentials that authenticate and can write to the bucket. `backend/app/db/firestore.py:L39` holds the repository's only Application Default Credentials resolution, and no committed file supplies `GOOGLE_APPLICATION_CREDENTIALS` |
 | 3 | `blob.generate_signed_url(version="v4", ...)` | `backend/app/services/export_service.py:L160-L164` | Sign-capable credentials, plus an expiry inside the version 4 limit |
 
 Step 3 is the prerequisite most easily missed, because authentication alone does not satisfy it. A
 version 4 signature is computed locally, so the credentials must be able to sign bytes. Two shapes do
 that. The first is a service-account private key, referenced through `GOOGLE_APPLICATION_CREDENTIALS`,
-which `backend/app/core/config.py:L116` declares as required and no committed `.env` supplies, with
+which `backend/app/core/config.py:L117` declares as `Optional[str]` with no explicit default,
+which Pydantic 1.x treats as optional with a `None` default, so the
+contract never requires it, and no committed `.env` supplies it, with
 `Config.env_file` at `:L123` naming the uncommitted file. The second is an IAM `signBlob` grant, which
 credentials with no private key must use by delegating to the IAM Credentials application programming
 interface (API). That path needs `iam.serviceAccounts.signBlob` on the signing service account, granted
@@ -1223,7 +1239,7 @@ declares `/`, `/editor`, `/templates` and `/settings`.
 can change the serving runtime with no file changing.
 
 One further version interaction sits behind the Python pin. The current `google-cloud-firestore`
-release requires Python 3.10 or newer, and `backend/app/db/firestore.py:L36` imports from it. A 3.9
+release requires Python 3.10 or newer, and `backend/app/db/firestore.py:L34` imports from it. A 3.9
 interpreter resolves the install to an older release rather than failing, so an environment built to
 the declared floor pins an unmaintained client without reporting anything.
 [onboarding.md](onboarding.md#prerequisites) carries that interaction.
@@ -1247,7 +1263,7 @@ reading the code and asking what is not there.
 
 **Absence and current unreachability are separate facts, and this register states both.** No route
 in `backend/app/` serves a request today, because `import app.main` fails at
-`backend/app/api/auth.py:L84`. A missing check on an unreachable path exposes nothing while the path
+`backend/app/api/auth.py:L81`. A missing check on an unreachable path exposes nothing while the path
 stays unreachable. The moment the import failures at
 [G2](#g2-absent-symbols-inside-modules-that-do-exist) are repaired, every gap below becomes live at
 once. None of them is mentioned in the repair steps that would make them live. That ordering is the
@@ -1261,22 +1277,22 @@ The controls below are absent from all of them.
 
 | # | Absent control | Evidence | What the absence permits once routes serve traffic |
 |---|----------------|----------|-----------------------------------------------------|
-| 1 | Rate limiting or throttling on any route, including the two public ones | `backend/app/main.py:L116` adds one middleware, and it is CORS. No limiter, no dependency and no proxy configuration is committed anywhere. The public routes are `backend/app/api/auth.py:L170` (`POST /token`) and `:L245` (`POST /register`) | Unmetered credential guessing against `/token` and unmetered account creation against `/register` |
-| 2 | A request body size limit | No handler, no middleware and no server flag bounds a body. `backend/app/schema/document.py:L67` declares `content` as a bare `str` | A single request can carry an unbounded document body into a Firestore write |
+| 1 | Rate limiting or throttling on any route, including the two public ones | `backend/app/main.py:L116` adds one middleware, and it is CORS. No limiter, no dependency and no proxy configuration is committed anywhere. The public routes are `backend/app/api/auth.py:L167` (`POST /token`) and `:L242` (`POST /register`) | Unmetered credential guessing against `/token` and unmetered account creation against `/register` |
+| 2 | A request body size limit | No handler, no middleware and no server flag bounds a body. `backend/app/schema/document.py:L65` declares `content` as a bare `str` | A single request can carry an unbounded document body into a Firestore write |
 | 3 | Field length or format bounds on any model field | Neither `backend/app/schema/document.py` nor `backend/app/schema/user.py` contains a single `Field(` call, so no `max_length`, no `min_length` and no pattern applies to any field. `backend/app/schema/user.py:L80` declares `email: str` rather than an email type | Oversized and malformed values validate successfully and reach storage |
-| 4 | A server-side password policy | `backend/app/schema/user.py:L94` declares `password: str` with no constraint, and `backend/app/api/auth.py:L326` hashes whatever arrives. The only policy in the repository is client-side, at `frontend/src/utils/validation.ts:L44-L50`, and a client-side check is not a control | Any password, including an empty string, is accepted at registration |
-| 5 | Uniform responses that do not distinguish known accounts | Registration answers a known address with 400 `Email already registered` at `backend/app/api/auth.py:L323-L324`. Login answers a bad credential with 401 `Incorrect username or password` at `:L234-L235`, which is correctly uniform. The registration route is the enumeration oracle | An attacker learns which email addresses hold accounts by submitting registrations |
-| 6 | Any check on `is_active` before a token is honoured | `backend/app/schema/user.py:L172` declares `is_active`, and no code path in the repository reads it. `backend/app/api/auth.py:L168` returns the user immediately after lookup, and `backend/app/core/security.py:L188-L191` does the same in the duplicate dependency | A deactivated account keeps full access for the life of its token |
-| 7 | A `WWW-Authenticate: Bearer` header on any 401 | Six 401 responses are raised, at `backend/app/api/auth.py:L160-L161`, `:L163`, `:L234-L235`, and `backend/app/core/security.py:L184`, `:L186`, `:L191`. None sets a `headers` argument | Clients receive no standards-conformant challenge, so correct client behaviour cannot be relied on |
-| 8 | Any constraint on the JWT secret, algorithm or lifetime | `backend/app/core/config.py:L113` declares `SECRET_KEY: str`, `:L115` declares `ALGORITHM: str` and `:L114` declares `ACCESS_TOKEN_EXPIRE_MINUTES`, none with a validator, a minimum or an allowed-value list. `backend/app/core/security.py:L81` passes the algorithm value straight to `jwt.encode` | A weak secret, an attacker-influenced algorithm choice or an indefinite lifetime all pass configuration unchallenged |
-| 9 | Issuer, audience and token identifier claims, and any revocation path | `backend/app/api/auth.py:L238-L242` encodes exactly two claims, `sub` and `exp`. The decode at `:L158` reads `sub` only, and `backend/app/core/security.py:L181` does the same | A token cannot be scoped to one service or one audience, and no issued token can be withdrawn before it expires |
+| 4 | A server-side password policy | `backend/app/schema/user.py:L94` declares `password: str` with no constraint, and `backend/app/api/auth.py:L323` hashes whatever arrives. The only policy in the repository is client-side, at `frontend/src/utils/validation.ts:L44-L50`, and a client-side check is not a control | Any password, including an empty string, is accepted at registration |
+| 5 | Uniform responses that do not distinguish known accounts | Registration answers a known address with 400 `Email already registered` at `backend/app/api/auth.py:L320-L321`. Login answers a bad credential with 401 `Incorrect username or password` at `:L231-L232`, which is correctly uniform. The registration route is the enumeration oracle | An attacker learns which email addresses hold accounts by submitting registrations |
+| 6 | Any check on `is_active` before a token is honoured | `backend/app/schema/user.py:L172` declares `is_active`, and no code path in the repository reads it. `backend/app/api/auth.py:L165` returns the user immediately after lookup, and `backend/app/core/security.py:L186-L189` does the same in the duplicate dependency | A deactivated account keeps full access for the life of its token |
+| 7 | A `WWW-Authenticate: Bearer` header on every 401 | Two sources answer 401, and only one carries a challenge. `OAuth2PasswordBearer`, constructed at `backend/app/api/auth.py:L85` and `backend/app/core/security.py:L46`, leaves `auto_error` at its default `True`, and FastAPI's OAuth2 base raises `HTTPException(401, headers={"WWW-Authenticate": "Bearer"})` for a missing or non-bearer `Authorization` header, so that path is conformant. The six explicit raises are not, at `backend/app/api/auth.py:L157-L158`, `:L160`, `:L231-L232`, and `backend/app/core/security.py:L182`, `:L184`, `:L189`. None of the six sets a `headers` argument | A client that presents a malformed or expired token, or a valid token for an absent user, receives a 401 with no challenge, so it cannot distinguish that case from an authorization failure by header alone |
+| 8 | Any constraint on the JWT secret, algorithm or lifetime | `backend/app/core/config.py:L113` declares `SECRET_KEY: str`, `:L115` declares `ALGORITHM: str` and `:L114` declares `ACCESS_TOKEN_EXPIRE_MINUTES`, none with a validator, a minimum or an allowed-value list. `backend/app/core/security.py:L79` passes the algorithm value straight to `jwt.encode` | A weak secret, an attacker-influenced algorithm choice or an indefinite lifetime all pass configuration unchallenged |
+| 9 | Issuer, audience and token identifier claims, and any revocation path | `backend/app/api/auth.py:L235-L239` encodes exactly two claims, `sub` and `exp`. The decode at `:L155` reads `sub` only, and `backend/app/core/security.py:L179` does the same | A token cannot be scoped to one service or one audience, and no issued token can be withdrawn before it expires |
 | 10 | A declared, reviewed CORS origin list | `backend/app/main.py:L118` reads `settings.ALLOWED_ORIGINS`, and `backend/app/core/config.py:L111-L119` never declares that field, so the value comes from outside every declared contract. `:L119` sets `allow_credentials=True` while `:L120` and `:L121` allow every method and every header | Credentialed cross-origin access is granted on the strength of an undeclared value. Whether any origin is actually permitted cannot be established from this repository, because the field has no declared source |
-| 11 | Object-level authorization on any template route | `backend/app/api/templates.py:L195`, `:L254` and `:L309` delegate to a `TemplateService`, and no file exists at `backend/app/services/template_service.py`. The 404 details at `:L197`, `:L256` and `:L311` read `Template not found or user not authorized`, so the message promises a check that no committed code performs | Any authenticated caller reaches any template once a service is supplied, unless that new service adds the check the message already advertises |
-| 12 | Object-level authorization on eleven of the fourteen handlers | Three handlers attempt an owner comparison, at `backend/app/api/documents.py:L187`, `:L235` and `:L282`, each raising 403 at `:L188`, `:L236` and `:L283`. Document create and list perform none, and neither do the two profile handlers or the five template handlers | Bearer authentication alone decides access on eleven handlers, so holding any valid token is sufficient |
+| 11 | Object-level authorization on any template route | `backend/app/api/templates.py:L190`, `:L249` and `:L304` delegate to a `TemplateService`, and no file exists at `backend/app/services/template_service.py`. The 404 details at `:L192`, `:L251` and `:L306` read `Template not found or user not authorized`, so the message promises a check that no committed code performs | Any authenticated caller reaches any template once a service is supplied, unless that new service adds the check the message already advertises |
+| 12 | Object-level authorization on eleven of the fourteen handlers | Three handlers attempt an owner comparison, at `backend/app/api/documents.py:L184`, `:L232` and `:L279`, each raising 403 at `:L185`, `:L233` and `:L280`. Document create and list perform none, and neither do the two profile handlers or the five template handlers | Bearer authentication alone decides access on eleven handlers, so holding any valid token is sufficient |
 
 Entry 12 carries one further qualification. The three attempted comparisons do not currently run to
 completion either. Each reads `.user_id` from a value the service returns, while
-`backend/app/schema/document.py:L68` declares the field as `owner_id`. The call-site defects at
+`backend/app/schema/document.py:L66` declares the field as `owner_id`. The call-site defects at
 [G5](#g5-call-site-contract-violations) also stop the enclosing handlers before the comparison is
 reached. Three attempted checks and eleven absent ones is the accurate count, and zero enforced checks
 is the current state.
@@ -1288,7 +1304,7 @@ are absent from its source regardless.
 
 | # | Absent control | Evidence | What the absence permits |
 |---|----------------|----------|--------------------------|
-| 13 | Storage of the bearer token outside script-readable persistence | `frontend/src/services/auth.ts:L148` writes the token to `localStorage`, and `frontend/src/services/api.ts:L142` reads it back on every request. `localStorage` persists past the tab and is readable by any script on the origin | Any injected or third-party script on the origin reads a valid bearer token, and the token survives the session |
+| 13 | Storage of the bearer token outside script-readable persistence | `frontend/src/services/auth.ts:L148` writes the login response value to `localStorage`, which persists past the tab and is readable by any script on the origin. Nothing reads it back. `frontend/src/services/api.ts:L142` reads `auth.token` from the Redux store instead, a key `frontend/src/store/index.ts` never registers, so the request interceptor throws and no request carries an `Authorization` header. The two stores are disconnected, and the write itself stores the string `"undefined"` today, because `frontend/src/services/auth.ts:L147` reads `accessToken` from a response that returns `access_token` | Any injected or third-party script on the origin reads whatever the write persists, and it survives the session. Reconciling the field name and the store turns that value into a live bearer token in the same place |
 | 14 | Redaction before an error is logged | `frontend/src/services/auth.ts:L197`, `frontend/src/pages/Editor.tsx:L112` and `:L209`, `frontend/src/pages/Templates.tsx:L145` and `frontend/src/pages/Settings.tsx:L125` each pass a whole error object to `console.error`. An Axios error carries the request configuration, which includes the `Authorization` header, the full URL and the request body | Bearer tokens and document content reach the browser console and anything that collects from it |
 | 15 | A request timeout or a cancellation path | `frontend/src/services/api.ts:L134-L136` creates the Axios instance with a `baseURL` and no `timeout`, and no call site passes an `AbortSignal` | A request hangs indefinitely, and no in-flight request can be withdrawn |
 | 16 | Ordering protection on the auto-save path | `frontend/src/pages/Editor.tsx:L214` schedules a save five seconds after the last edit, and nothing tracks whether an earlier save is still in flight | A slower earlier save can land after a later one and overwrite newer content |
@@ -1431,9 +1447,9 @@ measures a preservation obligation, not the coverage denominators used here.
 | `backend/app/main.py:L56` | marker | Low confidence in the startup and shutdown block below it | [G2](#the-absent-settings-singleton) |
 | `backend/app/main.py:L67` | TODO | Database migration logic is unimplemented, inside the startup handler that awaits the absent `init_db` | [G1](#g1-absent-modules-referenced-by-committed-code) |
 | `backend/app/main.py:L113` | TODO | Shutdown cleanup tasks are unimplemented | none |
-| `backend/app/api/users.py:L76` | marker | The code assumes a `UserService` class with an `update_user` method, and asks for verification | [G1](#g1-absent-modules-referenced-by-committed-code) |
-| `backend/app/core/security.py:L115` | marker | `get_current_user` needs review for its integration with the `User` model and `UserService`, neither of which this module imports | [G3](#g3-undefined-names-that-raise-at-execution) |
-| `backend/app/services/document_service.py:L183` | marker | Asks for error handling and validation on `update_document`, the method the router calls with two arguments against three parameters | [G5](#argument-count-and-type) |
+| `backend/app/api/users.py:L73` | marker | The code assumes a `UserService` class with an `update_user` method, and asks for verification | [G1](#g1-absent-modules-referenced-by-committed-code) |
+| `backend/app/core/security.py:L113` | marker | `get_current_user` needs review for its integration with the `User` model and `UserService`, neither of which this module imports | [G3](#g3-undefined-names-that-raise-at-execution) |
+| `backend/app/services/document_service.py:L181` | marker | Asks for error handling and validation on `update_document`, the method the router calls with two arguments against three parameters | [G5](#argument-count-and-type) |
 | `backend/app/services/collaboration_service.py:L73` | marker | `connect` carries a stated confidence of 0.6 and is not production ready | [G7](#the-collaboration-path-has-no-route-and-two-protocols) |
 | `backend/app/services/collaboration_service.py:L216` | marker | `broadcast_change` carries a stated confidence of 0.7 and is not production ready | [G3](#g3-undefined-names-that-raise-at-execution) |
 | `backend/app/services/export_service.py:L85` | marker | Both export methods have a low confidence score and need implementation detail or error handling | [G2](#absent-methods-on-classes-that-exist) |

@@ -15,7 +15,7 @@ below cites each one.
 | --- | --- | --- | --- |
 | `Home` | Routed page, default export | `Home.tsx:L51`, exported at `L77` | Renders the welcome screen and three quick-access links. Takes no props. `App.tsx:L19` imports it as a default. |
 | `Editor` | Routed page, default export | `Editor.tsx:L83`, exported at `L246` | Loads a document, holds the editor content string at `L86` and runs the auto-save timer. Takes no props. `App.tsx:L20` imports it as a default. |
-| `Templates` | Routed page, default export | `Templates.tsx:L134`, exported at `L197` | Fetches a template list on mount and renders a card grid. Takes no props. `App.tsx:L21` imports it as a default. |
+| `Templates` | Routed page, default export | `Templates.tsx:L134`, exported at `L197` | Attempts a template fetch on mount through a helper `services/api.ts` does not export, so it issues no request, and renders a card grid over the empty initial state. Takes no props. `App.tsx:L21` imports it as a default. |
 | `Settings` | Routed page, default export | `Settings.tsx:L79`, exported at `L164` | Renders a controlled two-field profile form. Takes no props. `App.tsx:L22` imports it as a default. |
 | `handleContentChange` | Handler, `(newContent: string) => void` | `Editor.tsx:L228-L230` | Writes the incoming string to the `content` state at `Editor.tsx:L86`. Passed to `DocumentCanvas` at `L238`. |
 | `handleSubmit` | Handler, `async (e: React.FormEvent)` | `Settings.tsx:L118-L128` | Calls `e.preventDefault()` at `L119`, sends `{ name, email }` at `L121` and dispatches `updateUser` at `L122`. |
@@ -137,8 +137,10 @@ sequenceDiagram
     Note over Page,API: caught at L208, logged at L209, so updateDocument is never reached
 ```
 
-The other three pages run shorter flows. `Templates.tsx:L139-L152` calls `getTemplates` at `L142` once
-on mount and stores the result at `L143`. `Settings.tsx:L118-L128` sends the form values at `L121` and
+The other three pages run shorter flows, and one of them reaches nothing. `Templates.tsx:L139-L152`
+awaits `getTemplates` at `L142` once on mount and would store the result at `L143`, but
+`services/api.ts` exports no such function, so the module fails resolution and the page issues no
+request. `Settings.tsx:L118-L128` sends the form values at `L121` and
 dispatches the response at `L122`. `Home.tsx:L52` reads the current user and calls no REST function.
 
 ## Design Patterns
@@ -196,8 +198,8 @@ at `L120`. `Templates.tsx:L139-L152` passes an empty array at `L152` and runs on
   `email`, `username`, optional `full_name`, `created_at`, `is_active` and `is_superuser`, and
   declares no `name`.
 - `Templates.tsx:L61-L66` declares a local `Template` interface with `id`, `name`, `description` and
-  `thumbnail`. `frontend/src/schema/template.ts:L31-L38` declares `TemplateSchema` with `id`, `name`,
-  `content`, `owner_id`, `created_at` and `updated_at`, and exports the inferred type at `L41`. The
+  `thumbnail`. `frontend/src/schema/template.ts:L30-L37` declares `TemplateSchema` with `id`, `name`,
+  `content`, `owner_id`, `created_at` and `updated_at`, and exports the inferred type at `L40`. The
   two shapes overlap on `id` and `name` only, and `Templates.tsx` never imports the schema.
 
 **Call sites and routing.** Two pages call across a boundary the receiving code does not offer.
@@ -225,8 +227,9 @@ initialization runs too early.
 - `Settings.tsx:L82-L83` initialise the form state once from `currentUser`. A `currentUser` that
   arrives after the first render leaves both fields empty.
 
-**Accessibility.** Every interactive control here is a native element or a Router `Link`, so each is
-keyboard reachable without an extra handler. `Settings.tsx` associates both labels correctly, `L137`
+**Accessibility.** Every native form control and every navigation control here is a native element or a
+Router `Link`, so each is keyboard reachable without an extra handler. The template cards are not, and the
+entry below records them. `Settings.tsx` associates both labels correctly, `L137`
 to the input at `L140` and `L147` to the input at `L150`. No contrast ratio is asserted below,
 because no stylesheet is committed and no authored colour pair exists to measure.
 
@@ -320,8 +323,8 @@ const handleContentChange = (newContent: string) => {
 // frontend/src/pages/Templates.tsx:L163-L167
 const handleTemplateSelection = (templateId: string) => {
   setSelectedTemplate(templateId);
-  // assistance marker at L37, then an outstanding-work comment at L38 asking for
-  // navigation to a template editing page or the next step in the process
+  // HUMAN ASSISTANCE NEEDED
+  // TODO: Implement navigation to template editing page or next step in the process
 };
 ```
 
@@ -340,7 +343,7 @@ order that removes the most blockers first.
 3. `frontend/src/store/userSlice.ts` needs a `selectCurrentUser` selector and an `updateUser`
    action. Its own marker at `L149-L154` already records both as outstanding.
 4. The template shape needs reconciling. `Templates.tsx:L61-L66` and
-   `frontend/src/schema/template.ts:L31-L38` overlap on `id` and `name` only.
+   `frontend/src/schema/template.ts:L30-L37` overlap on `id` and `name` only.
 
 Two pitfalls sit in no single file. Every `@/` import fails against
 `frontend/tsconfig.json:L10-L16`, and no `tailwind.config.js` or `postcss.config.js` is committed, so

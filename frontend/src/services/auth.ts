@@ -27,28 +27,28 @@
  * names seven packages, so L68 raises one TS2307 error.
  *
  * L69 imports `RootState` from `../store` and no code here reads the name. The import still
- * resolves, because `frontend/src/store/index.ts:L54` exports the type. L70 imports `User` from
- * `../schema/user`, and that import resolves as well, because
- * `frontend/src/schema/user.ts:L56` declares `export type User = z.infer<typeof UserSchema>`.
+ * resolves, because `frontend/src/store/index.ts:L54` exports the type. The import of `User`
+ * at L70 resolves as well, because `frontend/src/schema/user.ts:L56` declares
+ * `export type User = z.infer<typeof UserSchema>`.
  * Neither line is an error. The sibling module `frontend/src/schema/document.ts` omits the
  * equivalent alias, which is why `api.ts` and `collaboration.ts` fail on their schema imports
  * and this module does not.
  *
  * None of the three request paths reaches a committed server route. The client calls
  * `/auth/login` (L146), `/auth/logout` (L194) and `/auth/me` (L239). The server exposes
- * `POST /token` (`backend/app/api/auth.py:L170`), `POST /register`
- * (`backend/app/api/auth.py:L245`) and `GET /me` (`backend/app/api/users.py:L32`).
+ * `POST /token` (`backend/app/api/auth.py:L167`), `POST /register`
+ * (`backend/app/api/auth.py:L242`) and `GET /me` (`backend/app/api/users.py:L29`).
  * `backend/app/main.py:L125-L128` mounts all four routers with no prefix, so the server answers
  * those three paths at the root. No logout route exists anywhere in the backend, which leaves
  * `/auth/logout` with no counterpart at all rather than a differently named one.
  *
  * `GET /me` is registered and still unreachable, so renaming this module's path would not
- * reach it. `backend/app/main.py:L126` mounts the documents router before `:L51` mounts the
- * users router, and `GET /{document_id}` at `backend/app/api/documents.py:L148` compiles to the
+ * reach it. `backend/app/main.py:L126` mounts the documents router before `:L127` mounts the
+ * users router, and `GET /{document_id}` at `backend/app/api/documents.py:L145` compiles to the
  * same single-segment pattern that `/me` occupies. Starlette matches path templates in
  * registration order, so a request to `/me` arrives at the document get-one handler with
- * `document_id` bound to the literal string `me`. `PUT /me` at `backend/app/api/users.py:L53`
- * is shadowed the same way, by `PUT /{document_id}` at `backend/app/api/documents.py:L191`.
+ * `document_id` bound to the literal string `me`. `PUT /me` at `backend/app/api/users.py:L50`
+ * is shadowed the same way, by `PUT /{document_id}` at `backend/app/api/documents.py:L188`.
  * Both profile routes are therefore registered and unreachable through the assembled route
  * order, and only the token route and the register route answer as their authors intended.
  *
@@ -92,14 +92,14 @@ import { User } from '../schema/user';
  *
  * The request contract does not match the server's token route. L146 sends an HTTP POST with a
  * JavaScript object body carrying `email` and `password`, which Axios serializes as JSON under
- * `Content-Type: application/json`. `backend/app/api/auth.py:L171` declares
+ * `Content-Type: application/json`. `backend/app/api/auth.py:L168` declares
  * `form_data: OAuth2PasswordRequestForm = Depends()`, and FastAPI populates that dependency
  * only from an `application/x-www-form-urlencoded` body whose identity field is named
  * `username`. Three things differ at once: the path, the body encoding and the identity field
  * name. FastAPI also requires the `python-multipart` package before it can parse any form
  * body, and the repository commits no backend dependency manifest that declares it.
  *
- * L147 reads `response.data.accessToken` in camelCase, and `backend/app/api/auth.py:L243` returns
+ * L147 reads `response.data.accessToken` in camelCase, and `backend/app/api/auth.py:L240` returns
  * `{"access_token": ..., "token_type": "bearer"}` in snake_case. The read therefore yields
  * `undefined`, L148 stores the string `"undefined"` under the key, and L149 returns `undefined` to
  * the caller. No error accompanies any of those three steps.
@@ -122,7 +122,7 @@ import { User } from '../schema/user';
  * `storage` event listener exists, so a sign-out in one tab leaves every other tab holding its
  * own view of the key.
  *
- * L150-L13 catch every failure and throw `new Error('Login failed')` at L151 without attaching
+ * L150-L152 catch every failure and throw `new Error('Login failed')` at L151 without attaching
  * the original error. A rejected credential and a dropped connection reach the caller as the
  * same message.
  *
@@ -162,7 +162,7 @@ export const login = async (email: string, password: string): Promise<string> =>
  * @remarks L194 issues the request and L195 removes the `accessToken` key from `localStorage`.
  * L195 runs only after L194 resolves, so a failed request leaves the token in browser storage.
  *
- * The failure path differs from the other two functions in this module. L196-L22 catch the
+ * The failure path differs from the other two functions in this module. L196-L198 catch the
  * error, L197 logs it through `console.error('Logout failed', error)`, and no line rethrows. A
  * failed logout therefore resolves rather than rejects, and the caller sees success either way.
  *
@@ -219,7 +219,7 @@ export const logout = async (): Promise<void> => {
  * key that `login` wrote, so the profile request carries no `Authorization` header. A server
  * route guarded by `Depends(get_current_user)` would reject it before reaching any handler.
  *
- * L241-L31 throw `new Error('Failed to fetch current user')` at L242 without attaching the
+ * L241-L243 throw `new Error('Failed to fetch current user')` at L242 without attaching the
  * original error, so the caller cannot separate a missing route from a rejected token.
  *
  * Resilience is absent here for the same reasons recorded on `login`. L239 calls the
@@ -231,7 +231,7 @@ export const logout = async (): Promise<void> => {
  * const user = await getCurrentUser();
  * // Cannot run today: `axios` is absent from frontend/package.json, and no reachable server
  * // route answers this request. The nearest registered route is GET /me at
- * // backend/app/api/users.py:L32, and the header above records why the assembled route order
+ * // backend/app/api/users.py:L29, and the header above records why the assembled route order
  * // leaves that one unreachable too.
  */
 export const getCurrentUser = async (): Promise<User> => {

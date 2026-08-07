@@ -16,26 +16,24 @@ release. Reviewed secure floor: `python-jose` 3.4.0 or later. Releases below it
 carry GHSA-6c5p-j8vq-pqhj (CVE-2024-33663), a critical algorithm-confusion flaw,
 and GHSA-cjwg-qfpm-7377 (CVE-2024-33664), which allows resource exhaustion
 through a compressed JSON Web Encryption payload. Both advisories turn on the
-token an attacker submits, so the `jwt.decode` at L35 is the remotely reachable
-call. The `jwt.encode` at L19 signs the payload that L13 copies from its `data`
-argument and L18 stamps with an `exp` claim, never a token that arrived with a
+token an attacker submits, so the `jwt.decode` at L179 is the remotely reachable
+call. The `jwt.encode` at L79 signs the payload that L73 copies from its `data`
+argument and L78 stamps with an `exp` claim, never a token that arrived with a
 request, so a remote caller cannot steer it. `passlib` 1.7.4 with a
-`bcrypt` backend is what the `CryptContext` at L8 requires, and neither package
+`bcrypt` backend is what the `CryptContext` at L45 requires, and neither package
 name appears in any tracked file. An environment build therefore resolves both
 imports to whatever release the package index offers on the day it runs.
 
-L6 imports the `get_settings` factory, which `app/core/config.py:L126` defines.
+L43 imports the `get_settings` factory, which `app/core/config.py:L126` defines.
 Eight other modules import a `settings` singleton from that same module, and
 `app/core/config.py` never defines the name.
 
 No module in this repository imports `app.core.security`, so the four functions
 below have no callers. The twelve protected routes import `get_current_user`
-from `app/api/auth.py:L92` instead.
+from `app/api/auth.py:L89` instead.
 
-Line locators: every `Lnn` reference below numbers the tree at commit
-06be74c7c88aa6bca652d465eaa00ad480a9e5c5, the frozen revision that precedes this
-documentation pass. A bare `Lnn` points into this file, and a `path:Lnn` points into
-the named file. Current HEAD numbers each documented file higher.
+Every `Lnn` reference below points at the current layout of the file it names. A
+bare `Lnn` points into this file, and a `path:Lnn` points into the named file.
 """
 from datetime import datetime, timedelta
 from jose import jwt
@@ -120,31 +118,31 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
     """Resolve a bearer token to the user it identifies.
 
     See the review marker in the comment block directly above this signature:
-    `UserService` is referenced but no such module exists. L42 raises `NameError`
+    `UserService` is referenced but no such module exists. L186 raises `NameError`
     at first call rather than at import, because module-level execution never
     enters a function body.
 
-    L33 calls `get_settings()`, building a second fresh `Settings`. L35 decodes
-    the token. L42 instantiates `UserService`, and L43 awaits an instance method
+    L177 calls `get_settings()`, building a second fresh `Settings`. L179 decodes
+    the token. L186 instantiates `UserService`, and L187 awaits an instance method
     on the result.
 
-    Configuration limitation. L35 verifies the signature with
+    Configuration limitation. L179 verifies the signature with
     `settings.SECRET_KEY` and restricts the accepted algorithms to
     `[settings.ALGORITHM]`. Both values arrive unvalidated from
-    `app/core/config.py:L113` and `:L9`, which declare each as a bare `str`, and
+    `app/core/config.py:L113` and `:L115`, which declare each as a bare `str`, and
     the consequence depends on which algorithm the environment names. Under a
     symmetric algorithm such as HS256, this field carries the shared secret that
-    both signs at L19 and verifies at L35, so an empty or guessable value lets an
-    attacker forge a token that L35 accepts. Under an asymmetric algorithm such
-    as RS256, L35 expects a public key in the same field, so a short or
+    both signs at L79 and verifies at L179, so an empty or guessable value lets an
+    attacker forge a token that L179 accepts. Under an asymmetric algorithm such
+    as RS256, L179 expects a public key in the same field, so a short or
     low-entropy value forges nothing and verification fails instead of
     succeeding. The single-entry algorithm list inherits whatever string the
     environment names rather than an approved algorithm either way.
 
-    `app/api/auth.py:L92` defines a second copy of this function, and the twelve
+    `app/api/auth.py:L89` defines a second copy of this function, and the twelve
     protected routes depend on that copy rather than the one here. The two
-    diverge on the missing-user path: L45 raises status 401, while
-    `app/api/auth.py:L167` raises 404.
+    diverge on the missing-user path: L189 raises status 401, while
+    `app/api/auth.py:L164` raises 404.
 
     Args:
         token: Bearer token, extracted from the `Authorization` header by
@@ -154,9 +152,9 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
         The `User` the token's `sub` claim identifies.
 
     Raises:
-        HTTPException: Status 401 at L38 when the `sub` claim read at L36 is
-            `None`. Status 401 at L40 when `jwt.decode` at L35 raises
-            `jwt.JWTError`. Status 401 at L45 when the lookup at L43 returns
+        HTTPException: Status 401 at L182 when the `sub` claim read at L180 is
+            `None`. Status 401 at L184 when `jwt.decode` at L179 raises
+            `jwt.JWTError`. Status 401 at L189 when the lookup at L187 returns
             `None`. None of the three passes a `headers` argument, so none of the
             three responses carries a `WWW-Authenticate: Bearer` header. The
             bearer scheme expects that header on a 401, so a client cannot read

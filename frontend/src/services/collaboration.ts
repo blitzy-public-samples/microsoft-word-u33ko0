@@ -40,7 +40,7 @@ import { Document } from '../schema/document';
  *
  * Resilience is absent, and every absence below belongs to this class rather than to the
  * library. `io()` at L77 sets no `timeout`, no `reconnection`, no `reconnectionAttempts`, no
- * `reconnectionDelay` and no `transports` option. `setupEventListeners` at L88-L19 registers
+ * `reconnectionDelay` and no `transports` option. `setupEventListeners` at L88-L93 registers
  * no `connect`, `connect_error`, `disconnect` or `error` handler, so no connection failure is
  * observed anywhere. No emit passes an acknowledgement callback and no emit sets a per-message
  * timeout, so no send is ever confirmed. No retry, backoff, jitter, circuit breaker, offline

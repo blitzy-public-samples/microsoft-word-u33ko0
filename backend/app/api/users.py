@@ -4,23 +4,20 @@ Two handlers serve `GET /me` and `PUT /me`, both behind `get_current_user`. The 
 exports `router`.
 
 `app/main.py` imports the name `users_router` from this module, and this module defines
-`router`. The module cannot import. L3 requests `UserService` from
-`app.services.user_service`, a module that does not exist, so L3 raises before L4 is
-reached. L4 requests `get_current_user` from `app.api.auth`, the definition at
-`auth.py:L92`, and that module would fail in turn at `auth.py:L84` on the absent
+`router`. The module cannot import. L24 requests `UserService` from
+`app.services.user_service`, a module that does not exist, so L24 raises before L25 is
+reached. L25 requests `get_current_user` from `app.api.auth`, the definition at
+`auth.py:L89`, and that module would fail in turn at `auth.py:L81` on the absent
 `settings` name.
 
-Both handlers are plain synchronous `def`, at L9 and L13. The other twelve
+Both handlers are plain synchronous `def`, at L30 and L51. The other twelve
 committed handlers are `async def`, so FastAPI runs these two in its thread pool.
 
-Each handler below splits its docstring at a form-feed marker, spelled as the
-Unicode named escape for that character. FastAPI publishes the text above that
-marker as the route description in the generated OpenAPI document and drops
-everything below it. Each lower section is labelled "Internal notes" and carries
-dependency names, locators and failure analysis.
+Each handler docstring below closes with a paragraph labelled "Internal notes",
+carrying dependency names, locators and failure analysis.
 
-Line references point at the pre-documentation layout of commit `06be74c`, so
-they exclude docstrings added by this pass.
+Every `Lnn` reference below points at the current layout of the file it names. A
+bare `Lnn` points into this file, and a `path:Lnn` points into the named file.
 """
 from fastapi import APIRouter, Depends, HTTPException
 from app.schema.user import User, UserUpdate
@@ -38,12 +35,12 @@ def get_current_user_info(current_user: User = Depends(get_current_user)) -> Use
 
     Returns:
         The `User` given in the return annotation.
-    \N{FORM FEED}
+
     Internal notes.
 
-    The decorator sits at L8, and L10 returns the injected `current_user` object.
+    The decorator sits at L29, and L48 returns the injected `current_user` object.
     The handler is a synchronous `def`, and FastAPI resolves its `async def`
-    dependency at `auth.py:L92` before calling it.
+    dependency at `auth.py:L89` before calling it.
 
     The route is shadowed. `app/main.py:L126` mounts the document router first, so
     `GET /{document_id}` claims `GET /me` and this handler never runs.
@@ -65,7 +62,7 @@ def update_user(user_update: UserUpdate, current_user: User = Depends(get_curren
     Raises:
         HTTPException: HTTP 400, detail `"Failed to update user"`, when the
             update yields a falsy result.
-    \N{FORM FEED}
+
     Internal notes.
 
     Note:

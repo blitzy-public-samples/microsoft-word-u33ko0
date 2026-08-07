@@ -27,7 +27,7 @@ The directory sits between the routed pages and the server, and it is the only p
 
 The endpoint paths make the divergence precise, and they sit between the client and the committed server rather than between the client and declared intent. Under the specification's `## API DESIGN` heading, an `/auth` group declares `POST /login` and `POST /logout` (`documentation/Technical Specifications.md:L408`, `:L413-L414`). A `/documents` group declares `GET /documents` and `POST /documents` (`:L409`, `:L417-L418`). The client follows those four declarations at `auth.ts:L146`, `auth.ts:L194`, `api.ts:L218` and `api.ts:L246`.
 
-The committed server follows none of them. `backend/app/main.py:L125-L128` mounts all four routers with no prefix, so the document routes serve `/` and `/{document_id}` (`backend/app/api/documents.py:L56-L240`). The token route is `POST /token` (`backend/app/api/auth.py:L170`). One path matches neither side. `auth.ts:L239` calls `GET /auth/me`, while the specification declares `GET /users/me` (`documentation/Technical Specifications.md:L424`) and the server exposes `GET /me` (`backend/app/api/users.py:L32`).
+The committed server follows none of them. `backend/app/main.py:L125-L128` mounts all four routers with no prefix, so the document routes serve `/` and `/{document_id}` (`backend/app/api/documents.py:L53-L237`). The token route is `POST /token` (`backend/app/api/auth.py:L167`). One path matches neither side. `auth.ts:L239` calls `GET /auth/me`, while the specification declares `GET /users/me` (`documentation/Technical Specifications.md:L424`) and the server exposes `GET /me` (`backend/app/api/users.py:L29`).
 
 For the repository-wide map of these boundaries, see [`docs/architecture-overview.md`](../../../docs/architecture-overview.md).
 
@@ -89,7 +89,7 @@ sequenceDiagram
     Api->>Int: run request interceptor
     Int--xInt: SECOND STOP at api.ts:L142,<br/>store never imported,<br/>no 'auth' reducer key
     Int--xSrv: PUT /documents/<id>, never sent
-    Note over Int,Srv: the committed server exposes PUT /{document_id}<br/>at backend/app/api/documents.py:L191
+    Note over Int,Srv: the committed server exposes PUT /{document_id}<br/>at backend/app/api/documents.py:L188
 ```
 
 ### Caller and server contracts
@@ -98,14 +98,14 @@ Six client call sites exist across `api.ts` and `auth.ts`. The table sets each o
 
 | # | Client call site | Client request | Committed server route | Agrees on |
 | --- | --- | --- | --- | --- |
-| 1 | `login`, `auth.ts:L146` | `POST /auth/login`, page origin, JSON body `{ email, password }`, no `Authorization` header | `POST /token`, `backend/app/api/auth.py:L170`, an `OAuth2PasswordRequestForm` body, so `application/x-www-form-urlencoded` `{ username, password }` | Nothing. The method alone is shared |
+| 1 | `login`, `auth.ts:L146` | `POST /auth/login`, page origin, JSON body `{ email, password }`, no `Authorization` header | `POST /token`, `backend/app/api/auth.py:L167`, an `OAuth2PasswordRequestForm` body, so `application/x-www-form-urlencoded` `{ username, password }` | Nothing. The method alone is shared |
 | 2 | `logout`, `auth.ts:L194` | `POST /auth/logout`, page origin, no body | No route. No logout path exists in any router under `backend/app/api/` | Nothing |
-| 3 | `getCurrentUser`, `auth.ts:L239` | `GET /auth/me`, page origin, no `Authorization` header | `GET /me`, `backend/app/api/users.py:L32`, behind `get_current_user` | Method only |
-| 4 | `getDocuments`, `api.ts:L218` | `GET /documents`, `baseURL` `undefined`, `Bearer` header from the interceptor | `GET /`, `backend/app/api/documents.py:L114`, behind `get_current_user` | Method only |
-| 5 | `createDocument`, `api.ts:L246` | `POST /documents`, JSON `DocumentCreate` body | `POST /`, `backend/app/api/documents.py:L56`, behind `get_current_user` | Method and encoding |
-| 6 | `updateDocument`, `api.ts:L288` | `PUT /documents/<id>`, JSON `DocumentUpdate` body | `PUT /{document_id}`, `backend/app/api/documents.py:L191`, behind `get_current_user` | Method, encoding and the identifier's position in the path |
+| 3 | `getCurrentUser`, `auth.ts:L239` | `GET /auth/me`, page origin, no `Authorization` header | `GET /me`, `backend/app/api/users.py:L29`, behind `get_current_user` | Method only |
+| 4 | `getDocuments`, `api.ts:L218` | `GET /documents`, `baseURL` `undefined`, and no `Bearer` header, because the request interceptor throws before the request is sent | `GET /`, `backend/app/api/documents.py:L111`, behind `get_current_user` | Method only |
+| 5 | `createDocument`, `api.ts:L246` | `POST /documents`, JSON `DocumentCreate` body | `POST /`, `backend/app/api/documents.py:L53`, behind `get_current_user` | Method and encoding |
+| 6 | `updateDocument`, `api.ts:L288` | `PUT /documents/<id>`, JSON `DocumentUpdate` body | `PUT /{document_id}`, `backend/app/api/documents.py:L188`, behind `get_current_user` | Method, encoding and the identifier's position in the path |
 
-The login call is the widest gap, and it diverges in five independent places. Those are the path, the request origin, the body encoding, the credential field name (`email` against `username`) and the response field name (`accessToken` against `access_token`). `backend/app/api/auth.py:L243` returns `{"access_token": ..., "token_type": "bearer"}`.
+The login call is the widest gap, and it diverges in five independent places. Those are the path, the request origin, the body encoding, the credential field name (`email` against `username`) and the response field name (`accessToken` against `access_token`). `backend/app/api/auth.py:L240` returns `{"access_token": ..., "token_type": "bearer"}`.
 
 Headers and state handoff diverge on their own axis. `api.ts:L142-L144` is the only writer of an `Authorization` header anywhere in the frontend. That writer reads a Redux path which does not exist, so no request from any module carries a bearer token. The three `auth.ts` calls use the bare Axios global imported at `auth.ts:L68` and never reach that interceptor. Nothing links the two halves: `auth.ts:L148` writes a token to `localStorage` and no module reads the key back, while `api.ts:L142` looks for a token in Redux, where nothing writes one.
 
@@ -135,8 +135,8 @@ Every item below comes from the committed code. Two of the three modules have no
 
 - `auth.ts:L68` imports the bare Axios global instead of the configured instance, so no request here carries the base URL or the bearer header.
 - `auth.ts:L69` imports `RootState` and never references it.
-- All three endpoint paths miss the committed server. `auth.ts:L146` calls `/auth/login` against `POST /token` (`backend/app/api/auth.py:L170`), and `auth.ts:L239` calls `/auth/me` against `GET /me` (`backend/app/api/users.py:L32`). No logout route exists anywhere in the backend, so `/auth/logout` at `auth.ts:L194` has no counterpart at all.
-- `auth.ts:L147` reads `response.data.accessToken` while `backend/app/api/auth.py:L243` returns `access_token`, so the read yields `undefined`. `localStorage.setItem` coerces its value to a string, so `auth.ts:L148` stores the four-character string `"undefined"` rather than the value `undefined`, and any later truthiness test on the stored value passes.
+- All three endpoint paths miss the committed server. `auth.ts:L146` calls `/auth/login` against `POST /token` (`backend/app/api/auth.py:L167`), and `auth.ts:L239` calls `/auth/me` against `GET /me` (`backend/app/api/users.py:L29`). No logout route exists anywhere in the backend, so `/auth/logout` at `auth.ts:L194` has no counterpart at all.
+- `auth.ts:L147` reads `response.data.accessToken` while `backend/app/api/auth.py:L240` returns `access_token`, so the read yields `undefined`. `localStorage.setItem` coerces its value to a string, so `auth.ts:L148` stores the four-character string `"undefined"` rather than the value `undefined`, and any later truthiness test on the stored value passes.
 - `auth.ts:L195` removes the stored token only after the request succeeds, so a failed logout leaves the token in the browser.
 - `auth.ts:L197` logs the logout error and does not rethrow, so the promise resolves and the caller cannot detect the failure.
 - `auth.ts:L240` casts the response body to `User` with no validation, so a malformed body passes silently.
@@ -159,7 +159,7 @@ The items below describe the committed code and what a repaired login would carr
 
 - `auth.ts:L148` writes the token to `localStorage`, which any script running on the page origin can read. Web Storage offers no equivalent of an `HttpOnly` cookie flag, so a script-injection defect on any page of the origin reaches the value directly.
 - The value survives a tab close and a browser restart, so a token written once persists until something removes it. `auth.ts:L195` removes the key only after `POST /auth/logout` resolves. `auth.ts:L196-L198` logs a failure without rethrowing, so a failed logout leaves the token in the browser and reports success to the caller.
-- No expiry sits beside the stored value. The server stamps `exp` inside the token at `backend/app/api/auth.py:L239`, and the client stores the string alone. Nothing on the client distinguishes an expired token from a live one without decoding it.
+- No expiry sits beside the stored value. The server stamps `exp` inside the token at `backend/app/api/auth.py:L236`, and the client stores the string alone. Nothing on the client distinguishes an expired token from a live one without decoding it.
 - No cross-tab synchronization exists. No module listens for the `storage` event, so a logout in one tab leaves every other tab holding the value it already read.
 - No module reads the key back. `api.ts:L142` looks for a token in Redux instead, so the stored value reaches no request as committed.
 - The stored value today is the string `"undefined"` rather than a token, per the `auth.ts:L147` field-name mismatch above. The exposure described here is what a repaired login would introduce, not what the browser holds now.

@@ -16,11 +16,11 @@ service writes a version. No module here reaches a database, reads configuration
 
 | Component | Type | Location | Description |
 | --- | --- | --- | --- |
-| `DocumentBase` | Pydantic model | `document.py:L57` | Shared document fields: `title: str` at L66, `content: str` at L67 and `owner_id: Optional[str] = None` at L68. |
-| `DocumentCreate` | Pydantic model | `document.py:L70` | Create payload. The body is `pass` at L82, so the class inherits all three `DocumentBase` fields and adds none. |
-| `DocumentUpdate` | Pydantic model | `document.py:L84` | Patch payload. Extends `BaseModel` and declares `title` at L95 and `content` at L96, both `Optional[str] = None`. |
-| `Document` | Pydantic model | `document.py:L98` | Read response. Extends `DocumentBase` and adds `id: str` at L112, `created_at: datetime` at L113 and `updated_at: datetime` at L114. |
-| `DocumentVersion` | Pydantic model | `document.py:L116` | Version record. Extends `BaseModel` with `id` at L133, `document_id` at L134, `content` at L135, `created_at` at L136 and `user_id` at L137. |
+| `DocumentBase` | Pydantic model | `document.py:L55` | Shared document fields: `title: str` at L64, `content: str` at L65 and `owner_id: Optional[str] = None` at L66. |
+| `DocumentCreate` | Pydantic model | `document.py:L68` | Create payload. The body is `pass` at L80, so the class inherits all three `DocumentBase` fields and adds none. |
+| `DocumentUpdate` | Pydantic model | `document.py:L82` | Patch payload. Extends `BaseModel` and declares `title` at L93 and `content` at L94, both `Optional[str] = None`. |
+| `Document` | Pydantic model | `document.py:L96` | Read response. Extends `DocumentBase` and adds `id: str` at L110, `created_at: datetime` at L111 and `updated_at: datetime` at L112. |
+| `DocumentVersion` | Pydantic model | `document.py:L114` | Version record. Extends `BaseModel` with `id` at L131, `document_id` at L132, `content` at L133, `created_at` at L134 and `user_id` at L135. |
 | `UserBase` | Pydantic model | `user.py:L71` | Shared user fields: `email: str` at L80, `username: str` at L81 and `full_name: Optional[str] = None` at L82. |
 | `UserCreate` | Pydantic model | `user.py:L84` | Registration payload. Extends `UserBase` and adds `password: str` at L94. |
 | `UserUpdate` | Pydantic model | `user.py:L96` | Patch payload. Extends `BaseModel` with `email` at L109, `username` at L110, `full_name` at L111 and `password` at L112, all `Optional[str] = None`. |
@@ -30,9 +30,9 @@ service writes a version. No module here reaches a database, reads configuration
 ## Architecture Fit
 
 Nine `app.schema.*` import statements reach this package from seven modules, and eight resolve. The importers sit at
-`app/api/auth.py:L85`, `app/api/documents.py:L49` and `:L52`, `app/api/templates.py:L75` and `:L78`, `app/api/users.py:L26`,
-`app/services/collaboration_service.py:L38`, `app/services/document_service.py:L60` and
-`app/services/export_service.py:L60`. The single failure is `app/api/templates.py:L75`, which imports `Template`,
+`app/api/auth.py:L82`, `app/api/documents.py:L46` and `:L49`, `app/api/templates.py:L70` and `:L73`, `app/api/users.py:L23`,
+`app/services/collaboration_service.py:L38`, `app/services/document_service.py:L58` and
+`app/services/export_service.py:L60`. The single failure is `app/api/templates.py:L70`, which imports `Template`,
 `TemplateCreate` and `TemplateUpdate` from `app.schema.template`, and no file exists at
 `backend/app/schema/template.py`. The package serves the router and service tiers at once, and both depend on it.
 
@@ -44,17 +44,19 @@ Cloud Firestore, a NoSQL store of schemaless records, with Google Cloud SQL, a r
 adds `USERS` `:L365-L370`, `DOCUMENTS` `:L372-L378`, `TEMPLATES` `:L380-L385`, `DOCUMENT_PERMISSIONS` `:L387-L391` and
 `TEMPLATE_PERMISSIONS` `:L393-L397`.
 
-The specification places document and user data in both stores, and the committed code matches that placement for
-documents and users only. Templates, document permissions and template permissions have no model here, and no
-object-relational mapping (ORM) model exists either. Two field names also differ. The design declares `last_modified` at
-`documentation/Technical Specifications.md:L335` and `:L377`, and `display_name` at
-`documentation/Technical Specifications.md:L353` and `:L368`. The committed code calls them `updated_at` at
-`document.py:L114`, and `username` at `user.py:L81` plus `full_name` at `user.py:L82`.
+The specification places document and user data in both stores. The committed code matches that placement for
+documents only, because `services/document_service.py` reads and writes a Firestore `documents` collection. The
+user contracts here are contract-only: no committed module persists a user, `api/auth.py:L83` imports the
+`UserService` that would, and that module does not exist, so `UserBase`, `UserCreate`, `UserUpdate` and `User`
+shape request and response bodies and nothing else. Templates, document permissions and template permissions have
+no model here, and no object-relational mapping (ORM) model exists either.
 
-Two field names also differ. The design declares `last_modified` at `:L335` and `:L377` and `display_name` at `:L353`
-and `:L368`. The committed code calls them `updated_at` at `document.py:L114`, and `username` at `user.py:L81` plus
-`full_name` at `user.py:L82`. See the [architecture overview](../../../docs/architecture-overview.md) for the tier map
-and the [package README](../README.md) for the composition root.
+Two field names also differ. The design declares `last_modified` at
+`documentation/Technical Specifications.md:L335` and `:L377`, and `display_name` at
+`documentation/Technical Specifications.md:L353` and `:L368`. The committed code calls them
+`updated_at` at `document.py:L112`, and `username` at `user.py:L81` plus `full_name` at
+`user.py:L82`. See the [architecture overview](../../../docs/architecture-overview.md) for the
+tier map and the [package README](../README.md) for the composition root.
 
 ## Dependencies
 
@@ -62,12 +64,12 @@ and the [package README](../README.md) for the composition root.
 
 | Module | Locator | Resolves | Symbols |
 | --- | --- | --- | --- |
-| `app.schema.template` | `app/api/templates.py:L75` | **No.** No file exists at `backend/app/schema/template.py`. | `Template`, `TemplateCreate`, `TemplateUpdate` |
-| `app/api/auth.py` | `:L85` | Yes | `User`, `UserCreate` |
-| `app/api/documents.py` | `:L49`, `:L52` | Yes | `Document`, `DocumentCreate`, `DocumentUpdate`, and `User` |
-| `app/api/templates.py` | `:L78` | Yes | `User` |
-| `app/api/users.py` | `:L26` | Yes | `User`, `UserUpdate` |
-| `app/services/document_service.py` | `:L60` | Yes | `Document`, `DocumentCreate`, `DocumentUpdate` |
+| `app.schema.template` | `app/api/templates.py:L70` | **No.** No file exists at `backend/app/schema/template.py`. | `Template`, `TemplateCreate`, `TemplateUpdate` |
+| `app/api/auth.py` | `:L82` | Yes | `User`, `UserCreate` |
+| `app/api/documents.py` | `:L46`, `:L49` | Yes | `Document`, `DocumentCreate`, `DocumentUpdate`, and `User` |
+| `app/api/templates.py` | `:L73` | Yes | `User` |
+| `app/api/users.py` | `:L23` | Yes | `User`, `UserUpdate` |
+| `app/services/document_service.py` | `:L58` | Yes | `Document`, `DocumentCreate`, `DocumentUpdate` |
 | `app/services/collaboration_service.py` | `:L38` | Yes | `Document` |
 | `app/services/export_service.py` | `:L60` | Yes | `Document` |
 
@@ -77,7 +79,7 @@ and the [package README](../README.md) for the composition root.
 | --- | --- | --- |
 | `pydantic` | 1.x only | `orm_mode = True` at `user.py:L177` is the Pydantic 1.x spelling of the key. Pydantic 2 renamed it to `from_attributes`. |
 
-`typing` at `document.py:L54` and `user.py:L68` and `datetime` at `document.py:L55` and `user.py:L69` ship with Python, so
+`typing` at `document.py:L52` and `user.py:L68` and `datetime` at `document.py:L53` and `user.py:L69` ship with Python, so
 neither is a third-party dependency. The [data model reference](../../../docs/data-model.md) sets these contracts beside their client-side counterparts.
 
 ## Configuration
@@ -90,13 +92,13 @@ the settings the rest of the backend expects, see [onboarding](../../../docs/onb
 Two paths cross the package, carrying the same models in opposite directions.
 
 Write path. A router parses a JavaScript Object Notation (JSON) request body into `DocumentCreate` or `UserCreate`, and
-FastAPI validates it against the declared fields before the handler runs. `app/services/document_service.py:L117` then
-calls `document.dict()` to flatten the model, adds `user_id` at `:L118` and `id` at `:L119`, and writes the mapping to
-Firestore at `:L120`. The path breaks at `:L123`, where `Document(**doc_data)` fails validation because the assembled
-mapping carries no `created_at` and no `updated_at`, both of which `document.py:L113-L114` declares as required.
+FastAPI validates it against the declared fields before the handler runs. `app/services/document_service.py:L115` then
+calls `document.dict()` to flatten the model, adds `user_id` at `:L116` and `id` at `:L117`, and writes the mapping to
+Firestore at `:L118`. The path breaks at `:L121`, where `Document(**doc_data)` fails validation because the assembled
+mapping carries no `created_at` and no `updated_at`, both of which `document.py:L111-L112` declares as required.
 
 Read path. A service reads a Firestore mapping and constructs `Document` from it at
-`app/services/document_service.py:L181` and `:L252`. A router returns a value annotated `-> Document` or `-> User`, and
+`app/services/document_service.py:L179` and `:L250`. A router returns a value annotated `-> Document` or `-> User`, and
 FastAPI serializes the model back to JSON. `orm_mode = True` at `user.py:L177` is what would let `User` be built from an
 object's attributes instead of a mapping, and no code path builds a `User` that way.
 
@@ -106,17 +108,17 @@ Schema at the boundary. Every model here validates or serializes at the HTTP edg
 database connection or calls a service.
 
 The base, create, update and read family. Each record declares a shared base, a create payload, a patch payload and a
-read response. The user set sits at `user.py:L71`, `:L84`, `:L96` and `:L114`, and the document set at `document.py:L57`,
-`:L70`, `:L84` and `:L98`.
+read response. The user set sits at `user.py:L71`, `:L84`, `:L96` and `:L114`, and the document set at `document.py:L55`,
+`:L68`, `:L82` and `:L96`.
 
 Attribute-based construction on the read model. `orm_mode` at `user.py:L175-L177` permits `User` to be populated from an
 object rather than a mapping.
 
-Optional-field patch semantics. `DocumentUpdate` at `document.py:L84-L96` and `UserUpdate` at `user.py:L96-L112` declare
+Optional-field patch semantics. `DocumentUpdate` at `document.py:L82-L94` and `UserUpdate` at `user.py:L96-L112` declare
 every field as `Optional[str] = None`. That pairs with `document.dict(exclude_unset=True)` at
-`app/services/document_service.py:L247`, so an untouched field is omitted from the write rather than sent as null.
+`app/services/document_service.py:L245`, so an untouched field is omitted from the write rather than sent as null.
 
-The family pattern breaks on both patch payloads. `DocumentUpdate` at `document.py:L84` and `UserUpdate` at
+The family pattern breaks on both patch payloads. `DocumentUpdate` at `document.py:L82` and `UserUpdate` at
 `user.py:L96` extend `BaseModel` rather than their family base.
 
 ## Known Limitations
@@ -129,37 +131,37 @@ The ownership field holds four positions, and this README names none of them can
 
 | Position | Field | Evidence |
 | --- | --- | --- |
-| Pydantic write and read contract | `owner_id`, optional with a default of `None` | `document.py:L68` |
-| Pydantic version contract | `user_id` | `document.py:L137` |
-| Service, written then compared | `user_id` | `app/services/document_service.py:L118`, `:L177`, `:L243`, `:L282` |
+| Pydantic write and read contract | `owner_id`, optional with a default of `None` | `document.py:L66` |
+| Pydantic version contract | `user_id` | `document.py:L135` |
+| Service, written then compared | `user_id` | `app/services/document_service.py:L116`, `:L175`, `:L241`, `:L280` |
 | Declared intent | `owner_id` | `documentation/Technical Specifications.md:L333`, `:L375`, `:L383` |
 
-Because `owner_id` is optional with a default at `document.py:L68`, a document validates without the field that
+Because `owner_id` is optional with a default at `document.py:L66`, a document validates without the field that
 authorization depends on. The [data model reference](../../../docs/data-model.md) consolidates all four positions, and
 the planned, not yet committed [decision log](../../../docs/decision-log.md) will record the choice between them.
 
 - **Three router sites read a field the read model never declares.** `Document` inherits `owner_id` and declares no
-  `user_id`, yet `app/api/documents.py:L187`, `:L235` and `:L282` each read `.user_id` on a `Document`.
-- **`created_at` and `updated_at` are required and no service writes either.** `document.py:L113-L114` declares both as
-  required `datetime` fields, while `app/services/document_service.py:L117-L120` assembles `doc_data` from `title`,
-  `content`, `owner_id`, `user_id` and `id` only. `Document(**doc_data)` at `:L123` fails validation on both fields.
+  `user_id`, yet `app/api/documents.py:L184`, `:L232` and `:L279` each read `.user_id` on a `Document`.
+- **`created_at` and `updated_at` are required and no service writes either.** `document.py:L111-L112` declares both as
+  required `datetime` fields, while `app/services/document_service.py:L115-L118` assembles `doc_data` from `title`,
+  `content`, `owner_id`, `user_id` and `id` only. `Document(**doc_data)` at `:L121` fails validation on both fields.
 - **`DocumentUpdate` shares no field definition with the create path.** A field added to `DocumentBase` at
-  `document.py:L57-L68` reaches `DocumentCreate` and `Document` and never reaches `DocumentUpdate` at `:L84`.
-- **`DocumentCreate` adds nothing.** The body is `pass` at `document.py:L82`, so the create payload inherits the
+  `document.py:L55-L66` reaches `DocumentCreate` and `Document` and never reaches `DocumentUpdate` at `:L82`.
+- **`DocumentCreate` adds nothing.** The body is `pass` at `document.py:L80`, so the create payload inherits the
   optional `owner_id` and accepts a client-supplied owner on the request body.
-- **No template model exists.** `app/api/templates.py:L75` imports `Template`, `TemplateCreate` and `TemplateUpdate` from
+- **No template model exists.** `app/api/templates.py:L70` imports `Template`, `TemplateCreate` and `TemplateUpdate` from
   `app.schema.template`, and `backend/app/schema/` holds only `document.py` and `user.py`.
 - **`orm_mode` pins the package to Pydantic 1.x.** `user.py:L175-L177` sets `orm_mode = True`, which Pydantic 2 renamed to `from_attributes`. Under Pydantic 2 the old key raises a `UserWarning` and is then ignored, so attribute-based
   construction stops working while the import itself still succeeds.
-- **The read model declares no field for the password hash.** `app/api/auth.py:L326` computes
-  `pwd_context.hash(user.password)` and `:L327` passes the result on, while `User` at `user.py:L114-L173` declares no field to carry it. `UserCreate.password` at `user.py:L94` does exist, so the read at `auth.py:L326` resolves correctly.
+- **The read model declares no field for the password hash.** `app/api/auth.py:L323` computes
+  `pwd_context.hash(user.password)` and `:L324` passes the result on, while `User` at `user.py:L114-L173` declares no field to carry it. `UserCreate.password` at `user.py:L94` does exist, so the read at `auth.py:L323` resolves correctly.
 - **`is_active` and `is_superuser` are declared and never read.** `user.py:L172` and `:L173` declare both on the read
   model, and no code path reads either one.
 - **`updated_at` has no counterpart in the client-side user contract.** `user.py:L171` declares it on `User`. That model
   also declares neither `name` nor `avatar`, and the client reads both.
-- **Both modules import `List` and never use it.** `document.py:L54` and `user.py:L68` each import `List` beside
+- **Both modules import `List` and never use it.** `document.py:L52` and `user.py:L68` each import `List` beside
   `Optional`, and `List` appears exactly once per file, in that import.
-- **`DocumentVersion` has no importer.** `document.py:L116` defines the model, and a search for the name across every
+- **`DocumentVersion` has no importer.** `document.py:L114` defines the model, and a search for the name across every
   Python module in the repository returns that definition and nothing else.
 
 The [troubleshooting register](../../../docs/troubleshooting.md) carries each defect above in repository-wide order.
@@ -180,7 +182,7 @@ against its declared fields, and every keyword argument below names a field one 
 ```python
 from app.schema.document import DocumentCreate, DocumentUpdate
 from app.schema.user import UserCreate, UserUpdate
-# owner_id is optional at document.py:L68, so the create payload validates without it.
+# owner_id is optional at document.py:L66, so the create payload validates without it.
 new_document = DocumentCreate(title="Q4 report", content="Opening paragraph.")
 patch = DocumentUpdate(title="Q4 report, final")     # every field is optional
 patch.dict(exclude_unset=True)                       # {'title': 'Q4 report, final'}
@@ -192,12 +194,12 @@ Building the read model from what the service assembles fails instead.
 
 ```python
 from app.schema.document import Document, DocumentCreate
-# app/services/document_service.py:L117-L120 assembles exactly this mapping.
+# app/services/document_service.py:L115-L118 assembles exactly this mapping.
 doc_data = DocumentCreate(title="Q4 report", content="Opening paragraph.").dict()
 doc_data["user_id"] = "user-1"
 doc_data["id"] = "doc-1"
 Document(**doc_data)  # ValidationError: created_at and updated_at are required
 ```
 
-That block cannot succeed, because `document.py:L113-L114` requires `created_at` and `updated_at` while the assembled
-mapping carries neither. Every create request runs the same construction at `app/services/document_service.py:L123`.
+That block cannot succeed, because `document.py:L111-L112` requires `created_at` and `updated_at` while the assembled
+mapping carries neither. Every create request runs the same construction at `app/services/document_service.py:L121`.

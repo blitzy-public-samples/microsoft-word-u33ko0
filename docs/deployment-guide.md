@@ -278,7 +278,7 @@ GCP fields at `:L116-L117` default to `None`. Compose injects `DATABASE_URL` onl
 | `SECRET_KEY` | `config.py:L113` | Yes | No | `ValidationError`. Signs and verifies every token |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | `config.py:L114` | Yes | No | `ValidationError`. Sets token lifetime |
 | `ALGORITHM` | `config.py:L115` | Yes | No | `ValidationError`. Names the JWT algorithm |
-| `GOOGLE_CLOUD_PROJECT` | `config.py:L116` | No, `Optional` | No | Resolves to `None`, and `backend/app/db/firestore.py:L42` passes it as the Firestore project |
+| `GOOGLE_CLOUD_PROJECT` | `config.py:L116` | No, `Optional` | No | Resolves to `None`, and `backend/app/db/firestore.py:L40` passes it as the Firestore project |
 | `GOOGLE_APPLICATION_CREDENTIALS` | `config.py:L117` | No, `Optional` | No | Resolves to `None`. No credential file is mounted into any container |
 | `DATABASE_URL` | `config.py:L118` | Yes | Yes, `docker-compose.yml:L24` | Satisfied. Read at `backend/app/db/sql.py:L16` |
 | `REDIS_URL` | `config.py:L119` | Yes | No | `ValidationError`. No Redis service exists to point it at |
@@ -571,7 +571,7 @@ table below groups them so a reader can tell what a run will actually say from w
 | Direct backend build | `docker build -f infrastructure/docker/backend.Dockerfile ./backend` | Item 4, `COPY requirements.txt` | Item 7, the `app.` prefix, which only surfaces once the image runs |
 | Direct frontend build | `docker build -f infrastructure/docker/frontend.Dockerfile ./frontend` | Item 3, `npm ci` with no lockfile | The `npm run build` at `frontend.Dockerfile:L17`, which fails on 76 TypeScript errors |
 | Continuous integration | Push or pull request to `main` | Item 2, `npm ci` at the repository root | `npm run build` at `ci.yml:L23`, which fails on the same 76 errors |
-| Continuous delivery and `deploy.sh` | Push to `main`, or `bash scripts/deploy.sh` | Item 9 for the workflow, `app.yaml` absent; item 11's `:L11` for the script, no root `package.json` | `cd.yml:L20` behind `bash -e`; and for the script, the unauthenticated CLI at `:L23`, the absent `app.yaml` at `:L27`, the absent migration file at `:L31`, the unscoped CDN update at `:L35`, and the unconditional success echo at `:L47` |
+| Continuous delivery and `deploy.sh` | Push to `main`, or `bash scripts/deploy.sh` | Item 9 for the workflow, `app.yaml` absent; item 11's `:L11` for the script, no root `package.json` | `cd.yml:L20` behind `bash -e`; and for the script, the unauthenticated CLI at `scripts/deploy.sh:L23`, the absent `app.yaml` at `:L27`, the absent migration file at `:L31`, the unscoped CDN update at `:L35`, and the unconditional success echo at `:L47` |
 
 Two consequences follow. Fixing a first-hit blocker exposes the next blocker on that path rather than
 producing a working deploy, so no single fix moves any path to completion. A path's silence about a
@@ -641,7 +641,7 @@ Google Cloud is the platform the code actually calls.
 | ---------- | ---------- |
 | The only configured Terraform provider | `infrastructure/terraform/main.tf:L9-L12` |
 | Four Google Cloud resources | `main.tf:L19`, `:L25`, `:L35`, `:L50` |
-| Firestore client, built at import time | `backend/app/db/firestore.py:L42`, importing at `:L36` |
+| Firestore client, built at import time | `backend/app/db/firestore.py:L40`, importing at `:L34` |
 | Cloud Storage client, used by the export service | `backend/app/services/export_service.py:L59` |
 | Pub/Sub publisher and subscriber | `backend/app/services/collaboration_service.py:L37` |
 | `gcloud` in the delivery workflow | `.github/workflows/cd.yml:L13`, `:L19-L20` |

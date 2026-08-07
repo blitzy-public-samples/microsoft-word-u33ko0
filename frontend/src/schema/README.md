@@ -2,7 +2,7 @@
 
 `document.ts` exports no inferred type, and three modules fail on the omission. The module declares `DocumentSchema` at
 `document.ts:L65-L73` and `DocumentVersionSchema` at `document.ts:L86-L92`, and nothing else. Both siblings export theirs:
-`user.ts:L56` declares `export type User`, and `template.ts:L41` declares `export type Template`. The three importers that
+`user.ts:L56` declares `export type User`, and `template.ts:L40` declares `export type Template`. The three importers that
 ask `document.ts` for a type sit at `store/documentSlice.ts:L22`, `services/api.ts:L80` and `services/collaboration.ts:L15`.
 
 Those three sites name five absent type references. `Document` is missing at all three, while `DocumentCreate` and
@@ -24,8 +24,8 @@ in the running application validates against them. No module reaches the network
 | `DocumentVersionSchema` | Zod object schema | `document.ts:L86-L92` | Five required fields: `id` L87, `document_id` L88, `content` L89, `created_at` L90, `user_id` L91. No module imports the value. |
 | `UserSchema` | Zod object schema | `user.ts:L37-L45` | Seven fields: `id` L38, `email` L39 with `.email()`, `username` L40, `full_name` L41 optional, `created_at` L42, `is_active` L43, `is_superuser` L44. No module imports the value; only `user.ts:L56` reads it, through `z.infer`. |
 | `User` | Inferred TypeScript type | `user.ts:L56` | `z.infer<typeof UserSchema>`. Imported by `store/userSlice.ts:L22` and `services/auth.ts:L70`, and both imports resolve. Both consume the type alone. |
-| `TemplateSchema` | Zod object schema | `template.ts:L31-L38` | Six required fields: `id` L32, `name` L33, `content` L34, `owner_id` L35, `created_at` L36, `updated_at` L37. No module imports the value either. |
-| `Template` | Inferred TypeScript type | `template.ts:L41` | `z.infer<typeof TemplateSchema>`. No module imports the name. |
+| `TemplateSchema` | Zod object schema | `template.ts:L30-L37` | Six required fields: `id` L31, `name` L32, `content` L33, `owner_id` L34, `created_at` L35, `updated_at` L36. No module imports the value either. |
+| `Template` | Inferred TypeScript type | `template.ts:L40` | `z.infer<typeof TemplateSchema>`. No module imports the name. |
 
 `document.ts` and `template.ts` declare no `.optional()` and no `.nullable()` call, so every field in both files is required
 and rejects null. `full_name` at `user.ts:L41` is the only optional field here, and `email` at `user.ts:L39` carries the only format check.
@@ -61,13 +61,13 @@ The three modules import no internal module. Every relationship below points inw
 | `utils/documentUtils.ts` | `DocumentSchema` | `documentUtils.ts:L22` | Resolves. The only schema **value** import in the frontend. The value exists at `document.ts:L65`. |
 | `store/userSlice.ts` | `User` | `userSlice.ts:L22` | Resolves against `user.ts:L56`. Type only. |
 | `services/auth.ts` | `User` | `auth.ts:L70` | Resolves against `user.ts:L56`. Type only. |
-| No consumer | `UserSchema`, `DocumentVersionSchema`, `TemplateSchema`, `Template` | `user.ts:L37-L45`, `document.ts:L86-L92`, `template.ts:L31-L38`, `:L41` | Unused. No module imports any of the four. `pages/Templates.tsx:L32-L37` imports nothing from here. |
+| No consumer | `UserSchema`, `DocumentVersionSchema`, `TemplateSchema`, `Template` | `user.ts:L37-L45`, `document.ts:L86-L92`, `template.ts:L30-L37`, `:L40` | Unused. No module imports any of the four. `pages/Templates.tsx:L32-L37` imports nothing from here. |
 
 ### External
 
 | Package | Imported at | Declared in `frontend/package.json` | Status |
 | --- | --- | --- | --- |
-| `zod` | `document.ts:L43`, `user.ts:L15`, `template.ts:L21` | No | Imported but undeclared |
+| `zod` | `document.ts:L43`, `user.ts:L15`, `template.ts:L20` | No | Imported but undeclared |
 
 `frontend/package.json:L6-L14` declares seven runtime dependencies and omits `zod`, so all three modules resolve their only
 import to nothing. Three of the frontend's thirteen undeclared-package resolution errors originate here, and a fourth `zod`
@@ -85,7 +85,7 @@ any of the three files, and the frontend's one environment variable read sits el
 | Surface | Value | Location |
 | --- | --- | --- |
 | Environment variables | None | No `process.env` reference in the directory |
-| Imported constants | None | The only import in each file is `zod`, at `document.ts:L43`, `user.ts:L15` and `template.ts:L21` |
+| Imported constants | None | The only import in each file is `zod`, at `document.ts:L43`, `user.ts:L15` and `template.ts:L20` |
 | Schema defaults | None. No `.default()` call appears. | `document.ts`, `user.ts`, `template.ts` |
 
 ## Data Flows
@@ -111,7 +111,7 @@ Runtime validation, available and unused. A Zod schema is a value, so it can che
 only while the compiler runs. No consumer here does that: the one attempt, at `utils/documentUtils.ts:L44` and `:L73`, names a
 method the library does not expose. `utils/validation.ts:L25` and `:L45` build their own schemas from `zod` directly.
 
-Type inference from a runtime schema. `user.ts:L56` and `template.ts:L41` derive a static TypeScript type from their schema
+Type inference from a runtime schema. `user.ts:L56` and `template.ts:L40` derive a static TypeScript type from their schema
 through `z.infer`, so the runtime contract and the static type cannot drift apart inside those two modules. `document.ts`
 applies the pattern to neither of its schemas, which is what severs the type path above.
 
@@ -127,24 +127,24 @@ cross-language contract tool either: its `### Shared` heading lists ESLint, Pret
 
 | Concept | This directory | `backend/app/schema/` | `documentation/Technical Specifications.md` |
 | --- | --- | --- | --- |
-| document owner | `owner_id` required, `document.ts:L69` | `owner_id: Optional[str] = None`, `document.py:L68` | `owner_id`, L333 and L375 |
-| version actor | `user_id`, `document.ts:L91` | `user_id`, `document.py:L137` | Versions subcollection L338-L341 declares no author field |
-| modification timestamp | `updated_at`, `document.ts:L71` | `updated_at`, `document.py:L114` | `last_modified`, L335 |
+| document owner | `owner_id` required, `document.ts:L69` | `owner_id: Optional[str] = None`, `document.py:L66` | `owner_id`, L333 and L375 |
+| version actor | `user_id`, `document.ts:L91` | `user_id`, `document.py:L135` | Versions subcollection L338-L341 declares no author field |
+| modification timestamp | `updated_at`, `document.ts:L71` | `updated_at`, `document.py:L112` | `last_modified`, L335 |
 | collaborators | inline `z.array(z.string())`, `document.ts:L72` | absent from all five models | a child of Documents in the diagram, L325 |
-| document write payloads | absent | `DocumentCreate`, `document.py:L70-L82`; `DocumentUpdate`, `document.py:L84-L96` | not specified as payloads |
+| document write payloads | absent | `DocumentCreate`, `document.py:L68-L80`; `DocumentUpdate`, `document.py:L82-L94` | not specified as payloads |
 | server-only user fields | absent | `updated_at`, `user.py:L171`; `UserCreate.password`, `user.py:L94` | not applicable |
 | optional full name | `full_name` optional, `user.ts:L41` | `full_name` optional, `user.py:L82` | `display_name`, L353 |
-| template contract | `TemplateSchema`, `template.ts:L31-L38` | no `template.py` exists at all | not specified |
+| template contract | `TemplateSchema`, `template.ts:L30-L37` | no `template.py` exists at all | not specified |
 | timestamp representation | `z.date()`, rejects a string | `datetime`, serialized as a string | timestamps |
 
 One row agrees across both code contracts: `full_name` is optional at `user.ts:L41` and at `user.py:L82`. The two still disagree on null, because `Optional[str] = None` emits null and `.optional()` rejects null without `.nullable()` beside it.
 
 - **Ownership carries four positions, and this README names none of them canonical.** `document.ts:L69` declares `owner_id` on
-  the document, and `document.ts:L91` declares `user_id` on the version. Across the boundary, `backend/app/schema/document.py:L68`
-  declares `owner_id` as optional with a default of `None`, while `backend/app/services/document_service.py:L118` writes and later
+  the document, and `document.ts:L91` declares `user_id` on the version. Across the boundary, `backend/app/schema/document.py:L66`
+  declares `owner_id` as optional with a default of `None`, while `backend/app/services/document_service.py:L116` writes and later
   compares `user_id`. Because the server contract makes `owner_id` optional, a document validates with no owner recorded while
   ownership decides access, and the [data model reference](../../../docs/data-model.md) consolidates all four positions.
-- **The modification timestamp carries three names.** `updated_at` at `document.ts:L71` and `document.py:L114`, and
+- **The modification timestamp carries three names.** `updated_at` at `document.ts:L71` and `document.py:L112`, and
   `last_modified` at `documentation/Technical Specifications.md:L335` and `:L377`.
 - **`collaborators` exists only on the client.** `document.ts:L72` declares it, and no model in
   `backend/app/schema/document.py` declares the field. The specification's `## DATABASE DESIGN` diagram places Collaborators
@@ -155,13 +155,13 @@ One row agrees across both code contracts: `full_name` is optional at `user.ts:L
   `currentUser.avatar` and `currentUser.name`, `Header.tsx:L78` reads `currentUser.name`, `pages/Home.tsx:L59` reads
   `currentUser.name`, and `pages/Settings.tsx:L82` reads `currentUser?.name`. The specification names the field
   `display_name` at `documentation/Technical Specifications.md:L353`, a third name, and the [components](../components/README.md) and [pages](../pages/README.md) READMEs cite their own sites.
-- **Two incompatible `Template` shapes exist, and the server half is absent.** `TemplateSchema` at `template.ts:L31-L38` and
+- **Two incompatible `Template` shapes exist, and the server half is absent.** `TemplateSchema` at `template.ts:L30-L37` and
   the local `interface Template` at `pages/Templates.tsx:L61-L66` share `id` and `name`. The page adds `description` at L64
   and `thumbnail` at L65, and the schema adds `content`, `owner_id`, `created_at` and `updated_at`. No
-  `backend/app/schema/template.py` exists, while `backend/app/api/templates.py:L75` imports `Template`, `TemplateCreate` and `TemplateUpdate` from `app.schema.template` and `:L4` imports the absent template service.
+  `backend/app/schema/template.py` exists, while `backend/app/api/templates.py:L70` imports `Template`, `TemplateCreate` and `TemplateUpdate` from `app.schema.template` and `:L71` imports the absent template service.
 - **Six `z.date()` declarations reject the value the wire carries.** `document.ts:L70`, `:L71`, `:L90`, `user.ts:L42`,
-  `template.ts:L36` and `:L37` each accept only a `Date` instance, while the server declares `datetime` and JSON carries a datetime as a string.
-- **`zod` is imported and undeclared.** `document.ts:L43`, `user.ts:L15` and `template.ts:L21` import the package, and
+  `template.ts:L35` and `:L36` each accept only a `Date` instance, while the server declares `datetime` and JSON carries a datetime as a string.
+- **`zod` is imported and undeclared.** `document.ts:L43`, `user.ts:L15` and `template.ts:L20` import the package, and
   `frontend/package.json:L6-L14` omits it. No code in this directory runs until the package is installed.
 - **The directory carries no assistance marker and no unfinished-work comment of its own.** The nearest ones sit in the
   consumers, at `utils/documentUtils.ts:L24-L26`, `:L43`, `:L72` and `store/documentSlice.ts:L171`.
@@ -171,7 +171,7 @@ The [troubleshooting register](../../../docs/troubleshooting.md) carries every d
 ## Usage Examples
 
 No example below runs today, because `frontend/package.json:L6-L14` omits `zod` and the import at `document.ts:L43`,
-`user.ts:L15` and `template.ts:L21` resolves to nothing. The [onboarding guide](../../../docs/onboarding.md) has the prerequisites.
+`user.ts:L15` and `template.ts:L20` resolves to nothing. The [onboarding guide](../../../docs/onboarding.md) has the prerequisites.
 
 Validating a user record uses the safe form, which returns a result object instead of throwing:
 

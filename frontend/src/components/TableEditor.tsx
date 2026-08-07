@@ -7,11 +7,11 @@
  *   `validation.ts` and `documentUtils.ts` only, and the `@/` prefix is absent from the `paths`
  *   map in `frontend/tsconfig.json`.
  *
- * The body uses only `insertTable`, at L76. `deleteTable` and `modifyTable` stay unused, and
- * the author comment at L95 records both operations as unimplemented.
+ * The body uses only `insertTable`, at L72. `deleteTable` and `modifyTable` stay unused, and
+ * the author comment at L91 records both operations as unimplemented.
  *
  * Nothing here runs. No module in the tree imports `TableEditor`, so the `editorState` prop that
- * L30-L32 requires never arrives, and the return at L97-L101 renders an empty `div`. The docstring
+ * L29-L31 requires never arrives, and the return at L93-L97 renders an empty `div`. The docstring
  * on `handleInsertTable` records why that handler never executes. The assistance marker at L52-L53
  * flags the handler's confidence level.
  *
@@ -34,16 +34,16 @@ interface TableEditorProps {
  * Define the table insert helper and render an empty container.
  *
  * The component renders nothing visible, because the returned `div` holds only the JSX comment
- * at L99. The component performs no dispatch, no network call and no state mutation, so it
+ * at L95. The component performs no dispatch, no network call and no state mutation, so it
  * carries no side effects. `handleInsertTable` is the one function here that would transform
  * editor state, and its docstring records why it never runs.
  *
  * @param editorState - Draft.js editor state that the nested `handleInsertTable` reads at
- *   L72-L73 for its content and selection. Declared at L31 as `EditorState` on
+ *   L68-L69 for its content and selection. Declared at L30 as `EditorState` on
  *   `TableEditorProps`, which stays local to this file and reaches no consumer.
- * @returns A single `div` element at L98-L100 carrying no text, no children and no
+ * @returns A single `div` element at L94-L96 carrying no text, no children and no
  *   `className`.
- * @remarks Nothing imports this component. The `@/utils/tableUtils` module at L28 does not
+ * @remarks Nothing imports this component. The `@/utils/tableUtils` module at L26 does not
  *   exist, and two of the three symbols it would provide, `deleteTable` and `modifyTable`, stay
  *   unused.
  * @see ./README.md

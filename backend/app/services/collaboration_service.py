@@ -228,7 +228,7 @@ class CollaborationService:
 
         Raises:
             AttributeError: At L245, because `Settings` declares no `PROJECT_ID`
-                field. The read sits above the `try` at L246, outside the guarded
+                field. The read sits above the `try` at L247, outside the guarded
                 block, so the error propagates to the caller on the first call. No
                 partial state follows: L245 is the method's first statement, no
                 Pub/Sub call runs, and nothing is published.

@@ -8,12 +8,12 @@
  *   map in `frontend/tsconfig.json`. Neither `resizeImage` nor `cropImage` reaches the body.
  *
  * Neither symbol from L30 reaches the body. `resizeImage` and `cropImage` appear at L30 and nowhere
- * else, and the author comment at L98-L27 records both operations as unimplemented.
+ * else, and the author comment at L98-L99 records both operations as unimplemented.
  *
  * Nothing here runs. No module in the tree imports `ImageEditor`, so the `editorState` prop that
- * L33-L7 requires never arrives, and the return at L101-L35 renders a `div` holding one JSX comment,
- * so a browser shows an empty container. The docstring on `handleInsertImage` records why that
- * handler never executes, and why an inserted image would not render even if it did.
+ * L33-L35 requires never arrives, and the return at L101-L107 renders a `div` holding one
+ * JSX comment, so a browser shows an empty container. The docstring on `handleInsertImage`
+ * records why that handler never executes, and why an image would not render even if it did.
  *
  * The assistance marker at L54 records that `handleInsertImage` needs review before production
  * use. A second marker sits inside the return statement and records the component's own interface
@@ -45,7 +45,7 @@ interface ImageEditorProps {
  * @param editorState - Draft.js editor state that the nested `handleInsertImage` reads at L85 for
  *   its current content. Declared at L34 as `EditorState` on `ImageEditorProps`, which stays local
  *   to this file and reaches no consumer.
- * @returns A single `div` element at L104-L34 carrying no text, no children and no `className`.
+ * @returns A single `div` element at L104-L106 carrying no text, no children and no `className`.
  * @remarks Nothing imports this component. The `@/utils/imageUtils` module at L30 does not exist,
  *   and both symbols it would provide, `resizeImage` and `cropImage`, stay unused.
  * @see ./README.md
@@ -71,7 +71,7 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ editorState }) => {
    * whose content is a single entity rather than text. Draft.js draws such a block only through a
    * `blockRendererFn`, the function an `Editor` uses to decide how to render it. No module in the
    * repository defines one, and the two committed `Editor` elements pass none, at
-   * `DocumentCanvas.tsx:L169-L173` and `TextEditor.tsx:L131-L135`, so the atomic block L95 inserts
+   * `DocumentCanvas.tsx:L169-L173` and `TextEditor.tsx:L131-L135`, so the atomic block at L95 here
    * would not appear. No route accepts image bytes either. The fourteen handlers under
    * `backend/app/api/` cover tokens, documents, templates and the current user, and none takes an
    * upload, so nothing in the repository produces the `imageUrl` argument L84 requires.

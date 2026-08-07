@@ -13,42 +13,40 @@ Pydantic never publishes.
 Every import resolves and `import app.schema.document` succeeds, because this file
 depends only on pydantic, typing and datetime, never on the absent `settings`
 singleton in app/core/config.py. `List` on the typing import line is imported
-and never used. No app/schema/template.py exists, though app/api/templates.py:L254
+and never used. No app/schema/template.py exists, though app/api/templates.py:L249
 imports Template, TemplateCreate and TemplateUpdate from app.schema.template.
 
-Consumers. app/api/documents.py:L57 binds DocumentCreate as the create request
-body. app/api/documents.py:L192 binds DocumentUpdate as the update request body and
-passes it to the service signature at app/services/document_service.py:L185.
+Consumers. app/api/documents.py:L54 binds DocumentCreate as the create request
+body. app/api/documents.py:L189 binds DocumentUpdate as the update request body and
+passes it to the service signature at app/services/document_service.py:L183.
 DocumentCreate adds no field of its own, so the create request body accepts a
 client-supplied `owner_id`. No module imports DocumentVersion, and the name
 appears exactly once across the repository's Python files, at its definition on
-L22.
+L114.
 
 DocumentBase declares `owner_id` while DocumentVersion declares `user_id`. See
-docs/data-model.md for the full comparison. `owner_id` at L8 is optional with a
+docs/data-model.md for the full comparison. `owner_id` at L66 is optional with a
 default of `None`, so a document validates with no owner recorded, while ownership
-decides access at app/services/document_service.py:L177, :L52 and :L72.
+decides access at app/services/document_service.py:L175, :L241 and :L280.
 
-`Document(**doc_data)` at app/services/document_service.py:L123 raises a Pydantic
+`Document(**doc_data)` at app/services/document_service.py:L121 raises a Pydantic
 validation error on two missing required fields.
-app/services/document_service.py:L117-L119 assembles `doc_data` from `title`,
+app/services/document_service.py:L115-L117 assembles `doc_data` from `title`,
 `content`, `owner_id`, `user_id` and `id`, and writes neither `created_at` nor
-`updated_at`, which L19 and L20 declare as required.
+`updated_at`, which L111 and L112 declare as required.
 
-app/api/documents.py:L187, :L34 and :L43 read `.user_id` on a value of the
+app/api/documents.py:L184, :L232 and :L279 read `.user_id` on a value of the
 `Document` type. The model never declares `user_id`, so the attribute access
 fails.
 
-No field carries a length bound. `title` and `content` at L6 and L7, and the two
-DocumentUpdate fields at L14 and L15, all carry bare `str` or `Optional[str]`
+No field carries a length bound. `title` and `content` at L64 and L65, and the two
+DocumentUpdate fields at L93 and L94, all carry bare `str` or `Optional[str]`
 annotations with no `min_length` and no `max_length`, and no model declares a
 `@validator`. No route and no committed middleware caps the request body size, so
 an authenticated caller can submit an arbitrarily large `title` or `content`.
 
-Line locators: every `Lnn` reference below numbers the tree at commit
-06be74c7c88aa6bca652d465eaa00ad480a9e5c5, the frozen revision that precedes this
-documentation pass. A bare `Lnn` points into this file, and a `path:Lnn` points into
-the named file. Current HEAD numbers each documented file higher.
+Every `Lnn` reference below points at the current layout of the file it names. A
+bare `Lnn` points into this file, and a `path:Lnn` points into the named file.
 """
 from pydantic import BaseModel
 from typing import List, Optional

@@ -42,8 +42,8 @@ import { selectCurrentUser } from '@/store/userSlice';
  * @remarks
  * Two incompatible template shapes exist in the frontend, and this is the narrower one. The
  * interface below declares `id`, `name`, `description` and `thumbnail` at L62-L65.
- * `TemplateSchema` at `frontend/src/schema/template.ts:L32-L37` requires `id`, `name`, `content`,
- * `owner_id`, `created_at` and `updated_at`, and `:L41` exports the inferred `Template` type.
+ * `TemplateSchema` at `frontend/src/schema/template.ts:L31-L36` requires `id`, `name`, `content`,
+ * `owner_id`, `created_at` and `updated_at`, and `:L169` exports the inferred `Template` type.
  *
  * Only `id` and `name` appear in both. `description` and `thumbnail` exist here alone, so no
  * server contract models either field. `content`, `owner_id`, `created_at` and `updated_at`
@@ -54,7 +54,7 @@ import { selectCurrentUser } from '@/store/userSlice';
  * `parse` and no `safeParse`. Nothing validates the array L143 stores, so a response of any shape
  * is rendered as written.
  *
- * The backend declares no template contract at all. `backend/app/api/templates.py:L75` imports
+ * The backend declares no template contract at all. `backend/app/api/templates.py:L70` imports
  * `Template`, `TemplateCreate` and `TemplateUpdate` from `app.schema.template`, and that module
  * does not exist, so no Pydantic model states which fields a template carries.
  */
@@ -104,17 +104,17 @@ interface Template {
  * registers `POST /`, `GET /`, `GET /{template_id}`, `PUT /{template_id}` and
  * `DELETE /{template_id}`. `backend/app/main.py:L126` mounts the documents router before `:L128`
  * mounts the templates router, both with no prefix. `POST /` and `GET /` repeat the paths that
- * `backend/app/api/documents.py:L56` and `:L114` already claim. `/{template_id}` compiles to the
+ * `backend/app/api/documents.py:L53` and `:L111` already claim. `/{template_id}` compiles to the
  * same single-segment pattern as `/{document_id}`, because the parameter name plays no part in
  * the match. Starlette matches in registration order, so all five template handlers are
  * shadowed.
  *
  * A request to `/templates` is one segment. That path would dispatch to `GET /{document_id}` at
- * `backend/app/api/documents.py:L148` with `document_id` bound to the literal string
+ * `backend/app/api/documents.py:L145` with `document_id` bound to the literal string
  * `templates`, and reach the document get-one handler rather than any template route.
  *
- * `App.tsx:L49` renders `Header` and `App.tsx:L58` renders `Footer` around every route, so L171
- * and L192 here add a second header and a second footer.
+ * `App.tsx:L49` renders `Header` and `App.tsx:L58` renders `Footer` around every route, so
+ * `Templates.tsx:L171` and `:L192` here add a second header and a second footer.
  *
  * Both styling conventions appear in this one file. L170 uses the bespoke name `templates-page`,
  * L172, L173, L174, L184, L186 and L187 use Tailwind utilities, and L178 combines the bespoke

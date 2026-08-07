@@ -8,7 +8,7 @@
  * path, no request body and no response shape therefore exists anywhere in the repository for
  * the save the form appears to perform. The page defines no `fetch` call, no `axios` call and no
  * other outbound request of its own either, so the whole save path stops at an unresolved
- * import. The backend does register `PUT /me` at `backend/app/api/users.py:L53`, and no line
+ * import. The backend does register `PUT /me` at `backend/app/api/users.py:L50`, and no line
  * here targets it.
  *
  * Unresolved imports, every one reported as TS2307 because the `@/` prefix is absent from the

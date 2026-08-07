@@ -15,7 +15,7 @@
  *   from the dev dependencies at `frontend/package.json:L15-L30`. `tsc` raises TS2307 for the
  *   specifier, and both packages would have to be declared before this module compiles.
  * - `applyInlineStyle` and `applyBlockStyle` at L43 both exist, at
- *   `frontend/src/utils/formatting.ts:L31` and `:L16`. The `@remarks` block on `handleKeyCommand`
+ *   `frontend/src/utils/formatting.ts:L31` and `:L61`. The `@remarks` block on `handleKeyCommand`
  *   below reads how L109 and L116 call them.
  * - The `@/` prefix at L43 is absent from the `paths` map at `frontend/tsconfig.json:L10-L16`, which
  *   declares `@components/*`, `@utils/*`, `@styles/*`, `@hooks/*` and `@services/*` only. `tsc`
@@ -27,7 +27,7 @@
  * `Editor.tsx:L21-L24`, and renders `DocumentCanvas` at `Editor.tsx:L238`. The editor a user reaches
  * is therefore the one in `frontend/src/components/DocumentCanvas.tsx`.
  *
- * `Toolbar.tsx:L62` and `:L19` call the same two helpers differently. The `@remarks` block on
+ * `Toolbar.tsx:L62` and `:L67` call the same two helpers differently. The `@remarks` block on
  * `handleKeyCommand` below reads both call sites against the declared signatures, and ./README.md
  * carries this directory's setup notes and repository-wide error figures. The assistance marker
  * below records that `handleKeyCommand` needs review before production use.
@@ -56,8 +56,8 @@ import { applyInlineStyle, applyBlockStyle } from '@/utils/formatting';
  *
  * No `keyBindingFn` is bound, so the switch sees only the commands Draft.js supplies by default.
  *
- * L131-L43 bind `editorState`, `onChange` and `handleKeyCommand`, and bind no `keyBindingFn`, so the
- * switch at L105 sees only the commands Draft.js supplies by default.
+ * L132-L134 bind `editorState`, `onChange` and `handleKeyCommand`, and bind no
+ * `keyBindingFn`, so the switch at L105 sees only the commands Draft.js supplies by default.
  *
  * Accessibility: the rendered `Editor` receives no accessible name, no `aria-label` and no
  * associated label element, so assistive technology announces an unlabelled text box.

@@ -72,16 +72,16 @@ import { serializeDocument, deserializeDocument } from '@/utils/documentUtils';
  *
  * - L116 calls `deserializeDocument` with `currentDocument.content`, a string, which is the type
  *   that signature declares. The helper parses the JavaScript Object Notation (JSON) text at
- *   `documentUtils.ts:L67`, then reaches `DocumentSchema.isValid` at `:L30`. A Zod object schema
+ *   `documentUtils.ts:L67`, then reaches `DocumentSchema.isValid` at `:L73`. A Zod object schema
  *   exposes no `isValid` member, so the property read yields `undefined` and calling it raises a
- *   `TypeError`. `convertFromRaw` at `:L34` never runs, so L117 never replaces the editor state.
+ *   `TypeError`. `convertFromRaw` at `documentUtils.ts:L77` never runs, and L117 is not reached.
  * - L163 calls `serializeDocument` with a `ContentState`, and that signature declares an
  *   `EditorState`. The helper's first statement is `documentUtils.ts:L40`, which calls
  *   `editorState.getCurrentContent()`. A `ContentState` declares no `getCurrentContent` method,
  *   so that property read yields `undefined` and calling it raises a `TypeError` on the helper's
- *   very first line. `convertToRaw` at `:L9`, the `JSON.stringify` at `:L10` and the
- *   `DocumentSchema.isValid` check at `:L13` are all unreachable through this caller, so no
- *   conversion and no stringification happens here at all. L164 never dispatches
+ *   very first line. `convertToRaw` at `documentUtils.ts:L40`, the `JSON.stringify` at
+ *   `documentUtils.ts:L41` and the `DocumentSchema.isValid` check at `documentUtils.ts:L44`
+ *   are all unreachable, so no conversion happens here at all. L164 never dispatches
  *   `updateDocument`, so no per-keystroke write reaches the store.
  *
  * The type error at L163 is therefore the cause of that second failure rather than a latent defect
@@ -131,11 +131,11 @@ const DocumentCanvas: React.FC = () => {
    * helper's first statement, at `documentUtils.ts:L40`, calls `editorState.getCurrentContent()` on
    * the value it received. A `ContentState` declares no `getCurrentContent` method, so the
    * property read yields `undefined` and calling it raises a `TypeError` immediately. Nothing
-   * downstream of that line executes: `convertToRaw` at `:L9`, the `JSON.stringify` at `:L10`, the
-   * `DocumentSchema.isValid` read at `:L13` and the `throw` at `:L14` are all unreachable through
-   * this caller. The dispatch at L164 never runs either, so the handler writes nothing to the Redux
-   * store. The local editor state set at L162 survives, so typing appears to work while nothing is
-   * ever persisted.
+   * downstream of it runs: `convertToRaw` at `documentUtils.ts:L40`, the `JSON.stringify` at
+   * `documentUtils.ts:L41`, the `DocumentSchema.isValid` read at `documentUtils.ts:L44` and the
+   * `throw` at `documentUtils.ts:L45` are all unreachable through this caller. The dispatch at
+   * L164 never runs either, so the handler writes nothing to the Redux store. The local editor
+   * state set at L162 survives, so typing appears to work while nothing is ever persisted.
    *
    * L172 binds this handler to the editor's `onChange`, so the failing call is made on every
    * keystroke. No serialization cost is paid, because the helper raises before it converts or

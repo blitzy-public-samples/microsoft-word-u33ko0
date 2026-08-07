@@ -7,8 +7,8 @@ failure a backend run hits.
 Dependency limitation. The repository commits no backend dependency manifest.
 No `requirements.txt`, `pyproject.toml`, `setup.py`, `setup.cfg`, `Pipfile`,
 `tox.ini` or `.python-version` is tracked, so nothing records which Pydantic
-release the L1 import resolves against and nothing excludes a vulnerable one.
-The `BaseSettings` import at L1 requires Pydantic 1.x, while Pydantic 2.x is
+release the L48 import resolves against and nothing excludes a vulnerable one.
+The `BaseSettings` import at L48 requires Pydantic 1.x, while Pydantic 2.x is
 the current major release, so a resolver that takes the newest version breaks
 this module. Reviewed secure floor for the pinned major: Pydantic 1.10.13 or
 later, because releases below it carry the regular-expression denial-of-service
@@ -30,9 +30,9 @@ committed Compose deployment start.
 Six further settings are read at runtime and declared by no field below, so each
 raises `AttributeError` at the point of the read even on a fully supplied
 environment. The six are `ALLOWED_ORIGINS` at `app/main.py:L118`, `PROJECT_ID` at
-`app/services/collaboration_service.py:L120`, `:L21`, `:L50` and `:L60`,
-`STORAGE_BUCKET_NAME` at `app/services/export_service.py:L154` and `:L35`,
-`SIGNED_URL_EXPIRATION` at `app/services/export_service.py:L162` and `:L43`,
+`app/services/collaboration_service.py:L120`, `:L121`, `:L209` and `:L245`,
+`STORAGE_BUCKET_NAME` at `app/services/export_service.py:L154` and `:L228`,
+`SIGNED_URL_EXPIRATION` at `app/services/export_service.py:L162` and `:L236`,
 `EXPORT_BUCKET_NAME` at `app/tasks/background_tasks.py:L141`, and
 `DOCUMENT_BUCKET_NAME` at `app/tasks/background_tasks.py:L278`. Fifteen settings
 are therefore in play: nine declared here and six read but never declared.
@@ -64,12 +64,12 @@ class Settings(BaseSettings):
     confirmed by constructing the model directly:
 
     - `SECRET_KEY` accepts the empty string and any short or low-entropy value,
-      and `app/core/security.py:L81` and `app/api/auth.py:L240` both sign with
+      and `app/core/security.py:L79` and `app/api/auth.py:L237` both sign with
       whatever the field holds. The consequence depends on which algorithm
       `ALGORITHM` names. Under a symmetric algorithm such as HS256, this one
       value both signs and verifies, so a guessable key lets an attacker forge
-      a JSON Web Token that `app/core/security.py:L181` and
-      `app/api/auth.py:L158` accept. Under an asymmetric algorithm such as
+      a JSON Web Token that `app/core/security.py:L179` and
+      `app/api/auth.py:L155` accept. Under an asymmetric algorithm such as
       RS256, the two signing sites need a private key here while the two
       verifying sites need a public key, so a short value forges nothing and
       the operation fails instead. One field serves both roles, and nothing
