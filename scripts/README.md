@@ -47,7 +47,7 @@ deploy files that do not exist.
 `setup_dev_environment.sh` overlaps `infrastructure/docker/docker-compose.yml` as a second route to a PostgreSQL database, and the two disagree on the name. The
 script creates database `msword_clone` (`setup_dev_environment.sh:L31`) and role `msword_user` (`:L32`), while Compose creates `wordapp`
 (`infrastructure/docker/docker-compose.yml:L33`) under role `postgres` (`:L34`). Both set the same literal password, `password` (`setup_dev_environment.sh:L32`,
-`docker-compose.yml:L35`), so the name and role diverge while the credential does not. `backend/app/core/config.py:L118` requires `DATABASE_URL` with no
+`docker-compose.yml:L35`), so the name and role diverge while the credential does not. `backend/app/core/config.py:L47` requires `DATABASE_URL` with no
 default, and nothing reconciles the two names. For the layer map, see [`../docs/architecture-overview.md`](../docs/architecture-overview.md).
 
 ## Dependencies
@@ -89,29 +89,32 @@ prerequisite and `setup_dev_environment.sh:L10` omits it, and the same line omit
 
 | Value | Read or written at | Status |
 | --- | --- | --- |
-| `GOOGLE_APPLICATION_CREDENTIALS` | Guarded at `deploy.sh:L4` | DECLARED, AND NOT SUFFICIENT. `backend/app/core/config.py:L117` declares it as `Optional[str]`. The variable configures Application Default Credentials for client libraries, not the `gcloud` CLI, and the script runs no `gcloud auth activate-service-account` |
-| `DATABASE_URL` | Set by neither script | READ ELSEWHERE, NEVER SET HERE. `backend/app/core/config.py:L118` requires it |
-| `.env` | Written at `setup_dev_environment.sh:L40` | ASSUMED ONLY, AND NOT NECESSARILY THE FILE THE BACKEND READS. Copied from an absent source. `backend/app/core/config.py:L123` names `.env` as a relative path, so it resolves against the working directory of the process that builds `Settings`, not against the directory this script wrote into |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Guarded at `deploy.sh:L4` | DECLARED, AND NOT SUFFICIENT. `backend/app/core/config.py:L46` declares it as `Optional[str]`. The variable configures Application Default Credentials for client libraries, not the `gcloud` CLI, and the script runs no `gcloud auth activate-service-account` |
+| `DATABASE_URL` | Set by neither script | READ ELSEWHERE, NEVER SET HERE. `backend/app/core/config.py:L47` requires it |
+| `.env` | Written at `setup_dev_environment.sh:L40` | ASSUMED ONLY, AND NOT NECESSARILY THE FILE THE BACKEND READS. Copied from an absent source. `backend/app/core/config.py:L58` names `.env` as a relative path, so it resolves against the working directory of the process that builds `Settings`, not against the directory this script wrote into |
 | `my-word-app-bucket`, `my-word-app-db`, `my-word-app-backend` | `deploy.sh:L23`, `:L31`, `:L35` | HARD-CODED. `infrastructure/terraform/main.tf:L51` declares a different bucket, `word-documents-${var.project_id}` |
 | `--user=root` | `deploy.sh:L31` | HARD-CODED, AND UNPROVISIONED. Neither provisioning path creates a `root` role: `setup_dev_environment.sh:L32` creates `msword_user` and `infrastructure/docker/docker-compose.yml:L34` creates `postgres` |
 | Database `msword_clone` and role `msword_user` | `setup_dev_environment.sh:L31-L36` | HARD-CODED. Compose names `wordapp` under `postgres` at `infrastructure/docker/docker-compose.yml:L33-L34` |
 | Password `password` | `setup_dev_environment.sh:L32` | HARD-CODED literal, embedded in the script |
 | Role encoding, isolation, timezone | `setup_dev_environment.sh:L33-L35` | HARD-CODED as `utf8`, `read committed` and `UTC` |
 
-Neither script parses a configuration file itself, and neither accepts an argument or a flag. The commands they launch do read configuration: `npm` reads
-`package.json` (`setup_dev_environment.sh:L20`, `deploy.sh:L11`), `pip` reads `requirements.txt` (`setup_dev_environment.sh:L26`), `gcloud app deploy` reads
-`app.yaml` (`deploy.sh:L27`), `gcloud sql connect` reads `db_migrations.sql` on standard input (`:L31`), and `cp` reads the `.env.example` template
-(`setup_dev_environment.sh:L40`). Only `frontend/package.json` is tracked. `requirements.txt`, `app.yaml`, `db_migrations.sql`, `.env.example` and a root
+Neither script parses a configuration file itself, and neither accepts an argument or a flag. The commands they launch do read configuration.
+`npm` reads `package.json` (`setup_dev_environment.sh:L20`, `deploy.sh:L11`), `pip` reads `requirements.txt` (`setup_dev_environment.sh:L26`),
+and `gcloud app deploy` reads `app.yaml` (`deploy.sh:L27`). `gcloud sql connect` reads `db_migrations.sql` on standard input (`:L31`), and `cp`
+reads the `.env.example` template (`setup_dev_environment.sh:L40`).
+
+Only `frontend/package.json` is tracked. `requirements.txt`, `app.yaml`, `db_migrations.sql`, `.env.example` and a root
 `package.json` are all absent, so the Internal table above records each one.
 
 ## Data Flows
 
-A deployment run reads one environment variable and then executes eight stages in fixed line order, from `deploy.sh:L4` to `deploy.sh:L47`. Four of the eight
-fail deterministically against the committed repository, at `:L11`, `:L15`, `:L27` and `:L31`, because each names a file the tree does not track. One succeeds,
-the archive at `:L19`. One performs no work, because `:L40-L44` are comments. The outcomes of the two remaining cloud stages, `gsutil cp` at `:L23` and
-`backend-services update` at `:L35`, are not established by anything in this repository. Each depends on the ambient `gcloud` identity and on a resource no
-committed file provisions. No stage checks the exit status of the one before it, so a failure at `:L11` still reaches the upload at `:L23` and the deploy at
-`:L27`.
+A deployment run reads one environment variable and then executes eight stages in fixed line order, from `deploy.sh:L4` to `deploy.sh:L47`. Four of the
+eight fail deterministically against the committed repository, at `:L11`, `:L15`, `:L27` and `:L31`, because each names a file the tree does not track. One
+succeeds, the archive at `:L19`. One performs no work, because `:L40-L44` are comments.
+
+The outcomes of the two remaining cloud stages, `gsutil cp` at `:L23` and `backend-services update` at `:L35`, are not established by anything in this
+repository. Each depends on the ambient `gcloud` identity and on a resource no committed file provisions. No stage checks the exit status of the one before
+it, so a failure at `:L11` still reaches the upload at `:L23` and the deploy at `:L27`.
 
 ```mermaid
 flowchart TD
@@ -179,11 +182,13 @@ Every entry below cites the line that establishes it.
   installed frontend packages, no `.env` and no migrations.
 - `setup_dev_environment.sh:L26` runs `pip install -r requirements.txt` and fails, because no Python manifest is tracked. No `requirements.txt`,
   `pyproject.toml`, `setup.py`, `setup.cfg`, `Pipfile` or `tox.ini` exists anywhere in the repository.
-- `setup_dev_environment.sh:L40` runs `cp .env.example .env` and fails, because `.env.example` does not exist. `backend/app/core/config.py:L121-L124` points
+- `setup_dev_environment.sh:L40` runs `cp .env.example .env` and fails, because `.env.example` does not exist. `backend/app/core/config.py:L50-L59` points
   `env_file` at that absent `.env`, and repairing the copy would not connect the two. The script changes no directory, so the copy lands where the operator
-  invoked it, the repository root that `README.md:L29-L30` establishes. `config.py:L123` names `.env` relatively, so a relative `env_file` resolves against the
-  working directory of the process that builds `Settings`, not the directory holding the module. The documented start at `README.md:L54-L55` runs `cd backend`
-  first, so that process reads `backend/.env`, a different file from the root copy. Supplying only the root one leaves every setting unresolved.
+  invoked it, the repository root that `README.md:L29-L30` establishes. `config.py:L58` names `.env` relatively, so a relative `env_file` resolves against
+  the working directory of the process that builds `Settings`, not the directory holding the module.
+
+- The documented start at `README.md:L54-L55` runs `cd backend` first, so that process reads `backend/.env`, a different file from the root copy. Supplying
+  only the root one leaves every setting unresolved.
 - See the HUMAN ASSISTANCE NEEDED marker at `setup_dev_environment.sh:L41` and the TODO below it at `:L42`: the environment file still needs production values,
   which the L40 copy cannot supply.
 - `setup_dev_environment.sh:L47` and `:L48` run `manage.py makemigrations` and `manage.py migrate`. Both are Django commands in a FastAPI project that imports
@@ -191,7 +196,7 @@ Every entry below cites the line that establishes it.
 - `setup_dev_environment.sh:L55` prints `python manage.py runserver`, naming Django's server in a FastAPI project. The front-door alternative does not work
   either. `README.md:L54-L55` gives `cd backend` then `uvicorn main:app --reload`, and `backend/` holds no `main.py`: the application object lives at
   `backend/app/main.py`, so the target would have to be `app.main:app`. Correcting it still starts no server, because `import app.main` raises at
-  `backend/app/api/auth.py:L81` with `cannot import name 'settings' from 'app.core.config'`. Both printed instructions are non-working.
+  `backend/app/api/auth.py:L19` with `cannot import name 'settings' from 'app.core.config'`. Both printed instructions are non-working.
 - `setup_dev_environment.sh:L32` embeds the literal password `password` in the script.
 - `setup_dev_environment.sh:L5` and `:L6` mutate the host with `sudo apt-get update` and `upgrade -y`, which restricts the script to Debian-family Linux.
 - `setup_dev_environment.sh` holds no idempotency guard. A second run repeats the `CREATE DATABASE` at `:L31` and the `CREATE USER` at `:L32`, and PostgreSQL
@@ -212,14 +217,13 @@ For the consolidated defect register, see [`../docs/troubleshooting.md`](../docs
 
 ## Usage Examples
 
-**Read this before running anything below.** Both scripts change state outside the repository and
-neither is idempotent. `setup_dev_environment.sh:L5-L6` upgrades every package on the host, and its
-`CREATE DATABASE` at `:L31` and `CREATE USER` at `:L32` fail on a second run. `deploy.sh` publishes to
-App Engine at `:L27`, pipes a migration into Cloud SQL at `:L31` and enables Cloud CDN at `:L35`, all
-under whatever identity the ambient `gcloud` configuration holds. Neither script sets `set -e`, so a
-failed stage does not stop the run. Treat the first two blocks below as inspection material: run them
-only on a disposable virtual machine, against a non-production project, after confirming the active
-identity with `gcloud config list account` and `gcloud config get-value project`.
+**Read this before running anything below.** Both scripts change state outside the repository and neither is idempotent. `setup_dev_environment.sh:L5-L6`
+upgrades every package on the host, and its `CREATE DATABASE` at `:L31` and `CREATE USER` at `:L32` fail on a second run. `deploy.sh` publishes to App
+Engine at `:L27`, pipes a migration into Cloud SQL at `:L31` and enables Cloud CDN at `:L35`, all under whatever identity the ambient `gcloud`
+configuration holds. Neither script sets `set -e`, so a failed stage does not stop the run.
+
+Treat the first two blocks below as inspection material: run them only on a disposable virtual machine, against a non-production project, after confirming
+the active identity with `gcloud config list account` and `gcloud config get-value project`.
 
 Provision a development machine, on a disposable Debian-family host only:
 
@@ -254,4 +258,5 @@ gcloud config set project <project-id>
 
 The first cloud command (`gsutil cp` at `:L23`) then carries an identity, and whether it succeeds depends on whether that identity can write to a bucket this
 repository does not create. Running `deploy.sh` with the variable unset instead
-exercises the one working check: the guard prints the error at `deploy.sh:L5` and exits 1 at `:L6`, which is the only stage-level failure either script detects.
+exercises the one working check. The guard prints the error at `deploy.sh:L5` and exits 1 at `:L6`, and that is the only stage-level failure either
+script detects.

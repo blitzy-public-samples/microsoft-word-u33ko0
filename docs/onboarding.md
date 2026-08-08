@@ -64,11 +64,15 @@ because every gap in this guide lands against one of them.
 - **Document lifecycle.** Create, read, update and delete, abbreviated CRUD, across five HTTP
   handlers and four service methods.
 - **Ownership-based authorization.** Of the fourteen handlers, twelve declare bearer authentication
-  and two are public. Only three of the twelve, the document read, update and delete paths, attempt
-  an owner check, and current call defects stop all three. No template object authorization exists.
-  The nine protected handlers without an owner check are document create and list, both profile
-  handlers and all five template handlers, so a valid token alone decides access on each.
-  [troubleshooting.md](troubleshooting.md#g91-the-backend-http-surface) carries the locators.
+  and two are public. Three of the twelve attempt an owner check, on the document read, update and
+  delete paths, and current call defects stop all three. The other nine perform none, and that
+  absence means three different things, registered with locators in
+  [troubleshooting.md](troubleshooting.md#g91-the-backend-http-surface).
+
+- Three are self-scoped: both profile handlers read the token's own subject at
+  `backend/app/api/users.py:L20` and `:L33`, and document create writes under the caller at
+  `backend/app/api/documents.py:L46`. The scope of the remaining six, the document list handler and
+  the five template handlers, cannot be established, because each calls something no file defines.
 - **Rich-text editing.** Draft.js holds the editor state, and two helpers apply inline and block
   formatting.
 - **Templates.** Five handlers and a card gallery on the client.
@@ -88,10 +92,12 @@ tiers they form. Read it next if you want the shape of the system before its set
 the repository rather than a preference. `scripts/setup_dev_environment.sh:L10` installs packages
 through `apt-get`, which ties the only committed setup script to Debian or Ubuntu, and both images
 build on Linux bases at `infrastructure/docker/backend.Dockerfile:L2` and
-`infrastructure/docker/frontend.Dockerfile:L2`. No committed file targets Windows. On Windows, run
-everything inside Windows Subsystem for Linux (WSL) to use the commands unchanged, or substitute the
-two PowerShell equivalents named in [the backend setup section](#setting-up-the-backend). The
-frontend commands need no substitution, because `npm` and `npx` take the same form on every platform.
+`infrastructure/docker/frontend.Dockerfile:L2`.
+
+No committed file targets Windows. On Windows, run everything inside Windows Subsystem for Linux
+(WSL) to use the commands unchanged, or substitute the two PowerShell equivalents named in [the
+backend setup section](#setting-up-the-backend). The frontend commands need no substitution, because
+`npm` and `npx` take the same form on every platform.
 
 Four tools carry a declared version, and each version comes from a committed file. Each also carries a
 conflict worth knowing before you install anything. Two more tools are needed and declared nowhere:
@@ -103,17 +109,19 @@ Git, to obtain the code, and `zip`, which `scripts/deploy.sh:L19` calls and
 | Python | 3.9 | `infrastructure/docker/backend.Dockerfile:L2` pins `python:3.9-slim` | Declared three ways and enforced nowhere. `../README.md:L23` asks for 3.8 or later, and `scripts/setup_dev_environment.sh:L10` installs unpinned `apt-get` packages. No `.python-version` and no dependency manifest exists. 3.9 is also below the floor the current `google-cloud-firestore` release sets, covered below the table |
 | Node.js | 14 | `.github/workflows/ci.yml:L17` sets `node-version: '14'`, and `infrastructure/docker/frontend.Dockerfile:L2` pins `node:14-alpine` | Declared three ways and enforced nowhere. `../README.md:L22` asks for 14 or later. `frontend/package.json` declares no `engines` field, and no `.nvmrc` exists |
 | PostgreSQL | 13 | `infrastructure/docker/docker-compose.yml:L31` pins `postgres:13` | The database and user Compose provisions disagree with the ones `scripts/setup_dev_environment.sh:L31-L32` creates. [../infrastructure/docker/README.md](../infrastructure/docker/README.md) owns this citation |
-| Google Cloud SDK | Latest release from Google's own installer | `../README.md:L24` names the SDK and no version | The declaration pins nothing, and no pin is needed. The SDK is a host tool that ships its own bundled Python, so it takes no part in the resolution below. `backend/app/db/firestore.py:L40` constructs a Firestore client at import time, so Application Default Credentials, usually shortened to ADC, must already resolve before the module loads |
+| Google Cloud SDK | Latest release from Google's own installer | `../README.md:L24` names the SDK and no version | The declaration pins nothing, and no pin is needed. The SDK is a host tool that ships its own bundled Python, so it takes no part in the resolution below. `backend/app/db/firestore.py:L20` constructs a Firestore client at import time, so Application Default Credentials, usually shortened to ADC, must already resolve before the module loads |
 
 **All three declared runtimes have passed end of life, often written EOL.** Python 3.9 ended support
 on 31 October 2025, with 3.9.25 as its final security release ([Python release
 cycle](https://devguide.python.org/versions/)). Node 14 ended support on 30 April 2023 ([Node.js
 previous releases](https://nodejs.org/en/about/previous-releases)). PostgreSQL 13 ended support on
 13 November 2025, with 13.23 as its final release ([versioning
-policy](https://www.postgresql.org/support/versioning/)). None of the
-three receives security patches as of 6 August 2026, so a machine built to these declarations runs
-unsupported software at every layer. Verification for this documentation set used Python 3.9 and Node
-14 anyway, because they are the highest versions the repository documents anywhere.
+policy](https://www.postgresql.org/support/versioning/)).
+
+None of the three receives security patches as of 6 August 2026, so a machine built to these
+declarations runs unsupported software at every layer. Verification for this documentation set used
+Python 3.9 and Node 14 anyway, because they are the highest versions the repository documents
+anywhere.
 
 That end-of-life status changes how you install two of the four tools. A current distribution's own
 repositories no longer carry Python 3.9 or Node 14, so install each through its version manager and
@@ -182,7 +190,7 @@ later date would install a different and possibly incompatible set. Adding the r
 committed manifest fell outside this engagement, so the pins live in this document only.
 
 Choosing a newer runtime changes which failures you meet rather than removing them. Current Pydantic
-breaks `backend/app/core/config.py:L48` on the first import, and
+breaks `backend/app/core/config.py:L17` on the first import, and
 [the backend setup section](#setting-up-the-backend) records why.
 
 Python 3.9 also conflicts with a package the backend imports. Google's Python client libraries
@@ -190,7 +198,7 @@ support only the interpreter versions in active or maintenance support, and the 
 `google-cloud-firestore` release requires Python 3.10 or newer. A 3.9 interpreter therefore resolves
 `pip install google-cloud-firestore` to an older release rather than failing outright, so the
 environment pins an unmaintained client without saying so.
-`backend/app/db/firestore.py:L34` and `backend/app/services/document_service.py:L57` both import from
+`backend/app/db/firestore.py:L14` and `backend/app/services/document_service.py:L14` both import from
 it. [../backend/app/README.md](../backend/app/README.md) states the boundary as a release whose
 `Requires-Python` accepts the interpreter in use, for exactly this reason.
 
@@ -218,19 +226,19 @@ environment to build on.
 
 Three consequences follow, and each one shapes how the next two sections should be read.
 
-- **An unpinned install resolves whatever is current.** Where a table below says a version constraint
-  is unestablished, read that as a gap in the repository. The gap is not a recommendation to accept
-  any release. Published advisories affect several of the packages this code imports. `python-jose`
-  through 3.3.0 carries [CVE-2024-33663](https://github.com/advisories/GHSA-6c5p-j8vq-pqhj), an
-  algorithm confusion weakness with OpenSSH ECDSA and other key formats, fixed in 3.4.0. That advisory
-  lands directly on this code.
-  `backend/app/core/config.py:L115` declares `ALGORITHM: str` with no allowed-value check, and
-  `backend/app/core/security.py:L79` passes the value straight through to `jwt.encode`. Pydantic 1.x,
-  `python-multipart` and `celery` each carry published advisories of their own across their release
-  histories. None of the four can be assessed here, because no version is pinned.
+- **An unpinned install resolves whatever is current.** Where a table below says a version
+  constraint is unestablished, read that as a gap in the repository rather than as a recommendation
+  to accept any release. Published advisories affect several of the packages this code imports, and
+  [the dated register](troubleshooting.md#the-dated-dependency-and-advisory-register) is the one
+  place that lists them with their fix versions and their runtime constraints.
+
+- Two facts from that register matter before you install anything. A patched `python-jose` installs
+  on Python 3.9, so the algorithm confusion and JWE decode advisories fixed in 3.4.0 are avoidable
+  by choosing a version. A fully patched `python-multipart` does not, because every release carrying
+  the seven later fixes requires Python 3.10 or newer.
 - **A newer runtime is not automatically safer.** Current releases of FastAPI and of the Google Cloud
   client libraries have moved their supported Python range past 3.9. Meanwhile
-  `backend/app/core/config.py:L48` requires Pydantic 1.x. The repository therefore pins no runtime and
+  `backend/app/core/config.py:L17` requires Pydantic 1.x. The repository therefore pins no runtime and
   no library set that is simultaneously supported and compatible, and no combination in this guide has
   been verified as both.
 - **Nothing here should be used to build a deployable image.** The dependency defects are one class
@@ -282,12 +290,12 @@ The command reports **76 errors** and emits nothing, because `frontend/tsconfig.
 | Code | Count | Meaning | Concentrated in |
 | ------ | ------- | --------- | ----------------- |
 | `TS2307` | 57 | Cannot find module | 44 from the unmapped `@/` prefix, 13 from the five undeclared packages |
-| `TS2305` | 6 | Module has no exported member | 5 from the absent `Document` type family, 1 from `Switch` at `frontend/src/App.tsx:L15` |
+| `TS2305` | 6 | Module has no exported member | 5 from the absent `Document` type family, 1 from `Switch` at `frontend/src/App.tsx:L12` |
 | `TS7006` | 5 | Parameter implicitly has an `any` type | Four sites in `frontend/src/services/api.ts`, one in `frontend/src/pages/Editor.tsx` |
-| `TS2322` | 4 | Type not assignable | The four `Route` elements at `frontend/src/App.tsx:L52-L55`, which pass the router version 5 `component` prop |
-| `TS2614` | 2 | No exported member, import form mismatch | `frontend/src/store/index.ts:L21` and `:L22` |
-| `TS2552` | 1 | Cannot find name | `frontend/src/services/api.ts:L142`, an undefined `store` |
-| `TS2339` | 1 | Property does not exist on type | `frontend/src/services/api.ts:L142`, reading `.auth` off the store state |
+| `TS2322` | 4 | Type not assignable | The four `Route` elements at `frontend/src/App.tsx:L41-L44`, which pass the router version 5 `component` prop |
+| `TS2614` | 2 | No exported member, import form mismatch | `frontend/src/store/index.ts:L15` and `:L16` |
+| `TS2552` | 1 | Cannot find name | `frontend/src/services/api.ts:L40`, an undefined `store` |
+| `TS2339` | 1 | Property does not exist on type | `frontend/src/services/api.ts:L40`, reading `.auth` off the store state |
 
 [../frontend/src/README.md](../frontend/src/README.md) owns this profile.
 
@@ -300,10 +308,10 @@ findable by grep and reported by the type-checker.
 
 | Undeclared package | Where the code imports it |
 | -------------------- | --------------------------- |
-| `draft-js` | Six modules, including `frontend/src/utils/formatting.ts:L13` and `frontend/src/components/DocumentCanvas.tsx:L21` |
-| `zod` | Four modules: the three under `frontend/src/schema/`, for example `frontend/src/schema/document.ts:L43`, plus `frontend/src/utils/validation.ts:L13` |
-| `axios` | `frontend/src/services/api.ts:L78` and `frontend/src/services/auth.ts:L68` |
-| `socket.io-client` | `frontend/src/services/collaboration.ts:L13` |
+| `draft-js` | Six modules, including `frontend/src/utils/formatting.ts:L14` and `frontend/src/components/DocumentCanvas.tsx:L15` |
+| `zod` | Four modules: the three under `frontend/src/schema/`, for example `frontend/src/schema/document.ts:L13`, plus `frontend/src/utils/validation.ts:L13` |
+| `axios` | `frontend/src/services/api.ts:L17` and `frontend/src/services/auth.ts:L16` |
+| `socket.io-client` | `frontend/src/services/collaboration.ts:L15` |
 
 The fifth is a **required type package with no direct import**. `@types/draft-js` appears in zero
 import statements anywhere in `frontend/src/`, and the six `draft-js` importers need it to typecheck
@@ -323,26 +331,33 @@ The absent lock file is the defect here, not a preference. A lock file records t
 version and an integrity hash for every package in the tree, which is what makes an install
 reproducible and auditable. Committing a reviewed one is the fix, and it is required future work
 rather than something this documentation engagement performs, because adding a dependency artifact
-falls outside a documentation change. Two points follow for the file you just generated. The lock
-file a single unreviewed `npm install` produces is a record of one machine on one day, so it is not a
-substitute for the reviewed artifact the repository needs. Discarding it silently is not the answer
-either, and this guide does not ask you to. If you generated it while following these steps, take one
-of two deliberate routes. Carry it into the review that adds a manifest, or remove it and record why.
-`frontend/node_modules/` is build output and belongs in an ignore rule, and no `.gitignore` is tracked
-anywhere in this repository, which
-[troubleshooting.md](troubleshooting.md#g95-secrets-state-and-data-retention) records as entry 33.
+falls outside a documentation change.
+
+Two points follow for the file you just generated. The lock file a single unreviewed `npm install`
+produces is a record of one machine on one day, so it is not a substitute for the reviewed artifact
+the repository needs. Discarding it silently is not the answer either, and this guide does not ask
+you to.
+
+If you generated it while following these steps, take one of two deliberate routes. Carry it into
+the review that adds a manifest, or remove it and record why. `frontend/node_modules/` is build
+output and belongs in an ignore rule, and no `.gitignore` is tracked anywhere in this repository,
+which [troubleshooting.md](troubleshooting.md#g95-secrets-state-and-data-retention) records as entry
+33.
 
 **An unlocked install is neither reproducible nor auditable.** That is a risk rather than an
-inconvenience. `npm install` resolves every declared range and every transitive range to whatever the
-registry serves at that moment. Two installs of this one commit can therefore differ across hundreds
-of packages, and nothing records which resolution either build used. No integrity hash is stored for a
-build either. A published advisory cannot be matched against what a given machine installed, and a
-compromised release inside a transitive range enters the tree unremarked. The generated
-`frontend/package-lock.json` pins your own machine only, because the repository does not track it.
-`frontend/package.json` declares its seven runtime dependencies as ranges rather than exact versions.
-Committing a lockfile changes what the pipeline installs, which makes it a repository change rather
-than a documentation change, so this pass leaves the manifest as it found it.
-[troubleshooting.md](troubleshooting.md#npm-ci-cannot-run-anywhere) carries the entry.
+inconvenience. `npm install` resolves every declared range and every transitive range to whatever
+the registry serves at that moment. Two installs of this one commit can therefore differ across
+hundreds of packages, and nothing records which resolution either build used.
+
+No integrity hash is stored for a build either. A published advisory cannot be matched against what
+a given machine installed, and a compromised release inside a transitive range enters the tree
+unremarked.
+
+The generated `frontend/package-lock.json` pins your own machine only, because the repository does
+not track it. `frontend/package.json` declares its seven runtime dependencies as ranges rather than
+exact versions. Committing a lockfile changes what the pipeline installs, which makes it a
+repository change rather than a documentation change, so this pass leaves the manifest as it found
+it. [troubleshooting.md](troubleshooting.md#npm-ci-cannot-run-anywhere) carries the entry.
 
 Starting the development server fails. `npm start` runs `react-scripts start`, which resolves modules
 through webpack rather than through the `tsconfig` `paths` block, so every `@/` specifier fails there
@@ -379,23 +394,28 @@ all three platforms.
 [../backend/app/README.md](../backend/app/README.md) carries it, and it defines the model every
 count in this documentation set uses. Seventeen distributions from the Python Package Index (PyPI)
 are required: ten named by an `import` statement under `backend/app/`, and seven runtime companions
-that no import names. Thirteen of the seventeen have to be named to a package manager, because
-`starlette`, `ecdsa`, `rsa` and `pyasn1` arrive transitively. The seven companions are why an
-environment built by trial fails once per missing distribution rather than once in total: no import
-statement names them, so nothing reveals them until something breaks at run time. Each row there
-gives the version boundary the code establishes and the code fact that establishes it. Every other
-document in this set, this one included, defers to that table rather than restating a list, so there
-is one list to keep correct. Install from it.
+that no import names.
+
+Thirteen of the seventeen have to be named to a package manager, because `starlette`, `ecdsa`, `rsa`
+and `pyasn1` arrive transitively. The seven companions are why an environment built by trial fails
+once per missing distribution rather than once in total. No import statement names them, so nothing
+reveals them until something breaks at run time.
+
+Each row there gives the version boundary the code establishes and the code fact that establishes
+it. Every other document in this set, this one included, defers to that table rather than restating
+a list, so there is one list to keep correct. Install from it.
 
 Three categories carry the weight there, and knowing them tells you when each package fails. A
-**directly imported** distribution is named by an `import` statement under `backend/app/`, so a
-grep finds it and a resolver reports it by name. A **runtime companion** is needed by the running
-system while no import names it, which covers `uvicorn`, `starlette`, `python-multipart`, `bcrypt`,
-`ecdsa`, `rsa` and `pyasn1`. Four of those seven arrive transitively, and `uvicorn`, `bcrypt` and
-`python-multipart` do not, so those three must be named explicitly. `bcrypt` and
-`python-multipart` block a route rather than a build, and each surfaces at the first login rather
-than at install. A **configuration-selected** distribution is chosen by a configuration value
-rather than by code, and the four of those sit outside the seventeen, in the table below.
+**directly imported** distribution is named by an `import` statement under `backend/app/`, so a grep
+finds it and a resolver reports it by name. A **runtime companion** is needed by the running system
+while no import names it, which covers `uvicorn`, `starlette`, `python-multipart`, `bcrypt`,
+`ecdsa`, `rsa` and `pyasn1`.
+
+Four of those seven arrive transitively, and `uvicorn`, `bcrypt` and `python-multipart` do not, so
+those three must be named explicitly. `bcrypt` and `python-multipart` block a route rather than a
+build, and each surfaces at the first login rather than at install. A **configuration-selected**
+distribution is chosen by a configuration value rather than by code, and the four of those sit
+outside the seventeen, in the table below.
 
 Reading import statements alone therefore builds an incomplete environment. Ten names are visible
 that way and seven are not. Three of those seven still have to be installed by name. The build
@@ -405,7 +425,7 @@ that pattern the progressive dependency-resolution failure and records why impor
 produce a working environment on their own.
 
 `starlette` needs no line in an install command.
-`backend/app/services/collaboration_service.py:L36` imports `WebSocket` and `WebSocketDisconnect`
+`backend/app/services/collaboration_service.py:L15` imports `WebSocket` and `WebSocketDisconnect`
 through FastAPI, which re-exports both from Starlette, so the installer resolves it from `fastapi`.
 The inventory still lists it, as one of the seven runtime companions, and marks it among the four
 that arrive transitively.
@@ -413,15 +433,15 @@ that arrive transitively.
 Four further distributions are chosen by a configuration value rather than by an import or by a
 committed command. The inventory therefore does not count them, and a running environment still needs
 them. No code fact fixes the first three choices, because the value that selects each one is absent
-from the repository. The fourth differs: `Config.env_file` at `backend/app/core/config.py:L123` is
+from the repository. The fourth differs: `Config.env_file` at `backend/app/core/config.py:L58` is
 committed, so that selection is already fixed, and only the file it names is missing.
 
 | Distribution | The value that selects it | When it is needed |
 | --- | --- | --- |
-| A PostgreSQL driver, for example `psycopg2-binary` | The `postgresql://` scheme in `settings.DATABASE_URL`, supplied by `infrastructure/docker/docker-compose.yml:L24` and declared at `backend/app/core/config.py:L118` | `backend/app/db/sql.py:L16` builds an engine at import time, and SQLAlchemy resolves a driver from the scheme in the URL |
-| A Redis client | The `redis://` scheme in `settings.REDIS_URL`, declared at `backend/app/core/config.py:L119` | `backend/app/tasks/background_tasks.py:L98` hands Celery that broker URL, and a worker needs the client to attach. [../backend/app/tasks/README.md](../backend/app/tasks/README.md) records that no dependency manifest declares it |
-| `cryptography` | An RSA or ECDSA name in `settings.ALGORITHM`, declared as a bare `str` at `backend/app/core/config.py:L115` with no allowed-value check | `backend/app/core/security.py:L79` passes the value straight to `jwt.encode`. A symmetric algorithm such as HS256 needs nothing extra |
-| `python-dotenv` | `Config.env_file` at `backend/app/core/config.py:L123`, the one selecting value the repository does commit | Pydantic 1.x reads an `env_file` through `python-dotenv` and requires it as a separate install, either directly or as the `pydantic[dotenv]` extra ([Pydantic 1.10 settings documentation](https://docs.pydantic.dev/1.10/usage/settings/)). That read runs only when the named file is found, so the absent `.env` hides the absent distribution |
+| A PostgreSQL driver, for example `psycopg2-binary` | The `postgresql://` scheme in `settings.DATABASE_URL`, supplied by `infrastructure/docker/docker-compose.yml:L24` and declared at `backend/app/core/config.py:L47` | `backend/app/db/sql.py:L16` builds an engine at import time, and SQLAlchemy resolves a driver from the scheme in the URL |
+| A Redis client | The `redis://` scheme in `settings.REDIS_URL`, declared at `backend/app/core/config.py:L48` | `backend/app/tasks/background_tasks.py:L22` hands Celery that broker URL, and a worker needs the client to attach. [../backend/app/tasks/README.md](../backend/app/tasks/README.md) records that no dependency manifest declares it |
+| `cryptography` | An RSA or ECDSA name in `settings.ALGORITHM`, declared as a bare `str` at `backend/app/core/config.py:L44` with no allowed-value check | `backend/app/core/security.py:L54` passes the value straight to `jwt.encode`. A symmetric algorithm such as HS256 needs nothing extra |
+| `python-dotenv` | `Config.env_file` at `backend/app/core/config.py:L58`, the one selecting value the repository does commit | Pydantic 1.x reads an `env_file` through `python-dotenv` and requires it as a separate install, either directly or as the `pydantic[dotenv]` extra ([Pydantic 1.10 settings documentation](https://docs.pydantic.dev/1.10/usage/settings/)). That read runs only when the named file is found, so the absent `.env` hides the absent distribution |
 
 **Installing every one of them still leaves the backend unable to import.** Dependencies are
 third-party, and all four blockers here are first-party. Those four are the absent `settings`
@@ -431,10 +451,19 @@ error a run reports from `ModuleNotFoundError` to the `ImportError` that
 [the next section](#where-a-run-stops-with-evidence) traces. Nothing else moves, and no package
 install makes this application start.
 
-One command covers the whole set, and it names seventeen packages: the thirteen of the seventeen
-required by the import graph that have to be named, plus the four the table above selects by
-configuration. The four transitive arrivals come with them. The `pydantic` upper bound is the one
-constraint that matters, for the reason the table above gives.
+One command covers the whole set, and it names seventeen packages. Those are the thirteen of the
+seventeen required by the import graph that have to be named, plus the four the table above selects
+by configuration. The four transitive arrivals come with them.
+
+Two constraints bind that command, and the second one has no satisfying answer on this runtime. The
+`pydantic` upper bound is the compatibility constraint, for the reason the table above gives, and
+`>=1.10.13` also clears both Pydantic advisories. `python-multipart` is the other.
+
+Pip resolves the newest release your interpreter accepts, which on Python 3.9 is 0.0.20, and seven of
+the nine advisories against that distribution are fixed only from 0.0.22 onward. Every one of those
+releases requires Python 3.10 or newer, so no `python-multipart` pin closes them while you stay on
+3.9. The [dated register](troubleshooting.md#the-dated-dependency-and-advisory-register) carries the
+version-by-version evidence.
 
 ```bash
 pip install \
@@ -446,39 +475,43 @@ pip install \
 
 `starlette` arrives as a `fastapi` dependency, so those seventeen names cover all seventeen
 distributions the import graph requires as well as the four that configuration selects. The command
-covers the application and nothing else. It installs no test dependency, because pytest appears in
+covers the application and nothing else. That command installs no test dependency, because pytest appears in
 no manifest and in no inventory this documentation set keeps. The
 [Testing subsection](#testing-what-exists-and-why-no-green-run-is-possible) below adds that one name and
 states what it does and does not buy.
 
 Configuration needs a `.env` file the repository does not commit.
-`backend/app/core/config.py:L121-L124` points `Settings` at `.env`, and neither `.env` nor
-`.env.example` exists. None of the nine fields at `backend/app/core/config.py:L111-L119` carries an
+`backend/app/core/config.py:L50-L59` points `Settings` at `.env`, and neither `.env` nor
+`.env.example` exists. None of the nine fields at `backend/app/core/config.py:L40-L48` carries an
 explicit default. Pydantic 1.x treats the two `Optional[str]` fields as defaulting to `None`, which
 leaves seven values mandatory: `PROJECT_NAME`, `API_V1_STR`, `SECRET_KEY`,
 `ACCESS_TOKEN_EXPIRE_MINUTES`, `ALGORITHM`, `DATABASE_URL` and `REDIS_URL`. Supply all seven or
 `Settings()` raises a validation error naming every missing key at once.
 
 A file is not the only way to supply them, and the missing `.env` is therefore not a hard stop.
-`Settings` extends Pydantic's `BaseSettings`, imported at `backend/app/core/config.py:L48` and
-subclassed at `:L51`, which reads each declared field from the process environment and falls back to
-the `env_file` named at `:L123`. That name is relative, so it resolves against the directory the
-process starts in rather than the directory holding the module. Starting the backend the way
-`../README.md:L54-L55` directs, with `cd backend` first, means the file has to be `backend/.env`, and a
-`.env` at the repository root stays invisible to it. `scripts/setup_dev_environment.sh:L40` would write
-the root copy, so the two are not the same file.
-[../scripts/README.md](../scripts/README.md) traces that mismatch. Exporting the seven names in your
-shell sidesteps the question and satisfies the model exactly as a committed `.env` would. A process
-environment variable also takes precedence over a file entry of
+`Settings` extends Pydantic's `BaseSettings`, imported at `backend/app/core/config.py:L17` and
+subclassed at `:L20`, which reads each declared field from the process environment and falls back to
+the `env_file` named at `:L58`. That name is relative, so it resolves against the directory the
+process starts in rather than the directory holding the module.
+
+Starting the backend the way `../README.md:L54-L55` directs, with `cd backend` first, means the file
+has to be `backend/.env`, and a `.env` at the repository root stays invisible to it.
+`scripts/setup_dev_environment.sh:L40` would write the root copy, so the two are not the same file.
+[../scripts/README.md](../scripts/README.md) traces that mismatch.
+
+Exporting the seven names in your shell sidesteps the question and satisfies the model exactly as a
+committed `.env` would. A process environment variable also takes precedence over a file entry of
 the same name. `infrastructure/docker/docker-compose.yml:L24` uses that same mechanism, injecting
 `DATABASE_URL` as an environment variable rather than a file.
 [../infrastructure/docker/README.md](../infrastructure/docker/README.md) carries the full injector
-matrix. Whichever source you pick, the six settings the model never declares stay out of reach.
-Pydantic 1.x populates only the fields the model declares, and ignores an environment variable that
-matches none of them.
+matrix.
+
+Whichever source you pick, the six settings the model never declares stay out of reach. Pydantic 1.x
+populates only the fields the model declares, and ignores an environment variable that matches none
+of them.
 
 Six further settings are read at runtime and declared nowhere, so each raises `AttributeError` at the
-point of the read even on a fully supplied environment: `ALLOWED_ORIGINS`, `PROJECT_ID`,
+point of the read even on a fully supplied environment. The six are `ALLOWED_ORIGINS`, `PROJECT_ID`,
 `STORAGE_BUCKET_NAME`, `SIGNED_URL_EXPIRATION`, `EXPORT_BUCKET_NAME` and `DOCUMENT_BUCKET_NAME`.
 Adding them to `.env` does not help, because `Settings` declares no field to receive them. Fifteen
 settings are in play: nine declared and six read but never declared.
@@ -503,7 +536,7 @@ of staying silent. `backend/tests/` holds three modules and 21 tests, and none o
 the commands below to reproduce the failures yourself, because reproducing them shows exactly what a
 repair has to change.
 
-Start with the runner, because nothing installs it. No committed file declares pytest: there is no
+Start with the runner, because nothing installs it. No committed file declares pytest. There is no
 `requirements.txt`, no `pyproject.toml`, no `pytest.ini`, no `tox.ini` and no `conftest.py`, and
 `.github/workflows/ci.yml` defines a Node job only, with no Python step at all. One committed file does
 invoke pytest, at `scripts/deploy.sh:L15`, and it runs `python -m pytest tests/` against a root-level
@@ -529,7 +562,7 @@ pip install pytest
 python -m pytest backend/tests -q
 ```
 
-Read the second command as a diagnostic rather than a test run. It reports three collection errors and
+Read the second command as a diagnostic rather than a test run. The run reports three collection errors and
 exits non-zero, one error per module, and each names a different import root:
 
 | Module | Stops at | Error |
@@ -541,12 +574,13 @@ exits non-zero, one error per module, and each names a different import root:
 Two blockers sit behind those three errors, and no single `PYTHONPATH` value clears the first. The
 import roots disagree: `app.*` needs `backend/` on the import path, bare `services.*` needs
 `backend/app/`, and `backend.*` needs the repository root. Zero `__init__.py` files exist under
-`backend/`, so every root that does resolve resolves as an implicit namespace package. The second
-blocker is absent targets. Six module names have no file behind them at any root: `app.models` and
-`app.database` (`test_api.py:L4-L5`), `backend.db.firestore_operations` and `backend.db.sql_operations`
-(`test_db.py:L6-L7`), and `models.document` with `models.user` (`test_services.py:L6-L7`). The three
-`services.*` names are the opposite case, because those files do exist at `backend/app/services/`, and
-importing one still stops at the absent `settings` name that
+`backend/`, so every root that does resolve resolves as an implicit namespace package.
+
+The second blocker is absent targets. Six module names have no file behind them at any root:
+`app.models` and `app.database` (`test_api.py:L4-L5`), `backend.db.firestore_operations` and
+`backend.db.sql_operations` (`test_db.py:L6-L7`), and `models.document` with `models.user`
+(`test_services.py:L6-L7`). The three `services.*` names are the opposite case, because those files
+do exist at `backend/app/services/`. Importing one still stops at the absent `settings` name that
 [Where a run stops, with evidence](#where-a-run-stops-with-evidence) traces.
 
 Fixing the roots and creating the six modules would move the failure rather than end it. The suite also
@@ -620,7 +654,7 @@ graph LR
     C -->|"runs"| COK["Succeeds, exit 0<br/>all 18 modules parse"]
 
     D -.->|"stops"| DNO["frontend/tsconfig.json:L10-L16<br/>declares no '@/*' alias, and<br/>webpack ignores the paths block"]
-    E -.->|"stops"| ENO["backend/app/api/auth.py:L81,<br/>reached from main.py:L16<br/>ImportError: cannot import<br/>name 'settings'"]
+    E -.->|"stops"| ENO["backend/app/api/auth.py:L19,<br/>reached from main.py:L16<br/>ImportError: cannot import<br/>name 'settings'"]
     F -.->|"stops"| ENO
     G -.->|"stops"| GNO1["infrastructure/docker/<br/>frontend.Dockerfile:L11<br/>npm ci with no lockfile"]
     G -.->|"stops"| GNO2["infrastructure/docker/<br/>backend.Dockerfile:L8<br/>COPY of an absent requirements.txt"]
@@ -647,18 +681,18 @@ subsections below separate the first hit from what is latent behind it.
 chain has three links:
 
 1. `backend/app/main.py:L16` imports `auth_router` from `app.api.auth`.
-2. `backend/app/api/auth.py:L81` imports `settings` from `app.core.config`.
-3. `backend/app/core/config.py` defines the `Settings` class at `L51` and the `get_settings()`
-   factory at `L126`, and creates no module-level `settings` instance. No `settings =` assignment
+2. `backend/app/api/auth.py:L19` imports `settings` from `app.core.config`.
+3. `backend/app/core/config.py` defines the `Settings` class at `L20` and the `get_settings()`
+   factory at `L61`, and creates no module-level `settings` instance. No `settings =` assignment
    exists at any line in the file.
 
-Eight modules import that absent name: `backend/app/main.py:L20`, `backend/app/api/auth.py:L81`,
-`backend/app/db/firestore.py:L36`, `backend/app/db/sql.py:L14`,
-`backend/app/services/collaboration_service.py:L39`,
-`backend/app/services/document_service.py:L60`, `backend/app/services/export_service.py:L61` and
-`backend/app/tasks/background_tasks.py:L92`. Nine module import failures trace to it, because
+Eight modules import that absent name: `backend/app/main.py:L20`, `backend/app/api/auth.py:L19`,
+`backend/app/db/firestore.py:L16`, `backend/app/db/sql.py:L14`,
+`backend/app/services/collaboration_service.py:L18`,
+`backend/app/services/document_service.py:L17`, `backend/app/services/export_service.py:L16` and
+`backend/app/tasks/background_tasks.py:L16`. Nine module import failures trace to it, because
 `app.api.documents` reaches the same name indirectly through the adapter at
-`backend/app/db/firestore.py:L36`.
+`backend/app/db/firestore.py:L16`.
 
 A census imported each of the 15 modules under `backend/app/` in a fresh interpreter. The census ran
 with third-party packages present and Pydantic pinned to the 1.x line the code requires. Only **3 of
@@ -671,17 +705,17 @@ surfaces only once every row above it is repaired.
 
 | Order | Cause | Locator | What a run reports now |
 | --- | --- | --- | --- |
-| First hit | No module-level `settings` instance | `backend/app/core/config.py`, which defines `Settings` at `L51` and `get_settings()` at `L126` and assigns `settings` at no line | `ImportError: cannot import name 'settings' from 'app.core.config'` |
-| Second | The absent `app.services.user_service` module | `backend/app/api/auth.py:L83` imports `UserService` from it, and `backend/app/api/users.py:L24` imports it too. No file exists at that path | Nothing. `ModuleNotFoundError` surfaces from the same file the row above stops in, before `main.py` evaluates any router name |
+| First hit | No module-level `settings` instance | `backend/app/core/config.py`, which defines `Settings` at `L20` and `get_settings()` at `L61` and assigns `settings` at no line | `ImportError: cannot import name 'settings' from 'app.core.config'` |
+| Second | The absent `app.services.user_service` module | `backend/app/api/auth.py:L21` imports `UserService` from it, and `backend/app/api/users.py:L14` imports it too. No file exists at that path | Nothing. `ModuleNotFoundError` surfaces from the same file the row above stops in, before `main.py` evaluates any router name |
 | Third | Four router names that no module exports | `backend/app/main.py:L16-L19` imports `auth_router`, `documents_router`, `users_router` and `templates_router`, and all four modules export the bare name `router` | Nothing. The four `ImportError`s surface one at a time, because each import line stops `main.py` on its own |
-| Fourth | Two absent template modules | `backend/app/api/templates.py:L70` imports from `app.schema.template` and `:L71` from `app.services.template_service`, and neither file exists | Nothing. Reached when `backend/app/main.py:L19` executes `app.api.templates` |
+| Fourth | Two absent template modules | `backend/app/api/templates.py:L17` imports from `app.schema.template` and `:L18` from `app.services.template_service`, and neither file exists | Nothing. Reached when `backend/app/main.py:L19` executes `app.api.templates` |
 | Fifth | The absent `init_db` symbol | `backend/app/main.py:L22` imports `init_db` from `app.db.sql`, which defines `engine`, `SessionLocal`, `Base` and `get_db` and no `init_db` | Nothing. Reached once all four router imports resolve |
-| Latent, at definition time | Undefined names in a signature, which Python evaluates when it executes the `def` | Registered in [troubleshooting.md](troubleshooting.md#the-verified-import-census) | Nothing, and nothing above clears them. `Optional` at `backend/app/core/security.py:L48` and `User` at `:L117` both sit in signature annotations, so each raises `NameError` while the module is still being evaluated |
-| Latent, at execution time | Undefined names in a function body, which Python evaluates only on a call | Registered in [troubleshooting.md](troubleshooting.md#the-verified-import-census) | Nothing, and nothing above clears them. `UserService` at `backend/app/core/security.py:L186`, `asyncio` and `json` in `backend/app/services/collaboration_service.py`, and `datetime` in `backend/app/tasks/background_tasks.py` |
+| Latent, at definition time | Undefined names in a signature, which Python evaluates when it executes the `def` | Registered in [troubleshooting.md](troubleshooting.md#the-verified-import-census) | Nothing, and nothing above clears them. `Optional` at `backend/app/core/security.py:L25` and `User` at `:L90` both sit in signature annotations, so each raises `NameError` while the module is still being evaluated |
+| Latent, at execution time | Undefined names in a function body, which Python evaluates only on a call | Registered in [troubleshooting.md](troubleshooting.md#the-verified-import-census) | Nothing, and nothing above clears them. `UserService` at `backend/app/core/security.py:L130`, `asyncio` and `json` in `backend/app/services/collaboration_service.py`, and `datetime` in `backend/app/tasks/background_tasks.py` |
 
 A future contributor cannot stop after two repairs. Adding the `settings` instance clears nine of
 the twelve failing modules, and the next error comes from the same file rather than from
-`main.py`: `backend/app/api/auth.py:L83` asks for a module nobody wrote. Only once that module
+`main.py`. `backend/app/api/auth.py:L21` asks for a module nobody wrote. Only once that module
 exists do the four router names become the blocker, and two more repairs sit behind them. Plan the
 work as the table's order, not as a pair of changes.
 
@@ -757,7 +791,7 @@ installs ten distributions and stops. Six more surface one at a time, each as ex
 - `bcrypt` when a password is hashed.
 - `python-multipart` when a login form is posted.
 - A PostgreSQL driver when the engine at `backend/app/db/sql.py:L16` connects.
-- A Redis client when Celery attaches to the broker at `backend/app/tasks/background_tasks.py:L98`.
+- A Redis client when Celery attaches to the broker at `backend/app/tasks/background_tasks.py:L22`.
 - `cryptography` when `settings.ALGORITHM` names an asymmetric signing algorithm.
 
 The first three belong to [the authoritative inventory](../backend/app/README.md), which counts them
@@ -783,11 +817,11 @@ table gives each one its destination and its trap.
 
 | What you are adding | Where it goes | What to watch |
 | --------------------- | --------------- | --------------- |
-| An HTTP endpoint | A router module under `backend/app/api/`, registered in `backend/app/main.py` | `backend/app/main.py:L125-L128` mounts every router with no prefix, so documents and templates already collide on identical paths. Give a new router a prefix or plan the collision |
-| Domain logic | A service class under `backend/app/services/` | 7 of the 9 public service methods are declared `async` and call the synchronous Firestore software development kit (SDK) inside, so the declaration promises concurrency the body does not deliver. The other 2 are the plain `def` export methods at `backend/app/services/export_service.py:L87` and `:L168`, which no caller can await. Pick one form deliberately, because the directory already uses both |
+| An HTTP endpoint | A router module under `backend/app/api/`, registered in `backend/app/main.py` | `backend/app/main.py:L80-L83` mounts every router with no prefix, so documents and templates already collide on identical paths. Give a new router a prefix or plan the collision |
+| Domain logic | A service class under `backend/app/services/` | 7 of the 9 public service methods are declared `async` and call the synchronous Firestore software development kit (SDK) inside, so the declaration promises concurrency the body does not deliver. The other 2 are the plain `def` export methods at `backend/app/services/export_service.py:L40` and `:L74`, which no caller can await. Pick one form deliberately, because the directory already uses both |
 | A persistence call | An adapter function under `backend/app/db/` | No service consumes the four Firestore helpers in `backend/app/db/firestore.py`. Services construct their own client instead, so pick one path deliberately |
 | A data contract | Both `backend/app/schema/` and `frontend/src/schema/` | Nothing generates either side from the other. See the trap below |
-| Client state | A slice under `frontend/src/store/`, registered in `frontend/src/store/index.ts` | The store registers two reducer keys, and `frontend/src/services/api.ts:L142` reads a third that does not exist |
+| Client state | A slice under `frontend/src/store/`, registered in `frontend/src/store/index.ts` | The store registers two reducer keys, and `frontend/src/services/api.ts:L40` reads a third that does not exist |
 | A page or a component | `frontend/src/pages/` for a routed screen, `frontend/src/components/` for a reusable piece | Routed pages are declared in `frontend/src/App.tsx`. Several links already target routes the router never declares |
 
 The contract trap deserves naming, because the repository already fell into it. No OpenAPI document
@@ -810,43 +844,68 @@ the package fails to import, and no client change can be verified while the type
 module-resolution noise. Work top to bottom.
 
 The order is not only a dependency order. Steps 1 through 3 turn unreachable code into reachable
-code. Step 4 exists because reachable code with no authorization, no rate limit and no input bound is
-worse than code that does not run. Fixing an import is quick and visible, and fixing a missing control
-is neither, so the second is the one that gets skipped. Step 4 sits ahead of step 5 for the same
-reason. Making an integration reachable publishes an interface, and the controls that interface needs
-are absent from the committed code rather than merely disabled in it.
+code. Step 4 exists because reachable code with no authorization, no rate limit and no input bound
+is worse than code that does not run. Fixing an import is quick and visible, and fixing a missing
+control is neither, so the second is the one that gets skipped.
 
-1. **Make the backend package import.** Five repairs stand between the committed tree and a
-   package that imports, and they surface in a fixed order. Add a module-level `settings` instance
-   to `backend/app/core/config.py`, which clears nine of the twelve failing modules. Write
-   `app.services.user_service`, which `backend/app/api/auth.py:L83` and
-   `backend/app/api/users.py:L24` both import and which fails next, from the same file the first
-   error came from. Reconcile the four router names imported at `backend/app/main.py:L16-L19`
-   against the bare `router` each module exports. Write `app.schema.template` and
-   `app.services.template_service`, which `backend/app/api/templates.py:L70` and `:L71` import.
-   Add `init_db` to `app.db.sql`, which `backend/app/main.py:L22` imports and which that module
-   does not define. Until all five land, `import app.main` raises before any other work can be
-   tested. The undefined names registered in
-   [troubleshooting.md](troubleshooting.md#the-verified-import-census) still raise afterwards, two of
-   them while the module is being evaluated and the rest on a call.
+Step 4 sits ahead of step 5 for the same reason. Making an integration reachable publishes an
+interface, and the controls that interface needs are absent from the committed code rather than
+merely disabled in it.
+
+1. **Make the backend package import.** Five repairs stand between the committed tree and a package
+   that imports, and they surface in a fixed order. Add a module-level `settings` instance to
+   `backend/app/core/config.py`, which clears nine of the twelve failing modules. Write
+   `app.services.user_service`, which `backend/app/api/auth.py:L21` and
+   `backend/app/api/users.py:L14` both import and which fails next, from the same file the first
+   error came from.
+
+Reconcile the four router names imported at `backend/app/main.py:L16-L19` against the bare `router`
+each module exports. Write `app.schema.template` and `app.services.template_service`, which
+`backend/app/api/templates.py:L17` and `:L18` import. Add `init_db` to `app.db.sql`, which
+`backend/app/main.py:L22` imports and which that module does not define.
+
+Until all five land, `import app.main` raises before any other work can be tested. The undefined
+names registered in [troubleshooting.md](troubleshooting.md#the-verified-import-census) still raise
+afterwards, two of them while the module is being evaluated and the rest on a call.
 2. **Make the client typecheck.** `frontend/src/schema/document.ts` omits three requested names, not
    one. Export an inferred `Document` type first, following the pattern its sibling already uses at
-   `frontend/src/schema/user.ts:L56`, which clears three of the five request positions on its own.
+   `frontend/src/schema/user.ts:L30`, which clears three of the five request positions on its own.
    The names `DocumentCreate` and `DocumentUpdate` need a schema written before a type can be
-   inferred, because no Zod object in the module models a creation or an update payload. Then add
-   `useAppSelector` and `useAppDispatch` to `frontend/src/store/index.ts`, which seven modules import.
-   The three absent document names produce five of the six `TS2305` errors across three modules, and
-   each edit removes a whole error class rather than a single line.
+   inferred, because no Zod object in the module models a creation or an update payload.
+
+   Then add `useAppSelector` and `useAppDispatch` to `frontend/src/store/index.ts`, which seven
+   modules import. The three absent document names produce five of the six `TS2305` errors across
+   three modules, and each edit removes a whole error class rather than a single line.
 3. **Reconcile the field names.** The ownership field exists in four positions, and this
    documentation set names none of them canonical.
    [data-model.md](data-model.md#the-ownership-field-four-positions-none-canonical) lists all four
    with their locators. Do this work after steps 1 and 2, because a package that imports and a client
    that typechecks let you verify the change instead of guessing at it.
-4. **Connect the collaboration and export paths.** No route constructs the collaboration service, and
-   the export conversion returns a placeholder string.
-   [integration-guide.md](integration-guide.md#integration-inventory) gives each of the four external
-   integrations one of four reachability labels, and none of the four means a call reaches Google
-   Cloud today. Both paths need a route and a caller before either can be tested, so they come last.
+4. **Add the controls the reachable surface needs.** These controls are absent rather than disabled,
+   so nothing in the code warns you when the surface opens. Bound the request body and the model
+   fields, because neither `backend/app/schema/document.py` nor `backend/app/schema/user.py`
+   contains a single `Field(` call.
+
+   Add a limiter to the two public routes, `POST /token` at `backend/app/api/auth.py:L65` and `POST
+   /register` at `:L102`, because `backend/app/main.py:L71` adds one middleware and it is CORS.
+   Constrain the three token settings that `backend/app/core/config.py:L42-L44` declares as bare
+   values, giving `SECRET_KEY` a minimum length, `ALGORITHM` an allowed-value list and
+   `ACCESS_TOKEN_EXPIRE_MINUTES` a ceiling.
+
+   Declare `ALLOWED_ORIGINS` as well, because `backend/app/main.py:L73` reads it and no `Settings`
+   field defines it. Line `:L74` sets `allow_credentials=True` beside the wildcard method and header
+   lists at `:L75` and `:L76`.
+   [troubleshooting.md](troubleshooting.md#g91-the-backend-http-surface) registers all twelve absent
+   HTTP controls with evidence, and the infrastructure defects in
+   [deployment-guide.md](deployment-guide.md) form a separate list.
+5. **Connect the collaboration and export paths.** No route constructs the collaboration service,
+   and the export conversion returns a placeholder string.
+   [integration-guide.md](integration-guide.md#integration-inventory) gives each of the four
+   external integrations one of four reachability labels, and none of the four means a call reaches
+   Google Cloud today.
+
+   Both paths need a route and a caller before either can be tested, so they come last. Adding a
+   route publishes an interface, so keep step 4 ahead of this one.
 
 The code's authors left a backlog of their own. Thirty-three `HUMAN ASSISTANCE NEEDED` markers and
 sixteen `TODO` comments sit across the repository, and each one names a gap its author already knew
@@ -895,11 +954,11 @@ Module documentation for the facts this guide draws on:
 Reference material, read and never edited:
 
 - [../README.md](../README.md), the root README. Prerequisites at `L22-L23` are accurate. The
-  instructions at `L42` and `L55` name a file and a path the tree does not carry.
+  instructions at `L42` and `L44` name a file and a path the tree does not carry.
 - [Technical Specifications](<../documentation/Technical Specifications.md>), declared intent. The
   five level-one headings sit at `L3` INTRODUCTION, `L125` SYSTEM ARCHITECTURE, `L300` SYSTEM DESIGN,
   `L523` TECHNOLOGY STACK and `L620` SECURITY CONSIDERATIONS, and the file carries no numbered section
   anchor.
 - [Software Requirements Specifications](<../documentation/Software Requirements Specifications (SRS).md>),
   declared intent. The 30-second auto-save requirement sits under the SAFETY heading at `L540`, at
-  `L543`, and the editor implements a five-second debounce at `frontend/src/pages/Editor.tsx:L214`.
+  `L543`, and the editor implements a five-second debounce at `frontend/src/pages/Editor.tsx:L82`.

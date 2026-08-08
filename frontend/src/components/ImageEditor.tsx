@@ -1,85 +1,42 @@
 /**
- * Build an image insertion helper over a Draft.js editor state.
+ * Insert an image into a Draft.js editor state as an atomic block.
  *
- * Unresolved imports, both reported as TS2307:
- * - `draft-js` is absent from `frontend/package.json`, and so is `@types/draft-js`.
- * - `@/utils/imageUtils` does not exist. `frontend/src/utils/` holds `formatting.ts`,
- *   `validation.ts` and `documentUtils.ts` only, and the `@/` prefix is absent from the `paths`
- *   map in `frontend/tsconfig.json`. Neither `resizeImage` nor `cropImage` reaches the body.
+ * `@/utils/imageUtils` does not exist, and both names imported from it, `resizeImage`
+ * and `cropImage`, are unused as well. See the two HUMAN ASSISTANCE NEEDED markers
+ * below.
  *
- * Neither symbol from L30 reaches the body. `resizeImage` and `cropImage` appear at L30 and nowhere
- * else, and the author comment at L98-L99 records both operations as unimplemented.
- *
- * Nothing here runs. No module in the tree imports `ImageEditor`, so the `editorState` prop that
- * L33-L35 requires never arrives, and the return at L101-L107 renders a `div` holding one
- * JSX comment, so a browser shows an empty container. The docstring on `handleInsertImage`
- * records why that handler never executes, and why an image would not render even if it did.
- *
- * The assistance marker at L54 records that `handleInsertImage` needs review before production
- * use. A second marker sits inside the return statement and records the component's own interface
- * as unimplemented.
- *
- * Intended behavior per documentation/Technical Specifications.md, "USER INTERFACE DESIGN" heading:
- * `DocumentCanvas` composes `ImageEditor`. The committed `DocumentCanvas.tsx` renders a Draft.js
- * `Editor` directly and composes no image editor.
- *
- * @see ./README.md for the directory register and the wider defect list.
+ * @see ./README.md
  */
 import React from 'react';
 import { EditorState, AtomicBlockUtils } from 'draft-js';
 import { resizeImage, cropImage } from '@/utils/imageUtils';
 
-/** Props for `ImageEditor`: the editor state an image is inserted into. */
+/** The props this component declares: the editor state to insert into. */
 interface ImageEditorProps {
   editorState: EditorState;
 }
 
 /**
- * Define the image insert helper and render an empty container.
+ * Render the image editing surface.
  *
- * The component renders nothing visible, because the returned `div` holds only the JSX comment at
- * L105. The component performs no dispatch, no network call, no upload and no state mutation, and
- * so carries no side effects. `handleInsertImage` is the one function here that would transform
- * editor state, and its docstring records why it never runs.
+ * The returned element is an empty `div`. No caller renders this component, and no
+ * `blockRendererFn` is registered anywhere in the tree, so an inserted atomic block
+ * would have nothing to draw it.
  *
- * @param editorState - Draft.js editor state that the nested `handleInsertImage` reads at L85 for
- *   its current content. Declared at L34 as `EditorState` on `ImageEditorProps`, which stays local
- *   to this file and reaches no consumer.
- * @returns A single `div` element at L104-L106 carrying no text, no children and no `className`.
- * @remarks Nothing imports this component. The `@/utils/imageUtils` module at L30 does not exist,
- *   and both symbols it would provide, `resizeImage` and `cropImage`, stay unused.
- * @see ./README.md
+ * @param props - The component props, carrying `editorState`.
+ * @returns An empty container element.
  */
 const ImageEditor: React.FC<ImageEditorProps> = ({ editorState }) => {
   // HUMAN ASSISTANCE NEEDED
   // The following function needs review and potential improvements for production readiness
   /**
-   * Insert an atomic image block carrying the given URL.
+   * Create an image entity and insert it as an atomic block.
    *
-   * @param imageUrl - Address stored on the new entity under `src` at L89. Declared at L84 as
-   *   `string`, and the declaration constrains the value no further.
-   * @returns The `EditorState` returned by `AtomicBlockUtils.insertAtomicBlock` at L95, which
-   *   places the atomic block using a single space as its placeholder character.
-   * @remarks No code path calls this function: the declaration nests inside `ImageEditor`, nothing
-   * exports it, and the returned markup renders no control that would invoke it. The assistance
-   * marker directly above records that the function needs review.
+   * Nothing in the component calls this handler. No upload route exists anywhere in
+   * the repository either, so the caller would have to supply an already hosted URL.
    *
-   * The body creates an `IMAGE` entity with `IMMUTABLE` mutability holding the address under `src`,
-   * takes the key Draft.js assigned to it, and sets the amended content onto a new editor state.
-   *
-   * Two absences block the result. This function builds an atomic block, which is a Draft.js block
-   * whose content is a single entity rather than text. Rendering it as an image needs a
-   * `blockRendererFn`, the function an `Editor` uses to choose a component per block. No module in
-   * the repository defines one, and the two committed `Editor` elements pass none, at
-   * `DocumentCanvas.tsx:L143-L147` and `TextEditor.tsx:L124-L128`, so Draft.js falls back to its
-   * default block rendering: the block appears carrying the placeholder character, and the `IMAGE`
-   * entity is never drawn as an image. No route accepts image bytes either. The fourteen handlers
-   * under `backend/app/api/` cover tokens, documents, templates and the current user, and none
-   * takes an upload, so nothing produces the `imageUrl` argument L84 requires.
-   *
-   * Intended behavior per documentation/Technical Specifications.md, "COMPONENT DIAGRAMS" heading
-   * (`Technical Specifications.md:L192`): `ImageEditor` sits under `DocumentCanvas`.
-   * @see ./README.md
+   * @param imageUrl - Source URL for the image entity.
+   * @returns A new editor state carrying the atomic image block.
    */
   const handleInsertImage = (imageUrl: string): EditorState => {
     const contentState = editorState.getCurrentContent();

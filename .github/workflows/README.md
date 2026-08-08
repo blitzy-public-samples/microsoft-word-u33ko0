@@ -178,18 +178,18 @@ first blocker exposes the next one rather than producing a green run.
 
 | Concern | Committed state, and the prerequisite for fixing it |
 | --- | --- |
-| Action references are mutable | `actions/checkout@v2` (`ci.yml:L13`, `cd.yml:L11`), `actions/setup-node@v2` (`ci.yml:L15`) and `google-github-actions/setup-gcloud@v0.2.0` (`cd.yml:L13`) name tags, not pins. Anyone with write access to an action repository can move or delete a tag, so a tag names whatever bytes it currently points at rather than a fixed release, and only a full-length commit SHA is an immutable reference, which is [GitHub's stated position](https://docs.github.com/en/actions/reference/security/secure-use). In the March 2025 `tj-actions/changed-files` compromise, tags v1 through v45.0.7 were repointed at a single malicious commit on 14 and 15 March 2025, and the fix shipped in v46.0.1 ([CVE-2025-30066](https://github.com/advisories/GHSA-mrrh-fwg8-r2c3), [CISA alert](https://www.cisa.gov/news-events/alerts/2025/03/18/supply-chain-compromise-third-party-tj-actionschanged-files-cve-2025-30066-and-reviewdogaction)), which is the failure mode a tag leaves open. Replacing each tag with a reviewed full commit SHA, and recording the resolved version in a comment beside it, is the prerequisite. |
+| Action references are mutable | `actions/checkout@v2` (`ci.yml:L13`, `cd.yml:L11`), `actions/setup-node@v2` (`ci.yml:L15`) and `google-github-actions/setup-gcloud@v0.2.0` (`cd.yml:L13`) name tags, not pins. Anyone with write access to an action repository can move or delete a tag. A tag therefore names whatever bytes it currently points at rather than a fixed release. Only a full-length commit SHA is an immutable reference, which is [GitHub's stated position](https://docs.github.com/en/actions/reference/security/secure-use). In the March 2025 `tj-actions/changed-files` compromise, tags v1 through v45.0.7 were repointed at a single malicious commit on 14 and 15 March 2025. The fix shipped in v46.0.1 ([CVE-2025-30066](https://github.com/advisories/GHSA-mrrh-fwg8-r2c3), [CISA alert](https://www.cisa.gov/news-events/alerts/2025/03/18/supply-chain-compromise-third-party-tj-actionschanged-files-cve-2025-30066-and-reviewdogaction)). A moved tag is the failure mode this leaves open. Replacing each tag with a reviewed full commit SHA, and recording the resolved version in a comment beside it, is the prerequisite. |
 | No least-privilege token scope | Neither file declares a `permissions:` block at workflow or job level, so both jobs receive the default `GITHUB_TOKEN` scope. `ci.yml` needs `contents: read` alone, and `cd.yml` needs `contents: read` plus `id-token: write` if it moves to federated identity. Declaring the minimum explicitly in both files is the prerequisite. |
-| A long-lived key authenticates the deploy | `cd.yml:L16` passes `secrets.GCP_SA_KEY` to `setup-gcloud`. A user-managed service account key is long-lived, does not expire by default, and grants its permissions to anyone who obtains it, so it is a high-value target that has to be rotated and audited by hand. |
-| No federated identity is configured | Workload Identity Federation is the preferred model: it exchanges the OpenID Connect token GitHub issues for short-lived Google credentials and removes key management entirely. It needs `permissions: id-token: write` on the job, a workload identity pool and provider on the Google side, and an attribute condition restricting that provider to this repository, because an unconditioned provider lets any repository authenticate. None of the three exists today. |
+| A long-lived key authenticates the deploy | `cd.yml:L16` passes `secrets.GCP_SA_KEY` to `setup-gcloud`. A user-managed service account key is long-lived, does not expire by default, and grants its permissions to anyone who obtains it. That makes it a high-value target, and it has to be rotated and audited by hand. |
+| No federated identity is configured | Workload Identity Federation is the preferred model: it exchanges the OpenID Connect token GitHub issues for short-lived Google credentials and removes key management entirely. The model needs `permissions: id-token: write` on the job, plus a workload identity pool and provider on the Google side. The provider also needs an attribute condition restricting it to this repository, because an unconditioned provider lets any repository authenticate. None of the three exists today. |
 
 Every row above is deployment work rather than documentation work, and
 [`../../docs/deployment-guide.md`](../../docs/deployment-guide.md) carries the sequence.
 
 ### Markers and comments
 
-Both files carry zero `HUMAN ASSISTANCE NEEDED` markers and zero `TODO` markers. A zero marker count is not a clean bill of health here: the authors left no notes,
-so every defect above came from reading the two workflow files rather than from a marker.
+Both files carry zero `HUMAN ASSISTANCE NEEDED` markers and zero `TODO` markers. A zero marker count is not a clean bill of health here. The authors left no
+notes, so every defect above came from reading the two workflow files rather than from a marker.
 
 Neither `ci.yml` nor `cd.yml` receives an inline comment in this documentation pass, because both are configuration files with no logic and are documented here
 instead.
@@ -234,8 +234,10 @@ The command reproduces `ci.yml:L19` and fails the same way, because the root hol
 ### What the deploy step runs
 
 The two commands below are quoted as workflow reference only. Do not run them against a real project. `gcloud app deploy` publishes to Google App Engine under
-whatever account and project the local `gcloud` configuration happens to hold, `--quiet` suppresses the confirmation prompt, and App Engine deployments cannot
-be undone by re-running the command. If you must execute them to study the failure, use a disposable non-production project, confirm the active identity first
+whatever account and project the local `gcloud` configuration happens to hold. `--quiet` suppresses the confirmation prompt, and an App Engine deployment
+cannot be undone by re-running the command.
+
+If you must execute them to study the failure, use a disposable non-production project, confirm the active identity first
 with `gcloud config list account` and `gcloud config get-value project`. Name the target explicitly with `--project=<disposable-project-id>` rather than
 relying on the ambient default.
 

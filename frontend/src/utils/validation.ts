@@ -1,25 +1,22 @@
 /**
- * Check an email address and a password against Zod schemas, reporting only whether each value
- * satisfies its schema.
+ * Check an email address and a password against Zod schemas.
  *
- * Both exported functions build a schema and call `safeParse`, then return the `.success` flag, so
- * the configured message strings never reach a caller.
+ * No module in the tree calls either function, so neither the registration form nor
+ * any other input runs these rules. Both return only the boolean outcome and
+ * discard the messages their schemas carry, so a caller cannot tell which rule
+ * failed.
  *
- * The `zod` import does not resolve, because `frontend/package.json` omits the package, so neither
- * check runs as committed. No module under `frontend/src` calls either function today.
+ * `zod` is imported and `frontend/package.json` does not declare it.
  *
- * @see ./README.md for the register covering this directory.
+ * @see ./README.md
  */
 import { z } from 'zod';
 
 /**
- * Report whether a string parses as an email address.
+ * Report whether a string is a syntactically valid email address.
  *
- * @param email - Candidate address checked against a `z.string().email()` schema.
- * @returns `true` when the schema accepts the value and `false` otherwise, read from
- *   `safeParse(...).success`.
- * @remarks The return carries no failure detail, and the undeclared `zod` import stops the check
- *   from running as committed.
+ * @param email - The address to check.
+ * @returns True when Zod's email rule accepts the string.
  */
 export const validateEmail = (email: string): boolean => {
   const emailSchema = z.string().email();
@@ -27,19 +24,14 @@ export const validateEmail = (email: string): boolean => {
 };
 
 /**
- * Report whether a string satisfies the password policy.
+ * Report whether a password meets the length and character policy.
  *
- * @param password - Candidate password checked against the schema built in the body.
- * @returns `true` when the schema accepts the value and `false` otherwise, read from
- *   `safeParse(...).success`.
- * @remarks The policy holds six requirements: a minimum of 8 characters, and at least one lowercase
- *   letter, one uppercase letter, one digit and one character from `@$!%*?&`. The anchored
- *   expression also confines the whole value to `[A-Za-z\d@$!%*?&]{8,}`, so a password holding any
- *   character outside that class fails even when it meets the other five. `Passw0rd@#` fails on the
- *   `#` alone.
+ * The policy is at least eight characters with a lowercase letter, an uppercase
+ * letter, a digit and one of `@$!%*?&`. The pattern also restricts the password to
+ * those character classes, so a space or any other punctuation fails.
  *
- *   The return carries only `.success`, so both configured message strings are discarded, and the
- *   undeclared `zod` import stops the check from running as committed.
+ * @param password - The password to check.
+ * @returns True when the password satisfies every rule.
  */
 export const validatePassword = (password: string): boolean => {
   const passwordSchema = z.string()

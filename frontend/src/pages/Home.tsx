@@ -1,19 +1,11 @@
 /**
  * Render the landing page: a greeting and three quick-access links.
  *
- * Header and Footer are default imports of default exports, so both match their
- * modules. Editor, Settings and Templates request a named Header export instead, and
- * Settings and Templates also request a named Footer export. Neither named export exists.
- * The `@/` prefix is absent from the tsconfig paths, so all four `@/` specifiers below fail
- * module resolution.
- * useAppSelector and selectCurrentUser do not exist. store/index.ts exports only RootState,
- * AppDispatch and a default store. store/userSlice.ts exports setUser, clearUser, setLoading,
- * setError and a default reducer, and no selector.
- * The greeting reads currentUser.name, which no user contract declares. schema/user.ts
- * models username and full_name, and Settings reads the same absent field.
- * The three quick-access links at L61, L64 and L67 target /new-document, /open-document and
- * /recent-documents. App.tsx:L52-L55 declares only /, /editor, /templates and /settings, so
- * none of the three targets matches a declared route.
+ * `Header` and `Footer` are imported as defaults here, which is correct, unlike the
+ * three sibling pages. `useAppSelector` and `selectCurrentUser` are both imported
+ * and neither exists in the store folder.
+ *
+ * @see ./README.md
  */
 import React from 'react';
 import { Link } from 'react-router-dom';
@@ -25,28 +17,12 @@ import { selectCurrentUser } from '@/store/userSlice';
 /**
  * Render the greeting and the quick-access links.
  *
- * Reads currentUser from the store, and performs no write, no request and no imperative
- * navigation. The page renders three declarative `Link` elements instead, which navigate when
- * a reader clicks one.
+ * The greeting reads `currentUser.name`, and no user contract declares that field.
+ * All three links point at routes `App.tsx` does not declare, so each one navigates
+ * to an unmatched path. The page renders its own `Header` and `Footer`, which
+ * `App.tsx` has already rendered.
  *
  * @returns The home page element.
- * @remarks App renders Header and Footer around every route, so this page renders a second
- * header and a second footer. The three links at L61, L64 and L67 target /new-document,
- * /open-document and /recent-documents. App declares only /, /editor, /templates and
- * /settings, so each of the three targets an undeclared route and a click reaches no page.
- * The page calls no router hook, so nothing here navigates on its own.
- *
- * Accessibility: the page renders a second `main` element inside App's `main`, so one main
- * landmark nests inside another, and the repeated header and footer duplicate the banner and
- * contentinfo landmarks.
- * @example
- * <Route path="/" element={<Home />} />
- * // `frontend/package.json:L11` declares `react-router-dom` at `^6.11.1`, which takes an
- * // `element` prop and dropped both the v5 `component` prop and `exact`. `App.tsx:L51-L56`
- * // holds the committed route table, still written in the version 5 form.
- * // `App.tsx:L52` is the registration this snippet reproduces.
- * // Cannot run today: the four `@/` specifiers at L20-L23 fail module resolution, and neither
- * // `useAppSelector` at L22 nor `selectCurrentUser` at L23 is exported by the module it names.
  */
 const Home: React.FC = () => {
   const currentUser = useAppSelector(selectCurrentUser);

@@ -1,15 +1,12 @@
 /**
- * Mount the React application into the `#root` element supplied by `public/index.html`.
+ * Mount the application into the `root` element of the served HTML shell.
  *
- * Importing this module renders the tree, because the last statement calls `renderApp`
- * during module evaluation. The module exports nothing.
+ * Both imports use the `@/` prefix, which `tsconfig.json` does not map and
+ * `react-scripts` 5 would not apply to webpack resolution, so each raises TS2307.
+ * `store` is imported as a default export, which `store/index.ts` provides.
  *
- * The `@/App` and `@/store` specifiers do not resolve, because `tsconfig.json` declares
- * path aliases that exclude `@/`. Rendering goes through `ReactDOM.render`, the React 17
- * entry point, while the manifest declares `react-dom` 18. The `Provider` here is the
- * first of two wrapping the same store, because `App` wraps a second.
+ * @see ./README.md
  */
-
 import React from 'react';
 import ReactDOM from 'react-dom';
 import { Provider } from 'react-redux';
@@ -19,11 +16,13 @@ import store from '@/store';
 const rootElement = document.getElementById('root');
 
 /**
- * Render the application into the `#root` element, or log and return when it is missing.
+ * Render the provider tree into the root element, or log and stop when it is absent.
  *
- * @returns Nothing.
- * @remarks Mounts the `StrictMode` tree into `#root`; logs and returns when the mount
- *   element is absent, leaving no fallback on screen.
+ * Uses `ReactDOM.render`, the React 17 entry point. React 18 is the declared
+ * dependency and warns that `createRoot` replaces it, so strict-mode double
+ * rendering and concurrent features stay off.
+ *
+ * @returns Nothing. The call at the end of the file invokes this once at load.
  */
 const renderApp = (): void => {
   if (!rootElement) {

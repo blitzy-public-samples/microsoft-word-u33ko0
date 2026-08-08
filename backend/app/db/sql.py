@@ -1,13 +1,13 @@
-"""Build the SQLAlchemy engine, session factory and declarative base.
+"""Declare the SQLAlchemy engine, session factory, base class and dependency.
 
-`settings` is requested from `app.core.config`, which never defines it, so importing
-this module raises `ImportError`. `app/main.py` also imports `init_db` from here, and
-this module declares no such name.
+This path is declared and unused. No module subclasses `Base`, no ORM model
+exists anywhere in the tree, no migration tool is committed, and no route
+depends on `get_db`. Every stored record reaches Firestore instead, through
+`app/db/firestore.py` and the services.
 
-The engine is created at import time from `settings.DATABASE_URL`, with no pool tuning
-and no connectivity check. Nothing subclasses `Base`, so no table is mapped, and no
-migration tooling is committed. No module calls `get_db`, which leaves this whole path
-declared and unused; Firestore carries the application's persistence instead.
+The engine is constructed at import time from `settings.DATABASE_URL`, and
+`app.core.config` never creates `settings`. `app/main.py` imports `init_db`
+from this module, which defines no such name.
 """
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session, declarative_base
@@ -19,18 +19,17 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 def get_db() -> Session:
-    """Yield a database session and close it when the caller is done.
+    """Yield a database session and close it when the caller finishes.
 
-    Serves as the FastAPI dependency shape for request-scoped sessions.
+    The generator shape suits FastAPI's `Depends`, which runs the code after
+    the `yield` once the response is sent. No route declares it.
 
     Yields:
-        One `Session` from `SessionLocal`, configured with autocommit and autoflush both
-        off, so a caller must commit explicitly.
+        A `Session` bound to the module-level engine.
 
-    Note:
-        The `finally` block closes the session on every path, including an exception, so
-        the connection returns to the pool either way. The function is a generator, and
-        the `-> Session` annotation names the yielded type rather than the return type.
+    Returns:
+        Nothing. The declared return type is `Session`, and the body yields,
+        so the callable returns a generator rather than a session.
     """
     db = SessionLocal()
     try:

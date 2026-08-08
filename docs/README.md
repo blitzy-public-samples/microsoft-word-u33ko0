@@ -30,8 +30,8 @@ Eight documents sit beside this index, each covering a concern that spans more t
 | [decision-log.md](decision-log.md) | What was decided, what alternatives existed, why, and what risk each choice carries, plus the traceability matrix |
 | [prose-validation.md](prose-validation.md) | The per-deliverable clarity verdict and the principle scorecards |
 
-Two of the eight land at a later checkpoint, `decision-log.md` and `prose-validation.md`, so those
-two links do not resolve today.
+All eight documents exist at the current branch head, so every link in the table above resolves.
+The nineteen module READMEs listed below resolve as well.
 
 ## Module documentation
 
@@ -79,7 +79,7 @@ Five conventions run through every document in this set.
 ### 1. Citation format
 
 Every factual claim carries a locator in the form `path:Lnn`, for example
-`backend/app/api/documents.py:L26`. A range such as `L11-L15` covers every line in the span,
+`backend/app/api/documents.py:L24`. A range such as `L24-L25` covers every line in the span,
 inclusive. Locators point at the committed state at the current branch head, which includes the
 documentation comments this engagement added to 44 source files.
 
@@ -108,6 +108,8 @@ distinguishable at a glance.
 
 ```mermaid
 graph LR
+    accTitle: The dashed-edge convention this documentation set uses
+    accDescr: One dashed edge runs from a node labelled main.py to a node labelled core/config.py. The edge label reads "imports settings, which nothing defines", so the dash marks a relationship the code states and cannot satisfy. Every diagram in this set follows the same convention.
     MAIN["main.py"] -.->|"imports settings, which nothing defines"| CFG["core/config.py"]
 ```
 

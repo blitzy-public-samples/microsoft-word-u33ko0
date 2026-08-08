@@ -1,25 +1,22 @@
 /**
- * Render the editor status bar: word and page counts, zoom controls and save state.
+ * Render the status bar beneath the editor.
  *
- * Unresolved imports and exports: none. `react` at L4 is the only import, no `@/` specifier
- * appears, and `Footer` is the default export at L44. It is the one module here that typechecks.
+ * Every value shown is a literal in the markup: the word count, page count, zoom
+ * level, last-saved time and collaborator count. The component reads no store state
+ * and takes no props, so none of the five changes at runtime.
+ *
+ * @see ./README.md
  */
 import React from 'react';
 
 /**
- * Show five status readings across three groups.
+ * Render the document status, the zoom controls and the collaboration summary.
  *
- * @returns The `footer` element wrapping those three groups.
- * @remarks The component holds no state and registers no handler, so no reading ever updates and
- * the two zoom buttons do nothing. Each reading is a literal string: `Words: 0`, `Pages: 1`,
- * `100%`, `Last saved: Just now` and `Collaborators: 1`.
+ * The two zoom buttons carry no `onClick` handler, so pressing either does nothing.
+ * The class names are bespoke rather than Tailwind utilities, and the repository
+ * commits no stylesheet, so none of them resolves to a rule.
  *
- * Accessibility: the zoom buttons are labelled `-` and `+` alone, so a screen reader announces one
- * punctuation character, and neither carries `disabled` or `aria-disabled`, so both present as
- * working controls while doing nothing.
- * @example
- * <Footer />
- * Cannot mount today: `App.tsx` imports `store` as a named import of a default-only export.
+ * @returns The footer element.
  */
 const Footer: React.FC = () => {
   return (

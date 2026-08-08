@@ -1,68 +1,43 @@
 /**
- * Build a table insertion helper over a Draft.js editor state.
+ * Insert a table into a Draft.js editor state.
  *
- * Unresolved imports, both reported as TS2307:
- * - `draft-js` is absent from `frontend/package.json`, and so is `@types/draft-js`.
- * - `@/utils/tableUtils` does not exist. `frontend/src/utils/` holds `formatting.ts`,
- *   `validation.ts` and `documentUtils.ts` only, and the `@/` prefix is absent from the `paths`
- *   map in `frontend/tsconfig.json`.
+ * `@/utils/tableUtils` does not exist, so `insertTable`, `deleteTable` and
+ * `modifyTable` are all unresolved, and the last two are imported without being
+ * used. See the HUMAN ASSISTANCE NEEDED marker below.
  *
- * The body uses only `insertTable`, at L72. `deleteTable` and `modifyTable` stay unused, and
- * the author comment at L91 records both operations as unimplemented.
- *
- * Nothing here runs. No module in the tree imports `TableEditor`, so the `editorState` prop that
- * L29-L31 requires never arrives, and the return at L93-L97 renders an empty `div`. The docstring
- * on `handleInsertTable` records why that handler never executes. The assistance marker at L52-L53
- * flags the handler's confidence level.
- *
- * Intended behavior per documentation/Technical Specifications.md, "USER INTERFACE DESIGN" heading:
- * `DocumentCanvas` composes `TableEditor`. The committed `DocumentCanvas.tsx` renders a Draft.js
- * `Editor` directly and composes no table editor.
- *
- * @see ./README.md for the directory register and the wider defect list.
+ * @see ./README.md
  */
 import React from 'react';
 import { EditorState, Modifier } from 'draft-js';
 import { insertTable, deleteTable, modifyTable } from '@/utils/tableUtils';
 
-/** Props for `TableEditor`: the editor state a table is inserted into. */
+/** The props this component declares: the editor state to insert into. */
 interface TableEditorProps {
   editorState: EditorState;
 }
 
 /**
- * Define the table insert helper and render an empty container.
+ * Render the table editing surface.
  *
- * The component renders nothing visible, because the returned `div` holds only the JSX comment
- * at L95. The component performs no dispatch, no network call and no state mutation, so it
- * carries no side effects. `handleInsertTable` is the one function here that would transform
- * editor state, and its docstring records why it never runs.
+ * The returned element is an empty `div` with a comment inside, so the component
+ * paints nothing. No caller renders it either.
  *
- * @param editorState - Draft.js editor state that the nested `handleInsertTable` reads at
- *   L68-L69 for its content and selection. Declared at L30 as `EditorState` on
- *   `TableEditorProps`, which stays local to this file and reaches no consumer.
- * @returns A single `div` element at L94-L96 carrying no text, no children and no
- *   `className`.
- * @remarks Nothing imports this component. The `@/utils/tableUtils` module at L26 does not
- *   exist, and two of the three symbols it would provide, `deleteTable` and `modifyTable`, stay
- *   unused.
- * @see ./README.md
+ * @param props - The component props, carrying `editorState`.
+ * @returns An empty container element.
  */
 const TableEditor: React.FC<TableEditorProps> = ({ editorState }) => {
   // HUMAN ASSISTANCE NEEDED
   // The following function has a confidence level of 0.6 and may need refinement for production use
   /**
-   * Insert a table of the given size at the current selection.
+   * Build a table and replace the current selection with it.
    *
-   * @param rows - Number of table rows to build.
-   * @param columns - Number of table columns to build.
-   * @returns The `EditorState` pushed with the `insert-fragment` change type.
-   * @remarks No code path calls this function: the declaration nests inside `TableEditor`, nothing
-   * exports it, and the returned markup renders no control that would invoke it.
+   * Nothing in the component calls this handler, so the code below never runs. Even
+   * when called, `Modifier.replaceText` requires a string and the absent
+   * `insertTable` is expected to return a table structure.
    *
-   * `insertTable` comes from the absent `@/utils/tableUtils`, so its return value carries no
-   * declared type, and `Modifier.replaceText` then takes that value as its third argument where
-   * Draft.js requires a string.
+   * @param rows - Number of rows to create.
+   * @param columns - Number of columns to create.
+   * @returns A new editor state carrying the inserted table.
    */
   const handleInsertTable = (rows: number, columns: number): EditorState => {
     const currentContent = editorState.getCurrentContent();

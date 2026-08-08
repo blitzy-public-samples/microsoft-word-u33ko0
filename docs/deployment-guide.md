@@ -3,11 +3,13 @@
 Nothing in this repository deploys. Four asset groups describe a deployment, and each group stops
 before it finishes. Terraform sits under `infrastructure/terraform/`, container definitions under
 `infrastructure/docker/`, two GitHub Actions workflows under `.github/workflows/`, and two shell
-scripts under `scripts/`. Eleven blockers stand in the way, and they are not eleven parallel
-problems: each execution path hits one blocker and hides the rest behind it.
-[Why a deploy fails as committed](#why-a-deploy-fails-as-committed) groups them by path, separating
-the blocker a run reports from the latent blockers it never reaches. Clearing a first-hit blocker
-exposes the next one on that path rather than producing a working deploy.
+scripts under `scripts/`.
+
+Eleven blockers stand in the way, and they are not eleven parallel problems: each execution path
+hits one blocker and hides the rest behind it. [Why a deploy fails as
+committed](#why-a-deploy-fails-as-committed) groups them by path, separating the blocker a run
+reports from the latent blockers it never reaches. Clearing a first-hit blocker exposes the next one
+on that path rather than producing a working deploy.
 
 The sections below describe each asset group as committed, then list every failure point in the
 order a reader hits it. Every claim carries an inline citation in the form `path:Lnn`, so a reader
@@ -29,8 +31,8 @@ and its three files now hold 281 physical lines, because this engagement added b
 | `scripts/` | 2 | 103 | A linear deploy script and a developer-machine setup script | [scripts](../scripts/README.md) |
 
 Every count above is a physical line count. The Terraform row carries two numbers because the three
-`.tf` files are the only deployment assets that received inline comments in this documentation pass,
-which took them from 238 lines to 281. Docker, the workflows and the shell scripts received none, so
+`.tf` files are the only deployment assets that received inline comments in this documentation pass. Those
+comments took them from 238 lines to 281. Docker, the workflows and the shell scripts received none, so
 their counts are the same at `06be74c` and at the current head.
 
 Two categories of file that a deploy needs are missing from the tree.
@@ -62,7 +64,7 @@ verified across the three files as follows.
 | `resource` | 4 | `main.tf:L19`, `:L25`, `:L35`, `:L50` |
 | `module` | 3 | `main.tf:L67`, `:L76`, `:L85` |
 | `variable` | 13 | `variables.tf:L7` through `:L91` |
-| `output` | 14 | `outputs.tf:L5` through `:L84` |
+| `output` | 14 | `outputs.tf:L4` through `:L84` |
 
 The provider block at `infrastructure/terraform/main.tf:L9-L12` configures Google Cloud and nothing
 else. The block reads `var.project_id` at `:L10` and `var.region` at `:L11`.
@@ -116,15 +118,17 @@ and three consequences follow.
   beside the sources. A local state file travels with one machine, so two engineers running `apply`
   would each track a separate copy of the same infrastructure.
 
-That local state file is a disclosure risk as well as a coordination one, and nothing in the repository
-guards against it. Terraform state stores resolved attribute values in plaintext, including the database
-password the two connection-string outputs interpolate. Marking an output `sensitive = true`, as
-`outputs.tf:L21` and `:L27` do, masks it in command-line output and does not encrypt it in state. The
-repository commits no `.gitignore` at all, so nothing excludes `terraform.tfstate`,
-`terraform.tfstate.backup` or the `.terraform/` directory from `git add`. An engineer who runs `apply`
-in this directory and then stages their work can commit a plaintext credential without any warning. Two
-mitigations exist and neither is committed: a remote backend with encryption at rest, or a `.gitignore`
-rule covering the state files.
+That local state file is a disclosure risk as well as a coordination one, and nothing in the
+repository guards against it. Terraform state stores resolved attribute values in plaintext,
+including the database password the two connection-string outputs interpolate. Marking an output
+`sensitive = true`, as `outputs.tf:L21` and `:L27` do, masks it in command-line output and does not
+encrypt it in state.
+
+The repository commits no `.gitignore` at all, so nothing excludes `terraform.tfstate`,
+`terraform.tfstate.backup` or the `.terraform/` directory from `git add`. An engineer who runs
+`apply` in this directory and then stages their work can commit a plaintext credential without any
+warning. Two mitigations exist and neither is committed: a remote backend with encryption at rest,
+or a `.gitignore` rule covering the state files.
 
 ### Variables and outputs
 
@@ -232,8 +236,8 @@ port 5000, so no request reaches the application even after a successful build. 
 service compounds the gap by injecting `http://backend:5000` at `:L11`, which addresses that same
 silent port.
 
-**No Redis service exists.** `backend/app/core/config.py:L119` declares `REDIS_URL` as a required
-field, and `backend/app/tasks/background_tasks.py:L98` builds
+**No Redis service exists.** `backend/app/core/config.py:L48` declares `REDIS_URL` as a required
+field, and `backend/app/tasks/background_tasks.py:L22` builds
 `Celery('microsoft_word', broker=settings.REDIS_URL)` at module scope. Compose declares `frontend`,
 `backend` and `db` and nothing more, and a search of all of `infrastructure/` for `redis` or
 `memorystore` returns no match. `infrastructure/terraform/main.tf` declares no cache resource either,
@@ -252,7 +256,7 @@ can change the serving runtime with no file changing.
 is sufficient on its own, so correcting any one leaves the other three.
 
 1. The key names never meet. `docker-compose.yml:L11` injects `REACT_APP_API_URL`, and
-   `frontend/src/services/api.ts:L82` reads `process.env.REACT_APP_API_BASE_URL`, the only
+   `frontend/src/services/api.ts:L21` reads `process.env.REACT_APP_API_BASE_URL`, the only
    `process.env` read in the whole frontend.
 2. Substitution happens at build time, not run time. `frontend/package.json:L29` pins `react-scripts`
    at `5.0.1`, and Create React App substitutes every `process.env.REACT_APP_*` reference into the
@@ -264,30 +268,30 @@ is sufficient on its own, so correcting any one leaves the other three.
    bundle executes in the user's browser on the host, where `backend` is not a resolvable name.
 4. The port is wrong even from inside the network, for the reason the port paragraph above gives.
 
-Supplying a working base URL needs a build argument consumed before `npm run build`, using the key the
-code reads, naming a host the browser can resolve, on the port the server listens on.
+Supplying a working base URL needs a build argument consumed before `npm run build`. That argument must use the
+key the code reads, name a host the browser can resolve, and carry the port the server listens on.
 
 **Compose supplies 1 of the 15 settings the backend needs.** `Settings` declares nine fields at
-`backend/app/core/config.py:L111-L119`. Seven carry no default and are required, and the two `Optional`
-GCP fields at `:L116-L117` default to `None`. Compose injects `DATABASE_URL` only.
+`backend/app/core/config.py:L40-L48`. Seven carry no default and are required, and the two `Optional`
+GCP fields at `:L45-L46` default to `None`. Compose injects `DATABASE_URL` only.
 
 | Setting | Declared at | Required | Compose supplies | Consequence |
 | --------- | ------------- | ---------- | ------------------ | ------------- |
-| `PROJECT_NAME` | `config.py:L111` | Yes | No | `Settings()` raises `ValidationError` |
-| `API_V1_STR` | `config.py:L112` | Yes | No | `ValidationError`. Read by no module |
-| `SECRET_KEY` | `config.py:L113` | Yes | No | `ValidationError`. Signs and verifies every token |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | `config.py:L114` | Yes | No | `ValidationError`. Sets token lifetime |
-| `ALGORITHM` | `config.py:L115` | Yes | No | `ValidationError`. Names the JWT algorithm |
-| `GOOGLE_CLOUD_PROJECT` | `config.py:L116` | No, `Optional` | No | Resolves to `None`, and `backend/app/db/firestore.py:L40` passes it as the Firestore project |
-| `GOOGLE_APPLICATION_CREDENTIALS` | `config.py:L117` | No, `Optional` | No | Resolves to `None`. No credential file is mounted into any container |
-| `DATABASE_URL` | `config.py:L118` | Yes | Yes, `docker-compose.yml:L24` | Satisfied. Read at `backend/app/db/sql.py:L16` |
-| `REDIS_URL` | `config.py:L119` | Yes | No | `ValidationError`. No Redis service exists to point it at |
-| `ALLOWED_ORIGINS` | Nowhere | n/a | No | `AttributeError` at `backend/app/main.py:L118` |
-| `PROJECT_ID` | Nowhere | n/a | No | `AttributeError` at `backend/app/services/collaboration_service.py:L120` |
-| `STORAGE_BUCKET_NAME` | Nowhere | n/a | No | `AttributeError` at `backend/app/services/export_service.py:L154` |
-| `SIGNED_URL_EXPIRATION` | Nowhere | n/a | No | `AttributeError` at `backend/app/services/export_service.py:L162` |
-| `EXPORT_BUCKET_NAME` | Nowhere | n/a | No | `AttributeError` at `backend/app/tasks/background_tasks.py:L141` |
-| `DOCUMENT_BUCKET_NAME` | Nowhere | n/a | No | `AttributeError` at `backend/app/tasks/background_tasks.py:L278` |
+| `PROJECT_NAME` | `config.py:L40` | Yes | No | `Settings()` raises `ValidationError` |
+| `API_V1_STR` | `config.py:L41` | Yes | No | `ValidationError`. Read by no module |
+| `SECRET_KEY` | `config.py:L42` | Yes | No | `ValidationError`. Signs and verifies every token |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | `config.py:L43` | Yes | No | `ValidationError`. Sets token lifetime |
+| `ALGORITHM` | `config.py:L44` | Yes | No | `ValidationError`. Names the JWT algorithm |
+| `GOOGLE_CLOUD_PROJECT` | `config.py:L45` | No, `Optional` | No | Resolves to `None`, and `backend/app/db/firestore.py:L20` passes it as the Firestore project |
+| `GOOGLE_APPLICATION_CREDENTIALS` | `config.py:L46` | No, `Optional` | No | Resolves to `None`. No credential file is mounted into any container |
+| `DATABASE_URL` | `config.py:L47` | Yes | Yes, `docker-compose.yml:L24` | Satisfied. Read at `backend/app/db/sql.py:L16` |
+| `REDIS_URL` | `config.py:L48` | Yes | No | `ValidationError`. No Redis service exists to point it at |
+| `ALLOWED_ORIGINS` | Nowhere | n/a | No | `AttributeError` at `backend/app/main.py:L73` |
+| `PROJECT_ID` | Nowhere | n/a | No | `AttributeError` at `backend/app/services/collaboration_service.py:L69` |
+| `STORAGE_BUCKET_NAME` | Nowhere | n/a | No | `AttributeError` at `backend/app/services/export_service.py:L60` |
+| `SIGNED_URL_EXPIRATION` | Nowhere | n/a | No | `AttributeError` at `backend/app/services/export_service.py:L68` |
+| `EXPORT_BUCKET_NAME` | Nowhere | n/a | No | `AttributeError` at `backend/app/tasks/background_tasks.py:L62` |
+| `DOCUMENT_BUCKET_NAME` | Nowhere | n/a | No | `AttributeError` at `backend/app/tasks/background_tasks.py:L107` |
 
 Six required fields are absent, so `Settings()` cannot construct. Six further settings are read from
 `settings` and declared on no model, so no `.env` file and no Compose entry can supply them through
@@ -382,10 +386,12 @@ pins an action. [../.github/workflows/README.md](../.github/workflows/README.md)
 Three gaps surround the two workflows. Nothing gates CD on CI, so CD runs on a push to `main`
 whether or not CI passed. A `needs:` key cannot close that gap, because `needs:` orders jobs inside
 one workflow and cannot reference another workflow. The options are one combined workflow or a
-`workflow_run` trigger on `cd.yml`, and neither file contains either key. Neither workflow defines a
-rollback path, so a partial deploy stays partial. And `infrastructure/terraform/main.tf` declares no App Engine resource, so the
-committed infrastructure never provisions the target that both `gcloud app deploy` commands address.
-A search of the three `.tf` files for `app_engine` returns no match.
+`workflow_run` trigger on `cd.yml`, and neither file contains either key.
+
+Neither workflow defines a rollback path, so a partial deploy stays partial. And
+`infrastructure/terraform/main.tf` declares no App Engine resource, so the committed infrastructure
+never provisions the target that both `gcloud app deploy` commands address. A search of the three
+`.tf` files for `app_engine` returns no match.
 
 ### Operations risk register
 
@@ -399,8 +405,8 @@ closes it. Every one is future work; this documentation pass changes no manifest
 | 2 | Node.js 14 receives no security fix | `.github/workflows/ci.yml:L17` sets `node-version: '14'`, `infrastructure/docker/frontend.Dockerfile:L2` names `node:14-alpine`, and `../README.md:L22` states Node 14 or later. Node.js 14 left support on 30 April 2023, and its final release, 14.21.3, shipped on 16 February 2023, per [Node.js previous releases](https://nodejs.org/en/about/previous-releases) | Move to a supported Node major, declare it in `engines` and in the workflow, and add a lockfile so `npm ci` can run |
 | 3 | PostgreSQL 13 receives no security fix | `infrastructure/docker/docker-compose.yml:L31` names `image: postgres:13`. PostgreSQL 13 reached end of life on 13 November 2025, so the community ships no further fix for the 13 branch, per the [versioning policy](https://www.postgresql.org/support/versioning/) and the [release announcement](https://www.postgresql.org/about/news/postgresql-181-177-1611-1515-1420-and-1323-released-3171/) | Move to a supported major, and plan the upgrade path for any data already written |
 | 4 | Image references are mutable | Every `FROM` and every `image:` above names a tag. A tag can be repointed at different bytes by whoever publishes it, and `frontend.Dockerfile:L20` names `nginx:alpine`, which pins no minor version at all | Pin each image by digest, written `image@sha256:<hex>`, which is the only immutable form, and record the resolved version beside it |
-| 5 | Action references are mutable | `ci.yml:L13`, `:L15` and `cd.yml:L11`, `:L13` name tags. Anyone with write access to an action repository can move or delete a tag. In the March 2025 `tj-actions/changed-files` compromise, tags v1 through v45.0.7 were repointed at a single malicious commit on 14 and 15 March 2025, with the fix in v46.0.1 ([CVE-2025-30066](https://github.com/advisories/GHSA-mrrh-fwg8-r2c3), [CISA alert](https://www.cisa.gov/news-events/alerts/2025/03/18/supply-chain-compromise-third-party-tj-actionschanged-files-cve-2025-30066-and-reviewdogaction)) | Replace each tag with a reviewed full-length commit SHA, which [GitHub documents](https://docs.github.com/en/actions/reference/security/secure-use) as the only immutable reference, and record the resolved version in a comment |
-| 6 | Neither job declares the token scope it needs | Neither workflow declares a `permissions:` block at workflow or job level, so each job receives the default `GITHUB_TOKEN` scope. What that default grants is **not determinable from this repository**: it is set by a repository or organization setting, and no committed file records it, so whether the scope is broader than the work requires cannot be read off the committed files. [GitHub's guidance](https://docs.github.com/en/actions/reference/security/secure-use) is to declare it regardless | Declare the minimum explicitly: `contents: read` for `ci.yml`, and `contents: read` plus `id-token: write` for `cd.yml` under federated identity |
+| 5 | Action references are mutable | `ci.yml:L13`, `:L15` and `cd.yml:L11`, `:L13` name tags. Anyone with write access to an action repository can move or delete a tag. In the March 2025 `tj-actions/changed-files` compromise, tags v1 through v45.0.7 were repointed at a single malicious commit on 14 and 15 March 2025. The fix shipped in v46.0.1 ([CVE-2025-30066](https://github.com/advisories/GHSA-mrrh-fwg8-r2c3), [CISA alert](https://www.cisa.gov/news-events/alerts/2025/03/18/supply-chain-compromise-third-party-tj-actionschanged-files-cve-2025-30066-and-reviewdogaction)) | Replace each tag with a reviewed full-length commit SHA, which [GitHub documents](https://docs.github.com/en/actions/reference/security/secure-use) as the only immutable reference, and record the resolved version in a comment |
+| 6 | Neither job declares the token scope it needs | Neither workflow declares a `permissions:` block at workflow or job level, so each job receives the default `GITHUB_TOKEN` scope. What that default grants is **not determinable from this repository**. A repository or organization setting fixes it, and no committed file records that setting. Whether the scope is broader than the work requires therefore cannot be read off the committed files. [GitHub's guidance](https://docs.github.com/en/actions/reference/security/secure-use) is to declare it regardless | Declare the minimum explicitly: `contents: read` for `ci.yml`, and `contents: read` plus `id-token: write` for `cd.yml` under federated identity |
 | 7 | A service-account key authenticates the deploy, and nothing committed bounds it | `cd.yml:L16` passes `secrets.GCP_SA_KEY` to `setup-gcloud`. A user-managed service account key does not expire on its own, and grants its permissions to anyone who obtains it. The key's actual role, age and expiry are **not determinable from this repository**: no committed file records them, and an organization policy could bound them outside these files | Replace it with [Workload Identity Federation](https://docs.cloud.google.com/iam/docs/workload-identity-federation), which exchanges the OpenID Connect token GitHub issues for short-lived credentials and removes key handling entirely |
 | 8 | No federated identity is configured | Nothing in either workflow requests an OIDC token, and no workload identity pool or provider appears in `infrastructure/terraform/` | Create a pool and provider, request `id-token: write` on the job, and add an attribute condition restricting the provider to this repository, because an unconditioned provider lets any repository authenticate |
 | 9 | No credential rotation or audit exists | No committed file records which IAM role `GCP_SA_KEY` carries, when it was issued, or when it is next rotated. [Continuous delivery](#continuous-delivery) above records the same gap | Record the role, set a rotation schedule, and audit key use, until item 7 removes the key |
@@ -412,9 +418,8 @@ rows 1 through 4 and row 10 against the images.
 
 ### The intended release pipeline, with its stops marked
 
-Four stages make up the intended pipeline, and the diagram runs them top to bottom in the order an
-operator would reach them: provision with Terraform, build the images, validate on a push to `main`,
-then release. No automation joins one stage to the next. Neither workflow names Terraform, neither
+Four stages make up the intended pipeline. The diagram runs them top to bottom in the order an operator would
+reach them: provision with Terraform, build the images, validate on a push to `main`, then release. No automation joins one stage to the next. Neither workflow names Terraform, neither
 builds or pushes an image, and neither calls `scripts/deploy.sh`, so the three edges between stages
 are dashed and say so.
 
@@ -429,7 +434,7 @@ graph TD
         C2["terraform apply"]
         C3["4 Google Cloud resources<br/>main.tf:L19-L59, exported by no output"]
         C1 -.->|"stops: 3 module sources absent,<br/>main.tf:L68, :L77, :L86"| C0
-        C0 -.->|"stops: 14 outputs reference 12 undeclared<br/>aws_ addresses, outputs.tf:L5-L87"| C2
+        C0 -.->|"stops: 14 outputs reference 12 undeclared<br/>aws_ addresses, outputs.tf:L4-L87"| C2
         C2 -.->|"unreachable until the outputs are fixed"| C3
     end
 
@@ -455,7 +460,7 @@ graph TD
         A5["npm run build, :L23<br/>LATENT: 76 TypeScript errors"]
         A1 --> A2 --> A3
         A3 -.->|"FIRST HIT: no root package.json,<br/>no lockfile"| A4
-        A4 -.-> A5
+        A4 -.->|"unreachable: the step above ends<br/>the job, so the 76 type errors are<br/>never reported"| A5
     end
 
     subgraph CDJOB["Stage 4, delivery: .github/workflows/cd.yml"]
@@ -503,14 +508,16 @@ the step before it returned. [../scripts/README.md](../scripts/README.md) owns t
 | Success message | `:L47` | Echoes `Deployment completed successfully!` with no guard |
 
 **The credentials guard authenticates nothing.** Two credential mechanisms exist and the script
-conflates them. `GOOGLE_APPLICATION_CREDENTIALS` configures Application Default Credentials, which the
-Google client libraries read, while the `gcloud` and `gsutil` command-line tools read their own
-credential store. `:L4-L7` tests only that the variable is non-empty: it checks no path, validates no
-key, runs no `gcloud auth activate-service-account --key-file`, and runs no `gcloud config set project`.
-All four cloud stages are CLI invocations rather than client-library calls, so a passing guard authorizes
-nothing. The gap first surfaces at `:L23`, the `gsutil cp` that is the script's first cloud command. That
-upload fails on missing credentials or a missing default project unless the host already carries an
-authenticated `gcloud` configuration.
+conflates them. `GOOGLE_APPLICATION_CREDENTIALS` configures Application Default Credentials, which
+the Google client libraries read, while the `gcloud` and `gsutil` command-line tools read their own
+credential store. `:L4-L7` tests only that the variable is non-empty: it checks no path, validates
+no key, runs no `gcloud auth activate-service-account --key-file`, and runs no `gcloud config set
+project`.
+
+All four cloud stages are CLI invocations rather than client-library calls, so a passing guard
+authorizes nothing. The gap first surfaces at `:L23`, the `gsutil cp` that is the script's first
+cloud command. That upload fails on missing credentials or a missing default project unless the host
+already carries an authenticated `gcloud` configuration.
 
 **The archive carries more than the application.** `:L19` excludes `*.git*`, `node_modules/*` and
 `venv/*`, and the last two are anchored at the archive root, so neither matches `frontend/node_modules/`
@@ -519,14 +526,16 @@ both dependency trees. Nothing excludes `.env`, which `setup_dev_environment.sh:
 repository root, and nothing excludes a service-account JSON key left in the tree. Credentials and
 dependency trees leave the machine on the upload at `:L23`.
 
-**Three operational details the step table does not carry.** Every path in the script is relative, so
-`:L11`, `:L15` and `:L19` resolve against whatever directory the caller invoked from. Running the script
-from `scripts/` rather than the repository root changes which files it reads and where it writes. `:L19`
-writes `app.zip` into that same directory, and `zip` updates an existing archive in place rather than
-replacing it, so a second run adds to whatever the first left behind and uploads the result. Every remote
-stage mutates rather than reconciles: `:L23` overwrites the object, `:L27` creates a new App Engine
-version, `:L31` replays the whole migration file, and `:L35` re-applies the CDN flag. A re-run after a
-partial failure repeats every stage that already succeeded, the migration included.
+**Three operational details the step table does not carry.** Every path in the script is relative,
+so `:L11`, `:L15` and `:L19` resolve against whatever directory the caller invoked from. Running the
+script from `scripts/` rather than the repository root changes which files it reads and where it
+writes. `:L19` writes `app.zip` into that same directory, and `zip` updates an existing archive in
+place rather than replacing it. A second run therefore adds to whatever the first left behind and
+uploads the result.
+
+Every remote stage mutates rather than reconciles: `:L23` overwrites the object, `:L27` creates a
+new App Engine version, `:L31` replays the whole migration file, and `:L35` re-applies the CDN flag.
+A re-run after a partial failure repeats every stage that already succeeded, the migration included.
 
 **The CDN update names no scope.** `gcloud compute backend-services update` requires either `--global` or
 `--region`, and `:L35` passes neither, so the command prompts or errors rather than applying the change
@@ -542,8 +551,8 @@ appears in any `.tf` file.
 
 The final echo at `:L47` reports success unconditionally. No line sets `set -e`, no step tests an exit
 status, and `:L47` carries no guard, so the script prints `Deployment completed successfully!` whatever
-the earlier stages returned. The message is not conditional on failure either: it prints after a clean
-run and after a run in which every stage failed, which is what makes it useless as a signal. An operator
+the earlier stages returned. The message is not conditional on failure either. The echo prints after a clean run and after a run in which every
+stage failed, which is what makes it useless as a signal. An operator
 must read the log rather than the last line.
 
 ### The developer setup script
@@ -579,20 +588,22 @@ database `wordapp` and user `postgres`. A developer who runs the script and then
 up with two differently named databases, and `docker-compose.yml:L24` points the backend service at
 the Compose pair.
 
-The migration commands belong to Django, and the backend is FastAPI. `:L47` and `:L48` call
-`python manage.py`, and no `manage.py` exists anywhere in the repository. `:L55` closes the script by
+The migration commands belong to Django, and the backend is FastAPI. `:L47` and `:L48` call `python
+manage.py`, and no `manage.py` exists anywhere in the repository. `:L55` closes the script by
 telling the developer to start the backend with `python manage.py runserver`, which contradicts both
 `../README.md:L55` and `infrastructure/docker/backend.Dockerfile:L20`, each of which runs Uvicorn. A
-marker at `scripts/setup_dev_environment.sh:L41` and a TODO at `:L42` sit above the environment step.
-The `.env` file that `:L40` would create is the file `backend/app/core/config.py:L123` names as its
-settings source, and repairing the copy would still not connect the two. `:L123` names `.env` as a
+marker at `scripts/setup_dev_environment.sh:L41` and a TODO at `:L42` sit above the environment
+step.
+
+The `.env` file that `:L40` would create is the file `backend/app/core/config.py:L58` names as its
+settings source, and repairing the copy would still not connect the two. `:L58` names `.env` as a
 relative path, and a relative `env_file` resolves against the working directory of the process that
-constructs `Settings`, not against the directory holding the module. The script changes no directory,
-so its copy lands at the repository root that `../README.md:L29-L30` establishes, while the documented
-backend start at `../README.md:L54-L55` runs `cd backend` first and therefore reads `backend/.env`.
-`infrastructure/docker/backend.Dockerfile:L5` sets a third location, `/app`, and `:L14` copies only
-`./app` into it. Three plausible paths for one relative filename, and no committed line reconciles
-them.
+constructs `Settings`, not against the directory holding the module. The script changes no
+directory, so its copy lands at the repository root that `../README.md:L29-L30` establishes, while
+the documented backend start at `../README.md:L54-L55` runs `cd backend` first and therefore reads
+`backend/.env`. `infrastructure/docker/backend.Dockerfile:L5` sets a third location, `/app`, and
+`:L14` copies only `./app` into it. Three plausible paths for one relative filename, and no
+committed line reconciles them.
 
 ## Why a deploy fails as committed
 
@@ -609,7 +620,7 @@ table below groups them so a reader can tell what a run will actually say from w
 | Continuous integration | Push or pull request to `main` | Item 2, `npm ci` at the repository root | `npm run build` at `ci.yml:L23`, which fails on the same 76 errors |
 | Continuous delivery | Push to `main` | Item 9, `app.yaml` absent at `cd.yml:L19` | `cd.yml:L20`, the absent `dispatch.yaml`, which `bash -e` never reaches |
 | `deploy.sh` on a clean shell | `bash scripts/deploy.sh` | Item 11's guard, `:L4-L7` exits 1 at `:L6` because `GOOGLE_APPLICATION_CREDENTIALS` is unset | Every later stage. The guard is the script's only `exit`, so nothing behind it is attempted |
-| `deploy.sh` with the credential variable set | `GOOGLE_APPLICATION_CREDENTIALS=... bash scripts/deploy.sh` | Item 11's `:L11`, no root `package.json` | Nothing stops the run, because no stage checks an exit status: `:L15` with no root `tests/`, then `:L23`, which fails unless the host already carries an authenticated `gcloud`, a default project and write access to a bucket no Terraform declares, then the absent `app.yaml` at `:L27`, the absent migration file at `:L31`, the unscoped CDN update at `:L35`, and the unconditional success echo at `:L47` |
+| `deploy.sh` with the credential variable set | `GOOGLE_APPLICATION_CREDENTIALS=... bash scripts/deploy.sh` | Item 11's `:L11`, no root `package.json` | Nothing stops the run, because no stage checks an exit status. `:L15` runs with no root `tests/`. `:L23` then fails unless the host already carries an authenticated `gcloud`, a default project and write access to a bucket no Terraform declares. After that come the absent `app.yaml` at `:L27`, the absent migration file at `:L31`, the unscoped CDN update at `:L35`, and the unconditional success echo at `:L47` |
 
 Two consequences follow. Fixing a first-hit blocker exposes the next blocker on that path rather than
 producing a working deploy, so no single fix moves any path to completion. A path's silence about a
@@ -643,8 +654,8 @@ final script, each naming the file and line that stops the step.
 7. **The `app.` import prefix does not resolve inside the image.** `backend.Dockerfile:L14` copies
    `./app` to `/app` and `:L20` runs `uvicorn main:app`, flattening a package that carries no
    `__init__.py` anywhere under `backend/`. Every `from app.*` import raises `ModuleNotFoundError`.
-8. **Celery has no broker.** `backend/app/tasks/background_tasks.py:L98` reads `settings.REDIS_URL`,
-   declared at `backend/app/core/config.py:L119`. Compose declares no Redis service, Terraform
+8. **Celery has no broker.** `backend/app/tasks/background_tasks.py:L22` reads `settings.REDIS_URL`,
+   declared at `backend/app/core/config.py:L48`. Compose declares no Redis service, Terraform
    declares no cache resource, and no worker or beat process appears anywhere, so every queued task
    stays unqueued.
 9. **The CD job deploys two absent descriptors.** `.github/workflows/cd.yml:L19` and `:L20` run
@@ -654,15 +665,17 @@ final script, each naming the file and line that stops the step.
     commands and `scripts/deploy.sh:L27` address App Engine. The three `.tf` files declare one
     network, one subnet, one firewall rule and one bucket, and a search for `app_engine` returns no
     match, so the deploy target is never provisioned.
-11. **`deploy.sh` addresses absent resources and then reports success.** `:L4-L7` is the script's only
-    `exit`, so on a shell without `GOOGLE_APPLICATION_CREDENTIALS` it is the whole run. Set the variable
-    and the guard passes while authenticating nothing, because it tests a variable rather than running
-    `gcloud auth activate-service-account`. `:L23` then fails unless the host already carries an
-    authenticated `gcloud`, a default project and write access to the target. That target is hard-coded
-    `gs://my-word-app-bucket/`, which no Terraform creates, so the upload fails there in any case. `:L31`
-    pipes an uncommitted `db_migrations.sql` into Cloud SQL as a `root` role neither provisioning path
-    creates. `:L35` updates a backend service with no `--global` or `--region` scope. `:L47` echoes
-    `Deployment completed successfully!` with no guard, whatever the earlier stages returned.
+11. **`deploy.sh` addresses absent resources and then reports success.** `:L4-L7` is the script's
+    only `exit`, so on a shell without `GOOGLE_APPLICATION_CREDENTIALS` it is the whole run. Set the
+    variable and the guard passes while authenticating nothing, because it tests a variable rather
+    than running `gcloud auth activate-service-account`.
+
+    `:L23` then fails unless the host already carries an authenticated `gcloud`, a default project
+    and write access to the target. That target is hard-coded `gs://my-word-app-bucket/`, which no
+    Terraform creates, so the upload fails there in any case. `:L31` pipes an uncommitted
+    `db_migrations.sql` into Cloud SQL as a `root` role neither provisioning path creates. `:L35`
+    updates a backend service with no `--global` or `--region` scope. `:L47` echoes `Deployment
+    completed successfully!` with no guard, whatever the earlier stages returned.
 
 [troubleshooting.md](troubleshooting.md#g8-platform-and-automation-defects) carries the same eleven
 entries inside the full defect register, alongside the backend import failure and the 76 frontend
@@ -682,9 +695,9 @@ Google Cloud is the platform the code actually calls.
 | ---------- | ---------- |
 | The only configured Terraform provider | `infrastructure/terraform/main.tf:L9-L12` |
 | Four Google Cloud resources | `main.tf:L19`, `:L25`, `:L35`, `:L50` |
-| Firestore client, built at import time | `backend/app/db/firestore.py:L40`, importing at `:L34` |
-| Cloud Storage client, used by the export service | `backend/app/services/export_service.py:L59` |
-| Pub/Sub publisher and subscriber | `backend/app/services/collaboration_service.py:L37` |
+| Firestore client, built at import time | `backend/app/db/firestore.py:L20`, importing at `:L14` |
+| Cloud Storage client, used by the export service | `backend/app/services/export_service.py:L14` |
+| Pub/Sub publisher and subscriber | `backend/app/services/collaboration_service.py:L16` |
 | `gcloud` in the delivery workflow | `.github/workflows/cd.yml:L13`, `:L19-L20` |
 | `gcloud` and `gsutil` in the deploy script | `scripts/deploy.sh:L23`, `:L27`, `:L31`, `:L35` |
 | The stack line in the root README | `../README.md:L18` |
@@ -704,8 +717,8 @@ resource addresses across 9 resource types**.
 
 | Resource type | Address | Read by |
 | --------------- | --------- | --------- |
-| `aws_api_gateway_deployment` | `.main` | `api_gateway_endpoint` at `:L5` |
-| `aws_api_gateway_stage` | `.main` | `api_gateway_stage` at `:L10` |
+| `aws_api_gateway_deployment` | `.main` | `api_gateway_endpoint` at `:L4` |
+| `aws_api_gateway_stage` | `.main` | `api_gateway_stage` at `:L9` |
 | `aws_db_instance` | `.main` | `database_connection_string` at `:L18` |
 | `aws_db_instance` | `.read_replica` | `read_replica_connection_string` at `:L24` |
 | `aws_s3_bucket` | `.main` | `main_storage_bucket_name` at `:L33` |

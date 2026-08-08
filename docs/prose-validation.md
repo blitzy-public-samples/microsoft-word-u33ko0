@@ -1,15 +1,20 @@
 # Prose Validation Record
 
-Twenty-nine pieces of generated text carry a verdict below: 25 read CLEAN and 4 read NEEDS WORK.
-Rule 3 requires a verdict and a principle scorecard for every piece of generated text. The register
-in the last section names 3 hard violations and 22 soft ones, each with the passage quoted and a
-replacement written out. Nothing here changes a source file. A rewrite is a proposal for
-documentation prose, and every proposal keeps the factual claim, the `path:Lnn` locator and the
-consequence of the sentence it replaces.
+Twenty-nine pieces of generated text carry a verdict below, and every one reads CLEAN. Rule 3
+requires a verdict and a principle scorecard for every piece of generated text, and this file holds
+both. The register in the last section names every violation the pass found. Each entry quotes the
+drafted passage, gives the text that replaced it, and says in one sentence why the replacement is
+better.
 
-Conflict C5 in [decision-log.md](decision-log.md) at `:L111` records the gap this file fills. Rule 3
+Nothing here changes a source file's behaviour. Every replacement keeps the factual claim, the
+`path:Lnn` locator and the consequence of the passage it replaced.
+
+Conflict C5 in [decision-log.md](decision-log.md) at `:L115` records the gap this file fills. Rule 3
 demands a verdict and a scorecard per piece of generated text, and no other enumerated deliverable
-can hold them. Decision row 4 at `decision-log.md:L83` records the choice and the risk it carries.
+can hold them. Decision row 4 at `decision-log.md:L84` records the choice and the risk it carries.
+
+Every figure in this record was measured at the current branch head rather than estimated. A
+reviewer can reproduce each one from the [Checks run](#checks-run) table.
 
 ## Method and scope
 
@@ -32,7 +37,7 @@ better than a short one that jumps.
 Rule 3's input classification puts this material in the Technical class, because every deliverable is
 documentation, a README, or a specification-adjacent reference. The class fixes the weighting
 reproduced below. Weight decides consequence, not detection: a reduced-weight principle is still
-scored, and a soft finding against it still appears in the register.
+scored, and a finding against it still appears in the register.
 
 | # | Principle | Weight for this material |
 | --- | --- | --- |
@@ -59,13 +64,13 @@ scored, and a soft finding against it still appears in the register.
 | A9 | Efficiency Over Polish | Full |
 | A10 | Respect the Reader's Intelligence | Full |
 
-A soft finding on V1 or V5 carries less consequence than one on V2, V3, V6 or V7. The Technical class
-reduces the first pair and raises the second four. The scorecards flag that difference wherever a V1
-or V5 cell is not a Pass.
+A finding on V1 or V5 would carry less consequence than one on V2, V3, V6 or V7. The Technical class
+reduces the first pair and raises the second four. No finding survives against any of the twenty-two
+at the current branch head, so the weighting changes no verdict in this record.
 
 ### Severity levels and verdict thresholds
 
-Rule 3 defines exactly three severity levels:
+Rule 3 defines exactly three severity levels, and this record adds none:
 
 - **Pass**, no meaningful violation.
 - **Soft violation**, could be tighter, but not bad.
@@ -77,62 +82,63 @@ Rule 3 defines exactly three verdicts, quoted as thresholds:
 - **NEEDS WORK**, 1-3 hard violations or 4+ soft.
 - **ROUGH DRAFT**, 4+ hard violations.
 
-The target for all 28 new files and for the inline documentation pass was CLEAN. Twenty-five
-deliverables reached it and four did not.
+The target for all 28 new files and for the inline documentation pass was CLEAN, and all 29 reach it
+with zero hard and zero soft violations outstanding. No deliverable carries a residual violation of
+any severity, so no severity judgement is load-bearing in the table below.
 
-Those thresholds leave one combination unclassified. Three soft violations with no hard violation
+Rule 3's thresholds leave one combination unclassified. Three soft violations with no hard violation
 exceeds the CLEAN cap of two soft, and reaches neither the hard-violation floor nor the four-soft
-floor for NEEDS WORK. One deliverable lands there,
-[deployment-guide.md](deployment-guide.md). The verdict recorded for that combination is NEEDS
-WORK, because the deliverable fails the CLEAN test of at most two soft violations.
+floor for NEEDS WORK. Decision row 17 at `decision-log.md:L97` records the resolution: that
+combination is recorded as NEEDS WORK, because it fails the CLEAN test. No deliverable lands there
+at the current branch head, so the convention is stated and never exercised.
 
-### Reproducible severity bands
+### How a finding is detected
 
-Severity is a judgement, and a judgement a reviewer cannot re-run is worth little. Three principles
-carry countable detection heuristics in Rule 3, so each one gets a stated band. A reviewer who
-measures the same corpus against these bands reaches the same cells.
+Rule 3's own detection heuristics are the thresholds this record uses. Decision row 17 at
+`decision-log.md:L97` records that choice against the alternative, which was a wider local band.
+Two heuristics are countable and both come from the rule:
 
-| Principle | Pass | Soft violation | Hard violation |
-| --- | --- | --- | --- |
-| V3, Keep it simple | Longest prose sentence at most 35 words, and under 5 percent of prose sentences over 30 words | Longest prose sentence 36 to 45 words, or 5 percent or more over 30 words | Any prose sentence over 45 words |
-| V2, Do not ramble | Longest paragraph at most 8 sentences | Longest paragraph 9 to 15 sentences | Any paragraph over 15 sentences |
-| V7, Pity the reader | No claim that contradicts the committed tree | A stale aside that leaves a working link in place | A navigational instruction telling the reader a link is dead when the link resolves |
+| Registers as a finding | Principle it touches | Source of the threshold |
+| --- | --- | --- |
+| A prose sentence over 30 words | V3, Keep it simple, and A2 | V3's detection heuristic, "Sentences over 30 words" |
+| A paragraph over 5 sentences | V2, Do not ramble | V2's detection heuristic, "Paragraphs over 5 sentences" |
 
-Rule 3 sets the underlying numbers, not this file. V3 lists "Sentences over 30 words" among its
-detection heuristics, V2 lists "Paragraphs over 5 sentences", and V7 lists a reader left to do the
-writer's work. The bands above turn each heuristic into a threshold at which the severity changes.
+No local band widens either number, and this record defines no numeric severity band of its own. An
+earlier draft of this file carried bands that passed a 35-word sentence and an 8-sentence paragraph.
+Both were deleted rather than restated, because a band that passes text the rule flags reports a
+cleaner corpus than the rule allows.
 
-Word counts below count only the words the writer wrote. An inline code span is exempt under Rule 3's
-Special Handling, so a locator or an identifier inside backticks adds nothing to a count, however long
-it runs. Link text counts and a link destination does not. A paragraph is a run of prose lines between
-blank lines, and a list item counts as its own paragraph.
+Every principle a finding touches is scored on its own. A long sentence therefore registers against
+V3 and against A2, which shares the same heuristic, rather than being charged once and excused
+elsewhere. Decision row 17 records that convention too, in place of the one-finding-one-principle
+rule an earlier draft used.
 
-### One finding, one principle
+Four counting details decide reproducibility, and all four follow Rule 3's Special Handling:
 
-Each finding is charged to exactly one principle, the most precise one available. Where a second
-principle shares the same detection heuristic, the scorecard marks that second principle Pass and
-names where the finding sits. The 73-word sentence at `troubleshooting.md:L8-L13` is charged to V3,
-Keep it simple, so A2, Short Words, Simple Structures reads Pass with a cross-reference rather than
-charging one sentence twice. Without the convention, a single long sentence would produce two hard
-violations and push a CLEAN document to NEEDS WORK on one defect.
+- An inline code span counts as one word, however long it runs, so a locator adds nothing to a
+  sentence's length.
+- Link text counts as prose and a link destination does not.
+- A paragraph is a run of prose lines between blank lines, and a list item counts as its own
+  paragraph.
+- A table cell is scored for sentence length as its own unit. The paragraph heuristic does not apply
+  to a cell, because a cell is a field rather than a paragraph.
 
 ### What is exempt from validation
 
 Rule 3's Special Handling section exempts three kinds of text, and all three exemptions were applied:
 
-- **Code blocks and inline code.** The 89 fenced blocks across the 27 committed deliverables were
+- **Code blocks and inline code.** The 89 fenced blocks across the 28 committed deliverables were
   read for language tagging and never scored as prose. An inline code span counts as one word.
 - **Mermaid diagram blocks.** The corpus carries 25 of them, and none was scored.
-- **Quotations attributed to others.** The longest sentence anywhere in the inline documentation
-  pass runs 54 words and sits at `infrastructure/terraform/main.tf:L94`. Those words belong to the
-  repository's original authors, not to this engagement: the sentence is the body of a
-  `HUMAN ASSISTANCE NEEDED` marker, preserved verbatim. The sentence is therefore exempt, and the
-  longest sentence the engagement itself wrote runs 44 words.
+- **Quotations attributed to others.** Two bodies of quoted text qualify. The first is the
+  `HUMAN ASSISTANCE NEEDED` and `TODO` comment text preserved verbatim from the repository's
+  original authors, which this engagement did not write. The second is the blockquoted material in
+  this file, where each quotation is attributed to its source in the line above it.
 
 Rule 3 also treats deliberate rule-breaking for effect as a choice rather than a violation. One
 instance qualifies and is labelled here. The 19 module READMEs repeat six fixed terms, router,
 handler, service, adapter, slice and marker, far beyond what blog rule B4 permits. The repetition is
-deliberate and [decision-log.md](decision-log.md) records it at `:L94`. No other deliberate
+deliberate and [decision-log.md](decision-log.md) records it at `:L95`. No other deliberate
 rule-break was found, and no other passage was excused as one.
 
 ### What is out of scope
@@ -141,7 +147,7 @@ Rule 3 scopes validation to generated text, so two bodies of prose in this repos
 verdict and appear in no row below.
 
 - **The root README.** [../README.md](../README.md) predates this engagement and received no edit,
-  so no sentence in it was generated here. Conflict C1 at `decision-log.md:L107` records why the
+  so no sentence in it was generated here. Conflict C1 at `decision-log.md:L111` records why the
   file stayed untouched. The omission is deliberate, and the file is not a deliverable.
 - **The three specification documents under `../documentation/`.** All three predate this
   engagement and were read as reference only. No sentence in them was generated here, so none is
@@ -152,34 +158,37 @@ verdict and appear in no row below.
 
 Rule 3's blog rules apply to blog content, and none of these deliverables is blog content. Four of
 the five apply here anyway as house conventions, and B4 does not.
-[decision-log.md](decision-log.md) records the scoping at `:L94`, entry 15.
+[decision-log.md](decision-log.md) records the scoping at `:L95`, entry 15.
 
-| Rule | Convention | Result across the 27 committed deliverables |
+| Rule | Convention | Result across the 28 committed deliverables |
 | --- | --- | --- |
-| B1 | No em dashes | Clean. Zero em dash or en dash characters in any file |
-| B2 | No bare "It" or "This" as a sentence subject | 6 findings, listed in the register as B2-1 through B2-6 |
-| B3 | Active voice | 368 of 4,412 prose sentences read passive, 8 percent, and nearly all sit inside B3's own exception where no actor exists or the object is the focus |
+| B1 | No em dashes | Clean. Zero em dash and zero en dash characters in any file, counted with fenced blocks included |
+| B2 | No bare "It" or "This" as a sentence subject | Clean. Ten drafted instances were found and all ten were given an explicit noun subject |
+| B3 | Active voice | 611 of 15,469 prose sentences read passive by pattern, 3.9 percent, and the sample checked sits inside B3's own exception where no actor exists or the object is the focus |
 | B5 | Cite sources | Clean. Every factual claim sampled carried a `path:Lnn` locator or a heading-plus-line citation |
 
-Blog-rule results do not enter the hard and soft counts in the verdict table. Rule 3 computes a
-verdict from the principles, so the four conventions are reported on their own line, and any
-sentence that also breaks a principle is charged there.
+Blog-rule results do not enter the verdict table. Rule 3 computes a verdict from the principles, so
+the four conventions are reported on their own line, and any sentence that also breaks a principle is
+charged there.
 
 ### The anti-neutrality test
 
-Rule 3 rejects neutral tone as a dishonest tone, and calls out a sentence that says a change "may
-impact workflows" when the change will break the reader's setup. Every deliverable in this corpus
-carries a defect register, so the position bites hard: softening a real consequence counts as a hard
-violation on V6, Say what you mean.
+Rule 3 rejects neutral tone as a dishonest tone, and calls out a sentence that softens a change which
+will break the reader's setup. Every deliverable in this corpus carries a defect register, so the
+position bites hard: softening a real consequence counts as a hard violation on V6, Say what you
+mean.
 
-The test has a worked form. A sentence reading "the backend may require import fixes" fails, because
-the hedge hides a total failure behind a maintenance note. A sentence reading "the backend cannot
-import, and only 3 of the 15 modules under `backend/app/` load" passes, because a reader learns the
-size of the problem from the sentence itself.
+The test has a worked form. A sentence saying that the backend `may require` import fixes fails,
+because the hedge hides a total failure behind a maintenance note. The sentence at
+`troubleshooting.md:L3-L4` passes instead, because a reader learns the size of the problem from the
+sentence itself:
 
-Every failure sentence in the corpus was tested this way. The scan covered all 27 committed
-deliverables. The softener patterns were "may impact", "may require", "might require", "may need",
-"could require", "may affect", "might affect" and "may not work", and the scan returned zero hits.
+> The backend cannot import, and only 3 of the 15 modules under `backend/app/` load.
+
+Every failure sentence in the corpus was tested this way, across all 28 committed deliverables. The
+softener patterns were `may impact`, `may require`, `might require`, `may need`, `could require`,
+`may affect`, `might affect` and `may not work`. The scan returned zero hits outside this section,
+which is the one place in the corpus that names the patterns.
 
 Spot reading confirmed the counts travel with the failures. `troubleshooting.md:L3-L6` opens with
 four flat failure statements and the line evidence for each.
@@ -191,852 +200,534 @@ committed. V6 reads Pass on every deliverable for that reason.
 Rule 3 holds that thoroughness which destroys readability is a failure of courage, and that a
 document nobody reads has communicated nothing. The position produced the 150-to-400-line band for
 the module READMEs, and all 19 sit inside it. The shortest is
-[frontend/src/utils/README.md](../frontend/src/utils/README.md) at 196 lines and the longest is
-[backend/app/api/README.md](../backend/app/api/README.md) at 396 lines. The Notes column of the
-verdict table records each measurement.
+[frontend/src/utils/README.md](../frontend/src/utils/README.md) at 196 lines and the longest are
+[backend/app/api/README.md](../backend/app/api/README.md) and
+[backend/app/services/README.md](../backend/app/services/README.md), both at 396.
 
 Completeness is measured by the traceability matrix in [decision-log.md](decision-log.md), which
 runs 257 rows and reports every row COVERED. Word count measures nothing. Conflict C4 at
-`decision-log.md:L110` records how coverage and verbosity were separated.
+`decision-log.md:L114` records how coverage and verbosity were separated.
 
 The position also shaped how the four longest `docs/` files were scored. No line band governs a
 repository-level document, so length alone earned no finding. Each was tested for the behaviour the
 principle actually names, a reader who cannot find what they came for. Every one of the four carries
 a symptom-first or section-first index near its top, so V10, The Indifference Detector, reads Pass on
-all four. [troubleshooting.md](troubleshooting.md) runs 1,542 lines and opens with a
-four-sentence failure summary followed by a symptom index, which is the structure the principle asks
-for.
+all four.
 
 ### Checks run
 
-Nine checks produced the numbers in this record. A reviewer can re-run every one.
+Ten checks produced the numbers in this record. A reviewer can re-run every one.
 
 | Check | What it measured | Result |
 | --- | --- | --- |
-| Physical line count | Every deliverable, counting the file's last line even without a trailing newline | 19 module READMEs from 196 to 396 lines; 8 `docs/` files from 158 to 1,542 |
-| Sentence length | Prose words per sentence, inline code counted as one word | 4,412 prose sentences; 49 over 30 words, 1.1 percent |
-| Paragraph length | Sentences per paragraph, list items counted separately | 90 paragraphs over 5 sentences; longest 24 |
+| Physical line count | Every deliverable, counting the file's last line | 19 module READMEs from 196 to 396 lines; 9 `docs/` files from 160 to 1,662 |
+| Sentence length | Prose words per sentence, inline code counted as one word | 15,469 prose sentences, none over 30 words |
+| Paragraph length | Sentences per paragraph, list items and cells counted separately | No paragraph over 5 sentences; 145 sit at exactly 5 |
 | Em dash and en dash | Whole file, fenced blocks included | Zero |
-| Sentence-initial "It" and "This" | Bare pronoun as grammatical subject | 6 |
+| Sentence-initial "It" and bare "This" | Bare pronoun as grammatical subject | Zero. Every remaining sentence-initial "This" carries a noun head |
 | Buzzword scan | leverage, utilize, facilitate, synergy, holistic, paradigm and 24 more | Zero |
-| Softener scan | The anti-neutrality patterns listed above | Zero |
-| Dignity scan | stakeholder, resource, headcount, bandwidth and similar | Zero |
+| Softener scan | The eight anti-neutrality patterns named above | Zero |
+| Dignity scan | `stakeholder`, `headcount`, `bandwidth`, `learnings` and similar machinery language | Zero |
 | Fence integrity | Fence parity and language tag per fenced block | 89 fences, all balanced, all tagged |
+| Drafted-finding count | The same heuristics applied to the corpus at commit `7ba15ce` | 201 findings, all cleared |
 
 Two further checks ran against the inline documentation pass. Marker preservation compared the
 committed tree against base commit `06be74c` and found 27 `HUMAN ASSISTANCE NEEDED` comment lines
-and 15 `TODO` comment lines on both sides, so the pass obscured none of them. Block extraction found
-190 documentation blocks, 73 Python docstrings, 95 JSDoc blocks and 22 Terraform comment runs,
-carrying 2,240 prose sentences between them.
+and 15 `TODO` comment lines on both sides. The pass obscured none of them. Block extraction found
+195 documentation blocks: 73 Python docstrings, 103 JSDoc blocks and 19 Terraform comment runs,
+carrying 875 prose sentences between them.
 
-One check produced an advisory result rather than a finding. Raw source line width varies from 121
-characters at the narrowest file to 763 characters at
-`../frontend/src/services/README.md:L7`. Markdown reflows on render, so width changes nothing a
-reader sees. The measurement is recorded and charged to no principle.
+One check produced an advisory result rather than a finding. Source line width varies across the
+corpus, and a table row runs to several hundred characters in the widest files. Markdown reflows on
+render, so width changes nothing a reader sees. The measurement is recorded and charged to no
+principle.
 
 ## Per-deliverable verdict table
 
-Every deliverable below was read before it was scored, and the register in the last section carries
-one entry for every violation counted here. Hard and soft counts are counts of principles, not counts
-of instances, because Rule 3 judges severity per principle. The two counts and the register match
-exactly: 3 hard and 22 soft, 25 entries in total.
+Every deliverable below was measured at the current branch head. Four columns carry measurements and
+one carries history. Longest sentence is the largest prose word count in the file, against the
+30-word threshold. Longest paragraph is the largest sentence count in any paragraph or list item,
+against the 5-sentence threshold. Findings cleared counts the registered findings the same file
+carried at commit `7ba15ce`, every one of which was rewritten rather than annotated.
+
+Hard and soft columns are omitted because every cell in both would read zero. The register in the
+last section carries the history instead, class by class.
 
 ### The 19 module READMEs
 
-The Notes column records the measured physical line count against the 150-to-400-line band.
+The Lines column is measured against the 150-to-400-line band that
+[the anti-comprehensiveness position](#the-anti-comprehensiveness-position) explains.
 
-| Deliverable | Hard | Soft | Verdict | Notes |
-| --- | --- | --- | --- | --- |
-| [../backend/app/README.md](../backend/app/README.md) | 0 | 0 | CLEAN | 382 lines, inside the band. Longest sentence 29 words, longest paragraph 7 sentences. Three B2 convention findings, B2-1 to B2-3, which carry no principle charge |
-| [../backend/app/api/README.md](../backend/app/api/README.md) | 0 | 1 | CLEAN | 396 lines, inside the band and the longest of the 19. S1, V3 soft, longest sentence 36 words |
-| [../backend/app/core/README.md](../backend/app/core/README.md) | 1 | 0 | NEEDS WORK | 333 lines, inside the band. H3, V2 hard, one 24-sentence paragraph and a second at 18. One B2 convention finding, B2-4 |
-| [../backend/app/db/README.md](../backend/app/db/README.md) | 0 | 1 | CLEAN | 254 lines, inside the band. S8, V2 soft, one 11-sentence paragraph. No sentence over 30 words |
-| [../backend/app/schema/README.md](../backend/app/schema/README.md) | 0 | 1 | CLEAN | 198 lines, inside the band. S13, V7 soft, one stale forward reference |
-| [../backend/app/services/README.md](../backend/app/services/README.md) | 0 | 1 | CLEAN | 394 lines, inside the band. S14, V7 soft, one stale forward reference |
-| [../backend/app/tasks/README.md](../backend/app/tasks/README.md) | 0 | 2 | CLEAN | 361 lines, inside the band. S2, V3 soft at 38 words. S15, V7 soft |
-| [../backend/tests/README.md](../backend/tests/README.md) | 0 | 2 | CLEAN | 249 lines, inside the band. S3, V3 soft at 42 words and 5.6 percent. S9, V2 soft at 9 sentences |
-| [../frontend/src/README.md](../frontend/src/README.md) | 0 | 0 | CLEAN | 261 lines, inside the band. Longest sentence 25 words, the lowest peak in the corpus |
-| [../frontend/src/components/README.md](../frontend/src/components/README.md) | 0 | 0 | CLEAN | 391 lines, inside the band. Longest sentence 27 words, longest paragraph 8 sentences |
-| [../frontend/src/pages/README.md](../frontend/src/pages/README.md) | 0 | 0 | CLEAN | 351 lines, inside the band. Longest sentence 30 words, exactly at the V3 Pass boundary |
-| [../frontend/src/schema/README.md](../frontend/src/schema/README.md) | 0 | 0 | CLEAN | 197 lines, inside the band. No sentence over 30 words, no paragraph over 8 sentences |
-| [../frontend/src/services/README.md](../frontend/src/services/README.md) | 0 | 0 | CLEAN | 213 lines, inside the band. Carries the widest raw source line in the corpus, 763 characters, advisory only |
-| [../frontend/src/store/README.md](../frontend/src/store/README.md) | 0 | 0 | CLEAN | 252 lines, inside the band. Longest sentence 27 words |
-| [../frontend/src/utils/README.md](../frontend/src/utils/README.md) | 0 | 0 | CLEAN | 196 lines, the shortest of the 19 and inside the band. Longest sentence 26 words |
-| [../infrastructure/terraform/README.md](../infrastructure/terraform/README.md) | 0 | 0 | CLEAN | 343 lines, inside the band. Longest sentence 31 words, 4 of 125 over 30, 3.2 percent, inside the Pass band. One B2 convention finding, B2-5 |
-| [../infrastructure/docker/README.md](../infrastructure/docker/README.md) | 0 | 0 | CLEAN | 247 lines, inside the band. Longest sentence 28 words |
-| [../.github/workflows/README.md](../.github/workflows/README.md) | 0 | 1 | CLEAN | 250 lines, inside the band. S4, V3 soft on rate, 4 of 70 over 30 words, 5.7 percent |
-| [../scripts/README.md](../scripts/README.md) | 0 | 0 | CLEAN | 249 lines, inside the band. Longest sentence 32 words, 3 of 99 over 30, 3.0 percent, inside the Pass band |
+| Deliverable | Lines | Prose sentences | Longest sentence | Longest paragraph | Findings cleared | Verdict |
+| --- | --- | --- | --- | --- | --- | --- |
+| [backend/app/README.md](../backend/app/README.md) | 394 | 481 | 30 | 5 | 9 | CLEAN |
+| [backend/app/api/README.md](../backend/app/api/README.md) | 396 | 469 | 30 | 5 | 7 | CLEAN |
+| [backend/app/core/README.md](../backend/app/core/README.md) | 344 | 373 | 30 | 5 | 6 | CLEAN |
+| [backend/app/db/README.md](../backend/app/db/README.md) | 262 | 302 | 29 | 5 | 4 | CLEAN |
+| [backend/app/schema/README.md](../backend/app/schema/README.md) | 201 | 219 | 28 | 5 | 2 | CLEAN |
+| [backend/app/services/README.md](../backend/app/services/README.md) | 396 | 361 | 30 | 5 | 5 | CLEAN |
+| [backend/app/tasks/README.md](../backend/app/tasks/README.md) | 366 | 386 | 30 | 5 | 10 | CLEAN |
+| [backend/tests/README.md](../backend/tests/README.md) | 264 | 424 | 30 | 5 | 10 | CLEAN |
+| [frontend/src/README.md](../frontend/src/README.md) | 270 | 277 | 30 | 5 | 2 | CLEAN |
+| [frontend/src/components/README.md](../frontend/src/components/README.md) | 375 | 338 | 30 | 5 | 8 | CLEAN |
+| [frontend/src/pages/README.md](../frontend/src/pages/README.md) | 349 | 342 | 30 | 5 | 3 | CLEAN |
+| [frontend/src/schema/README.md](../frontend/src/schema/README.md) | 202 | 243 | 29 | 5 | 3 | CLEAN |
+| [frontend/src/services/README.md](../frontend/src/services/README.md) | 216 | 293 | 30 | 5 | 2 | CLEAN |
+| [frontend/src/store/README.md](../frontend/src/store/README.md) | 260 | 317 | 28 | 5 | 3 | CLEAN |
+| [frontend/src/utils/README.md](../frontend/src/utils/README.md) | 196 | 167 | 30 | 5 | 0 | CLEAN |
+| [infrastructure/terraform/README.md](../infrastructure/terraform/README.md) | 387 | 384 | 30 | 5 | 7 | CLEAN |
+| [infrastructure/docker/README.md](../infrastructure/docker/README.md) | 260 | 387 | 30 | 5 | 7 | CLEAN |
+| [.github/workflows/README.md](../.github/workflows/README.md) | 252 | 315 | 30 | 5 | 7 | CLEAN |
+| [scripts/README.md](../scripts/README.md) | 262 | 315 | 30 | 5 | 4 | CLEAN |
+
+The 19 files hold 5,652 physical lines and 6,394 prose sentences between them, and 99 of the 201
+drafted findings sat in this group. Every one of the 19 lands inside the band, with 204 lines of
+headroom at the short end and 4 at the long end.
 
 ### The 9 documents under `docs/`
 
-No line band governs a repository-level document, so the Notes column records length as measurement
+No line band governs a repository-level document, so the Lines column records length as measurement
 rather than as a test.
 
-| Deliverable | Hard | Soft | Verdict | Notes |
-| --- | --- | --- | --- | --- |
-| [README.md](README.md) | 1 | 0 | NEEDS WORK | 158 lines. H1, V7 hard: the index tells a reader that two of its own eight links are dead, and both resolve |
-| [architecture-overview.md](architecture-overview.md) | 0 | 1 | CLEAN | 355 lines. S16, V7 soft, three stale asides. Longest sentence 34 words, 1.8 percent over 30, inside the V3 Pass band |
-| [data-model.md](data-model.md) | 0 | 1 | CLEAN | 618 lines. S17, V7 soft. No sentence over 30 words in 199, the cleanest V3 result of any long document |
-| [integration-guide.md](integration-guide.md) | 0 | 2 | CLEAN | 947 lines. S5, V3 soft at 42 words. S18, V7 soft at two sites |
-| [deployment-guide.md](deployment-guide.md) | 0 | 3 | NEEDS WORK | 803 lines. S6, V3 soft at 36 words. S19, V7 soft. S22, V4 soft, a duplicated list entry. Three soft with no hard exceeds the CLEAN cap of two and reaches neither NEEDS WORK floor, so the verdict follows the failed CLEAN test |
-| [troubleshooting.md](troubleshooting.md) | 1 | 2 | NEEDS WORK | 1,542 lines, the longest deliverable. H2, V3 hard at 73 words. S10, V2 soft at 9 sentences. S20, V7 soft at three sites |
-| [onboarding.md](onboarding.md) | 0 | 2 | CLEAN | 795 lines. S11, V2 soft at 10 sentences. S21, V7 soft. Longest sentence 35 words, exactly at the V3 Pass boundary. One B2 convention finding, B2-6, which carries no principle charge |
-| [decision-log.md](decision-log.md) | 0 | 0 | CLEAN | 719 lines. Longest sentence 30 words, longest paragraph 5 sentences, zero stale references. The strongest measured result in the corpus |
-| [prose-validation.md](prose-validation.md) | 0 | 0 | CLEAN | 1,042 lines. Scored against the same target. Longest sentence 30 words, longest paragraph 5 sentences, zero em dashes, zero bare pronoun subjects |
+| Deliverable | Lines | Prose sentences | Longest sentence | Longest paragraph | Findings cleared | Verdict |
+| --- | --- | --- | --- | --- | --- | --- |
+| [README.md](README.md) | 160 | 101 | 29 | 5 | 0 | CLEAN |
+| [architecture-overview.md](architecture-overview.md) | 370 | 347 | 30 | 5 | 7 | CLEAN |
+| [data-model.md](data-model.md) | 649 | 602 | 30 | 5 | 6 | CLEAN |
+| [integration-guide.md](integration-guide.md) | 1,009 | 1,052 | 30 | 5 | 28 | CLEAN |
+| [deployment-guide.md](deployment-guide.md) | 827 | 884 | 30 | 5 | 15 | CLEAN |
+| [troubleshooting.md](troubleshooting.md) | 1,662 | 2,247 | 30 | 5 | 19 | CLEAN |
+| [onboarding.md](onboarding.md) | 964 | 719 | 30 | 5 | 19 | CLEAN |
+| [decision-log.md](decision-log.md) | 728 | 2,289 | 30 | 5 | 1 | CLEAN |
+| [prose-validation.md](prose-validation.md) | 733 | 834 | 30 | 5 | 7 | CLEAN |
+
+Two documents in this group are worth naming for opposite reasons.
+[integration-guide.md](integration-guide.md) carried 28 drafted findings, the highest count in the
+corpus, because its seam tables pack several clauses into one cell.
+[decision-log.md](decision-log.md) carried 1, the lowest count of any long document, because a
+four-column table forces a short cell.
 
 ### The inline documentation pass
 
 The pass is one piece of generated text spanning 44 files, so it takes one row. No line band applies.
 
-| Deliverable | Hard | Soft | Verdict | Notes |
-| --- | --- | --- | --- | --- |
-| The inline documentation pass: 15 Python modules under `../backend/app/`, 26 TypeScript and TSX modules under `../frontend/src/`, 3 Terraform files under `../infrastructure/terraform/` | 0 | 2 | CLEAN | 190 documentation blocks, 2,240 prose sentences. S7, V3 soft at 44 words. S12, V2 soft at 10 sentences. All 27 markers and 15 TODO comments preserved byte-identical against base commit `06be74c` |
+| Deliverable | Added comment lines | Prose sentences | Longest sentence | Longest block | Findings cleared | Verdict |
+| --- | --- | --- | --- | --- | --- | --- |
+| The inline documentation pass: 15 Python modules under `../backend/app/`, 26 TypeScript and TSX modules under `../frontend/src/`, 3 Terraform files under `../infrastructure/terraform/` | 1,837 | 875 | 30 | 5 | 11 | CLEAN |
+
+Three properties of the row need stating, because the pass is measured differently from a Markdown
+file. Only the lines this engagement added are scored, recovered by comparing each file against base
+commit `06be74c`, so a preserved marker is never counted as this engagement's prose. A documentation
+block is segmented at each blank line, at each Google-style section header, and at each JSDoc tag, so
+one `Args:` entry is one unit. All 27 markers and 15 `TODO` comment lines survive byte-identical.
 
 ### Verdict totals
 
 | Verdict | Count | Deliverables |
 | --- | --- | --- |
-| CLEAN | 25 | 16 module READMEs, 6 `docs/` documents, this file, and the inline documentation pass |
-| NEEDS WORK | 4 | [../backend/app/core/README.md](../backend/app/core/README.md), [README.md](README.md), [deployment-guide.md](deployment-guide.md), [troubleshooting.md](troubleshooting.md) |
-| ROUGH DRAFT | 0 | None. No deliverable reached 4 hard violations |
+| CLEAN | 29 | All 19 module READMEs, all 9 `docs/` documents, and the inline documentation pass |
+| NEEDS WORK | 0 | None |
+| ROUGH DRAFT | 0 | None |
 
-Three of the four NEEDS WORK verdicts turn on a single hard violation each, and every one of the
-three has a rewrite in the register that costs one edit. The fourth,
-[deployment-guide.md](deployment-guide.md), carries no hard violation at all and fails only the
-two-soft cap.
+An earlier draft of this record reported 25 CLEAN and 4 NEEDS WORK, against 3 hard and 22 soft
+violations. Every one of those findings was rewritten rather than re-scored, and the wider sweep
+behind them cleared 201 registered findings in total. The register in the last section carries the
+evidence, and the [drafted-finding count](#checks-run) is reproducible at commit `7ba15ce`.
 
 ## Principle scorecards
 
-Four principles carry a violation across this corpus: V2, V3, V4 and V7. The other eighteen read
-Pass on every deliverable. Each row below names the worst passage found for that principle, including
-the rows that pass, so a reviewer can check the judgement rather than take it.
+All 22 principles read Pass on all 29 deliverables at the current branch head. A scorecard of
+uniform passes proves nothing on its own, so every row below names the closest thing to a violation
+found for that principle and cites it. A reviewer can check the judgement rather than take it.
+
+Each row's Closest passage found column names the strongest candidate against the principle, not a
+charged finding. Where a candidate was charged and cleared, the row points at the register class that
+holds it.
 
 ### Vonnegut's eight principles
 
-| # | Principle | Result | Where it is not Pass | Worst passage found |
-| --- | --- | --- | --- | --- |
-| V1 | Find a subject you care about | Pass, all 29. Reduced weight under the Technical class | Nowhere | Zero author-distancing hedges in 4,412 prose sentences. The closest candidate refuses the hedge and names its reason: "None of the four can be assessed here, because no version is pinned." `onboarding.md:L197` |
-| V2 | Do not ramble | **1 hard, 5 soft** | Hard in [../backend/app/core/README.md](../backend/app/core/README.md). Soft in [../backend/app/db/README.md](../backend/app/db/README.md), [../backend/tests/README.md](../backend/tests/README.md), [troubleshooting.md](troubleshooting.md), [onboarding.md](onboarding.md), and the inline pass | One 24-sentence paragraph opening "`SIGNED_URL_EXPIRATION` has no declared type, no default and no bound." `../backend/app/core/README.md:L128`. Full entry at H3 |
-| V3 | Keep it simple | **1 hard, 7 soft** | Hard in [troubleshooting.md](troubleshooting.md). Soft in [../backend/app/api/README.md](../backend/app/api/README.md), [../backend/app/tasks/README.md](../backend/app/tasks/README.md), [../backend/tests/README.md](../backend/tests/README.md), [../.github/workflows/README.md](../.github/workflows/README.md), [integration-guide.md](integration-guide.md), [deployment-guide.md](deployment-guide.md), and the inline pass | A 73-word sentence carrying six colon-separated clauses, `troubleshooting.md:L8-L13`. Full entry at H2 |
-| V4 | Have the guts to cut | **1 soft**. Normal weight | Soft in [deployment-guide.md](deployment-guide.md) | `decision-log.md` listed twice in one seven-item list, the second entry repeating "every judgement this engagement made, with its reasoning" word for word. `deployment-guide.md:L773-L777`. Full entry at S22 |
-| V5 | Sound like yourself | Pass, all 29. Reduced weight under the Technical class | Nowhere | Zero hits against a 30-word buzzword list across 4,412 sentences. The closest candidate is heading style, not prose: the 19 module READMEs title themselves five different ways, and `../frontend/src/pages/README.md:L1` wraps its path in backticks where five siblings do not. Headings are not prose, and no reader is misled, so the observation is recorded rather than charged |
-| V6 | Say what you mean | Pass, all 29 | Nowhere | Zero softener hits, so the anti-neutrality test passes everywhere. Nominalization density peaks at three abstract nouns in a nine-word sentence, `../backend/app/core/README.md:L5`, and the sentence still names a concrete thing. The model pass reads "The backend cannot import, and only 3 of the 15 modules under `backend/app/` load." `troubleshooting.md:L3-L4` |
-| V7 | Pity the reader | **1 hard, 8 soft** | Hard in [README.md](README.md). Soft in [../backend/app/schema/README.md](../backend/app/schema/README.md), [../backend/app/services/README.md](../backend/app/services/README.md), [../backend/app/tasks/README.md](../backend/app/tasks/README.md), [architecture-overview.md](architecture-overview.md), [data-model.md](data-model.md), [integration-guide.md](integration-guide.md), [deployment-guide.md](deployment-guide.md), [troubleshooting.md](troubleshooting.md), [onboarding.md](onboarding.md) | "so those two links do not resolve today", `README.md:L34`, said of two links that resolve. Full entry at H1 |
-| V8 | Start close to the end | Pass, all 29. Normal weight | Nowhere | Four module READMEs open with a citation-convention note before the Purpose heading, the longest being three lines at `../backend/app/db/README.md:L3-L5`. Each one still leads with substance in its subtitle, and no thesis waits past the second paragraph anywhere in the corpus |
+| # | Principle | Result | Closest passage found |
+| --- | --- | --- | --- |
+| V1 | Find a subject you care about | Pass, all 29. Reduced weight | Zero author-distancing hedges in 15,469 prose sentences. The corpus states its own limits instead of hedging them, as at `../infrastructure/terraform/README.md:L244` where an exposure is called conditional and unestablished and the three preconditions are then named |
+| V2 | Do not ramble | Pass, all 29 | The longest paragraph in the corpus now runs 5 sentences, and 145 sit at exactly that. The drafted worst case ran 25 sentences at `../backend/app/core/README.md`, cleared as entry R4 |
+| V3 | Keep it simple | Pass, all 29 | The longest sentence in the corpus now runs 30 words, and 55 sit at exactly that. The drafted worst case ran 65 words in [deployment-guide.md](deployment-guide.md), cleared as entry R1 |
+| V4 | Have the guts to cut | Pass, all 29. Normal weight | A repeated-sentence scan across the 28 committed files found 28 repeat groups, every one confined to table cells. A uniform status phrase is the point of such a column, and no repeat group sits in a prose paragraph. The one prose candidate is the bold lead-in "The backend port mapping misses the served port.", used at `deployment-guide.md:L233` and again as register item 6 at `:L651`. The register enumerates all eleven failures by name on purpose, so the repetition is structural rather than slack |
+| V5 | Sound like yourself | Pass, all 29. Reduced weight | Zero hits against a 30-word buzzword list across 15,469 sentences. The closest candidate is heading style rather than prose: the 19 module READMEs title themselves five different ways, and `../frontend/src/pages/README.md:L1` wraps its path in backticks where siblings do not. A heading is not prose and no reader is misled, so the observation is recorded rather than charged |
+| V6 | Say what you mean | Pass, all 29 | Zero softener hits, so [the anti-neutrality test](#the-anti-neutrality-test) passes everywhere. The model pass reads "The backend cannot import, and only 3 of the 15 modules under `backend/app/` load." at `troubleshooting.md:L3-L4` |
+| V7 | Pity the reader | Pass, all 29 | Claims that contradicted the committed tree were found and corrected, and the four worst are cleared as entries R6 through R9. A scan of the corrected corpus found no remaining claim that a resolving link is dead and no remaining stale length count |
+| V8 | Start close to the end | Pass, all 29. Normal weight | Four module READMEs open with a citation-convention note before the Purpose heading, the longest being three lines at `../backend/app/db/README.md:L3-L5`. Each one still leads with substance in its subtitle, and no thesis waits past the second paragraph anywhere in the corpus |
 
 ### The extended enterprise principles
 
-| # | Principle | Result | Worst passage found |
+| # | Principle | Result | Closest passage found |
 | --- | --- | --- | --- |
-| V9 | The Dignity Test | Pass, all 29 | Zero hits. The scan covered "stakeholder", "resource", "headcount", "bandwidth" and similar machinery language and returned nothing. Where the corpus names a person it names a developer doing a task: "A developer building an environment by reading import statements installs the visible packages, retries, and hits the next missing piece." `troubleshooting.md:L420-L421` |
-| V10 | The Indifference Detector | Pass, all 29 | [troubleshooting.md](troubleshooting.md) at 1,542 lines is the strongest candidate in the corpus. The file survives the test because it hands the reader a route in: a four-sentence failure summary at `:L3-L6`, then a symptom-first index whose own instruction reads "Read the index to find your problem." `troubleshooting.md:L31`. All 19 module READMEs sit inside the 150-to-400-line band |
-| V11 | The Indianapolis Test | Pass, all 29 | The 73-word sentence at `troubleshooting.md:L8-L13` is the one passage in the corpus nobody would say out loud. The finding is charged to V3 under the one-finding-one-principle convention, so V11 records it here and counts it there |
-| V12 | Humor as Trust Signal | Pass, all 29 | Fifteen of the 19 module READMEs use no second-person address at all, which is the closest thing to bloodlessness in the corpus. The register stays plain rather than guarded: it names failures flatly instead of hedging, and warmth surfaces where a reader needs it, as at `troubleshooting.md:L34`, "differs from the eight classes above it in one way worth knowing before you reach it". Rule 3's own comparison table treats personality as useful rather than essential under the Asimov persona |
+| V9 | The Dignity Test | Pass, all 29 | Zero hits. The scan covered `stakeholder`, `headcount`, `bandwidth`, `learnings` and similar machinery language. Where the corpus names a person it names a developer doing a task. `troubleshooting.md:L453-L454` reads: "A developer building an environment by reading import statements installs the visible packages, retries, and hits the next missing piece." |
+| V10 | The Indifference Detector | Pass, all 29 | [troubleshooting.md](troubleshooting.md) at 1,662 lines is the strongest candidate in the corpus. The file survives the test because it hands the reader a route in. A four-sentence failure summary sits at `:L3-L6`, then a symptom-first index whose own instruction at `troubleshooting.md:L36` reads "Read the index to find your problem." All 19 module READMEs sit inside the 150-to-400-line band |
+| V11 | The Indianapolis Test | Pass, all 29 | No sentence in the corpus now exceeds 30 words, so no passage is unsayable on length. The read-aloud candidate is the densest 30-word sentence, `../backend/app/api/README.md:L139`, which names four actors in one clause chain and still resolves on one reading |
+| V12 | Humor as Trust Signal | Pass, all 29 | Fifteen of the 19 module READMEs use no second-person address at all, which is the closest thing to bloodlessness in the corpus. The register stays plain rather than guarded, and warmth surfaces where a reader needs it. `troubleshooting.md:L39` reads: "`G9` differs from the eight classes above it in one way worth knowing before you reach it." Rule 3's own comparison treats personality as useful rather than essential under the Asimov persona |
 
 ### Asimov's ten principles
 
-| # | Principle | Result | Worst passage found |
+| # | Principle | Result | Closest passage found |
 | --- | --- | --- | --- |
-| A1 | Plate Glass Clarity | Pass, all 29 | "the seven protected handlers registration order makes unreachable", inside `troubleshooting.md:L10`. The phrase drops its relative pronoun and needs a second read. The finding is charged to V3, which owns the sentence it sits in |
-| A2 | Short Words, Simple Structures | Pass, all 29 | A2 shares the over-30-word heuristic with V3, so every long-sentence finding is charged there. On its own ground A2 passes cleanly: the corpus expands each acronym at first use, including "Continuous Integration (CI)" at `../.github/workflows/README.md:L6` and "create, read, update and delete (CRUD)" at `../backend/app/schema/README.md:L9` |
-| A3 | Logical Sequence | Pass, all 29 | Twenty-four of the 73 Python docstrings place a prose paragraph after a Google section header, where Google style puts extended description before the sections. Each one carries an explicit label, "Internal notes.", first at `../backend/app/api/auth.py:L192`, so the reader knows a new movement has started. All 19 module READMEs carry the nine required headings in the required order |
+| A1 | Plate Glass Clarity | Pass, all 29 | The candidate was a relative pronoun dropped inside the corpus's longest sentence, at `troubleshooting.md:L12`. The pronoun was restored when that sentence was split, and the line now reads "the seven protected handlers that registration order makes unreachable" |
+| A2 | Short Words, Simple Structures | Pass, all 29 | A2 shares the over-30-word heuristic with V3, so every long-sentence finding registered against both. On its own ground A2 passes cleanly: the corpus expands each acronym at first use, including "Continuous Integration (CI)" at `../.github/workflows/README.md:L6` and "create, read, update and delete (CRUD)" at `../backend/app/schema/README.md:L9` |
+| A3 | Logical Sequence | Pass, all 29 | All 19 module READMEs carry the nine required headings in the required order, verified heading by heading and stated at `architecture-overview.md:L330-L332`. Inside the Python docstrings, a prose paragraph sometimes follows a Google section header where Google style puts extended description first. A blank line separates each such paragraph, so a reader sees a new movement start |
 | A4 | Ideas Carry the Weight | Pass, all 29 | No passage in the corpus builds mood or ornaments an idea. Every paragraph sampled advances a claim and cites it |
-| A5 | Conversational Informality | Pass, all 29 | Passive constructions account for 368 of 4,412 prose sentences, 8 percent, and nearly all sit inside blog rule B3's stated exception where no actor exists or the object is the focus. The densest example is "No apply happens, and no resource is created, until every output either points at a declared resource or is removed." `deployment-guide.md:L147`, where Terraform is the unnamed actor and the resource is the focus |
-| A6 | No Ornamental Language | Pass, all 29 | A scan for extended metaphor, simile and decorative figurative language across all 27 committed deliverables returned two hits, both mild. The stronger is "Each one looks like a local", `onboarding.md:L626`, which introduces a concrete point about four traps rather than decorating one |
+| A5 | Conversational Informality | Pass, all 29 | Passive constructions account for 611 of 15,469 prose sentences, 3.9 percent by pattern. The sample checked sits inside blog rule B3's stated exception, where no actor exists or the object is the focus. The densest example sits at `deployment-guide.md:L151`: "No apply happens, and no resource is created, until every output either points at a declared resource or is removed." Terraform is the unnamed actor there and the resource is the focus |
+| A6 | No Ornamental Language | Pass, all 29 | A scan for extended metaphor, simile and decorative figurative language across all 28 committed deliverables returned two hits, both mild. The stronger is "Each one looks like a local problem and has a cause somewhere else." `onboarding.md:L767-L768`, which introduces a concrete point about four traps rather than decorating one |
 | A7 | Functional Dialogue | Pass by non-applicability, all 29 | Not applicable rather than unexamined: A7 scores dialogue, and technical documentation contains no dialogue. No deliverable in this corpus carries a spoken exchange, a quoted speaker or a character, so the principle has no surface to score. The row stays in place so its absence reads as a finding rather than an oversight |
-| A8 | Anticipate Reader Questions | Pass, all 29 | Blog rule B5 came back clean, so no claim sampled arrived without its locator. The unanswered question a reader will actually ask is why a document calls a link dead when the link opens, and every instance of that is charged to V7 |
-| A9 | Efficiency Over Polish | Pass, all 29 | The inline documentation pass is the candidate: docstrings now account for 2,529 of the 3,043 lines under `../backend/app/`, 83 percent. The volume tracks a per-construct requirement against an unusually high defect density rather than restatement, and the one genuine repetition found anywhere in the corpus is charged to V4 |
-| A10 | Respect the Reader's Intelligence | Pass, all 29 | No patronising passage and no unexplained jargon found. The corpus defines each term at first use and then trusts it, as with "Draft.js is the rich-text framework the editor is built on" at `../frontend/src/components/README.md:L8`, stated once and never repeated |
+| A8 | Anticipate Reader Questions | Pass, all 29 | Blog rule B5 came back clean, so no claim sampled arrived without its locator. One question recurred against the drafted corpus: why a document called a link dead when the link opened. Every instance of that is cleared under V7 |
+| A9 | Efficiency Over Polish | Pass, all 29 | The inline documentation pass is the candidate. Added comment lines account for 1,015 of the 1,675 lines under `../backend/app/`, 61 percent, and 779 of the 1,748 under `../frontend/src/`, 45 percent. The volume tracks a per-construct requirement against an unusually high defect density rather than restatement |
+| A10 | Respect the Reader's Intelligence | Pass, all 29 | No patronising passage and no unexplained jargon found. The corpus defines each term at first use and then trusts it. `../frontend/src/components/README.md:L7-L8` reads "Draft.js is the rich-text framework the editor is built on", stated once and never repeated |
 
 ### Adopted blog-rule compliance
 
 The four adopted conventions are scored separately, because Rule 3 computes a verdict from the
 principles rather than from the blog rules.
 
-| Rule | Result | Worst passage found |
+| Rule | Result | Closest passage found |
 | --- | --- | --- |
 | B1, No em dashes | Pass, all 29 | Zero em dash and zero en dash characters, counted across whole files with fenced blocks included |
-| B2, No bare "It" or "This" as a sentence subject | 6 findings | "It is not a statement that any release is safe." `../backend/app/README.md:L89`. Entries B2-1 through B2-6 |
-| B3, Active voice | Pass, all 29 | 8 percent passive, nearly all inside B3's own exception. See the A5 row for the densest example |
+| B2, No bare "It" or "This" as a sentence subject | Pass, all 29 | Ten drafted instances were found and all ten were corrected, cleared as entry R10. Eleven sentence-initial uses of "This" remain, and every one carries a noun head such as "This document" or "This register" |
+| B3, Active voice | Pass, all 29 | 3.9 percent passive by pattern, and the sample checked sits inside B3's own exception. See the A5 row for the densest example |
 | B5, Cite sources | Pass, all 29 | Every factual claim sampled carried a `path:Lnn` locator, or a heading name plus a line number where the target was a specification document |
 
 ### The scorecard for this file
 
 Rule 3 applies to this record as much as to anything it scores, so
 [prose-validation.md](prose-validation.md) carries its own row in the verdict table and its own
-measurements here. Narrative prose: 260 sentences, longest 30 words, none over 30, longest paragraph
-5 sentences. Replacement text inside the blockquotes: 74 sentences, longest 28 words, none over 30.
+measurements here. Narrative prose and table cells: 834 sentences, longest 30 words, none over 30,
+longest paragraph 5 sentences. Zero em dashes, zero bare pronoun subjects, zero buzzwords, and no
+Mermaid diagram.
 
-Across the whole file: zero em dashes, zero bare pronoun subjects outside the quoted passages, zero
-buzzwords, zero softeners, 25 fenced blocks all tagged `text`, and no Mermaid diagram. Passive
-constructions account for 29 of the 260 narrative sentences, 11 percent, and each one sits inside
-blog rule B3's exception. All 22 principles read Pass, so the verdict is CLEAN and no entry for this
-file appears in the register.
+This file names the patterns two scans look for, so each banned string appears here as a target
+rather than as prose. Every one sits inside an inline code span, in
+[the anti-neutrality test](#the-anti-neutrality-test) and in the V9 row, and Rule 3's Special
+Handling exempts inline code. Both scans therefore return zero across the whole corpus,
+including this file.
 
-Two findings in this file's first draft were caught by the same scans and fixed before commit. The
-opening paragraph gave the soft-violation total as 21 where the register holds 22. Eighteen narrative
-sentences ran past 30 words, the longest at 40, and every one was split or cut. Recording the
-correction costs three sentences and keeps the record honest about its own drafting.
+Two facts about this file's own drafting belong on the record. An earlier draft carried numeric
+severity bands and a one-finding-one-principle convention that Rule 3 does not define, and both were
+deleted rather than restated. That draft also carried measurements and quote locators taken before the
+corpus was rewritten, and eight of its quotes no longer existed in their cited files. Every quote in
+this version was re-derived by searching the current text for the quoted words.
 
 One judgement about this file deserves stating plainly, because a reader will test it. A validation
 record that scores everything CLEAN without quoting a line is indistinguishable from one that scored
-nothing, and Rule 3's own indifference detector would fail it. Every Pass row above therefore quotes
-the worst passage found rather than asserting the Pass, and the section below quotes every violation
-in full.
+nothing, and Rule 3's own indifference detector would fail it. Every Pass row above therefore cites
+the closest passage found rather than asserting the Pass, and the register below quotes what was
+changed.
 
-## Violations found
+## Violations found and cleared
 
-Twenty-five entries follow, 3 hard and 22 soft, matching the counts in the verdict table exactly. Six
-further entries record findings against the adopted blog conventions, which carry no principle charge
-and enter no verdict.
+Two hundred and one findings registered against the Markdown corpus at commit `7ba15ce`, and eleven
+more registered against the inline documentation pass after its comment text was trimmed. Every one
+was rewritten. None was re-scored, annotated, or excused by widening a threshold.
 
-Each entry carries Rule 3's four required parts: the exact passage, the principle by number and name,
-the replacement text, and one sentence on why it is better. A passage appears in a fenced `text`
-block, exactly as committed and wrapped as the source file wraps it. A replacement appears in a
-blockquote, so the two never blur.
+| Class | Principle | Registered | Outstanding |
+| --- | --- | --- | --- |
+| Sentence over 30 words | V3, and A2 on the same heuristic | 94 | 0 |
+| Paragraph over 5 sentences | V2 | 97 | 0 |
+| Bare pronoun subject | Blog rule B2, no principle charge | 10 | 0 |
+| Claim contradicting the committed tree | V7 | Counted per site, not by heuristic | 0 |
+| Inline documentation prose | V3 on 8 sentences, B2 on 3 subjects | 11 | 0 |
 
-No entry was manufactured. Every rewrite keeps each factual claim, each `path:Lnn` locator and each
-consequence of the passage it replaces, and no rewrite proposes a change to production code.
+### How to read an entry
 
-One presentation rule applies throughout. A replacement destined for a module README reproduces that
-file's own relative path, shown as literal markup rather than as a live link. Such a path resolves
-from the module directory and not from `docs/`, so a live link here would be dead.
+Twelve entries follow. Each one carries Rule 3's four required parts: the passage, the principle by
+number and name, the replacement, and one sentence on why the replacement is better. Entries are the
+worst case in each class plus every distinct kind of defect found, rather than one entry per
+instance. Ninety-four long sentences and 97 long paragraphs cannot each carry a section a reader
+would finish.
 
-### Hard violations
+A drafted passage is quoted as it stood at commit `7ba15ce`, and a replacement is quoted as it stands
+now with its current locator. Both appear in blockquotes, which
+[the exemption list](#what-is-exempt-from-validation) covers as quotations.
 
-#### H1. `docs/README.md`, V7, Pity the reader
+A locator inside a quotation belongs to the quoted text rather than to this record. A drafted quote
+therefore carries the locator that was correct in `7ba15ce`, and three of them differ from the current
+locator because the inline documentation pass shifted source line numbers. Entries R3, R7 and R10 each
+show the two side by side.
 
-Passage as committed, [README.md](README.md) at `:L33-L34`:
+Two mechanical methods cleared the instances no entry names individually. A long sentence was cut at a
+clause boundary into two or three sentences, with every word, locator and claim preserved. A long
+paragraph was split at a sentence boundary into two or three paragraphs, again preserving every word.
+A word-stream comparison ran after each edit and confirmed the two files held identical word
+sequences.
 
-```text
-Two of the eight land at a later checkpoint, `decision-log.md` and `prose-validation.md`, so those
-two links do not resolve today.
-```
+### V3, Keep it simple: 94 sentences over 30 words
 
-Both files are committed and both links resolve, so the index instructs a reader to skip two of its
-own eight documents. [decision-log.md](decision-log.md), one of the two, is the single home of every
-rationale in the set. Decision row 6 at `decision-log.md:L85` names the exact risk: a stale index
-misdirects a reader worse than no index would.
+#### R1. `docs/deployment-guide.md`, the longest sentence in the drafted corpus
 
-Proposed replacement:
+**Principle.** V3, Keep it simple, and A2, Short Words, Simple Structures, which shares the heuristic.
 
-> All eight resolve. [decision-log.md](decision-log.md) carries every judgement this set made, and
-> [prose-validation.md](prose-validation.md) carries the clarity verdicts.
+**Drafted**, 65 words, in the failure-path table at `deployment-guide.md:L612` in commit `7ba15ce`:
 
-Why the replacement is better: the index now sends a reader to the two documents the original told
-them to skip, and 18 words fall to 16.
+> Nothing stops the run, because no stage checks an exit status: `:L15` with no root `tests/`, then
+> `:L23`, which fails unless the host already carries an authenticated `gcloud`, a default project and
+> write access to a bucket no Terraform declares, then the absent `app.yaml` at `:L27`, the absent
+> migration file at `:L31`, the unscoped CDN update at `:L35`, and the unconditional success echo at
+> `:L47`
 
-#### H2. `docs/troubleshooting.md`, V3, Keep it simple
+**Replacement**, four sentences of 9, 8, 27 and 25 words, now at `deployment-guide.md:L623`:
 
-Passage as committed, [troubleshooting.md](troubleshooting.md) at `:L8-L13`:
+> Nothing stops the run, because no stage checks an exit status. `:L15` runs with no root `tests/`.
+> `:L23` then fails unless the host already carries an authenticated `gcloud`, a default project and
+> write access to a bucket no Terraform declares. After that come the absent `app.yaml` at `:L27`, the
+> absent migration file at `:L31`, the unscoped CDN update at `:L35`, and the unconditional success
+> echo at `:L47`
 
-```text
-The eight classes below carry every defect this
-documentation pass verified against the committed source, and that includes the ones a headline
-failure hides: the seven protected handlers registration order makes unreachable, the two credential
-prerequisites a version 4 signed URL needs, the Pub/Sub topic nothing creates, the publish error that
-is caught and printed rather than raised, the ownership subscript that answers 500 instead of 403, and
-the retention sweep's partial-deletion states.
-```
+**Why it is better.** Six colon-separated stages in one sentence force a reader to hold the whole
+chain in mind, and four sentences let each stage land before the next one starts.
 
-The sentence runs 73 prose words, more than twice the 30-word heuristic and the longest in the whole
-corpus. Six items hang off one colon, and the first of them drops its relative pronoun, so "the seven
-protected handlers registration order makes unreachable" reads as a garden path.
+#### R2. `docs/integration-guide.md`, the seam-key sentence
 
-Proposed replacement:
+**Principle.** V3, Keep it simple.
 
-> The eight classes below carry every defect this pass verified against the committed source,
-> including six that a headline failure hides:
->
-> - the seven protected handlers that registration order makes unreachable
-> - the two credential prerequisites a version 4 signed URL needs
-> - the Pub/Sub topic nothing creates
-> - the publish error caught and printed rather than raised
-> - the ownership subscript that answers 500 instead of 403
-> - the retention sweep's partial-deletion states
+**Drafted**, 42 words, at `integration-guide.md:L116` in commit `7ba15ce`:
 
-Why the replacement is better: the longest sentence falls from 73 words to 21, all six defects survive
-as scannable bullets, and the added "that" removes the garden path.
+> Each edge carries a seam key, and the seam table under the diagram names the call the code writes
+> and what stands between that call and the external system, including the barriers that outlast
+> repairing the import chain and the undeclared settings.
 
-#### H3. `backend/app/core/README.md`, V2, Do not ramble
-
-Passage as committed,
-[../backend/app/core/README.md](../backend/app/core/README.md) at `:L128-L159`. The paragraph runs 24
-sentences across 32 unbroken source lines. Its opening and its close are quoted exactly, and the
-elision marker names the span it covers:
-
-```text
-**`SIGNED_URL_EXPIRATION` has no declared type, no default and no bound.** The key
-sets the lifetime of a bearer credential. A signed URL needs no authentication:
-whoever holds the link downloads the object until the link expires. The key is
-absent from `Settings` entirely, so `config.py:L111-L119` constrains nothing about
-it.
-
-[... 18 further sentences, `:L132` through `:L155`, with no paragraph break ...]
-
-The outcome therefore depends on the credential the
-environment supplies, and this repository fixes neither the credential type nor the
-signing route.
-```
-
-A reader who came for the type and the bound must read a wall to find them. The same file carries a
-second 18-sentence paragraph at `:L30-L53`, so the pattern is not a single slip.
-
-Proposed replacement, which adds three breaks with a lead-in at each and keeps every sentence in
-order. The second block merges the two sentences at `:L132-L134` into one, which also resolves B2-4:
-
-> **`SIGNED_URL_EXPIRATION` has no declared type, no default and no bound.** The key sets the
-> lifetime of a bearer credential. A signed URL needs no authentication: whoever holds the link
-> downloads the object until the link expires.
->
-> **Nothing in the model constrains the value.** The key is absent from `Settings` entirely, so
-> `config.py:L111-L119` constrains nothing about it. `Settings` declares no `int`, `timedelta` or
-> `datetime` annotation for it, no `Field` with `le` or `ge`, and no validator, so nothing here caps
-> the value the process environment supplies.
->
-> **Two consequences follow once the key arrives.** Keep `:L134` through `:L139` verbatim, from "A
-> unit mistake passes silently" to "a library limit rather than a project policy".
->
-> **Three barriers sit in front of the gap, in order.** Keep `:L140` through `:L159` verbatim, from
-> "No signed URL is generated today" to the two cross-references.
-
-Why the replacement is better: four labelled paragraphs let a reader reach the type-and-bound answer
-in three sentences instead of 24, and no locator changes.
-
-### Soft violations, V3, Keep it simple
-
-Each entry below records a file whose longest prose sentence runs 36 to 45 words, or whose rate of
-sentences over 30 words reaches 5 percent.
-
-#### S1. `backend/app/api/README.md`, V3, Keep it simple
-
-Passage as committed, [../backend/app/api/README.md](../backend/app/api/README.md) at `:L55-L58`, 36
-prose words:
-
-```text
-What a list response would actually contain
-cannot be stated from this repository, because neither list handler has a service method behind
-it: `documents.py:L142` calls `get_documents`, which `DocumentService` does not define, and
-`templates.py` delegates to a `TemplateService` that no file declares.
-```
-
-Proposed replacement:
-
-> Neither list handler has a service method behind it, so no list response can be described from this
-> repository. `documents.py:L142` calls `get_documents`, which `DocumentService` does not define.
-> `templates.py` delegates to a `TemplateService` that no file declares.
-
-Why the replacement is better: three sentences of 19, 5 and 7 words replace one of 36, the point
-now comes first, and both locators and both consequences survive.
-
-#### S2. `backend/app/tasks/README.md`, V3, Keep it simple
-
-Passage as committed, [../backend/app/tasks/README.md](../backend/app/tasks/README.md) at
-`:L208-L211`, 38 prose words:
-
-```text
-Its loop body raises at five
-successive points once the earlier layers clear: `:L271` on a record with no `user_id` key, `:L278` on the undeclared
-`settings.DOCUMENT_BUCKET_NAME`, `:L280` on an object key no writer produces, `:L283` on `.delete()` against a list, and nothing at
-all after `:L284`.
-```
-
-Proposed replacement:
-
-> The loop body raises at five successive points once the earlier layers clear:
->
-> - `:L271`, on a record with no `user_id` key
-> - `:L278`, on the undeclared `settings.DOCUMENT_BUCKET_NAME`
-> - `:L280`, on an object key no writer produces
-> - `:L283`, on `.delete()` against a list
-> - `:L284`, after which nothing runs at all
-
-Why the replacement is better: the lead-in falls to 13 words, all five locators keep their exact
-conditions, and a reader can count the raise points without re-reading.
-
-#### S3. `backend/tests/README.md`, V3, Keep it simple
-
-Passage as committed, [../backend/tests/README.md](../backend/tests/README.md) at `:L245-L247`, 42
-prose words, in a file where 5 of 89 prose sentences exceed 30 words:
-
-```text
-Passing needs more: asserted routes matched to registered routes, the three 201
-expectations reconciled against handlers that answer 200, the `set_password`, `get_token`, `add_collaborator`, `remove_collaborator` and `get_collaborators` methods defined,
-the six argument shapes corrected, the four coroutines awaited, and the export patch targets pointed at names that exist.
-```
-
-Proposed replacement:
-
-> Passing needs six more things:
->
-> - asserted routes matched to registered routes
-> - the three 201 expectations reconciled against handlers that answer 200
-> - the `set_password`, `get_token`, `add_collaborator`, `remove_collaborator` and `get_collaborators` methods defined
-> - the six argument shapes corrected
-> - the four coroutines awaited
-> - the export patch targets pointed at names that exist
-
-Why the replacement is better: the lead-in falls to 5 words, every count and method name survives, and
-the six requirements become six items a reader can work through.
-
-#### S4. `.github/workflows/README.md`, V3, Keep it simple
-
-Passage as committed, [../.github/workflows/README.md](../.github/workflows/README.md) at
-`:L238-L240`, 34 prose words, in a file where 4 of 70 prose sentences exceed 30 words, a rate of 5.7
-percent:
-
-```text
-If you must execute them to study the failure, use a disposable non-production project, confirm the active identity first
-with `gcloud config list account` and `gcloud config get-value project`, and name the target explicitly with `--project=<disposable-project-id>` rather than
-relying on the ambient default.
-```
-
-Proposed replacement:
-
-> If you must run them to study the failure, use a disposable non-production project. Confirm the
-> active identity first with `gcloud config list account` and `gcloud config get-value project`. Name
-> the target explicitly with `--project=<disposable-project-id>` rather than relying on the ambient
-> default.
-
-Why the replacement is better: three imperatives of 14, 7 and 12 words replace one of 34, all three
-commands survive, and the safety steps now read in order.
-
-#### S5. `docs/integration-guide.md`, V3, Keep it simple
-
-Passage as committed, [integration-guide.md](integration-guide.md) at `:L97-L99`, 42 prose words:
-
-```text
-Each edge carries a seam key, and the seam table under the diagram names the call the code
-writes and what stands between that call and the external system, including the barriers that outlast
-repairing the import chain and the undeclared settings.
-```
-
-Proposed replacement:
+**Replacement**, three sentences of 6, 22 and 13 words, now at `integration-guide.md:L117-L120`:
 
 > Each edge carries a seam key. The seam table under the diagram names the call the code writes and
 > what stands between that call and the external system. Some of those barriers outlast repairing the
 > import chain and the undeclared settings.
 
-Why the replacement is better: three sentences of 6, 22 and 13 words replace one of 42, and the
-surviving barriers now carry their own claim.
+**Why it is better.** The drafted sentence buries a second claim inside a trailing participle, and
+promoting that claim to its own sentence makes the barrier point visible rather than incidental.
 
-#### S6. `docs/deployment-guide.md`, V3, Keep it simple
+#### R3. `docs/integration-guide.md`, a table cell carrying three clauses
 
-Passage as committed, [deployment-guide.md](deployment-guide.md) at `:L414-L416`, 36 prose words:
+**Principle.** V3, Keep it simple. A table cell is scored as its own unit, so a long sentence inside
+one registers exactly as it would in a paragraph.
 
-```text
-Four stages make up the intended pipeline, and the diagram runs them top to bottom in the order an
-operator would reach them: provision with Terraform, build the images, validate on a push to `main`,
-then release.
-```
+**Drafted**, 32 words in the second sentence, in the seam table at `integration-guide.md:L163` in
+commit `7ba15ce`:
 
-Proposed replacement:
+> Nothing completes. The application cannot import, and past that repair the client still matches no
+> route, because `frontend/src/services/api.ts:L142` throws inside the request interceptor and every
+> document call carries a `/documents` prefix no route declares
 
-> Four stages make up the intended pipeline: provision with Terraform, build the images, validate on
-> a push to `main`, then release. The diagram runs them top to bottom, in the order an operator
-> reaches them.
+**Replacement**, three sentences, now at `integration-guide.md:L165`:
 
-Why the replacement is better: two sentences of 20 and 14 words replace one of 36, the four stages
-arrive before the note about diagram order, and both facts survive.
+> Nothing completes. The application cannot import. Past that repair the client still matches no
+> route: `frontend/src/services/api.ts:L40` throws inside the request interceptor, and every document
+> call carries a `/documents` prefix no route declares
 
-#### S7. The inline documentation pass, V3, Keep it simple
+The locator inside that quote was correct in `7ba15ce`. The same throw sits at
+`frontend/src/services/api.ts:L40` today, because the inline documentation pass changed how many
+comment lines precede it.
 
-Passage as committed, `../backend/app/api/templates.py:L232-L236`, 44 prose words and the longest
-sentence the engagement itself wrote:
+**Why it is better.** A cell is read in a narrow column, so three short statements scan where one
+chained clause does not, and the two independent blockers are now separately countable.
 
-```text
-No external write can be established
-    either way: the absent service defines no persistence behavior, so nothing in
-    the repository states which fields an update would change, whether the change
-    is partial or a full replacement, or whether ownership is checked before the
-    write.
-```
+### V2, Do not ramble: 97 paragraphs over 5 sentences
 
-Proposed replacement:
+#### R4. `../backend/app/core/README.md`, the longest paragraph in the drafted corpus
 
-> No external write can be established either way, because the absent service defines no persistence
-> behavior. Three questions have no answer here: which fields an update changes, whether the change
-> is partial or a full replacement, and whether ownership is checked before the write.
+**Principle.** V2, Do not ramble.
 
-Why the replacement is better: the cause arrives in 16 words and the three surviving questions follow
-in 28, so a reader learns why before what.
+**Drafted**, one paragraph of 25 sentences at `../backend/app/core/README.md:L131` in commit
+`7ba15ce`, opening:
 
-### Soft violations, V2, Do not ramble
+> **`SIGNED_URL_EXPIRATION` has no declared type, no default and no bound.** The key sets the
+> lifetime of a bearer credential. A signed URL needs no authentication: whoever holds the link
+> downloads the object until the link expires.
 
-Each entry below records a file whose longest paragraph runs 9 to 15 sentences.
+**Replacement**, five paragraphs of 4, 5, 4, 4 and 3 sentences, beginning at
+`../backend/app/core/README.md:L139`. Each one now carries a single movement. The five are what the
+key sets, what constrains the value, why no signed URL is generated today, what version 4 signing
+needs, and what the call supplies.
 
-#### S8. `backend/app/db/README.md`, V2, Do not ramble
+**Why it is better.** Twenty-five sentences under one bold lead-in give a reader no place to stop, and
+five paragraphs let each of the five movements be found and re-read on its own.
 
-Passage as committed, [../backend/app/db/README.md](../backend/app/db/README.md) at `:L31-L42`, one
-paragraph of 11 sentences. Its opening and its close are quoted exactly:
+#### R5. `docs/integration-guide.md`, the signed-URL barrier paragraph
 
-```text
-The specification places two databases behind this folder, and the committed code delivers one.
-`documentation/Technical Specifications.md, SYSTEM DESIGN > DATABASE DESIGN (L315)` describes a hybrid at L317 and restates it at L400.
+**Principle.** V2, Do not ramble.
 
-[... 7 further sentences, `:L33` through `:L41`, with no paragraph break ...]
+**Drafted**, one paragraph of 12 sentences at `integration-guide.md:L419` in commit `7ba15ce`,
+opening:
 
-Repository-wide layering sits in
-[../../../docs/architecture-overview.md](../../../docs/architecture-overview.md).
-```
+> No signed URL is generated today. Four barriers stand in front of the gap, in the order execution
+> meets them.
 
-Proposed replacement, which keeps every sentence verbatim and in order and adds two breaks:
+**Replacement**, three paragraphs at `integration-guide.md:L425`, `:L431` and `:L437`. The first
+carries barriers one through three. The second carries the fourth barrier and the credential shapes
+behind it, and the third carries what the call passes and how to read the gap.
 
-> Break after "The Cloud SQL half exists as declarations only." at `:L35`, which closes the
-> specification-against-code comparison at 5 sentences.
->
-> Break after "because nothing subclasses `Base` at `sql.py:L19`." at `:L38`, which closes the
-> five-table inventory at 2 sentences.
->
-> The remaining 4 sentences, from "One of those tables crossed the boundary." at `:L38` to the
-> cross-reference at `:L42`, form the third paragraph.
+**Why it is better.** The drafted paragraph enumerated four barriers and then continued into
+credential mechanics and a reading instruction. The split puts the enumeration, the mechanics and
+the instruction where a reader can take them one at a time.
 
-Why the replacement is better: three paragraphs of 5, 2 and 4 sentences let a reader stop at the
-comparison, the table inventory or the boundary crossing.
+### V7, Pity the reader: claims that contradicted the committed tree
 
-#### S9. `backend/tests/README.md`, V2, Do not ramble
+#### R6. `README.md`, an index calling two of its own links dead
 
-Passage as committed, [../backend/tests/README.md](../backend/tests/README.md) at `:L109-L115`, one
-paragraph of 9 sentences listing eight test patterns:
+**Principle.** V7, Pity the reader. A navigational instruction that is wrong costs a reader more than
+no instruction.
 
-```text
-The suite applies eight patterns, and naming them makes the defect inventory below easier to place. Both pytest fixtures are module-scoped and neither yields nor releases
-anything (`test_api.py:L10`, `:L16`). One shared client serves all eight pytest tests, built at import (`:L8`), rather than one client per test.
-```
+**Drafted**, at `README.md:L33-L34` in commit `7ba15ce`:
 
-The quoted opening covers the first 3 of the 9 sentences. Six more follow to `:L115` with no break.
+> Two of the eight land at a later checkpoint, `decision-log.md` and `prose-validation.md`, so those
+> two links do not resolve today.
 
-Proposed replacement:
+**Replacement**, now at `README.md:L33-L34`:
 
-> The suite applies eight patterns, and naming them makes the defect inventory below easier to place.
-> Keep the eight pattern sentences at `:L109` through `:L115` verbatim, one per bullet, so each
-> pattern carries its own locators.
+> All eight documents exist at the current branch head, so every link in the table above resolves.
+> The nineteen module READMEs listed below resolve as well.
 
-Why the replacement is better: eight patterns in eight bullets can be counted against the word
-"eight" in the lead-in, which a 9-sentence paragraph makes impossible, and every locator survives.
+**Why it is better.** Both files existed when the drafted sentence was written, so a reader was told
+not to click two links that open. The replacement states what a reader can verify in one click.
 
-#### S10. `docs/troubleshooting.md`, V2, Do not ramble
+#### R7. `docs/integration-guide.md`, a character count that contradicted its own claim
 
-Passage as committed, [troubleshooting.md](troubleshooting.md) at `:L413-L422`, one paragraph of 9
-sentences. Its opening and its close are quoted exactly:
-
-```text
-The backend requires seventeen distributions to run, and only ten of them appear in an `import`
-line. [../backend/app/README.md](../backend/app/README.md) defines that count and the categories
-behind it, and every dependency figure in this document uses them.
-
-[... 5 further sentences, `:L415` through `:L421`, with no paragraph break ...]
-
-The build
-fails progressively rather than once. Four properties of this repository cause that pattern:
-```
-
-Proposed replacement, which keeps every sentence verbatim and in order and adds two breaks:
-
-> Break after "and every dependency figure in this document uses them." at `:L415`, which closes the
-> counting convention at 2 sentences.
->
-> Break after "so thirteen of the seventeen have to be named to a package manager." at `:L420`, which
-> closes the distribution arithmetic at 5 sentences.
->
-> The remaining 2 sentences, from "A developer building an environment" at `:L420` to "Four
-> properties of this repository cause that pattern:" at `:L422`, introduce the list that follows.
+**Principle.** V7, Pity the reader.
 
-Why the replacement is better: the counting convention, the arithmetic and the developer's experience
-become three paragraphs of 2, 5 and 2 sentences, and every count and locator survives.
+**Drafted**, at `integration-guide.md:L788` in commit `7ba15ce`:
 
-#### S11. `docs/onboarding.md`, V2, Do not ramble
+> `localStorage.setItem` coerces its value to a string, so `:L148` stores the four-character string
+> `"undefined"` rather than the value `undefined`
 
-Passage as committed, [onboarding.md](onboarding.md) at `:L302-L312`, one paragraph of 10 sentences.
-Its opening and its close are quoted exactly:
+**Replacement**, now at `integration-guide.md:L811`:
 
-```text
-**An unlocked install is neither reproducible nor auditable.** That is a risk rather than an
-inconvenience. `npm install` resolves every declared range and every transitive range to whatever the
-registry serves at that moment.
+> `localStorage.setItem` coerces its value to a string, so `:L38` stores the nine-character string
+> `"undefined"` rather than the value `undefined`
 
-[... 5 further sentences, `:L304` through `:L309`, with no paragraph break ...]
+**Why it is better.** The string `undefined` is nine characters long, and
+`../frontend/src/services/README.md:L143` already said nine, so the two documents disagreed about a
+fact a reader can count.
 
-Committing a lockfile changes what the pipeline installs, which makes it a repository change rather
-than a documentation change, so this pass leaves the manifest as it found it.
-[troubleshooting.md](troubleshooting.md#npm-ci-cannot-run-anywhere) carries the entry.
-```
+#### R8. `../frontend/src/components/README.md`, a length count the pass invalidated
 
-The same file carries a second 9-sentence paragraph at `:L189-L197`.
+**Principle.** V7, Pity the reader.
 
-Proposed replacement, which keeps every sentence verbatim and in order and adds two breaks:
+**Drafted**, at `../frontend/src/components/README.md:L10` in commit `7ba15ce`:
 
-> Break after "and nothing records which resolution either build used." at `:L305`, which closes the
-> reproducibility claim at 4 sentences.
->
-> Break after "enters the tree unremarked." at `:L307`, which closes the audit consequence at 2
-> sentences.
->
-> The remaining 4 sentences, from "The generated `frontend/package-lock.json` pins your own machine
-> only" at `:L307` to the cross-reference at `:L312`, form the third paragraph.
+> The directory measures 291 lines across the eight files.
 
-Why the replacement is better: three paragraphs of 4, 2 and 4 sentences separate the reproducibility
-claim, the audit consequence and the reason this pass leaves the manifest alone.
+**Replacement**, now at `../frontend/src/components/README.md:L11`:
 
-#### S12. The inline documentation pass, V2, Do not ramble
+> The directory measures 524 lines, 299 of them committed at `06be74c`.
 
-Passage as committed, `../frontend/src/pages/Home.tsx:L4-L16`, one unbroken block of 10 sentences
-inside a file-header comment:
+**Why it is better.** The inline documentation pass added comment lines to all eight files, so 291
+was true of the base commit and not of the tree a reader is looking at. Naming both numbers keeps
+the original measurement available.
 
-```text
- * Header and Footer are default imports of default exports, so both match their
- * modules. Editor, Settings and Templates request a named Header export instead, and
- * Settings and Templates also request a named Footer export. Neither named export exists.
- * The `@/` prefix is absent from the tsconfig paths, so all four `@/` specifiers below fail
- * module resolution.
- * useAppSelector and selectCurrentUser do not exist. store/index.ts exports only RootState,
- * AppDispatch and a default store. store/userSlice.ts exports setUser, clearUser, setLoading,
- * setError and a default reducer, and no selector.
- * The greeting reads currentUser.name, which no user contract declares. schema/user.ts
- * models username and full_name, and Settings reads the same absent field.
- * The three quick-access links at L61, L64 and L67 target /new-document, /open-document and
- * /recent-documents. App.tsx:L52-L55 declares only /, /editor, /templates and /settings, so
- * none of the three targets matches a declared route.
-```
+#### R9. `docs/architecture-overview.md`, a heading-order claim that misdescribed all 19 READMEs
 
-Four separate subjects run together with no blank comment line between them: import form, path
-prefix, store exports, and route targets.
+**Principle.** V7, Pity the reader.
 
-Proposed replacement, which keeps every sentence verbatim and in order and adds three blank comment
-lines:
+**Drafted**, at `architecture-overview.md:L326-L327` in commit `7ba15ce`:
 
-> Insert a bare comment-continuation line, an asterisk with no text, at three points:
->
-> - after "module resolution." at `:L8`
-> - after "and no selector." at `:L11`
-> - after "reads the same absent field." at `:L13`
->
-> The four blocks then hold 3, 2, 3 and 2 sentences.
+> Each one opens with Purpose and closes with Known Limitations, and each links back to this file from
+> its Architecture Fit heading.
 
-Why the replacement is better: four subjects become four visually separate blocks, so a reader chasing
-one unresolved import stops at the block that names it.
+**Replacement**, now at `architecture-overview.md:L330-L332`:
 
-### Soft violations, V7, Pity the reader
+> Each one carries the same nine H2 headings in the same order, opening with Purpose and closing with
+> Usage Examples, with Known Limitations second from last.
 
-Nine deliverables describe a sibling document as uncommitted or unwritten when the document is
-committed and the link resolves. Each entry gives the file's own passage and its own replacement. The
-severity is soft rather than hard in all nine, because each statement is an aside and each leaves a
-working link in place.
+**Why it is better.** The mandated order ends with Usage Examples, so a reader checking a README
+against the drafted claim would have found the last heading wrong in all 19 files.
 
-#### S13. `backend/app/schema/README.md`, V7, Pity the reader
+### Blog rule B2: ten bare pronoun subjects
 
-Passage as committed, [../backend/app/schema/README.md](../backend/app/schema/README.md) at `:L135`:
+#### R10. Ten sentences opening with a bare "It"
 
-```text
-the planned, not yet committed [decision log](../../../docs/decision-log.md) will record the choice between them.
-```
+**Principle.** Blog rule B2, adopted as a house convention at `decision-log.md:L95`. A blog rule
+carries no principle charge and enters no verdict.
 
-Proposed replacement:
+Ten sentences across nine files opened with "It" as the grammatical subject. Two are quoted here and
+the remaining eight took the same treatment, an explicit noun in place of the pronoun.
 
-> the `[decision log](../../../docs/decision-log.md)` records the choice between them.
+**Drafted**, at `../backend/app/README.md:L236` in commit `7ba15ce`:
 
-Why the replacement is better: the sentence stops calling a committed file pending, and 13 words fall
-to 6.
+> `app/services/user_service.py` does not exist. This is the import that fails first and stops the
+> whole package
 
-#### S14. `backend/app/services/README.md`, V7, Pity the reader
+The same shape at `../backend/app/tasks/README.md:L157` in the same commit:
 
-Passage as committed, [../backend/app/services/README.md](../backend/app/services/README.md) at
-`:L321`:
+> Nothing. This is the one call site that supplies both arguments declared at
+> `document_service.py:L123`, which is why the edge is solid.
 
-```text
-belong in the planned, not yet committed [decision log](../../../docs/decision-log.md).
-```
+**Replacement**, now at `../backend/app/README.md:L249`:
 
-Proposed replacement:
+> `app/services/user_service.py` does not exist, and this is the import that fails first and stops
+> the whole package
 
-> belong in the `[decision log](../../../docs/decision-log.md)`.
+And now at `../backend/app/tasks/README.md:L158`:
 
-Why the replacement is better: the phrase now describes where the material sits rather than where it
-will sit, and 9 words fall to 3.
+> Nothing. The edge is solid because this is the one call site that supplies both arguments declared
+> at `document_service.py:L78`.
 
-#### S15. `backend/app/tasks/README.md`, V7, Pity the reader
+**Why it is better.** A sentence-initial pronoun makes a reader look back for its referent, and both
+replacements name the referent in the same clause. The second also corrects a stale locator, because
+the method moved to `:L78` when the comment text above it was trimmed.
 
-Passage as committed, [../backend/app/tasks/README.md](../backend/app/tasks/README.md) at `:L62-L63`:
+### Inline documentation findings
 
-```text
-The planned, not yet committed
-[decision log](../../../docs/decision-log.md) will record those inference choices.
-```
+#### R11. `../backend/app/tasks/background_tasks.py`, the longest sentence in the pass
 
-Proposed replacement:
+**Principle.** V3, Keep it simple.
 
-> The `[decision log](../../../docs/decision-log.md)` records those inference choices.
+**Drafted**, 40 words, in the `process_document_export` docstring:
 
-Why the replacement is better: a reader chasing the inference choices now opens the file instead of
-waiting for it, and 12 words fall to 5.
+> Three steps cannot run: the read is not awaited on an `async` method, `ExportService` declares no
+> `convert_document`, and the signing call passes no `version`, so it uses the client default rather
+> than the version 4 scheme the service methods request.
 
-#### S16. `docs/architecture-overview.md`, V7, Pity the reader
+**Replacement**, two sentences of 24 and 18 words, now at
+`../backend/app/tasks/background_tasks.py:L31-L34`:
 
-Passage as committed, [architecture-overview.md](architecture-overview.md) at `:L51-L52`, the first of
-three sites in this file. The other two sit at `:L76` and `:L352`:
+> Three steps cannot run: the read is not awaited on an `async` method, `ExportService` declares no
+> `convert_document`, and the signing call passes no `version`. That last omission signs under the
+> client default rather than the version 4 scheme the service methods request.
 
-```text
-Where this engagement made a judgement, [decision-log.md](decision-log.md) will carry the argument.
-That file is planned for a later checkpoint and is not committed yet. No rationale lives in this file.
-```
+**Why it is better.** The drafted sentence lists three faults and then explains the consequence of
+only the third, and the split attaches that consequence to the fault it belongs to.
 
-Proposed replacement:
+#### R12. `../backend/app/core/security.py`, a bare pronoun in a docstring
 
-> Where this engagement made a judgement, [decision-log.md](decision-log.md) carries the argument. No
-> rationale lives in this file.
+**Principle.** Blog rule B2. Three of the eleven inline findings were bare pronoun subjects, and this
+one is quoted for all three.
 
-Why the replacement is better: one false sentence disappears rather than being corrected, 30 words
-fall to 16, and the Rule 1 boundary the passage exists to state survives untouched.
+**Drafted**, in the `get_current_user` docstring:
 
-#### S17. `docs/data-model.md`, V7, Pity the reader
+> This is the second `get_current_user` in the tree. The routers depend on the one in
+> `app/api/auth.py`, and nothing imports this one.
 
-Passage as committed, [data-model.md](data-model.md) at `:L50-L52`:
+**Replacement**, now at `../backend/app/core/security.py:L93-L95`:
 
-```text
-Where this engagement made a judgement, the argument belongs in
-[decision-log.md](decision-log.md), which this set has not committed yet. No rationale lives in this
-file.
-```
+> This function is the second `get_current_user` in the tree. The routers depend on the one in
+> `app/api/auth.py`, and nothing imports this one.
 
-Proposed replacement:
-
-> Where this engagement made a judgement, the argument sits in
-> [decision-log.md](decision-log.md). No rationale lives in this file.
-
-Why the replacement is better: `:L7-L8` already links the decision log without the disclaimer, so
-dropping it removes an internal contradiction and cuts 24 words to 17.
-
-#### S18. `docs/integration-guide.md`, V7, Pity the reader
-
-Passage as committed, [integration-guide.md](integration-guide.md) at `:L915`, the second of two sites
-in this file. The other sits at `:L52-L53`:
-
-```text
-[docs/README.md](README.md) is planned as the index for this documentation set, and is not committed yet.
-```
-
-Proposed replacement:
-
-> [docs/README.md](README.md) indexes this documentation set.
-
-Why the replacement is better: the Related documentation section now starts by naming a working entry
-point, and 15 words fall to 5.
-
-#### S19. `docs/deployment-guide.md`, V7, Pity the reader
-
-Passage as committed, [deployment-guide.md](deployment-guide.md) at `:L763-L764`:
-
-```text
-[docs/README.md](README.md) will index every document in this set once that file lands. Until then,
-the list below is the map.
-```
-
-Proposed replacement:
-
-> [docs/README.md](README.md) indexes every document in this set. The list below covers the ones this
-> guide draws on.
-
-Why the replacement is better: both sentences become true, the second now states what the local list
-adds rather than apologising for the first, and 20 words fall to 17.
-
-#### S20. `docs/troubleshooting.md`, V7, Pity the reader
-
-Passage as committed, [troubleshooting.md](troubleshooting.md) at `:L18-L19`, the first of three sites
-in this file. The other two sit at `:L93` and `:L1399`:
-
-```text
-[decision-log.md](decision-log.md) will hold the record of that boundary, and is planned for a later
-checkpoint rather than committed today.
-```
-
-Proposed replacement:
-
-> [decision-log.md](decision-log.md) holds the record of that boundary.
-
-Why the replacement is better: a reader learns where the boundary is recorded instead of when it will
-be, and 19 words fall to 7.
-
-#### S21. `docs/onboarding.md`, V7, Pity the reader
-
-Passage as committed, [onboarding.md](onboarding.md) at `:L12-L14`:
-
-```text
-The
-engagement that produced this file left the root README untouched, and
-[decision-log.md](decision-log.md) will record that boundary as conflict C1. That file is planned for a
-later checkpoint and is not committed yet.
-```
-
-Proposed replacement:
-
-> The engagement that produced this file left the root README untouched, and
-> [decision-log.md](decision-log.md) records that boundary as conflict C1 at `:L107`.
-
-Why the replacement is better: a locator replaces the false sentence, so a first-day reader reaches
-conflict C1 in one click, and 33 words fall to 20.
-
-### Soft violation, V4, Have the guts to cut
-
-#### S22. `docs/deployment-guide.md`, V4, Have the guts to cut
-
-Passage as committed, [deployment-guide.md](deployment-guide.md) at `:L773-L777`, two entries in one
-seven-item list naming the same document:
-
-```text
-- [decision-log.md](decision-log.md), pending and not yet committed: every judgement this engagement
-  made, with its reasoning
-- [data-model.md](data-model.md), the Pydantic and Zod contracts and every field divergence
-- `docs/decision-log.md`, scheduled and not yet written. A later checkpoint will record every
-  judgement this engagement made, with its reasoning
-```
-
-The phrase "every judgement this engagement made, with its reasoning" appears twice word for word,
-and a reader counting the set's documents counts nine instead of eight.
-
-Proposed replacement:
-
-> - [decision-log.md](decision-log.md), every judgement this engagement made, with its reasoning
-> - [data-model.md](data-model.md), the Pydantic and Zod contracts and every field divergence
-
-Why the replacement is better: one entry per document restores the count of eight, the second bullet
-is fully deletable without losing a fact, and 42 words fall to 19.
-
-### Adopted-convention findings, B2
-
-Six sentences open with a bare "It" as grammatical subject. Rule 3 rates B2 Hard for blog content,
-and none of these deliverables is blog content, so the six carry no principle charge and enter no
-verdict. Each is recorded with its replacement because the convention was adopted.
-
-| # | File and locator | Passage as committed | Proposed replacement |
-| --- | --- | --- | --- |
-| B2-1 | [../backend/app/README.md](../backend/app/README.md) `:L89` | "It is not a statement that any release is safe." | "The word is not a statement that any release is safe." |
-| B2-2 | [../backend/app/README.md](../backend/app/README.md) `:L97` | "It is recorded in `../../docs/onboarding.md`, and `../../docs/decision-log.md` records the inference choices below." | "`../../docs/onboarding.md` records that work, and `../../docs/decision-log.md` records the inference choices below." |
-| B2-3 | [../backend/app/README.md](../backend/app/README.md) `:L357` | "It prints the chain that stops every other backend task:" | "The command prints the chain that stops every other backend task:" |
-| B2-4 | [../backend/app/core/README.md](../backend/app/core/README.md) `:L132-L134` | "It declares no `Field` with `le` or `ge`, and no validator, so nothing here caps the value the process environment supplies." | "`Settings` declares no `Field` with `le` or `ge`, and no validator, so nothing here caps the value the process environment supplies." |
-| B2-5 | [../infrastructure/terraform/README.md](../infrastructure/terraform/README.md) `:L281-L282` | "It exits non-zero and names `main.tf`, which carries trailing whitespace at `main.tf:L53` and `main.tf:L55` in the committed bytes." | "The check exits non-zero and names `main.tf`, which carries trailing whitespace at `main.tf:L53` and `main.tf:L55` in the committed bytes." |
-| B2-6 | [onboarding.md](onboarding.md) `:L190` | "It is not a recommendation to accept any release." | "The gap is not a recommendation to accept any release." |
-
-Each replacement names the noun the pronoun stood for and keeps every locator and every claim. Five of
-the six add a word or two rather than cutting, because naming a referent costs more than hiding one.
-Rule 3 asks for a cut only where a cut is possible.
+**Why it is better.** A docstring is read in isolation from anything above it, so "This function"
+names its own subject where "This" leaves a reader guessing between the function and the module.
 
 ### Near misses recorded rather than charged
 
-Rule 3 forbids nothing about reporting a check that came back clean, and reporting one is more useful
-than silence. Five measurements sat close to a threshold and earned no entry above. None was
-manufactured into a violation.
+Two measurements sit at a threshold rather than past one, and recording them shows the thresholds are
+real rather than comfortable.
 
-| Observation | Measurement | Why no entry |
-| --- | --- | --- |
-| Heading style across the 19 module READMEs | Five title forms: 15 plain paths, 2 backticked paths, 1 path with a trailing slash, 3 prose titles | A heading is not prose, and no reader is misled by either form |
-| Raw source line width | 121 characters at the narrowest file, 763 at `../frontend/src/services/README.md:L7` | Markdown reflows on render, so width changes nothing a reader sees. `MD013` is advisory |
-| Passive voice | 368 of 4,412 prose sentences, 8 percent | Nearly all sit inside blog rule B3's own exception, where no actor exists or the object is the focus |
-| Docstring volume in the inline pass | 2,529 of 3,043 lines under `../backend/app/`, 83 percent | Per-construct documentation against a high defect density, not restatement. The one genuine repetition found anywhere is charged at S22 |
-| Second-person address in the module READMEs | Absent from 15 of the 19 | Register rather than defect. Rule 3's comparison table treats personality as useful rather than essential under the Asimov persona |
+Fifty-five sentences run exactly 30 words. The densest is at `../backend/app/api/README.md:L139`,
+which names four actors in one chain and still resolves on one reading. One hundred and forty-five
+paragraphs run exactly 5 sentences. Neither figure registers a finding, and both would register if one
+more word or one more sentence were added.
+
+One measurement is advisory. Passive constructions account for 3.9 percent of prose sentences by
+pattern, and blog rule B3 permits the construction where no actor exists or the object is the focus.
+The A5 row names the densest example and the reason it stands.
 
 ### Related documentation
 
-- [README.md](README.md), the index for this documentation set
-- [decision-log.md](decision-log.md), which carries conflict C5 at `:L111`, decision row 4 at `:L83`,
-  the blog-rule scoping at `:L94` and the anti-comprehensiveness resolution at `:L110`
-- Every deliverable scored above, linked from its row in the verdict table
+- [README.md](README.md) indexes every document in this set.
+- [decision-log.md](decision-log.md) carries conflict C5 at `:L115`, decision row 4 at `:L84`, and
+  the scoring convention at decision row 17, `:L97`.
+- [troubleshooting.md](troubleshooting.md) is the corpus's longest deliverable and the file this
+  record cites most often.
+- [onboarding.md](onboarding.md) is the deliverable Rule 2 requires, scored here like any other.

@@ -34,7 +34,7 @@ below was asserted mechanically: a checker read the cited span and confirmed the
 appears inside it. No row is estimated.
 
 A locator always carries its full repository-relative path. A code span holding a bare
-filename, such as `main.py:L56`, is a short label for reading convenience. The
+filename, such as `main.py:L38`, is a short label for reading convenience. The
 authoritative locator for that construct sits in the Location column beside it.
 
 Documents under `documentation/` are cited by heading name plus line number, never by section
@@ -59,8 +59,8 @@ nowhere. The reverse matrix in the final section exists to expose both failures.
 
 | Section | What you will find |
 | --- | --- |
-| [The decision table](#the-decision-table) | Fifteen choices, their alternatives, their reasons and their risks |
-| [Deviations from a literal reading](#deviations-from-a-literal-reading-of-the-requirements) | Ten deviations: five rule conflicts, four corrections, one re-anchoring |
+| [The decision table](#the-decision-table) | Eighteen choices, their alternatives, their reasons and their risks |
+| [Deviations from a literal reading](#deviations-from-a-literal-reading-of-the-requirements) | Eleven deviations: five rule conflicts, five corrections, one re-anchoring |
 | [The traceability matrix](#the-source-construct-to-documentation-artifact-traceability-matrix) | 257 rows, source construct to documenting artifact |
 | [The reverse matrix](#the-reverse-matrix) | 28 rows, one per new artifact, running the mapping backwards |
 
@@ -70,34 +70,38 @@ to flag code they were not confident in.
 
 ## The decision table
 
-Fifteen decisions sit below. Each one is a choice a competent engineer could reasonably have made
+Eighteen decisions sit below. Each one is a choice a competent engineer could reasonably have made
 differently, which is the test Rule 1 sets. Entries 1 through 4 resolve collisions between the
 user-specified rules and the requirements, and the next section traces every collision by
-identifier.
+identifier. Entries 16 through 18 govern how this documentation counts, scores and sites its own
+evidence.
 
 | What was decided | What alternatives existed | Why this choice was made | What risks it carries |
 | --- | --- | --- | --- |
 | **1. The root README stays reference material.** [../README.md](../README.md) receives no edit. A new [onboarding.md](onboarding.md) carries Rule 2's substance. | Edit the root README to correct its six false statements and add a link to `docs/`. | The requirements name that one file as reference rather than a rewrite target, and the instruction about a single named file is the more specific directive. Rule 2's goal, a developer reaching a modifiable application without asking questions, is fully reachable in a new document. | Nothing links into `docs/` from the repository's front door. A reader arriving at the root sees an inaccurate README, follows `pip install -r requirements.txt` against a file that does not exist, and never finds this documentation set. |
 | **2. Docstrings describe, only this log justifies.** Inline documentation carries purpose, parameters, returns, raises, side effects and factual statements about broken state. Design rationale lives here. | Let each docstring explain why its design choice was made, next to the code it concerns. | Rule 1 names this log the single source of truth for why decisions were made. Describing what a function does is a different act from justifying a decision, and only the second is rationale. | A reader of a docstring must open a second file to learn why a construct exists in that shape. Rationale and code drift apart when one changes without the other. |
-| **3. Onboarding documents the honest path.** [onboarding.md](onboarding.md) names the steps that work, the exact line where a run stops, and the remediation each blocker needs. | Repair the absent `settings` singleton and the unresolved module paths so a clean machine reaches a running application, then write the guide against a working system. | Repair is a logic change, and the minimal change clause forbids one. A guide promising a running application would be false at its first command, because `import app.main` fails at `backend/app/api/auth.py:L81`. | A reader expecting working setup instructions gets a blocker register instead. Following the guide end to end leaves the application still not running. |
+| **3. Onboarding documents the honest path.** [onboarding.md](onboarding.md) names the steps that work, the exact line where a run stops, and the remediation each blocker needs. | Repair the absent `settings` singleton and the unresolved module paths so a clean machine reaches a running application, then write the guide against a working system. | Repair is a logic change, and the minimal change clause forbids one. A guide promising a running application would be false at its first command, because `import app.main` fails at `backend/app/api/auth.py:L19`. | A reader expecting working setup instructions gets a blocker register instead. Following the guide end to end leaves the application still not running. |
 | **4. Prose verdicts go in their own file.** `prose-validation.md` holds Rule 3's verdicts and principle scorecards for all 28 new artifacts. | Place each verdict inside the document it judges, or record no verdicts at all. | Rule 3 requires a verdict and a scorecard for every piece of generated text, and no enumerated deliverable can hold them. Verdicts inside each README would push several past their stated size band. | A contributor editing a README will not see its verdict unless they open a second file, so a scorecard can describe prose that no longer exists. |
 | **5. Inline comments stop at the two source globs plus Terraform.** [.github/workflows/README.md](../.github/workflows/README.md) and [scripts/README.md](../scripts/README.md) describe their files from outside. The three `.tf` files are the single configuration exception that receives `#` comments. | Read the phrase naming one exception loosely, and comment the two workflow files and two shell scripts as well. | The requirements name Terraform `.tf` files as the one exception to the two in-scope source globs. The narrower reading cannot over-reach the stated scope, and the wider one can. | Four files carry no inline explanation. A contributor editing `ci.yml` or `deploy.sh` sees no warning in the file itself and must open the neighbouring README to learn that both are broken. |
 | **6. A `docs/` index was created although the requirements do not list one.** [README.md](README.md) indexes the eight sibling documents and all 19 module READMEs. | Leave the eight siblings and the 19 module READMEs with no entry point. | Eight sibling documents with no hub are not discoverable, and the root README sits out of scope, so no other file can index them. The requirements also state that cross-linking must be handled inside the `docs/` files. | One more file to keep current. A stale index misdirects a reader worse than no index would, because a reader trusts an index. |
-| **7. All four ownership positions documented, none named canonical.** [data-model.md](data-model.md) presents the four code sites and three specification sites together and picks no winner. | Designate `owner_id` or `user_id` as correct and describe the other positions as wrong. | Naming a winner implies the code should change, and the minimal change clause forbids a rename. The four positions are a verifiable fact; which one is correct is a decision the maintainers own. | A reader wanting one answer gets four positions and must decide alone. Authorization depends on the field, and `owner_id` is optional with a default at `backend/app/schema/document.py:L66`, so a document can validate without the field the ownership check reads. |
+| **7. All four ownership positions documented, none named canonical.** [data-model.md](data-model.md) presents the four code sites and three specification sites together and picks no winner. | Designate `owner_id` or `user_id` as correct and describe the other positions as wrong. | Naming a winner implies the code should change, and the minimal change clause forbids a rename. The four positions are a verifiable fact; which one is correct is a decision the maintainers own. | A reader wanting one answer gets four positions and must decide alone. Authorization depends on the field, and `owner_id` is optional with a default at `backend/app/schema/document.py:L28`, so a document can validate without the field the ownership check reads. |
 | **8. Google style for Python docstrings.** `Args:`, `Returns:` and `Raises:` sections, with `Yields:` for the one generator at `backend/app/db/sql.py:L21`. | NumPy style with underlined section headers, or reStructuredText field lists such as `:param x:`. | The user-supplied Python template is Google style, so the shape was already settled before authoring began. No competing convention existed in the repository to preserve, because the source tree carried no docstring at all. | A maintainer who later adopts Sphinx with reStructuredText would have to convert every docstring across 15 modules, covering 15 classes and 43 functions and methods. |
 | **9. JSDoc carries documentation tags only.** Blocks use `@param name - description` and `@returns`, with no braced types. | Include braced forms such as `@param {string} documentId`, matching common JavaScript practice. | The TypeScript Handbook supports only documentation tags in TypeScript files, and the signature already declares the type. A braced type duplicates the signature and can drift from it, at which point the comment lies. | A reader used to JavaScript JSDoc may read the absent braces as an omission and add them back, reintroducing the duplication. |
 | **10. Every diagram is an inline Mermaid fence.** No generator, no image asset and no pre-render step. | Adopt a diagram generator, or commit pre-rendered SVG and PNG files to an asset directory. | GitHub renders Mermaid natively, and the three specification documents already rely on that across 25 existing fences. Mermaid therefore costs no dependency and no build step. | A Mermaid syntax error renders as a broken block rather than failing a build, so a malformed diagram can ship unnoticed. No pipeline checks the fences. |
 | **11. No dependency and no linting configuration added.** `frontend/package.json` gained nothing, and the three Markdown validators run ephemerally on the host toolchain. | Add `markdownlint-cli2`, `markdown-link-check` and `@mermaid-js/mermaid-cli` to the manifest behind a `docs:lint` script. | The requirements forbid new linting configuration by name. All three validators also require Node 18 or newer, while this project's highest documented Node is 14, declared at `../README.md:L22`, `.github/workflows/ci.yml:L17` and `infrastructure/docker/frontend.Dockerfile:L2`. | No pipeline enforces Markdown quality. A later contributor can add an unclosed fence, an untagged code block or a dead link, and nothing in the repository catches it. |
-| **12. The unresolved-module example was re-attributed and the change stated.** The example belongs to `backend/app/api/templates.py:L70-L71`, not to `document_service.py`. | Reproduce the requirements' attribution to `document_service.py` as written. | `document_service.py` never imports `app.schema.template`. Repeating the attribution would send a reader to a file where the evidence does not exist, and the reader would conclude the documentation is wrong about everything else too. | A reader comparing this documentation against the original requirements finds a discrepancy. The correction is stated openly here for that reason rather than made silently. |
+| **12. The unresolved-module example was re-attributed and the change stated.** The example belongs to `backend/app/api/templates.py:L17-L18`, not to `document_service.py`. | Reproduce the requirements' attribution to `document_service.py` as written. | `document_service.py` never imports `app.schema.template`. Repeating the attribution would send a reader to a file where the evidence does not exist, and the reader would conclude the documentation is wrong about everything else too. | A reader comparing this documentation against the original requirements finds a discrepancy. The correction is stated openly here for that reason rather than made silently. |
 | **13. Nineteen module READMEs reported, not the stated twenty-one.** One README was created in every directory the requirements name. | Reproduce the stated total of 21 and invent two more directories to reach it. | The requirements' own enumeration yields 8 backend, 7 frontend and 4 infrastructure and automation directories. No named directory was dropped, so the correction adjusts an arithmetic total and not the scope. | A reader auditing against the stated 21 counts a shortfall of two and may hunt for files that were never named. |
 | **14. Rule 1's traceability-matrix clause applied by analogy.** The clause is scoped to migrations and refactors. The matrix maps source construct to documentation artifact instead. | Declare the clause inapplicable, because this engagement is neither a migration nor a refactor, and produce no matrix. | The clause's purpose, proving nothing was left behind, transfers cleanly to documentation coverage. A documentation pass with no coverage proof cannot be audited, and Rule 1 requires any departure from a literal reading to be logged, which this entry does. | A 257-row table costs real effort to maintain. Every locator shifts when a source file gains or loses a line, so the matrix goes stale faster than the prose around it. |
-| **15. Blog rule B4 declined; four blog rules adopted.** No em dashes, no bare "It" or "This" as a sentence subject, active voice and cited sources all apply. B4 does not. | Adopt B4 and vary the vocabulary with synonyms from the approved dictionary. | B4 flags a non-technical word appearing three or more times per 500 words, while the AAP fixes six terms that must repeat across all 28 artifacts: router, handler, service, adapter, slice and marker. Synonym churn on those six would obscure meaning rather than sharpen it. | A reviewer applying B4 mechanically will flag this corpus for repetition. The repetition is deliberate, which this entry records so the flag can be dismissed with evidence. |
+| **15. Blog rule B4 declined; four blog rules adopted.** No em dashes, no bare "It" or "This" as a sentence subject, active voice and cited sources all apply. B4 does not. | Adopt B4 and vary the vocabulary with synonyms from the approved dictionary. | B4 flags a non-technical word appearing three or more times per 500 words. The AAP fixes six terms that must repeat across all 28 artifacts: router, handler, service, adapter, slice and marker. Synonym churn on those six would obscure meaning rather than sharpen it. | A reviewer applying B4 mechanically will flag this corpus for repetition. The repetition is deliberate, which this entry records so the flag can be dismissed with evidence. |
+| **16. The matrix counts every class statement, so it runs 257 rows and not the 255 the AAP projects.** Fifteen `class` statements exist, and the two beyond the AAP's thirteen are the inner Pydantic `Config` classes at `backend/app/core/config.py:L50` and `backend/app/schema/user.py:L74`. | Report thirteen classes and 255 rows to match the AAP, leaving both `Config` classes out of the matrix. | Rule 1 requires the matrix complete with no gaps. Both inner classes received a class docstring under the inline-documentation requirement, so omitting them would leave documented constructs unlisted and make the no-gaps claim false. The AAP's thirteen is a projection written before the source tree was read. | A reader auditing against the AAP's 255 finds two extra rows and may read them as padding. The [Backend classes heading](#backend-classes-15) and the [matrix totals](#matrix-totals) both state the split, so the two rows can be identified and subtracted. |
+| **17. Rule 3's own detection heuristics are the scoring thresholds.** A prose sentence over 30 words registers against the principle it touches, and so does a paragraph over five sentences. Every principle a finding touches is scored on its own. Rule 3 leaves one combination unclassified, three soft violations with no hard violation, and this file records it as NEEDS WORK. | Keep wider local bands that pass a 35-word sentence and an 8-sentence paragraph, and charge each finding to exactly one principle. | Rule 3 sets the numbers, and a local band that passes text the rule flags reports a cleaner corpus than the rule allows. Scoring each principle on its own is what the rule's per-principle scorecard asks for. | The stricter thresholds raise the finding count, so prose that read as acceptable under the wider bands had to be rewritten rather than annotated. Counting remains a choice. Inline code spans are exempt under Rule 3's Special Handling, link text counts while a link destination does not, and a list item counts as its own paragraph. A reviewer who folds list items into the surrounding paragraph measures different paragraph lengths. |
+| **18. Every advisory and version-floor rationale sits in one dated register.** [troubleshooting.md](troubleshooting.md) carries the register, with the date it was compiled. A source comment states the contract and the observable defect. Where the contract depends on it, a comment may name the release in which a documented behaviour changed, as `backend/app/core/security.py:L72-L76` does for bcrypt. No source comment carries an advisory identifier, a recommended floor or a dated claim. | Keep each advisory beside the code that carries the risk, or open a separate dated security document. | Rule 1 makes this log and the documents it points at the single rationale surface. An advisory also ages faster than the code it describes, so a source comment goes stale where a dated register announces its own age. AAP section 0.11.1 closes the documentation set at nine `docs/` files, so a new file was not available. | A developer reading a security-relevant function sees no advisory reference in the file itself and must reach the register through the module README. Any version claim is only as current as the register's stated date. |
 
 ## Deviations from a literal reading of the requirements
 
-Rule 1 treats an unexplained deviation as a defect. Ten deviations are recorded below: five
-collisions between the user-specified rules and the requirements, and four interpretive
-corrections where verification contradicted a stated fact. The tenth re-anchors every line
+Rule 1 treats an unexplained deviation as a defect. Eleven deviations are recorded below: five
+collisions between the user-specified rules and the requirements, and five interpretive
+corrections where verification contradicted a stated fact. The eleventh re-anchors every line
 number in this file. Each collision points at the decision-table row that resolves it.
 
 ### The five rule conflicts
@@ -106,7 +110,7 @@ number in this file. Each collision points at the decision-table row that resolv
 | --- | --- | --- | --- |
 | C1 | Rule 2 requires updating existing onboarding documentation. The requirements place the root [../README.md](../README.md) out of scope and call it reference material. | The exclusion governs one named file, so the root README stays untouched. A new [onboarding.md](onboarding.md) carries Rule 2's substance. | 1 |
 | C2 | Rule 1 forbids rationale in code comments. The requirements ask docstrings to explain why a construct exists where the name does not make that obvious. | Docstrings state the construct's role and its factual defects. Design justification stays in this log. | 2 |
-| C3 | Rule 2 requires a path from a clean machine to a running application. The application does not run: `import app.main` fails at `backend/app/api/auth.py:L81`. | [onboarding.md](onboarding.md) documents the working steps, the exact stopping point with evidence, and the remediation each blocker needs. | 3 |
+| C3 | Rule 2 requires a path from a clean machine to a running application. The application does not run: `import app.main` fails at `backend/app/api/auth.py:L19`. | [onboarding.md](onboarding.md) documents the working steps, the exact stopping point with evidence, and the remediation each blocker needs. | 3 |
 | C4 | Rule 3 rejects thoroughness that destroys readability. The engagement instruction is to be exhaustive. | Coverage and verbosity were separated. Completeness is measured by the matrix below, not by word count, and every table cell stays inside two short sentences. | See note under this table |
 | C5 | Rule 3 requires a verdict and a scorecard for every piece of generated text. No enumerated deliverable can hold them. | `prose-validation.md` became that destination. | 4 |
 
@@ -115,17 +119,18 @@ are treated as separate measures. A 257-row matrix proves coverage. Short cells 
 readability. Both standards are met at once, so no trade-off was made and nothing was chosen
 against an alternative.
 
-### The four interpretive corrections
+### The five interpretive corrections
 
-Verification against the repository contradicted four stated facts. Recording them here stops a
+Verification against the repository contradicted five stated facts. Recording them here stops a
 reader from treating a corrected claim as an error in this documentation.
 
 | ID | What the requirements state | What verification found | Where it is recorded |
 | --- | --- | --- | --- |
 | A1 | Numbered section references such as a layer diagram at section 5 and intended behaviour at section 5.2.6, against a specification exceeding 12,000 lines. | The in-repository [Technical Specifications](<../documentation/Technical Specifications.md>) runs 781 physical lines and carries 5 unnumbered H1 headings, 17 unnumbered H2 headings and 18 unnumbered H3 headings, so no section anchor exists inside it. | Numbered citations resolve to the generated Technical Specification, a separate document. In-repository citations quote a heading name plus a line number, per the convention in [README.md](README.md). |
-| A2 | `document_service.py` imports `app.schema.template` as the worked example of a dependency on an absent module. | `document_service.py` carries no such import. The real site is `backend/app/api/templates.py:L70-L71`, which imports from `app.schema.template` and `app.services.template_service`, and neither module exists. | Decision row 12, and [backend/app/api/README.md](../backend/app/api/README.md). |
+| A2 | `document_service.py` imports `app.schema.template` as the worked example of a dependency on an absent module. | `document_service.py` carries no such import. The real site is `backend/app/api/templates.py:L17-L18`, which imports from `app.schema.template` and `app.services.template_service`, and neither module exists. | Decision row 12, and [backend/app/api/README.md](../backend/app/api/README.md). |
 | A3 | Twenty-one new README files. | The enumeration yields 19: eight backend directories, seven frontend directories, four infrastructure and automation directories. | Decision row 13, and [README.md](README.md). |
 | A4 | The ownership drift is two-way, `owner_id` against `user_id`, with two specification sites. | The drift spans four code positions and **three** specification sites. The third sits at `documentation/Technical Specifications.md:L383`. | [data-model.md](data-model.md), and decision row 7. |
+| A5 | Thirteen backend classes, giving 108 construct rows and a matrix of roughly 255 rows. | Fifteen `class` statements exist. Thirteen are model or service classes and two are inner Pydantic `Config` classes, at `backend/app/core/config.py:L50` and `backend/app/schema/user.py:L74`. Construct rows therefore total 110 and the matrix totals 257. | Decision row 16, the [Backend classes heading](#backend-classes-15) and the [matrix totals](#matrix-totals). |
 
 #### The third specification site, in detail
 
@@ -140,11 +145,11 @@ and they sit under two different headings.
 | `documentation/Technical Specifications.md:L383` | Google Cloud SQL (Relational), at `:L356` | The `owner_id` column of the TEMPLATES entity |
 
 The third site extends the same naming to templates, so the specification is internally
-consistent on `owner_id` across both entities. The committed code is not. `backend/app/schema/document.py:L66`
-declares `owner_id: Optional[str] = None`, `backend/app/schema/document.py:L135` declares
-`user_id: str`, `backend/app/services/document_service.py:L116` writes `user_id` and compares
-it at `:L175`, `:L241` and `:L280`, and `frontend/src/schema/document.ts:L69` declares
-`owner_id` beside `user_id` at `:L91`. Four positions, and no code change to reconcile them.
+consistent on `owner_id` across both entities. The committed code is not. `backend/app/schema/document.py:L28`
+declares `owner_id: Optional[str] = None`, `backend/app/schema/document.py:L84` declares
+`user_id: str`, `backend/app/services/document_service.py:L71` writes `user_id` and compares
+it at `:L108`, `:L148` and `:L184`, and `frontend/src/schema/document.ts:L27` declares
+`owner_id` beside `user_id` at `:L44`. Four positions, and no code change to reconcile them.
 
 ### D6, every line number in this file was re-anchored
 
@@ -161,7 +166,7 @@ marker, and `document.ts:L3-L11` for `DocumentSchema`.
 
 **Why this choice was made.** The inline-documentation pass has already landed across all 44
 source files, so every file grew. `DocumentService.get_document` sat at L26 in the original
-79-line module and now sits at `backend/app/services/document_service.py:L123` in a 287-line
+79-line module and now sits at `backend/app/services/document_service.py:L78` in a 191-line
 module. Three facts settle the choice together.
 
 1. The AAP requires every locator to be real, and a stale locator points a reader at unrelated
@@ -169,7 +174,7 @@ module. Three facts settle the choice together.
 2. [README.md](README.md) at `:L83-L84` already fixes the corpus convention as the current
    branch head.
 3. Every sibling artifact already follows that convention, and
-   [backend/app/services/README.md](../backend/app/services/README.md) cites `:L123` for the same method.
+   [backend/app/services/README.md](../backend/app/services/README.md) cites `:L78` for the same method.
 
 **What risks it carries.** A reader comparing this file against the AAP finds every locator
 changed and may suspect the wrong file. The re-anchoring is a pure offset, and the span lengths
@@ -178,9 +183,9 @@ occupied nine lines and still occupies nine.
 
 | Worked row | AAP locator | Locator used here | Span |
 | --- | --- | --- | --- |
-| `DocumentService.get_document` | `document_service.py:L26` | `backend/app/services/document_service.py:L123` | 1 line, both |
-| First `HUMAN ASSISTANCE NEEDED` marker | `main.py:L15-L16` | `backend/app/main.py:L56-L57` | 2 lines, both |
-| `DocumentSchema` | `document.ts:L3-L11` | `frontend/src/schema/document.ts:L65-L73` | 9 lines, both |
+| `DocumentService.get_document` | `document_service.py:L26` | `backend/app/services/document_service.py:L78` | 1 line, both |
+| First `HUMAN ASSISTANCE NEEDED` marker | `main.py:L15-L16` | `backend/app/main.py:L38-L39` | 2 lines, both |
+| `DocumentSchema` | `document.ts:L3-L11` | `frontend/src/schema/document.ts:L23-L31` | 9 lines, both |
 
 ## The source-construct to documentation-artifact traceability matrix
 
@@ -202,6 +207,10 @@ The matrix runs to 257 rows, so a single table would be unreadable and would fai
 indifference test. Rows are grouped into seventeen subsections by area. Two key tables below
 keep each row narrow: the Documenting README column carries a directory path, and the
 `docs/` Coverage column carries a filename. Both resolve through the keys.
+
+The AAP projects 255 rows across thirteen backend classes. Verification found fifteen `class`
+statements, so construct rows total 110 and the matrix totals 257. Decision row 16 owns that
+choice and correction A5 records the count it departs from.
 
 Five groups of files receive no inline documentation, because the requirements exclude them:
 three test modules, three container artifacts, two workflow files, two shell scripts and two
@@ -253,9 +262,9 @@ three extra rows.
 
 | Source Construct | Location | Documenting README | Inline Documentation | `docs/` Coverage | Status |
 | --- | --- | --- | --- | --- | --- |
-| `DocumentService.get_document` | `backend/app/services/document_service.py:L123` | `backend/app/services/README.md` | Google-style docstring per the user template | `docs/data-model.md` | COVERED |
-| `HUMAN ASSISTANCE NEEDED` at `main.py:L56` | `backend/app/main.py:L56-L57` | `backend/app/README.md`, Known Limitations | Preserved verbatim; referenced by the module docstring | `docs/troubleshooting.md` | COVERED |
-| `DocumentSchema` (no inferred type) | `frontend/src/schema/document.ts:L65-L73` | `frontend/src/schema/README.md` | File header stating the root-cause chain | `docs/data-model.md`, `docs/troubleshooting.md` | COVERED |
+| `DocumentService.get_document` | `backend/app/services/document_service.py:L78` | `backend/app/services/README.md` | Google-style docstring per the user template | `docs/data-model.md` | COVERED |
+| `HUMAN ASSISTANCE NEEDED` at `main.py:L38` | `backend/app/main.py:L38-L39` | `backend/app/README.md`, Known Limitations | Preserved verbatim; referenced by the module docstring | `docs/troubleshooting.md` | COVERED |
+| `DocumentSchema` (no inferred type) | `frontend/src/schema/document.ts:L23-L31` | `frontend/src/schema/README.md` | File header stating the root-cause chain | `docs/data-model.md`, `docs/troubleshooting.md` | COVERED |
 
 ### Backend modules (15)
 
@@ -264,42 +273,42 @@ One row per Python module under `backend/app/`. Each carries a module docstring 
 | Source Construct | Location | Documenting README | Inline Documentation | `docs/` Coverage | Status |
 | --- | --- | --- | --- | --- | --- |
 | `main.py` | `backend/app/main.py:L1-L13` | `backend/app` | Module docstring naming all six unresolved imports | `architecture-overview.md`, `troubleshooting.md` | COVERED |
-| `api/auth.py` | `backend/app/api/auth.py:L1-L79` | `backend/app/api` | Module docstring; records the duplicated `get_current_user` | `integration-guide.md`, `troubleshooting.md` | COVERED |
-| `api/documents.py` | `backend/app/api/documents.py:L1-L49` | `backend/app/api` | Module docstring; records five call-site defects | `data-model.md`, `troubleshooting.md` | COVERED |
-| `api/templates.py` | `backend/app/api/templates.py:L1-L66` | `backend/app/api` | Module docstring; names both absent modules at `:L70-L71` | `data-model.md`, `troubleshooting.md` | COVERED |
-| `api/users.py` | `backend/app/api/users.py:L1-L25` | `backend/app/api` | Module docstring; records both handlers as synchronous | `data-model.md`, `troubleshooting.md` | COVERED |
-| `core/config.py` | `backend/app/core/config.py:L1-L49` | `backend/app/core` | Module docstring; states that no `settings` instance exists | `deployment-guide.md`, `troubleshooting.md` | COVERED |
-| `core/security.py` | `backend/app/core/security.py:L1-L43` | `backend/app/core` | Module docstring; three undefined names, and `jwt.JWTError` confirmed sound | `integration-guide.md`, `troubleshooting.md` | COVERED |
-| `db/firestore.py` | `backend/app/db/firestore.py:L1-L38` | `backend/app/db` | Module docstring; import-time client construction | `integration-guide.md`, `data-model.md` | COVERED |
+| `api/auth.py` | `backend/app/api/auth.py:L1-L17` | `backend/app/api` | Module docstring; records the duplicated `get_current_user` | `integration-guide.md`, `troubleshooting.md` | COVERED |
+| `api/documents.py` | `backend/app/api/documents.py:L1-L20` | `backend/app/api` | Module docstring; records five call-site defects | `data-model.md`, `troubleshooting.md` | COVERED |
+| `api/templates.py` | `backend/app/api/templates.py:L1-L14` | `backend/app/api` | Module docstring; names both absent modules at `:L17-L18` | `data-model.md`, `troubleshooting.md` | COVERED |
+| `api/users.py` | `backend/app/api/users.py:L1-L15` | `backend/app/api` | Module docstring; records both handlers as synchronous | `data-model.md`, `troubleshooting.md` | COVERED |
+| `core/config.py` | `backend/app/core/config.py:L1-L18` | `backend/app/core` | Module docstring; states that no `settings` instance exists | `deployment-guide.md`, `troubleshooting.md` | COVERED |
+| `core/security.py` | `backend/app/core/security.py:L1-L20` | `backend/app/core` | Module docstring; three undefined names, and `jwt.JWTError` confirmed sound | `integration-guide.md`, `troubleshooting.md` | COVERED |
+| `db/firestore.py` | `backend/app/db/firestore.py:L1-L18` | `backend/app/db` | Module docstring; import-time client construction | `integration-guide.md`, `data-model.md` | COVERED |
 | `db/sql.py` | `backend/app/db/sql.py:L1-L14` | `backend/app/db` | Module docstring; the declared but unused relational path | `data-model.md`, `deployment-guide.md` | COVERED |
-| `schema/document.py` | `backend/app/schema/document.py:L1-L53` | `backend/app/schema` | Module docstring; the `owner_id` and `user_id` split inside one file | `data-model.md`, `troubleshooting.md` | COVERED |
-| `schema/user.py` | `backend/app/schema/user.py:L1-L69` | `backend/app/schema` | Module docstring; the absent password field and the Pydantic 1.x pin | `data-model.md`, `troubleshooting.md` | COVERED |
-| `services/collaboration_service.py` | `backend/app/services/collaboration_service.py:L1-L39` | `backend/app/services` | Module docstring; two absent imports and the per-process registry | `integration-guide.md`, `troubleshooting.md` | COVERED |
-| `services/document_service.py` | `backend/app/services/document_service.py:L1-L55` | `backend/app/services` | Module docstring; async methods wrapping a synchronous SDK | `data-model.md`, `integration-guide.md` | COVERED |
-| `services/export_service.py` | `backend/app/services/export_service.py:L1-L61` | `backend/app/services` | Module docstring; the placeholder export payloads | `integration-guide.md`, `troubleshooting.md` | COVERED |
-| `tasks/background_tasks.py` | `backend/app/tasks/background_tasks.py:L1-L96` | `backend/app/tasks` | Module docstring; the absent `datetime` import and the invalid decorator | `deployment-guide.md`, `integration-guide.md` | COVERED |
+| `schema/document.py` | `backend/app/schema/document.py:L1-L14` | `backend/app/schema` | Module docstring; the `owner_id` and `user_id` split inside one file | `data-model.md`, `troubleshooting.md` | COVERED |
+| `schema/user.py` | `backend/app/schema/user.py:L1-L15` | `backend/app/schema` | Module docstring; the absent password field and the Pydantic 1.x pin | `data-model.md`, `troubleshooting.md` | COVERED |
+| `services/collaboration_service.py` | `backend/app/services/collaboration_service.py:L1-L18` | `backend/app/services` | Module docstring; two absent imports and the per-process registry | `integration-guide.md`, `troubleshooting.md` | COVERED |
+| `services/document_service.py` | `backend/app/services/document_service.py:L1-L12` | `backend/app/services` | Module docstring; async methods wrapping a synchronous SDK | `data-model.md`, `integration-guide.md` | COVERED |
+| `services/export_service.py` | `backend/app/services/export_service.py:L1-L16` | `backend/app/services` | Module docstring; the placeholder export payloads | `integration-guide.md`, `troubleshooting.md` | COVERED |
+| `tasks/background_tasks.py` | `backend/app/tasks/background_tasks.py:L1-L20` | `backend/app/tasks` | Module docstring; the absent `datetime` import and the invalid decorator | `deployment-guide.md`, `integration-guide.md` | COVERED |
 
 ### Backend classes (15)
 
-Fifteen `class` statements exist. Thirteen are model or service classes, the count the AAP reports. The other two are inner Pydantic `Config` classes, carried here so no class is left undocumented.
+Fifteen `class` statements exist. Thirteen are model or service classes, the count the AAP reports. The other two are inner Pydantic `Config` classes, carried here so no class is left undocumented, which decision row 16 explains.
 
 | Source Construct | Location | Documenting README | Inline Documentation | `docs/` Coverage | Status |
 | --- | --- | --- | --- | --- | --- |
-| `Settings` | `backend/app/core/config.py:L51` | `backend/app/core` | Class docstring listing all nine fields as `Attributes:` | `deployment-guide.md`, `onboarding.md` | COVERED |
-| `Settings.Config` | `backend/app/core/config.py:L121` | `backend/app/core` | Class docstring; points Pydantic at an uncommitted `.env` | `deployment-guide.md`, `onboarding.md` | COVERED |
-| `DocumentBase` | `backend/app/schema/document.py:L55` | `backend/app/schema` | Class docstring; `owner_id` optional with a default | `data-model.md`, `troubleshooting.md` | COVERED |
-| `DocumentCreate` | `backend/app/schema/document.py:L68` | `backend/app/schema` | Class docstring; inherits `DocumentBase` | `data-model.md`, `integration-guide.md` | COVERED |
-| `DocumentUpdate` | `backend/app/schema/document.py:L82` | `backend/app/schema` | Class docstring; does not inherit `DocumentBase` | `data-model.md`, `troubleshooting.md` | COVERED |
-| `Document` | `backend/app/schema/document.py:L96` | `backend/app/schema` | Class docstring; required timestamps no service writes | `data-model.md`, `troubleshooting.md` | COVERED |
-| `DocumentVersion` | `backend/app/schema/document.py:L114` | `backend/app/schema` | Class docstring; names its actor `user_id` | `data-model.md`, `troubleshooting.md` | COVERED |
-| `UserBase` | `backend/app/schema/user.py:L71` | `backend/app/schema` | Class docstring; `username` and `full_name`, no `name` | `data-model.md`, `troubleshooting.md` | COVERED |
-| `UserCreate` | `backend/app/schema/user.py:L84` | `backend/app/schema` | Class docstring; carries the plaintext password field | `data-model.md`, `integration-guide.md` | COVERED |
-| `UserUpdate` | `backend/app/schema/user.py:L96` | `backend/app/schema` | Class docstring; every field optional | `data-model.md`, `troubleshooting.md` | COVERED |
-| `User` | `backend/app/schema/user.py:L114` | `backend/app/schema` | Class docstring; flags no code path reads | `data-model.md`, `troubleshooting.md` | COVERED |
-| `User.Config` | `backend/app/schema/user.py:L175` | `backend/app/schema` | Class docstring; `orm_mode` pins Pydantic to 1.x | `data-model.md`, `onboarding.md` | COVERED |
-| `CollaborationService` | `backend/app/services/collaboration_service.py:L41` | `backend/app/services` | Class docstring; never instantiated by any route | `integration-guide.md`, `troubleshooting.md` | COVERED |
-| `DocumentService` | `backend/app/services/document_service.py:L62` | `backend/app/services` | Class docstring listing all four public methods | `data-model.md`, `integration-guide.md` | COVERED |
-| `ExportService` | `backend/app/services/export_service.py:L63` | `backend/app/services` | Class docstring; no `convert_document` despite a task calling it | `integration-guide.md`, `troubleshooting.md` | COVERED |
+| `Settings` | `backend/app/core/config.py:L20` | `backend/app/core` | Class docstring listing all nine fields as `Attributes:` | `deployment-guide.md`, `onboarding.md` | COVERED |
+| `Settings.Config` | `backend/app/core/config.py:L50` | `backend/app/core` | Class docstring; points Pydantic at an uncommitted `.env` | `deployment-guide.md`, `onboarding.md` | COVERED |
+| `DocumentBase` | `backend/app/schema/document.py:L16` | `backend/app/schema` | Class docstring; `owner_id` optional with a default | `data-model.md`, `troubleshooting.md` | COVERED |
+| `DocumentCreate` | `backend/app/schema/document.py:L30` | `backend/app/schema` | Class docstring; inherits `DocumentBase` | `data-model.md`, `integration-guide.md` | COVERED |
+| `DocumentUpdate` | `backend/app/schema/document.py:L39` | `backend/app/schema` | Class docstring; does not inherit `DocumentBase` | `data-model.md`, `troubleshooting.md` | COVERED |
+| `Document` | `backend/app/schema/document.py:L51` | `backend/app/schema` | Class docstring; required timestamps no service writes | `data-model.md`, `troubleshooting.md` | COVERED |
+| `DocumentVersion` | `backend/app/schema/document.py:L66` | `backend/app/schema` | Class docstring; names its actor `user_id` | `data-model.md`, `troubleshooting.md` | COVERED |
+| `UserBase` | `backend/app/schema/user.py:L17` | `backend/app/schema` | Class docstring; `username` and `full_name`, no `name` | `data-model.md`, `troubleshooting.md` | COVERED |
+| `UserCreate` | `backend/app/schema/user.py:L30` | `backend/app/schema` | Class docstring; carries the plaintext password field | `data-model.md`, `integration-guide.md` | COVERED |
+| `UserUpdate` | `backend/app/schema/user.py:L40` | `backend/app/schema` | Class docstring; every field optional | `data-model.md`, `troubleshooting.md` | COVERED |
+| `User` | `backend/app/schema/user.py:L56` | `backend/app/schema` | Class docstring; flags no code path reads | `data-model.md`, `troubleshooting.md` | COVERED |
+| `User.Config` | `backend/app/schema/user.py:L74` | `backend/app/schema` | Class docstring; `orm_mode` pins Pydantic to 1.x | `data-model.md`, `onboarding.md` | COVERED |
+| `CollaborationService` | `backend/app/services/collaboration_service.py:L20` | `backend/app/services` | Class docstring; never instantiated by any route | `integration-guide.md`, `troubleshooting.md` | COVERED |
+| `DocumentService` | `backend/app/services/document_service.py:L19` | `backend/app/services` | Class docstring listing all four public methods | `data-model.md`, `integration-guide.md` | COVERED |
+| `ExportService` | `backend/app/services/export_service.py:L18` | `backend/app/services` | Class docstring; no `convert_document` despite a task calling it | `integration-guide.md`, `troubleshooting.md` | COVERED |
 
 ### Backend functions and methods (43)
 
@@ -307,49 +316,49 @@ Every function and method under `backend/app/`, including the nested Pub/Sub `ca
 
 | Source Construct | Location | Documenting README | Inline Documentation | `docs/` Coverage | Status |
 | --- | --- | --- | --- | --- | --- |
-| `get_current_user` | `backend/app/api/auth.py:L89` | `backend/app/api` | Docstring; duplicate of the `core` version, and returns 404 where `core` returns 401 | `integration-guide.md`, `troubleshooting.md` | COVERED |
-| `login_for_access_token` | `backend/app/api/auth.py:L168` | `backend/app/api` | Docstring with `Args:`, `Returns:` and `Raises:`; one of the two public handlers | `integration-guide.md`, `onboarding.md` | COVERED |
-| `register_user` | `backend/app/api/auth.py:L243` | `backend/app/api` | Docstring; hashes a password the `User` contract cannot store | `data-model.md`, `troubleshooting.md` | COVERED |
-| `create_document` | `backend/app/api/documents.py:L54` | `backend/app/api` | Docstring; passes a `User` object where `user_id: str` is declared | `data-model.md`, `troubleshooting.md` | COVERED |
-| `get_documents` | `backend/app/api/documents.py:L112` | `backend/app/api` | Docstring; calls a service method that does not exist | `data-model.md`, `troubleshooting.md` | COVERED |
-| `get_document` | `backend/app/api/documents.py:L146` | `backend/app/api` | Docstring; calls the service with one argument against a two-argument signature | `data-model.md`, `troubleshooting.md` | COVERED |
-| `update_document` | `backend/app/api/documents.py:L189` | `backend/app/api` | Docstring; reads `document.user_id` off a schema declaring `owner_id` | `data-model.md`, `troubleshooting.md` | COVERED |
-| `delete_document` | `backend/app/api/documents.py:L238` | `backend/app/api` | Docstring; same arity and field defects as the read handler | `data-model.md`, `troubleshooting.md` | COVERED |
-| `create_template` | `backend/app/api/templates.py:L78` | `backend/app/api` | Docstring; depends on the absent `TemplateService` | `data-model.md`, `troubleshooting.md` | COVERED |
-| `get_templates` | `backend/app/api/templates.py:L119` | `backend/app/api` | Docstring; path collides with the documents list handler | `data-model.md`, `troubleshooting.md` | COVERED |
-| `get_template` | `backend/app/api/templates.py:L152` | `backend/app/api` | Docstring; shadowed by the documents router, so never reached | `data-model.md`, `troubleshooting.md` | COVERED |
-| `update_template` | `backend/app/api/templates.py:L196` | `backend/app/api` | Docstring; shadowed, and depends on the absent template schema | `data-model.md`, `troubleshooting.md` | COVERED |
-| `delete_template` | `backend/app/api/templates.py:L255` | `backend/app/api` | Docstring; shadowed by the documents delete handler | `data-model.md`, `troubleshooting.md` | COVERED |
-| `get_current_user_info` | `backend/app/api/users.py:L30` | `backend/app/api` | Docstring; declared `def` while every other handler is `async def` | `data-model.md`, `troubleshooting.md` | COVERED |
-| `update_user` | `backend/app/api/users.py:L51` | `backend/app/api` | Docstring; awaits nothing and persists nothing | `data-model.md`, `troubleshooting.md` | COVERED |
-| `get_settings` | `backend/app/core/config.py:L126` | `backend/app/core` | Docstring with `Returns:` and `Raises:`; carries no caching decorator | `deployment-guide.md`, `onboarding.md` | COVERED |
-| `create_access_token` | `backend/app/core/security.py:L48` | `backend/app/core` | Docstring plus a usage example, as a named primary entry point | `integration-guide.md`, `onboarding.md` | COVERED |
-| `verify_password` | `backend/app/core/security.py:L82` | `backend/app/core` | Docstring with `Args:` and `Returns:`; bcrypt comparison | `integration-guide.md`, `troubleshooting.md` | COVERED |
-| `get_password_hash` | `backend/app/core/security.py:L98` | `backend/app/core` | Docstring; the bcrypt context duplicated from the auth router | `integration-guide.md`, `troubleshooting.md` | COVERED |
-| `get_current_user` | `backend/app/core/security.py:L117` | `backend/app/core` | Docstring plus a usage example; three undefined names recorded | `integration-guide.md`, `onboarding.md` | COVERED |
-| `get_document` | `backend/app/db/firestore.py:L42` | `backend/app/db` | Docstring plus a usage example; annotated `-> dict` while returning `None` | `data-model.md`, `integration-guide.md` | COVERED |
-| `create_document` | `backend/app/db/firestore.py:L70` | `backend/app/db` | Docstring plus a usage example; synchronous, and consumed by no service | `data-model.md`, `integration-guide.md` | COVERED |
-| `update_document` | `backend/app/db/firestore.py:L92` | `backend/app/db` | Docstring; synchronous, and consumed by no service | `data-model.md`, `integration-guide.md` | COVERED |
-| `delete_document` | `backend/app/db/firestore.py:L110` | `backend/app/db` | Docstring; synchronous, and consumed by no service | `data-model.md`, `integration-guide.md` | COVERED |
+| `get_current_user` | `backend/app/api/auth.py:L27` | `backend/app/api` | Docstring; duplicate of the `core` version, and returns 404 where `core` returns 401 | `integration-guide.md`, `troubleshooting.md` | COVERED |
+| `login_for_access_token` | `backend/app/api/auth.py:L66` | `backend/app/api` | Docstring with `Args:`, `Returns:` and `Raises:`; one of the two public handlers | `integration-guide.md`, `onboarding.md` | COVERED |
+| `register_user` | `backend/app/api/auth.py:L103` | `backend/app/api` | Docstring; hashes a password the `User` contract cannot store | `data-model.md`, `troubleshooting.md` | COVERED |
+| `create_document` | `backend/app/api/documents.py:L25` | `backend/app/api` | Docstring; passes a `User` object where `user_id: str` is declared | `data-model.md`, `troubleshooting.md` | COVERED |
+| `get_documents` | `backend/app/api/documents.py:L50` | `backend/app/api` | Docstring; calls a service method that does not exist | `data-model.md`, `troubleshooting.md` | COVERED |
+| `get_document` | `backend/app/api/documents.py:L69` | `backend/app/api` | Docstring; calls the service with one argument against a two-argument signature | `data-model.md`, `troubleshooting.md` | COVERED |
+| `update_document` | `backend/app/api/documents.py:L97` | `backend/app/api` | Docstring; reads `document.user_id` off a schema declaring `owner_id` | `data-model.md`, `troubleshooting.md` | COVERED |
+| `delete_document` | `backend/app/api/documents.py:L127` | `backend/app/api` | Docstring; same arity and field defects as the read handler | `data-model.md`, `troubleshooting.md` | COVERED |
+| `create_template` | `backend/app/api/templates.py:L25` | `backend/app/api` | Docstring; depends on the absent `TemplateService` | `data-model.md`, `troubleshooting.md` | COVERED |
+| `get_templates` | `backend/app/api/templates.py:L43` | `backend/app/api` | Docstring; path collides with the documents list handler | `data-model.md`, `troubleshooting.md` | COVERED |
+| `get_template` | `backend/app/api/templates.py:L60` | `backend/app/api` | Docstring; shadowed by the documents router, so never reached | `data-model.md`, `troubleshooting.md` | COVERED |
+| `update_template` | `backend/app/api/templates.py:L87` | `backend/app/api` | Docstring; shadowed, and depends on the absent template schema | `data-model.md`, `troubleshooting.md` | COVERED |
+| `delete_template` | `backend/app/api/templates.py:L113` | `backend/app/api` | Docstring; shadowed by the documents delete handler | `data-model.md`, `troubleshooting.md` | COVERED |
+| `get_current_user_info` | `backend/app/api/users.py:L20` | `backend/app/api` | Docstring; declared `def` while every other handler is `async def` | `data-model.md`, `troubleshooting.md` | COVERED |
+| `update_user` | `backend/app/api/users.py:L33` | `backend/app/api` | Docstring; awaits nothing and persists nothing | `data-model.md`, `troubleshooting.md` | COVERED |
+| `get_settings` | `backend/app/core/config.py:L61` | `backend/app/core` | Docstring with `Returns:` and `Raises:`; carries no caching decorator | `deployment-guide.md`, `onboarding.md` | COVERED |
+| `create_access_token` | `backend/app/core/security.py:L25` | `backend/app/core` | Docstring plus a usage example, as a named primary entry point | `integration-guide.md`, `onboarding.md` | COVERED |
+| `verify_password` | `backend/app/core/security.py:L57` | `backend/app/core` | Docstring with `Args:` and `Returns:`; bcrypt comparison | `integration-guide.md`, `troubleshooting.md` | COVERED |
+| `get_password_hash` | `backend/app/core/security.py:L69` | `backend/app/core` | Docstring; the bcrypt context duplicated from the auth router | `integration-guide.md`, `troubleshooting.md` | COVERED |
+| `get_current_user` | `backend/app/core/security.py:L90` | `backend/app/core` | Docstring plus a usage example; three undefined names recorded | `integration-guide.md`, `onboarding.md` | COVERED |
+| `get_document` | `backend/app/db/firestore.py:L22` | `backend/app/db` | Docstring plus a usage example; annotated `-> dict` while returning `None` | `data-model.md`, `integration-guide.md` | COVERED |
+| `create_document` | `backend/app/db/firestore.py:L45` | `backend/app/db` | Docstring plus a usage example; synchronous, and consumed by no service | `data-model.md`, `integration-guide.md` | COVERED |
+| `update_document` | `backend/app/db/firestore.py:L64` | `backend/app/db` | Docstring; synchronous, and consumed by no service | `data-model.md`, `integration-guide.md` | COVERED |
+| `delete_document` | `backend/app/db/firestore.py:L79` | `backend/app/db` | Docstring; synchronous, and consumed by no service | `data-model.md`, `integration-guide.md` | COVERED |
 | `get_db` | `backend/app/db/sql.py:L21` | `backend/app/db` | Docstring using `Yields:`, the repository's only generator | `data-model.md`, `deployment-guide.md` | COVERED |
 | `startup_event` | `backend/app/main.py:L27` | `backend/app` | Docstring; awaits an absent `init_db` and swallows every exception | `deployment-guide.md`, `troubleshooting.md` | COVERED |
-| `shutdown_event` | `backend/app/main.py:L73` | `backend/app` | Docstring; closes nothing that the module opened | `deployment-guide.md`, `troubleshooting.md` | COVERED |
-| `CollaborationService.__init__` | `backend/app/services/collaboration_service.py:L67` | `backend/app/services` | Constructor docstring; builds the Pub/Sub clients at construction | `integration-guide.md`, `troubleshooting.md` | COVERED |
-| `CollaborationService.connect` | `backend/app/services/collaboration_service.py:L75` | `backend/app/services` | Docstring; registers a socket and returns before subscribing | `integration-guide.md`, `troubleshooting.md` | COVERED |
-| `callback` | `backend/app/services/collaboration_service.py:L131` | `backend/app/services` | Docstring; the nested Pub/Sub message handler | `integration-guide.md`, `troubleshooting.md` | COVERED |
-| `CollaborationService.disconnect` | `backend/app/services/collaboration_service.py:L173` | `backend/app/services` | Docstring; removes the socket from a per-process dictionary | `integration-guide.md`, `troubleshooting.md` | COVERED |
-| `CollaborationService.broadcast_change` | `backend/app/services/collaboration_service.py:L218` | `backend/app/services` | Docstring; blocking `future.result()` inside an async method | `integration-guide.md`, `troubleshooting.md` | COVERED |
-| `DocumentService.__init__` | `backend/app/services/document_service.py:L68` | `backend/app/services` | Constructor docstring; binds the shared Firestore client | `data-model.md`, `integration-guide.md` | COVERED |
-| `DocumentService.create_document` | `backend/app/services/document_service.py:L72` | `backend/app/services` | Docstring; writes the ownership key as `user_id` | `data-model.md`, `integration-guide.md` | COVERED |
-| `DocumentService.get_document` | `backend/app/services/document_service.py:L123` | `backend/app/services` | Google-style docstring per the user template | `data-model.md`, `troubleshooting.md` | COVERED |
-| `DocumentService.update_document` | `backend/app/services/document_service.py:L183` | `backend/app/services` | Docstring; read-modify-read path costing three Firestore operations | `data-model.md`, `integration-guide.md` | COVERED |
-| `DocumentService.delete_document` | `backend/app/services/document_service.py:L252` | `backend/app/services` | Docstring; ownership comparison explained as non-obvious logic | `data-model.md`, `integration-guide.md` | COVERED |
-| `ExportService.__init__` | `backend/app/services/export_service.py:L69` | `backend/app/services` | Constructor docstring; builds the Cloud Storage client | `integration-guide.md`, `deployment-guide.md` | COVERED |
-| `ExportService.export_to_pdf` | `backend/app/services/export_service.py:L87` | `backend/app/services` | Docstring; uploads a literal placeholder payload | `integration-guide.md`, `troubleshooting.md` | COVERED |
-| `ExportService.export_to_docx` | `backend/app/services/export_service.py:L168` | `backend/app/services` | Docstring; second placeholder payload and a second key layout | `integration-guide.md`, `troubleshooting.md` | COVERED |
-| `process_document_export` | `backend/app/tasks/background_tasks.py:L101` | `backend/app/tasks` | Task docstring; no producer enqueues it | `integration-guide.md`, `deployment-guide.md` | COVERED |
-| `cleanup_expired_documents` | `backend/app/tasks/background_tasks.py:L152` | `backend/app/tasks` | Task docstring; invalid periodic decorator, and `.delete()` on a result list | `deployment-guide.md`, `troubleshooting.md` | COVERED |
-| `update_document_statistics` | `backend/app/tasks/background_tasks.py:L287` | `backend/app/tasks` | Task docstring; reads `document.pages`, which no schema declares | `data-model.md`, `troubleshooting.md` | COVERED |
+| `shutdown_event` | `backend/app/main.py:L55` | `backend/app` | Docstring; closes nothing that the module opened | `deployment-guide.md`, `troubleshooting.md` | COVERED |
+| `CollaborationService.__init__` | `backend/app/services/collaboration_service.py:L32` | `backend/app/services` | Constructor docstring; builds the Pub/Sub clients at construction | `integration-guide.md`, `troubleshooting.md` | COVERED |
+| `CollaborationService.connect` | `backend/app/services/collaboration_service.py:L44` | `backend/app/services` | Docstring; registers a socket and returns before subscribing | `integration-guide.md`, `troubleshooting.md` | COVERED |
+| `callback` | `backend/app/services/collaboration_service.py:L80` | `backend/app/services` | Docstring; the nested Pub/Sub message handler | `integration-guide.md`, `troubleshooting.md` | COVERED |
+| `CollaborationService.disconnect` | `backend/app/services/collaboration_service.py:L103` | `backend/app/services` | Docstring; removes the socket from a per-process dictionary | `integration-guide.md`, `troubleshooting.md` | COVERED |
+| `CollaborationService.broadcast_change` | `backend/app/services/collaboration_service.py:L133` | `backend/app/services` | Docstring; blocking `future.result()` inside an async method | `integration-guide.md`, `troubleshooting.md` | COVERED |
+| `DocumentService.__init__` | `backend/app/services/document_service.py:L33` | `backend/app/services` | Constructor docstring; binds the shared Firestore client | `data-model.md`, `integration-guide.md` | COVERED |
+| `DocumentService.create_document` | `backend/app/services/document_service.py:L42` | `backend/app/services` | Docstring; writes the ownership key as `user_id` | `data-model.md`, `integration-guide.md` | COVERED |
+| `DocumentService.get_document` | `backend/app/services/document_service.py:L78` | `backend/app/services` | Google-style docstring per the user template | `data-model.md`, `troubleshooting.md` | COVERED |
+| `DocumentService.update_document` | `backend/app/services/document_service.py:L116` | `backend/app/services` | Docstring; read-modify-read path costing three Firestore operations | `data-model.md`, `integration-guide.md` | COVERED |
+| `DocumentService.delete_document` | `backend/app/services/document_service.py:L159` | `backend/app/services` | Docstring; ownership comparison explained as non-obvious logic | `data-model.md`, `integration-guide.md` | COVERED |
+| `ExportService.__init__` | `backend/app/services/export_service.py:L29` | `backend/app/services` | Constructor docstring; builds the Cloud Storage client | `integration-guide.md`, `deployment-guide.md` | COVERED |
+| `ExportService.export_to_pdf` | `backend/app/services/export_service.py:L40` | `backend/app/services` | Docstring; uploads a literal placeholder payload | `integration-guide.md`, `troubleshooting.md` | COVERED |
+| `ExportService.export_to_docx` | `backend/app/services/export_service.py:L74` | `backend/app/services` | Docstring; second placeholder payload and a second key layout | `integration-guide.md`, `troubleshooting.md` | COVERED |
+| `process_document_export` | `backend/app/tasks/background_tasks.py:L25` | `backend/app/tasks` | Task docstring; no producer enqueues it | `integration-guide.md`, `deployment-guide.md` | COVERED |
+| `cleanup_expired_documents` | `backend/app/tasks/background_tasks.py:L73` | `backend/app/tasks` | Task docstring; invalid periodic decorator, and `.delete()` on a result list | `deployment-guide.md`, `troubleshooting.md` | COVERED |
+| `update_document_statistics` | `backend/app/tasks/background_tasks.py:L116` | `backend/app/tasks` | Task docstring; reads `document.pages`, which no schema declares | `data-model.md`, `troubleshooting.md` | COVERED |
 
 ### Frontend modules (26)
 
@@ -371,7 +380,7 @@ One row per TypeScript and TSX module under `frontend/src/`. Each carries a bloc
 | `pages/Home.tsx` | `frontend/src/pages/Home.tsx:L1` | `frontend/src/pages` | File header; the correct default imports, noted as the contrast case | `architecture-overview.md`, `troubleshooting.md` | COVERED |
 | `pages/Settings.tsx` | `frontend/src/pages/Settings.tsx:L1` | `frontend/src/pages` | File header; three non-existent imported symbols | `data-model.md`, `troubleshooting.md` | COVERED |
 | `pages/Templates.tsx` | `frontend/src/pages/Templates.tsx:L1` | `frontend/src/pages` | File header; a local interface incompatible with the Zod schema | `data-model.md`, `troubleshooting.md` | COVERED |
-| `schema/document.ts` | `frontend/src/schema/document.ts:L1-L25` | `frontend/src/schema` | File header stating the root-cause chain for five downstream errors | `data-model.md`, `troubleshooting.md` | COVERED |
+| `schema/document.ts` | `frontend/src/schema/document.ts:L1-L12` | `frontend/src/schema` | File header stating the root-cause chain for five downstream errors | `data-model.md`, `troubleshooting.md` | COVERED |
 | `schema/template.ts` | `frontend/src/schema/template.ts:L1` | `frontend/src/schema` | File header; diverges from the local interface in `Templates.tsx` | `data-model.md`, `troubleshooting.md` | COVERED |
 | `schema/user.ts` | `frontend/src/schema/user.ts:L1` | `frontend/src/schema` | File header; the absent `updated_at` the server declares | `data-model.md`, `troubleshooting.md` | COVERED |
 | `services/api.ts` | `frontend/src/services/api.ts:L1` | `frontend/src/services` | File header; the environment variable mismatch and three absent types | `integration-guide.md`, `troubleshooting.md` | COVERED |
@@ -390,19 +399,19 @@ Thirteen `React.FC` components. Each carries a JSDoc block directly above its de
 
 | Source Construct | Location | Documenting README | Inline Documentation | `docs/` Coverage | Status |
 | --- | --- | --- | --- | --- | --- |
-| `App` | `frontend/src/App.tsx:L44` | `frontend/src` | Component JSDoc; renders the shell a second time | `architecture-overview.md`, `troubleshooting.md` | COVERED |
-| `DocumentCanvas` | `frontend/src/components/DocumentCanvas.tsx:L108` | `frontend/src/components` | Component JSDoc; propless signature against a caller passing two props | `architecture-overview.md`, `troubleshooting.md` | COVERED |
-| `Footer` | `frontend/src/components/Footer.tsx:L24` | `frontend/src/components` | Component JSDoc; two zoom buttons with no handlers | `architecture-overview.md`, `troubleshooting.md` | COVERED |
-| `Header` | `frontend/src/components/Header.tsx:L55` | `frontend/src/components` | Component JSDoc; absent logo asset and two undeclared routes | `architecture-overview.md`, `troubleshooting.md` | COVERED |
-| `ImageEditor` | `frontend/src/components/ImageEditor.tsx:L53` | `frontend/src/components` | Component JSDoc; no block renderer, so an atomic image never renders | `architecture-overview.md`, `troubleshooting.md` | COVERED |
-| `Sidebar` | `frontend/src/components/Sidebar.tsx:L20` | `frontend/src/components` | Component JSDoc; names the three absent panels | `architecture-overview.md`, `troubleshooting.md` | COVERED |
-| `TableEditor` | `frontend/src/components/TableEditor.tsx:L51` | `frontend/src/components` | Component JSDoc; renders an empty element | `architecture-overview.md`, `troubleshooting.md` | COVERED |
-| `TextEditor` | `frontend/src/components/TextEditor.tsx:L77` | `frontend/src/components` | Component JSDoc; the correct formatting-helper contract | `architecture-overview.md`, `troubleshooting.md` | COVERED |
-| `Toolbar` | `frontend/src/components/Toolbar.tsx:L58` | `frontend/src/components` | Component JSDoc; holds no editor state at all | `architecture-overview.md`, `troubleshooting.md` | COVERED |
-| `Editor` | `frontend/src/pages/Editor.tsx:L83` | `frontend/src/pages` | Page JSDoc; the auto-save effect follows the user template | `integration-guide.md`, `troubleshooting.md` | COVERED |
-| `Home` | `frontend/src/pages/Home.tsx:L51` | `frontend/src/pages` | Page JSDoc; three undeclared route links | `architecture-overview.md`, `troubleshooting.md` | COVERED |
-| `Settings` | `frontend/src/pages/Settings.tsx:L79` | `frontend/src/pages` | Page JSDoc; once-only state initialization leaves the form empty | `data-model.md`, `troubleshooting.md` | COVERED |
-| `Templates` | `frontend/src/pages/Templates.tsx:L134` | `frontend/src/pages` | Page JSDoc; write-only state and a terminal card click | `data-model.md`, `troubleshooting.md` | COVERED |
+| `App` | `frontend/src/App.tsx:L33` | `frontend/src` | Component JSDoc; renders the shell a second time | `architecture-overview.md`, `troubleshooting.md` | COVERED |
+| `DocumentCanvas` | `frontend/src/components/DocumentCanvas.tsx:L34` | `frontend/src/components` | Component JSDoc; propless signature against a caller passing two props | `architecture-overview.md`, `troubleshooting.md` | COVERED |
+| `Footer` | `frontend/src/components/Footer.tsx:L21` | `frontend/src/components` | Component JSDoc; two zoom buttons with no handlers | `architecture-overview.md`, `troubleshooting.md` | COVERED |
+| `Header` | `frontend/src/components/Header.tsx:L30` | `frontend/src/components` | Component JSDoc; absent logo asset and two undeclared routes | `architecture-overview.md`, `troubleshooting.md` | COVERED |
+| `ImageEditor` | `frontend/src/components/ImageEditor.tsx:L29` | `frontend/src/components` | Component JSDoc; no block renderer, so an atomic image never renders | `architecture-overview.md`, `troubleshooting.md` | COVERED |
+| `Sidebar` | `frontend/src/components/Sidebar.tsx:L22` | `frontend/src/components` | Component JSDoc; names the three absent panels | `architecture-overview.md`, `troubleshooting.md` | COVERED |
+| `TableEditor` | `frontend/src/components/TableEditor.tsx:L28` | `frontend/src/components` | Component JSDoc; renders an empty element | `architecture-overview.md`, `troubleshooting.md` | COVERED |
+| `TextEditor` | `frontend/src/components/TextEditor.tsx:L23` | `frontend/src/components` | Component JSDoc; the correct formatting-helper contract | `architecture-overview.md`, `troubleshooting.md` | COVERED |
+| `Toolbar` | `frontend/src/components/Toolbar.tsx:L34` | `frontend/src/components` | Component JSDoc; holds no editor state at all | `architecture-overview.md`, `troubleshooting.md` | COVERED |
+| `Editor` | `frontend/src/pages/Editor.tsx:L28` | `frontend/src/pages` | Page JSDoc; the auto-save effect follows the user template | `integration-guide.md`, `troubleshooting.md` | COVERED |
+| `Home` | `frontend/src/pages/Home.tsx:L27` | `frontend/src/pages` | Page JSDoc; three undeclared route links | `architecture-overview.md`, `troubleshooting.md` | COVERED |
+| `Settings` | `frontend/src/pages/Settings.tsx:L33` | `frontend/src/pages` | Page JSDoc; once-only state initialization leaves the form empty | `data-model.md`, `troubleshooting.md` | COVERED |
+| `Templates` | `frontend/src/pages/Templates.tsx:L42` | `frontend/src/pages` | Page JSDoc; write-only state and a terminal card click | `data-model.md`, `troubleshooting.md` | COVERED |
 
 ### Exported TypeScript symbols (39)
 
@@ -410,45 +419,45 @@ Thirty-nine `export` statements. Thirteen are the component default exports list
 
 | Source Construct | Location | Documenting README | Inline Documentation | `docs/` Coverage | Status |
 | --- | --- | --- | --- | --- | --- |
-| `export default App` | `frontend/src/App.tsx:L65` | `frontend/src` | JSDoc on the component above; imported correctly by `index.tsx` | `architecture-overview.md` | COVERED |
-| `export default DocumentCanvas` | `frontend/src/components/DocumentCanvas.tsx:L178` | `frontend/src/components` | JSDoc on the component above; default-imported by `Editor.tsx` | `architecture-overview.md` | COVERED |
-| `export default Footer` | `frontend/src/components/Footer.tsx:L44` | `frontend/src/components` | JSDoc on the component above; named-imported by three pages | `architecture-overview.md`, `troubleshooting.md` | COVERED |
-| `export default Header` | `frontend/src/components/Header.tsx:L91` | `frontend/src/components` | JSDoc on the component above; named-imported by three pages | `architecture-overview.md`, `troubleshooting.md` | COVERED |
-| `export default ImageEditor` | `frontend/src/components/ImageEditor.tsx:L110` | `frontend/src/components` | JSDoc on the component above; no module imports it | `architecture-overview.md`, `troubleshooting.md` | COVERED |
-| `export default Sidebar` | `frontend/src/components/Sidebar.tsx:L30` | `frontend/src/components` | JSDoc on the component above; named-imported by `Editor.tsx` | `architecture-overview.md`, `troubleshooting.md` | COVERED |
-| `export default TableEditor` | `frontend/src/components/TableEditor.tsx:L100` | `frontend/src/components` | JSDoc on the component above; no module imports it | `architecture-overview.md`, `troubleshooting.md` | COVERED |
-| `export default TextEditor` | `frontend/src/components/TextEditor.tsx:L139` | `frontend/src/components` | JSDoc on the component above; no page references it | `architecture-overview.md`, `troubleshooting.md` | COVERED |
-| `export default Toolbar` | `frontend/src/components/Toolbar.tsx:L96` | `frontend/src/components` | JSDoc on the component above; named-imported by `Editor.tsx` | `architecture-overview.md`, `troubleshooting.md` | COVERED |
-| `export default Editor` | `frontend/src/pages/Editor.tsx:L246` | `frontend/src/pages` | JSDoc on the component above; routed at `/editor` | `architecture-overview.md` | COVERED |
-| `export default Home` | `frontend/src/pages/Home.tsx:L77` | `frontend/src/pages` | JSDoc on the component above; routed at `/` | `architecture-overview.md` | COVERED |
-| `export default Settings` | `frontend/src/pages/Settings.tsx:L164` | `frontend/src/pages` | JSDoc on the component above; routed at `/settings` | `architecture-overview.md` | COVERED |
-| `export default Templates` | `frontend/src/pages/Templates.tsx:L197` | `frontend/src/pages` | JSDoc on the component above; routed at `/templates` | `architecture-overview.md` | COVERED |
-| `DocumentSchema` | `frontend/src/schema/document.ts:L65-L73` | `frontend/src/schema` | JSDoc; seven required fields, and `owner_id` contradicting the server | `data-model.md`, `troubleshooting.md` | COVERED |
-| `DocumentVersionSchema` | `frontend/src/schema/document.ts:L86` | `frontend/src/schema` | JSDoc; names its actor `user_id`, matching the server | `data-model.md`, `troubleshooting.md` | COVERED |
-| `TemplateSchema` | `frontend/src/schema/template.ts:L30` | `frontend/src/schema` | JSDoc; no server counterpart exists | `data-model.md`, `troubleshooting.md` | COVERED |
-| `type Template` | `frontend/src/schema/template.ts:L40` | `frontend/src/schema` | JSDoc; the inferred type `document.ts` omits | `data-model.md`, `troubleshooting.md` | COVERED |
-| `UserSchema` | `frontend/src/schema/user.ts:L37` | `frontend/src/schema` | JSDoc; omits the `updated_at` the Pydantic contract declares | `data-model.md`, `troubleshooting.md` | COVERED |
-| `type User` | `frontend/src/schema/user.ts:L56` | `frontend/src/schema` | JSDoc; the inferred type `document.ts` omits | `data-model.md`, `troubleshooting.md` | COVERED |
-| `getDocuments` | `frontend/src/services/api.ts:L217` | `frontend/src/services` | JSDoc with `@returns`; prefixes `/documents` against a router mounted at root | `integration-guide.md`, `troubleshooting.md` | COVERED |
-| `createDocument` | `frontend/src/services/api.ts:L245` | `frontend/src/services` | JSDoc with `@param` and `@returns`; same prefix mismatch | `integration-guide.md`, `troubleshooting.md` | COVERED |
-| `updateDocument` | `frontend/src/services/api.ts:L287` | `frontend/src/services` | JSDoc with `@param` and `@returns`; same prefix mismatch | `integration-guide.md`, `troubleshooting.md` | COVERED |
-| `login` | `frontend/src/services/auth.ts:L144` | `frontend/src/services` | JSDoc; posts to `/auth/login`, which no server route matches | `integration-guide.md`, `troubleshooting.md` | COVERED |
-| `logout` | `frontend/src/services/auth.ts:L192` | `frontend/src/services` | JSDoc; posts to `/auth/logout`, which no server route matches | `integration-guide.md`, `troubleshooting.md` | COVERED |
-| `getCurrentUser` | `frontend/src/services/auth.ts:L237` | `frontend/src/services` | JSDoc; unchecked cast to `User` | `data-model.md`, `troubleshooting.md` | COVERED |
-| `export default CollaborationService` | `frontend/src/services/collaboration.ts:L212` | `frontend/src/services` | JSDoc on the class and all three methods; never instantiated | `integration-guide.md`, `troubleshooting.md` | COVERED |
-| Six document actions: `setCurrentDocument`, `addRecentDocument`, `setLoading`, `setError`, `clearCurrentDocument`, `clearRecentDocuments` | `frontend/src/store/documentSlice.ts:L154-L161` | `frontend/src/store` | JSDoc per action with a usage example, as named primary entry points | `architecture-overview.md`, `data-model.md` | COVERED |
-| `export default documentSlice.reducer` | `frontend/src/store/documentSlice.ts:L169` | `frontend/src/store` | JSDoc; the store imports a named `documentReducer` instead | `architecture-overview.md`, `troubleshooting.md` | COVERED |
-| `type RootState` | `frontend/src/store/index.ts:L54` | `frontend/src/store` | JSDoc; derived from the store, so it lacks an `auth` key | `architecture-overview.md`, `troubleshooting.md` | COVERED |
-| `type AppDispatch` | `frontend/src/store/index.ts:L62` | `frontend/src/store` | JSDoc; no typed dispatch hook exports it | `architecture-overview.md`, `troubleshooting.md` | COVERED |
-| `export default store` | `frontend/src/store/index.ts:L65` | `frontend/src/store` | JSDoc; `App.tsx:L10` named-imports this default-only export | `architecture-overview.md`, `troubleshooting.md` | COVERED |
-| Four user actions: `setUser`, `clearUser`, `setLoading`, `setError` | `frontend/src/store/userSlice.ts:L139` | `frontend/src/store` | JSDoc per action with a usage example, as named primary entry points | `architecture-overview.md`, `data-model.md` | COVERED |
-| `export default userSlice.reducer` | `frontend/src/store/userSlice.ts:L147` | `frontend/src/store` | JSDoc; the store imports a named `userReducer` instead | `architecture-overview.md`, `troubleshooting.md` | COVERED |
-| `serializeDocument` | `frontend/src/utils/documentUtils.ts:L39` | `frontend/src/utils` | JSDoc with `@param` and `@returns`; validates against the wrong schema | `data-model.md`, `troubleshooting.md` | COVERED |
-| `deserializeDocument` | `frontend/src/utils/documentUtils.ts:L63` | `frontend/src/utils` | JSDoc with `@param` and `@returns`; same category error | `data-model.md`, `troubleshooting.md` | COVERED |
-| `applyInlineStyle` | `frontend/src/utils/formatting.ts:L31` | `frontend/src/utils` | JSDoc making the two-argument contract explicit | `architecture-overview.md`, `troubleshooting.md` | COVERED |
-| `applyBlockStyle` | `frontend/src/utils/formatting.ts:L61` | `frontend/src/utils` | JSDoc making the two-argument contract explicit | `architecture-overview.md`, `troubleshooting.md` | COVERED |
-| `validateEmail` | `frontend/src/utils/validation.ts:L24` | `frontend/src/utils` | JSDoc; returns only `.success`, discarding its own message | `data-model.md`, `troubleshooting.md` | COVERED |
-| `validatePassword` | `frontend/src/utils/validation.ts:L44` | `frontend/src/utils` | JSDoc; the password policy spelled out | `data-model.md`, `troubleshooting.md` | COVERED |
+| `export default App` | `frontend/src/App.tsx:L54` | `frontend/src` | JSDoc on the component above; imported correctly by `index.tsx` | `architecture-overview.md` | COVERED |
+| `export default DocumentCanvas` | `frontend/src/components/DocumentCanvas.tsx:L74` | `frontend/src/components` | JSDoc on the component above; default-imported by `Editor.tsx` | `architecture-overview.md` | COVERED |
+| `export default Footer` | `frontend/src/components/Footer.tsx:L41` | `frontend/src/components` | JSDoc on the component above; named-imported by three pages | `architecture-overview.md`, `troubleshooting.md` | COVERED |
+| `export default Header` | `frontend/src/components/Header.tsx:L66` | `frontend/src/components` | JSDoc on the component above; named-imported by three pages | `architecture-overview.md`, `troubleshooting.md` | COVERED |
+| `export default ImageEditor` | `frontend/src/components/ImageEditor.tsx:L67` | `frontend/src/components` | JSDoc on the component above; no module imports it | `architecture-overview.md`, `troubleshooting.md` | COVERED |
+| `export default Sidebar` | `frontend/src/components/Sidebar.tsx:L32` | `frontend/src/components` | JSDoc on the component above; named-imported by `Editor.tsx` | `architecture-overview.md`, `troubleshooting.md` | COVERED |
+| `export default TableEditor` | `frontend/src/components/TableEditor.tsx:L75` | `frontend/src/components` | JSDoc on the component above; no module imports it | `architecture-overview.md`, `troubleshooting.md` | COVERED |
+| `export default TextEditor` | `frontend/src/components/TextEditor.tsx:L78` | `frontend/src/components` | JSDoc on the component above; no page references it | `architecture-overview.md`, `troubleshooting.md` | COVERED |
+| `export default Toolbar` | `frontend/src/components/Toolbar.tsx:L91` | `frontend/src/components` | JSDoc on the component above; named-imported by `Editor.tsx` | `architecture-overview.md`, `troubleshooting.md` | COVERED |
+| `export default Editor` | `frontend/src/pages/Editor.tsx:L110` | `frontend/src/pages` | JSDoc on the component above; routed at `/editor` | `architecture-overview.md` | COVERED |
+| `export default Home` | `frontend/src/pages/Home.tsx:L53` | `frontend/src/pages` | JSDoc on the component above; routed at `/` | `architecture-overview.md` | COVERED |
+| `export default Settings` | `frontend/src/pages/Settings.tsx:L93` | `frontend/src/pages` | JSDoc on the component above; routed at `/settings` | `architecture-overview.md` | COVERED |
+| `export default Templates` | `frontend/src/pages/Templates.tsx:L104` | `frontend/src/pages` | JSDoc on the component above; routed at `/templates` | `architecture-overview.md` | COVERED |
+| `DocumentSchema` | `frontend/src/schema/document.ts:L23-L31` | `frontend/src/schema` | JSDoc; seven required fields, and `owner_id` contradicting the server | `data-model.md`, `troubleshooting.md` | COVERED |
+| `DocumentVersionSchema` | `frontend/src/schema/document.ts:L39` | `frontend/src/schema` | JSDoc; names its actor `user_id`, matching the server | `data-model.md`, `troubleshooting.md` | COVERED |
+| `TemplateSchema` | `frontend/src/schema/template.ts:L21` | `frontend/src/schema` | JSDoc; no server counterpart exists | `data-model.md`, `troubleshooting.md` | COVERED |
+| `type Template` | `frontend/src/schema/template.ts:L31` | `frontend/src/schema` | JSDoc; the inferred type `document.ts` omits | `data-model.md`, `troubleshooting.md` | COVERED |
+| `UserSchema` | `frontend/src/schema/user.ts:L19` | `frontend/src/schema` | JSDoc; omits the `updated_at` the Pydantic contract declares | `data-model.md`, `troubleshooting.md` | COVERED |
+| `type User` | `frontend/src/schema/user.ts:L30` | `frontend/src/schema` | JSDoc; the inferred type `document.ts` omits | `data-model.md`, `troubleshooting.md` | COVERED |
+| `getDocuments` | `frontend/src/services/api.ts:L69` | `frontend/src/services` | JSDoc with `@returns`; prefixes `/documents` against a router mounted at root | `integration-guide.md`, `troubleshooting.md` | COVERED |
+| `createDocument` | `frontend/src/services/api.ts:L81` | `frontend/src/services` | JSDoc with `@param` and `@returns`; same prefix mismatch | `integration-guide.md`, `troubleshooting.md` | COVERED |
+| `updateDocument` | `frontend/src/services/api.ts:L94` | `frontend/src/services` | JSDoc with `@param` and `@returns`; same prefix mismatch | `integration-guide.md`, `troubleshooting.md` | COVERED |
+| `login` | `frontend/src/services/auth.ts:L34` | `frontend/src/services` | JSDoc; posts to `/auth/login`, which no server route matches | `integration-guide.md`, `troubleshooting.md` | COVERED |
+| `logout` | `frontend/src/services/auth.ts:L52` | `frontend/src/services` | JSDoc; posts to `/auth/logout`, which no server route matches | `integration-guide.md`, `troubleshooting.md` | COVERED |
+| `getCurrentUser` | `frontend/src/services/auth.ts:L69` | `frontend/src/services` | JSDoc; unchecked cast to `User` | `data-model.md`, `troubleshooting.md` | COVERED |
+| `export default CollaborationService` | `frontend/src/services/collaboration.ts:L107` | `frontend/src/services` | JSDoc on the class and all three methods; never instantiated | `integration-guide.md`, `troubleshooting.md` | COVERED |
+| Six document actions: `setCurrentDocument`, `addRecentDocument`, `setLoading`, `setError`, `clearCurrentDocument`, `clearRecentDocuments` | `frontend/src/store/documentSlice.ts:L84-L91` | `frontend/src/store` | JSDoc per action with a usage example, as named primary entry points | `architecture-overview.md`, `data-model.md` | COVERED |
+| `export default documentSlice.reducer` | `frontend/src/store/documentSlice.ts:L93` | `frontend/src/store` | JSDoc; the store imports a named `documentReducer` instead | `architecture-overview.md`, `troubleshooting.md` | COVERED |
+| `type RootState` | `frontend/src/store/index.ts:L32` | `frontend/src/store` | JSDoc; derived from the store, so it lacks an `auth` key | `architecture-overview.md`, `troubleshooting.md` | COVERED |
+| `type AppDispatch` | `frontend/src/store/index.ts:L34` | `frontend/src/store` | JSDoc; no typed dispatch hook exports it | `architecture-overview.md`, `troubleshooting.md` | COVERED |
+| `export default store` | `frontend/src/store/index.ts:L36` | `frontend/src/store` | JSDoc; `App.tsx:L20` named-imports this default-only export | `architecture-overview.md`, `troubleshooting.md` | COVERED |
+| Four user actions: `setUser`, `clearUser`, `setLoading`, `setError` | `frontend/src/store/userSlice.ts:L75` | `frontend/src/store` | JSDoc per action with a usage example, as named primary entry points | `architecture-overview.md`, `data-model.md` | COVERED |
+| `export default userSlice.reducer` | `frontend/src/store/userSlice.ts:L76` | `frontend/src/store` | JSDoc; the store imports a named `userReducer` instead | `architecture-overview.md`, `troubleshooting.md` | COVERED |
+| `serializeDocument` | `frontend/src/utils/documentUtils.ts:L29` | `frontend/src/utils` | JSDoc with `@param` and `@returns`; validates against the wrong schema | `data-model.md`, `troubleshooting.md` | COVERED |
+| `deserializeDocument` | `frontend/src/utils/documentUtils.ts:L49` | `frontend/src/utils` | JSDoc with `@param` and `@returns`; same category error | `data-model.md`, `troubleshooting.md` | COVERED |
+| `applyInlineStyle` | `frontend/src/utils/formatting.ts:L24` | `frontend/src/utils` | JSDoc making the two-argument contract explicit | `architecture-overview.md`, `troubleshooting.md` | COVERED |
+| `applyBlockStyle` | `frontend/src/utils/formatting.ts:L45` | `frontend/src/utils` | JSDoc making the two-argument contract explicit | `architecture-overview.md`, `troubleshooting.md` | COVERED |
+| `validateEmail` | `frontend/src/utils/validation.ts:L21` | `frontend/src/utils` | JSDoc; returns only `.success`, discarding its own message | `data-model.md`, `troubleshooting.md` | COVERED |
+| `validatePassword` | `frontend/src/utils/validation.ts:L36` | `frontend/src/utils` | JSDoc; the password policy spelled out | `data-model.md`, `troubleshooting.md` | COVERED |
 
 ### Terraform files (3)
 
@@ -513,31 +522,31 @@ The repository-wide total. All 33 survive verbatim and in place, and each is cit
 
 | Source Construct | Location | Documenting README | Inline Documentation | `docs/` Coverage | Status |
 | --- | --- | --- | --- | --- | --- |
-| `HUMAN ASSISTANCE NEEDED` at `main.py:L56`, flagging the startup block that awaits an absent `init_db` | `backend/app/main.py:L56-L57` | `backend/app` | Preserved verbatim; referenced by the surrounding documentation | `deployment-guide.md`, `troubleshooting.md` | COVERED |
-| `HUMAN ASSISTANCE NEEDED` at `users.py:L73`, flagging an assumed `UserService` class that does not exist | `backend/app/api/users.py:L73-L75` | `backend/app/api` | Preserved verbatim; referenced by the surrounding documentation | `troubleshooting.md`, `architecture-overview.md` | COVERED |
-| `HUMAN ASSISTANCE NEEDED` at `security.py:L113`, flagging the token dependency's undefined `User` and `UserService` names | `backend/app/core/security.py:L113-L116` | `backend/app/core` | Preserved verbatim; referenced by the surrounding documentation | `troubleshooting.md`, `integration-guide.md` | COVERED |
-| `HUMAN ASSISTANCE NEEDED` at `collaboration_service.py:L73`, flagging `connect`, at a stated confidence of 0.6 | `backend/app/services/collaboration_service.py:L73-L74` | `backend/app/services` | Preserved verbatim; referenced by the surrounding documentation | `integration-guide.md`, `troubleshooting.md` | COVERED |
-| `HUMAN ASSISTANCE NEEDED` at `collaboration_service.py:L216`, flagging `broadcast_change`, at a stated confidence of 0.7 | `backend/app/services/collaboration_service.py:L216-L217` | `backend/app/services` | Preserved verbatim; referenced by the surrounding documentation | `integration-guide.md`, `troubleshooting.md` | COVERED |
-| `HUMAN ASSISTANCE NEEDED` at `document_service.py:L181`, flagging `update_document` as needing error handling and validation | `backend/app/services/document_service.py:L181-L182` | `backend/app/services` | Preserved verbatim; referenced by the surrounding documentation | `data-model.md`, `troubleshooting.md` | COVERED |
-| `HUMAN ASSISTANCE NEEDED` at `export_service.py:L85`, flagging both export methods as low confidence | `backend/app/services/export_service.py:L85-L86` | `backend/app/services` | Preserved verbatim; referenced by the surrounding documentation | `integration-guide.md`, `troubleshooting.md` | COVERED |
-| `HUMAN ASSISTANCE NEEDED` at `background_tasks.py:L128`, flagging the export task as unready for production | `backend/app/tasks/background_tasks.py:L128-L129` | `backend/app/tasks` | Preserved verbatim; referenced by the surrounding documentation | `deployment-guide.md`, `troubleshooting.md` | COVERED |
-| `HUMAN ASSISTANCE NEEDED` at `background_tasks.py:L262`, flagging the retention sweep as unready and unoptimized | `backend/app/tasks/background_tasks.py:L262-L263` | `backend/app/tasks` | Preserved verbatim; referenced by the surrounding documentation | `deployment-guide.md`, `troubleshooting.md` | COVERED |
-| `HUMAN ASSISTANCE NEEDED` at `DocumentCanvas.tsx:L26`, flagging the whole component, below a confidence of 0.8 | `frontend/src/components/DocumentCanvas.tsx:L26-L27` | `frontend/src/components` | Preserved verbatim; referenced by the surrounding documentation | `architecture-overview.md`, `troubleshooting.md` | COVERED |
-| `HUMAN ASSISTANCE NEEDED` at `ImageEditor.tsx:L54`, flagging the atomic-block insert helper | `frontend/src/components/ImageEditor.tsx:L54-L55` | `frontend/src/components` | Preserved verbatim; referenced by the surrounding documentation | `architecture-overview.md`, `troubleshooting.md` | COVERED |
-| `HUMAN ASSISTANCE NEEDED` at `ImageEditor.tsx:L102`, flagging the unwritten image-editing interface | `frontend/src/components/ImageEditor.tsx:L102-L103` | `frontend/src/components` | Preserved verbatim; referenced by the surrounding documentation | `architecture-overview.md`, `troubleshooting.md` | COVERED |
-| `HUMAN ASSISTANCE NEEDED` at `TableEditor.tsx:L52`, flagging the table insert helper, at a stated confidence of 0.6 | `frontend/src/components/TableEditor.tsx:L52-L53` | `frontend/src/components` | Preserved verbatim; referenced by the surrounding documentation | `architecture-overview.md`, `troubleshooting.md` | COVERED |
-| `HUMAN ASSISTANCE NEEDED` at `TextEditor.tsx:L80`, flagging the key-command handler | `frontend/src/components/TextEditor.tsx:L80-L81` | `frontend/src/components` | Preserved verbatim; referenced by the surrounding documentation | `architecture-overview.md`, `troubleshooting.md` | COVERED |
-| `HUMAN ASSISTANCE NEEDED` at `Toolbar.tsx:L26`, flagging the whole toolbar as needing error handling | `frontend/src/components/Toolbar.tsx:L26-L28` | `frontend/src/components` | Preserved verbatim; referenced by the surrounding documentation | `architecture-overview.md`, `troubleshooting.md` | COVERED |
-| `HUMAN ASSISTANCE NEEDED` at `Editor.tsx:L29`, flagging the editor page as unready for production | `frontend/src/pages/Editor.tsx:L29-L30` | `frontend/src/pages` | Preserved verbatim; referenced by the surrounding documentation | `integration-guide.md`, `troubleshooting.md` | COVERED |
-| `HUMAN ASSISTANCE NEEDED` at `Settings.tsx:L35`, flagging the settings page as needing refinement | `frontend/src/pages/Settings.tsx:L35-L37` | `frontend/src/pages` | Preserved verbatim; referenced by the surrounding documentation | `data-model.md`, `troubleshooting.md` | COVERED |
-| `HUMAN ASSISTANCE NEEDED` at `Templates.tsx:L146`, flagging absent error handling, paired with the TODO on the next line | `frontend/src/pages/Templates.tsx:L146-L147` | `frontend/src/pages` | Preserved verbatim; referenced by the surrounding documentation | `data-model.md`, `troubleshooting.md` | COVERED |
-| `HUMAN ASSISTANCE NEEDED` at `Templates.tsx:L165`, flagging absent navigation, paired with the TODO on the next line | `frontend/src/pages/Templates.tsx:L165-L166` | `frontend/src/pages` | Preserved verbatim; referenced by the surrounding documentation | `data-model.md`, `troubleshooting.md` | COVERED |
-| `HUMAN ASSISTANCE NEEDED` at `collaboration.ts:L89`, flagging the empty listener body, with an example listener commented out | `frontend/src/services/collaboration.ts:L89-L92` | `frontend/src/services` | Preserved verbatim; referenced by the surrounding documentation | `integration-guide.md`, `troubleshooting.md` | COVERED |
-| `HUMAN ASSISTANCE NEEDED` at `collaboration.ts:L95`, flagging `joinDocument` | `frontend/src/services/collaboration.ts:L95-L96` | `frontend/src/services` | Preserved verbatim; referenced by the surrounding documentation | `integration-guide.md`, `troubleshooting.md` | COVERED |
-| `HUMAN ASSISTANCE NEEDED` at `collaboration.ts:L159`, flagging `sendChanges` | `frontend/src/services/collaboration.ts:L159-L160` | `frontend/src/services` | Preserved verbatim; referenced by the surrounding documentation | `integration-guide.md`, `troubleshooting.md` | COVERED |
-| `HUMAN ASSISTANCE NEEDED` at `documentSlice.ts:L171`, flagging absent thunks for asynchronous document operations | `frontend/src/store/documentSlice.ts:L171-L174` | `frontend/src/store` | Preserved verbatim; referenced by the surrounding documentation | `architecture-overview.md`, `troubleshooting.md` | COVERED |
-| `HUMAN ASSISTANCE NEEDED` at `userSlice.ts:L149`, flagging absent error types and the absent `updateUser` action | `frontend/src/store/userSlice.ts:L149-L152` | `frontend/src/store` | Preserved verbatim; referenced by the surrounding documentation | `architecture-overview.md`, `troubleshooting.md` | COVERED |
-| `HUMAN ASSISTANCE NEEDED` at `documentUtils.ts:L24`, flagging both serialization helpers and the schema validation call | `frontend/src/utils/documentUtils.ts:L24-L26` | `frontend/src/utils` | Preserved verbatim; referenced by the surrounding documentation | `data-model.md`, `troubleshooting.md` | COVERED |
+| `HUMAN ASSISTANCE NEEDED` at `main.py:L38`, flagging the startup block that awaits an absent `init_db` | `backend/app/main.py:L38-L39` | `backend/app` | Preserved verbatim; referenced by the surrounding documentation | `deployment-guide.md`, `troubleshooting.md` | COVERED |
+| `HUMAN ASSISTANCE NEEDED` at `users.py:L54`, flagging an assumed `UserService` class that does not exist | `backend/app/api/users.py:L54-L56` | `backend/app/api` | Preserved verbatim; referenced by the surrounding documentation | `troubleshooting.md`, `architecture-overview.md` | COVERED |
+| `HUMAN ASSISTANCE NEEDED` at `security.py:L86`, flagging the token dependency's undefined `User` and `UserService` names | `backend/app/core/security.py:L86-L89` | `backend/app/core` | Preserved verbatim; referenced by the surrounding documentation | `troubleshooting.md`, `integration-guide.md` | COVERED |
+| `HUMAN ASSISTANCE NEEDED` at `collaboration_service.py:L42`, flagging `connect`, at a stated confidence of 0.6 | `backend/app/services/collaboration_service.py:L42-L43` | `backend/app/services` | Preserved verbatim; referenced by the surrounding documentation | `integration-guide.md`, `troubleshooting.md` | COVERED |
+| `HUMAN ASSISTANCE NEEDED` at `collaboration_service.py:L131`, flagging `broadcast_change`, at a stated confidence of 0.7 | `backend/app/services/collaboration_service.py:L131-L132` | `backend/app/services` | Preserved verbatim; referenced by the surrounding documentation | `integration-guide.md`, `troubleshooting.md` | COVERED |
+| `HUMAN ASSISTANCE NEEDED` at `document_service.py:L114`, flagging `update_document` as needing error handling and validation | `backend/app/services/document_service.py:L114-L115` | `backend/app/services` | Preserved verbatim; referenced by the surrounding documentation | `data-model.md`, `troubleshooting.md` | COVERED |
+| `HUMAN ASSISTANCE NEEDED` at `export_service.py:L38`, flagging both export methods as low confidence | `backend/app/services/export_service.py:L38-L39` | `backend/app/services` | Preserved verbatim; referenced by the surrounding documentation | `integration-guide.md`, `troubleshooting.md` | COVERED |
+| `HUMAN ASSISTANCE NEEDED` at `background_tasks.py:L49`, flagging the export task as unready for production | `backend/app/tasks/background_tasks.py:L49-L50` | `backend/app/tasks` | Preserved verbatim; referenced by the surrounding documentation | `deployment-guide.md`, `troubleshooting.md` | COVERED |
+| `HUMAN ASSISTANCE NEEDED` at `background_tasks.py:L91`, flagging the retention sweep as unready and unoptimized | `backend/app/tasks/background_tasks.py:L91-L92` | `backend/app/tasks` | Preserved verbatim; referenced by the surrounding documentation | `deployment-guide.md`, `troubleshooting.md` | COVERED |
+| `HUMAN ASSISTANCE NEEDED` at `DocumentCanvas.tsx:L20`, flagging the whole component, below a confidence of 0.8 | `frontend/src/components/DocumentCanvas.tsx:L20-L21` | `frontend/src/components` | Preserved verbatim; referenced by the surrounding documentation | `architecture-overview.md`, `troubleshooting.md` | COVERED |
+| `HUMAN ASSISTANCE NEEDED` at `ImageEditor.tsx:L30`, flagging the atomic-block insert helper | `frontend/src/components/ImageEditor.tsx:L30-L31` | `frontend/src/components` | Preserved verbatim; referenced by the surrounding documentation | `architecture-overview.md`, `troubleshooting.md` | COVERED |
+| `HUMAN ASSISTANCE NEEDED` at `ImageEditor.tsx:L59`, flagging the unwritten image-editing interface | `frontend/src/components/ImageEditor.tsx:L59-L60` | `frontend/src/components` | Preserved verbatim; referenced by the surrounding documentation | `architecture-overview.md`, `troubleshooting.md` | COVERED |
+| `HUMAN ASSISTANCE NEEDED` at `TableEditor.tsx:L29`, flagging the table insert helper, at a stated confidence of 0.6 | `frontend/src/components/TableEditor.tsx:L29-L30` | `frontend/src/components` | Preserved verbatim; referenced by the surrounding documentation | `architecture-overview.md`, `troubleshooting.md` | COVERED |
+| `HUMAN ASSISTANCE NEEDED` at `TextEditor.tsx:L26`, flagging the key-command handler | `frontend/src/components/TextEditor.tsx:L26-L27` | `frontend/src/components` | Preserved verbatim; referenced by the surrounding documentation | `architecture-overview.md`, `troubleshooting.md` | COVERED |
+| `HUMAN ASSISTANCE NEEDED` at `Toolbar.tsx:L19`, flagging the whole toolbar as needing error handling | `frontend/src/components/Toolbar.tsx:L19-L21` | `frontend/src/components` | Preserved verbatim; referenced by the surrounding documentation | `architecture-overview.md`, `troubleshooting.md` | COVERED |
+| `HUMAN ASSISTANCE NEEDED` at `Editor.tsx:L20`, flagging the editor page as unready for production | `frontend/src/pages/Editor.tsx:L20-L21` | `frontend/src/pages` | Preserved verbatim; referenced by the surrounding documentation | `integration-guide.md`, `troubleshooting.md` | COVERED |
+| `HUMAN ASSISTANCE NEEDED` at `Settings.tsx:L18`, flagging the settings page as needing refinement | `frontend/src/pages/Settings.tsx:L18-L20` | `frontend/src/pages` | Preserved verbatim; referenced by the surrounding documentation | `data-model.md`, `troubleshooting.md` | COVERED |
+| `HUMAN ASSISTANCE NEEDED` at `Templates.tsx:L55`, flagging absent error handling, paired with the TODO on the next line | `frontend/src/pages/Templates.tsx:L55-L56` | `frontend/src/pages` | Preserved verbatim; referenced by the surrounding documentation | `data-model.md`, `troubleshooting.md` | COVERED |
+| `HUMAN ASSISTANCE NEEDED` at `Templates.tsx:L72`, flagging absent navigation, paired with the TODO on the next line | `frontend/src/pages/Templates.tsx:L72-L73` | `frontend/src/pages` | Preserved verbatim; referenced by the surrounding documentation | `data-model.md`, `troubleshooting.md` | COVERED |
+| `HUMAN ASSISTANCE NEEDED` at `collaboration.ts:L48`, flagging the empty listener body, with an example listener commented out | `frontend/src/services/collaboration.ts:L48-L51` | `frontend/src/services` | Preserved verbatim; referenced by the surrounding documentation | `integration-guide.md`, `troubleshooting.md` | COVERED |
+| `HUMAN ASSISTANCE NEEDED` at `collaboration.ts:L54`, flagging `joinDocument` | `frontend/src/services/collaboration.ts:L54-L55` | `frontend/src/services` | Preserved verbatim; referenced by the surrounding documentation | `integration-guide.md`, `troubleshooting.md` | COVERED |
+| `HUMAN ASSISTANCE NEEDED` at `collaboration.ts:L81`, flagging `sendChanges` | `frontend/src/services/collaboration.ts:L81-L82` | `frontend/src/services` | Preserved verbatim; referenced by the surrounding documentation | `integration-guide.md`, `troubleshooting.md` | COVERED |
+| `HUMAN ASSISTANCE NEEDED` at `documentSlice.ts:L95`, flagging absent thunks for asynchronous document operations | `frontend/src/store/documentSlice.ts:L95-L98` | `frontend/src/store` | Preserved verbatim; referenced by the surrounding documentation | `architecture-overview.md`, `troubleshooting.md` | COVERED |
+| `HUMAN ASSISTANCE NEEDED` at `userSlice.ts:L78`, flagging absent error types and the absent `updateUser` action | `frontend/src/store/userSlice.ts:L78-L81` | `frontend/src/store` | Preserved verbatim; referenced by the surrounding documentation | `architecture-overview.md`, `troubleshooting.md` | COVERED |
+| `HUMAN ASSISTANCE NEEDED` at `documentUtils.ts:L17`, flagging both serialization helpers and the schema validation call | `frontend/src/utils/documentUtils.ts:L17-L19` | `frontend/src/utils` | Preserved verbatim; referenced by the surrounding documentation | `data-model.md`, `troubleshooting.md` | COVERED |
 | `HUMAN ASSISTANCE NEEDED` at `main.tf:L94`, flagging the subnet range and the firewall rule set | `infrastructure/terraform/main.tf:L94-L97` | `infrastructure/terraform` | Preserved verbatim; referenced by the surrounding documentation | `deployment-guide.md`, `troubleshooting.md` | COVERED |
 | `HUMAN ASSISTANCE NEEDED` at `outputs.tf:L58`, flagging outputs that may not match any declared resource | `infrastructure/terraform/outputs.tf:L58-L60` | `infrastructure/terraform` | Preserved verbatim; referenced by the surrounding documentation | `deployment-guide.md`, `troubleshooting.md` | COVERED |
 | `HUMAN ASSISTANCE NEEDED` at `test_api.py:L13`, flagging the unconfigured test database connection | `backend/tests/test_api.py:L13` | `backend/tests` | Preserved verbatim; file receives no inline documentation (AAP R7) | `troubleshooting.md`, `onboarding.md` | COVERED |
@@ -553,43 +562,43 @@ The repository-wide total. All 16 survive verbatim. Two sit directly beneath a m
 
 | Source Construct | Location | Documenting README | Inline Documentation | `docs/` Coverage | Status |
 | --- | --- | --- | --- | --- | --- |
-| `TODO` at `main.py:L67`: implement database migration logic | `backend/app/main.py:L67` | `backend/app` | Preserved verbatim; referenced by the surrounding documentation | `deployment-guide.md`, `troubleshooting.md` | COVERED |
-| `TODO` at `main.py:L113`: add additional shutdown cleanup | `backend/app/main.py:L113` | `backend/app` | Preserved verbatim; referenced by the surrounding documentation | `deployment-guide.md`, `troubleshooting.md` | COVERED |
-| `TODO` at `export_service.py:L151`: implement PDF conversion logic | `backend/app/services/export_service.py:L151` | `backend/app/services` | Preserved verbatim; referenced by the surrounding documentation | `integration-guide.md`, `troubleshooting.md` | COVERED |
-| `TODO` at `export_service.py:L156`: replace the placeholder PDF content | `backend/app/services/export_service.py:L156` | `backend/app/services` | Preserved verbatim; referenced by the surrounding documentation | `integration-guide.md`, `troubleshooting.md` | COVERED |
-| `TODO` at `export_service.py:L225`: implement DOCX conversion logic | `backend/app/services/export_service.py:L225` | `backend/app/services` | Preserved verbatim; referenced by the surrounding documentation | `integration-guide.md`, `troubleshooting.md` | COVERED |
-| `TODO` at `export_service.py:L230`: replace the placeholder DOCX content | `backend/app/services/export_service.py:L230` | `backend/app/services` | Preserved verbatim; referenced by the surrounding documentation | `integration-guide.md`, `troubleshooting.md` | COVERED |
-| `TODO` at `Toolbar.tsx:L72`: implement the insert action | `frontend/src/components/Toolbar.tsx:L72` | `frontend/src/components` | Preserved verbatim; referenced by the surrounding documentation | `architecture-overview.md`, `troubleshooting.md` | COVERED |
-| `TODO` at `Editor.tsx:L113`: add proper error handling on document load | `frontend/src/pages/Editor.tsx:L113` | `frontend/src/pages` | Preserved verbatim; referenced by the surrounding documentation | `integration-guide.md`, `troubleshooting.md` | COVERED |
-| `TODO` at `Editor.tsx:L210`: add error handling and user notification on auto-save | `frontend/src/pages/Editor.tsx:L210` | `frontend/src/pages` | Preserved verbatim; referenced by the surrounding documentation | `integration-guide.md`, `troubleshooting.md` | COVERED |
-| `TODO` at `Settings.tsx:L123`: add a success message on save | `frontend/src/pages/Settings.tsx:L123` | `frontend/src/pages` | Preserved verbatim; referenced by the surrounding documentation | `data-model.md`, `troubleshooting.md` | COVERED |
-| `TODO` at `Settings.tsx:L126`: add error handling and user feedback | `frontend/src/pages/Settings.tsx:L126` | `frontend/src/pages` | Preserved verbatim; referenced by the surrounding documentation | `data-model.md`, `troubleshooting.md` | COVERED |
-| `TODO` at `Templates.tsx:L147`: implement error handling and user feedback | `frontend/src/pages/Templates.tsx:L147` | `frontend/src/pages` | Preserved verbatim; referenced by the surrounding documentation | `data-model.md`, `troubleshooting.md` | COVERED |
-| `TODO` at `Templates.tsx:L166`: implement navigation after a template is chosen | `frontend/src/pages/Templates.tsx:L166` | `frontend/src/pages` | Preserved verbatim; referenced by the surrounding documentation | `data-model.md`, `troubleshooting.md` | COVERED |
-| `TODO` at `documentUtils.ts:L43`: implement proper schema validation on serialize | `frontend/src/utils/documentUtils.ts:L43` | `frontend/src/utils` | Preserved verbatim; referenced by the surrounding documentation | `data-model.md`, `troubleshooting.md` | COVERED |
-| `TODO` at `documentUtils.ts:L72`: implement proper schema validation on deserialize | `frontend/src/utils/documentUtils.ts:L72` | `frontend/src/utils` | Preserved verbatim; referenced by the surrounding documentation | `data-model.md`, `troubleshooting.md` | COVERED |
+| `TODO` at `main.py:L49`: implement database migration logic | `backend/app/main.py:L49` | `backend/app` | Preserved verbatim; referenced by the surrounding documentation | `deployment-guide.md`, `troubleshooting.md` | COVERED |
+| `TODO` at `main.py:L68`: add additional shutdown cleanup | `backend/app/main.py:L68` | `backend/app` | Preserved verbatim; referenced by the surrounding documentation | `deployment-guide.md`, `troubleshooting.md` | COVERED |
+| `TODO` at `export_service.py:L57`: implement PDF conversion logic | `backend/app/services/export_service.py:L57` | `backend/app/services` | Preserved verbatim; referenced by the surrounding documentation | `integration-guide.md`, `troubleshooting.md` | COVERED |
+| `TODO` at `export_service.py:L62`: replace the placeholder PDF content | `backend/app/services/export_service.py:L62` | `backend/app/services` | Preserved verbatim; referenced by the surrounding documentation | `integration-guide.md`, `troubleshooting.md` | COVERED |
+| `TODO` at `export_service.py:L89`: implement DOCX conversion logic | `backend/app/services/export_service.py:L89` | `backend/app/services` | Preserved verbatim; referenced by the surrounding documentation | `integration-guide.md`, `troubleshooting.md` | COVERED |
+| `TODO` at `export_service.py:L94`: replace the placeholder DOCX content | `backend/app/services/export_service.py:L94` | `backend/app/services` | Preserved verbatim; referenced by the surrounding documentation | `integration-guide.md`, `troubleshooting.md` | COVERED |
+| `TODO` at `Toolbar.tsx:L67`: implement the insert action | `frontend/src/components/Toolbar.tsx:L67` | `frontend/src/components` | Preserved verbatim; referenced by the surrounding documentation | `architecture-overview.md`, `troubleshooting.md` | COVERED |
+| `TODO` at `Editor.tsx:L48`: add proper error handling on document load | `frontend/src/pages/Editor.tsx:L48` | `frontend/src/pages` | Preserved verbatim; referenced by the surrounding documentation | `integration-guide.md`, `troubleshooting.md` | COVERED |
+| `TODO` at `Editor.tsx:L78`: add error handling and user notification on auto-save | `frontend/src/pages/Editor.tsx:L78` | `frontend/src/pages` | Preserved verbatim; referenced by the surrounding documentation | `integration-guide.md`, `troubleshooting.md` | COVERED |
+| `TODO` at `Settings.tsx:L52`: add a success message on save | `frontend/src/pages/Settings.tsx:L52` | `frontend/src/pages` | Preserved verbatim; referenced by the surrounding documentation | `data-model.md`, `troubleshooting.md` | COVERED |
+| `TODO` at `Settings.tsx:L55`: add error handling and user feedback | `frontend/src/pages/Settings.tsx:L55` | `frontend/src/pages` | Preserved verbatim; referenced by the surrounding documentation | `data-model.md`, `troubleshooting.md` | COVERED |
+| `TODO` at `Templates.tsx:L56`: implement error handling and user feedback | `frontend/src/pages/Templates.tsx:L56` | `frontend/src/pages` | Preserved verbatim; referenced by the surrounding documentation | `data-model.md`, `troubleshooting.md` | COVERED |
+| `TODO` at `Templates.tsx:L73`: implement navigation after a template is chosen | `frontend/src/pages/Templates.tsx:L73` | `frontend/src/pages` | Preserved verbatim; referenced by the surrounding documentation | `data-model.md`, `troubleshooting.md` | COVERED |
+| `TODO` at `documentUtils.ts:L33`: implement proper schema validation on serialize | `frontend/src/utils/documentUtils.ts:L33` | `frontend/src/utils` | Preserved verbatim; referenced by the surrounding documentation | `data-model.md`, `troubleshooting.md` | COVERED |
+| `TODO` at `documentUtils.ts:L58`: implement proper schema validation on deserialize | `frontend/src/utils/documentUtils.ts:L58` | `frontend/src/utils` | Preserved verbatim; referenced by the surrounding documentation | `data-model.md`, `troubleshooting.md` | COVERED |
 | `TODO` at `setup_dev_environment.sh:L42`: populate the environment file for production | `scripts/setup_dev_environment.sh:L42` | `scripts` | Preserved verbatim; file receives no inline documentation (AAP R7) | `onboarding.md`, `troubleshooting.md` | COVERED |
 
 ### HTTP operations (14)
 
-Fourteen operations across four routers. Twelve sit behind the token dependency and two are public. Every path in the templates router duplicates a path in the documents router, and `backend/app/main.py:L125-L128` mounts both without a prefix, so Starlette matches the documents router first.
+Fourteen operations across four routers. Twelve sit behind the token dependency and two are public. Every path in the templates router duplicates a path in the documents router, and `backend/app/main.py:L80-L83` mounts both without a prefix, so Starlette matches the documents router first.
 
 | Source Construct | Location | Documenting README | Inline Documentation | `docs/` Coverage | Status |
 | --- | --- | --- | --- | --- | --- |
-| `POST /token` | `backend/app/api/auth.py:L167` | `backend/app/api` | Handler docstring at `:L168`; one of the two public operations | `integration-guide.md`, `onboarding.md` | COVERED |
-| `POST /register` | `backend/app/api/auth.py:L242` | `backend/app/api` | Handler docstring at `:L243`; the second public operation | `integration-guide.md`, `onboarding.md` | COVERED |
-| `POST /` (documents) | `backend/app/api/documents.py:L53` | `backend/app/api` | Handler docstring at `:L54`; protected, and collides with the template create | `data-model.md`, `troubleshooting.md` | COVERED |
-| `GET /` (documents) | `backend/app/api/documents.py:L111` | `backend/app/api` | Handler docstring at `:L112`; protected, and calls an absent service method | `data-model.md`, `troubleshooting.md` | COVERED |
-| `GET /{document_id}` | `backend/app/api/documents.py:L145` | `backend/app/api` | Handler docstring at `:L146`; protected, and shadows the template read | `data-model.md`, `troubleshooting.md` | COVERED |
-| `PUT /{document_id}` | `backend/app/api/documents.py:L188` | `backend/app/api` | Handler docstring at `:L189`; protected, and shadows the template update | `data-model.md`, `troubleshooting.md` | COVERED |
-| `DELETE /{document_id}` | `backend/app/api/documents.py:L237` | `backend/app/api` | Handler docstring at `:L238`; protected, and shadows the template delete | `data-model.md`, `troubleshooting.md` | COVERED |
-| `POST /` (templates) | `backend/app/api/templates.py:L77` | `backend/app/api` | Handler docstring at `:L78`; protected, and never reached | `data-model.md`, `troubleshooting.md` | COVERED |
-| `GET /` (templates) | `backend/app/api/templates.py:L118` | `backend/app/api` | Handler docstring at `:L119`; protected, and never reached | `data-model.md`, `troubleshooting.md` | COVERED |
-| `GET /{template_id}` | `backend/app/api/templates.py:L151` | `backend/app/api` | Handler docstring at `:L152`; protected, and never reached | `data-model.md`, `troubleshooting.md` | COVERED |
-| `PUT /{template_id}` | `backend/app/api/templates.py:L195` | `backend/app/api` | Handler docstring at `:L196`; protected, and never reached | `data-model.md`, `troubleshooting.md` | COVERED |
-| `DELETE /{template_id}` | `backend/app/api/templates.py:L254` | `backend/app/api` | Handler docstring at `:L255`; protected, and never reached | `data-model.md`, `troubleshooting.md` | COVERED |
-| `GET /me` | `backend/app/api/users.py:L29` | `backend/app/api` | Handler docstring at `:L30`; protected, and synchronous | `data-model.md`, `troubleshooting.md` | COVERED |
-| `PUT /me` | `backend/app/api/users.py:L50` | `backend/app/api` | Handler docstring at `:L51`; protected, synchronous, and persists nothing | `data-model.md`, `troubleshooting.md` | COVERED |
+| `POST /token` | `backend/app/api/auth.py:L65` | `backend/app/api` | Handler docstring at `:L66`; one of the two public operations | `integration-guide.md`, `onboarding.md` | COVERED |
+| `POST /register` | `backend/app/api/auth.py:L102` | `backend/app/api` | Handler docstring at `:L103`; the second public operation | `integration-guide.md`, `onboarding.md` | COVERED |
+| `POST /` (documents) | `backend/app/api/documents.py:L24` | `backend/app/api` | Handler docstring at `:L25`; protected, and collides with the template create | `data-model.md`, `troubleshooting.md` | COVERED |
+| `GET /` (documents) | `backend/app/api/documents.py:L49` | `backend/app/api` | Handler docstring at `:L50`; protected, and calls an absent service method | `data-model.md`, `troubleshooting.md` | COVERED |
+| `GET /{document_id}` | `backend/app/api/documents.py:L68` | `backend/app/api` | Handler docstring at `:L69`; protected, and shadows the template read | `data-model.md`, `troubleshooting.md` | COVERED |
+| `PUT /{document_id}` | `backend/app/api/documents.py:L96` | `backend/app/api` | Handler docstring at `:L97`; protected, and shadows the template update | `data-model.md`, `troubleshooting.md` | COVERED |
+| `DELETE /{document_id}` | `backend/app/api/documents.py:L126` | `backend/app/api` | Handler docstring at `:L127`; protected, and shadows the template delete | `data-model.md`, `troubleshooting.md` | COVERED |
+| `POST /` (templates) | `backend/app/api/templates.py:L24` | `backend/app/api` | Handler docstring at `:L25`; protected, and never reached | `data-model.md`, `troubleshooting.md` | COVERED |
+| `GET /` (templates) | `backend/app/api/templates.py:L42` | `backend/app/api` | Handler docstring at `:L43`; protected, and never reached | `data-model.md`, `troubleshooting.md` | COVERED |
+| `GET /{template_id}` | `backend/app/api/templates.py:L59` | `backend/app/api` | Handler docstring at `:L60`; protected, and never reached | `data-model.md`, `troubleshooting.md` | COVERED |
+| `PUT /{template_id}` | `backend/app/api/templates.py:L86` | `backend/app/api` | Handler docstring at `:L87`; protected, and never reached | `data-model.md`, `troubleshooting.md` | COVERED |
+| `DELETE /{template_id}` | `backend/app/api/templates.py:L112` | `backend/app/api` | Handler docstring at `:L113`; protected, and never reached | `data-model.md`, `troubleshooting.md` | COVERED |
+| `GET /me` | `backend/app/api/users.py:L19` | `backend/app/api` | Handler docstring at `:L20`; protected, and synchronous | `data-model.md`, `troubleshooting.md` | COVERED |
+| `PUT /me` | `backend/app/api/users.py:L32` | `backend/app/api` | Handler docstring at `:L33`; protected, synchronous, and persists nothing | `data-model.md`, `troubleshooting.md` | COVERED |
 
 ### Settings fields (15)
 
@@ -597,21 +606,21 @@ Nine fields are declared on the `Settings` model, and six more are read by other
 
 | Source Construct | Location | Documenting README | Inline Documentation | `docs/` Coverage | Status |
 | --- | --- | --- | --- | --- | --- |
-| `PROJECT_NAME`, DECLARED | `backend/app/core/config.py:L111` | `backend/app/core` | Documented in the `Settings` class docstring as an `Attributes:` entry | `deployment-guide.md`, `onboarding.md` | COVERED |
-| `API_V1_STR`, DECLARED and never read | `backend/app/core/config.py:L112` | `backend/app/core` | Documented as declared with no reader anywhere in the tree | `deployment-guide.md`, `onboarding.md` | COVERED |
-| `SECRET_KEY`, DECLARED | `backend/app/core/config.py:L113` | `backend/app/core` | Documented; read at `backend/app/core/security.py:L79` and in the auth router | `integration-guide.md`, `onboarding.md` | COVERED |
-| `ACCESS_TOKEN_EXPIRE_MINUTES`, DECLARED | `backend/app/core/config.py:L114` | `backend/app/core` | Documented; read at `backend/app/core/security.py:L55` | `integration-guide.md`, `onboarding.md` | COVERED |
-| `ALGORITHM`, DECLARED | `backend/app/core/config.py:L115` | `backend/app/core` | Documented; carries no validator, so any string satisfies it | `integration-guide.md`, `onboarding.md` | COVERED |
-| `GOOGLE_CLOUD_PROJECT`, DECLARED | `backend/app/core/config.py:L116` | `backend/app/core` | Documented; read at `backend/app/db/firestore.py:L40` | `integration-guide.md`, `deployment-guide.md` | COVERED |
-| `GOOGLE_APPLICATION_CREDENTIALS`, DECLARED | `backend/app/core/config.py:L117` | `backend/app/core` | Documented; the credential model relies on it | `integration-guide.md`, `deployment-guide.md` | COVERED |
-| `DATABASE_URL`, DECLARED | `backend/app/core/config.py:L118` | `backend/app/core` | Documented; read at `backend/app/db/sql.py:L16` at import time | `deployment-guide.md`, `onboarding.md` | COVERED |
-| `REDIS_URL`, DECLARED | `backend/app/core/config.py:L119` | `backend/app/core` | Documented; read at `backend/app/tasks/background_tasks.py:L98` | `deployment-guide.md`, `integration-guide.md` | COVERED |
-| `ALLOWED_ORIGINS`, READ BUT NEVER DECLARED | `backend/app/main.py:L118` | `backend/app` | Documented in the module docstring as absent from the `Settings` model | `deployment-guide.md`, `troubleshooting.md` | COVERED |
-| `PROJECT_ID`, READ BUT NEVER DECLARED | `backend/app/services/collaboration_service.py:L120` | `backend/app/services` | Documented; also read at `:L209` and `:L245` | `integration-guide.md`, `troubleshooting.md` | COVERED |
-| `STORAGE_BUCKET_NAME`, READ BUT NEVER DECLARED | `backend/app/services/export_service.py:L154` | `backend/app/services` | Documented; also read at `:L228` | `integration-guide.md`, `troubleshooting.md` | COVERED |
-| `SIGNED_URL_EXPIRATION`, READ BUT NEVER DECLARED | `backend/app/services/export_service.py:L162` | `backend/app/services` | Documented; also read at `:L236` | `integration-guide.md`, `troubleshooting.md` | COVERED |
-| `EXPORT_BUCKET_NAME`, READ BUT NEVER DECLARED | `backend/app/tasks/background_tasks.py:L141` | `backend/app/tasks` | Documented in the task docstring as absent from the model | `deployment-guide.md`, `troubleshooting.md` | COVERED |
-| `DOCUMENT_BUCKET_NAME`, READ BUT NEVER DECLARED | `backend/app/tasks/background_tasks.py:L278` | `backend/app/tasks` | Documented in the task docstring as absent from the model | `deployment-guide.md`, `troubleshooting.md` | COVERED |
+| `PROJECT_NAME`, DECLARED | `backend/app/core/config.py:L40` | `backend/app/core` | Documented in the `Settings` class docstring as an `Attributes:` entry | `deployment-guide.md`, `onboarding.md` | COVERED |
+| `API_V1_STR`, DECLARED and never read | `backend/app/core/config.py:L41` | `backend/app/core` | Documented as declared with no reader anywhere in the tree | `deployment-guide.md`, `onboarding.md` | COVERED |
+| `SECRET_KEY`, DECLARED | `backend/app/core/config.py:L42` | `backend/app/core` | Documented; read at `backend/app/core/security.py:L54` and in the auth router | `integration-guide.md`, `onboarding.md` | COVERED |
+| `ACCESS_TOKEN_EXPIRE_MINUTES`, DECLARED | `backend/app/core/config.py:L43` | `backend/app/core` | Documented; read at `backend/app/core/security.py:L52` | `integration-guide.md`, `onboarding.md` | COVERED |
+| `ALGORITHM`, DECLARED | `backend/app/core/config.py:L44` | `backend/app/core` | Documented; carries no validator, so any string satisfies it | `integration-guide.md`, `onboarding.md` | COVERED |
+| `GOOGLE_CLOUD_PROJECT`, DECLARED | `backend/app/core/config.py:L45` | `backend/app/core` | Documented; read at `backend/app/db/firestore.py:L20` | `integration-guide.md`, `deployment-guide.md` | COVERED |
+| `GOOGLE_APPLICATION_CREDENTIALS`, DECLARED | `backend/app/core/config.py:L46` | `backend/app/core` | Documented; the credential model relies on it | `integration-guide.md`, `deployment-guide.md` | COVERED |
+| `DATABASE_URL`, DECLARED | `backend/app/core/config.py:L47` | `backend/app/core` | Documented; read at `backend/app/db/sql.py:L16` at import time | `deployment-guide.md`, `onboarding.md` | COVERED |
+| `REDIS_URL`, DECLARED | `backend/app/core/config.py:L48` | `backend/app/core` | Documented; read at `backend/app/tasks/background_tasks.py:L22` | `deployment-guide.md`, `integration-guide.md` | COVERED |
+| `ALLOWED_ORIGINS`, READ BUT NEVER DECLARED | `backend/app/main.py:L73` | `backend/app` | Documented in the module docstring as absent from the `Settings` model | `deployment-guide.md`, `troubleshooting.md` | COVERED |
+| `PROJECT_ID`, READ BUT NEVER DECLARED | `backend/app/services/collaboration_service.py:L69` | `backend/app/services` | Documented; also read at `:L124` and `:L149` | `integration-guide.md`, `troubleshooting.md` | COVERED |
+| `STORAGE_BUCKET_NAME`, READ BUT NEVER DECLARED | `backend/app/services/export_service.py:L60` | `backend/app/services` | Documented; also read at `:L92` | `integration-guide.md`, `troubleshooting.md` | COVERED |
+| `SIGNED_URL_EXPIRATION`, READ BUT NEVER DECLARED | `backend/app/services/export_service.py:L68` | `backend/app/services` | Documented; also read at `:L100` | `integration-guide.md`, `troubleshooting.md` | COVERED |
+| `EXPORT_BUCKET_NAME`, READ BUT NEVER DECLARED | `backend/app/tasks/background_tasks.py:L62` | `backend/app/tasks` | Documented in the task docstring as absent from the model | `deployment-guide.md`, `troubleshooting.md` | COVERED |
+| `DOCUMENT_BUCKET_NAME`, READ BUT NEVER DECLARED | `backend/app/tasks/background_tasks.py:L107` | `backend/app/tasks` | Documented in the task docstring as absent from the model | `deployment-guide.md`, `troubleshooting.md` | COVERED |
 
 ### Terraform variables (13)
 
@@ -668,7 +677,7 @@ documents.
 | [backend/app/core/README.md](../backend/app/core/README.md) | The `Settings` model with all nine declared fields, both `Config` inner classes' parent, and the four security primitives | 19 matrix rows | None |
 | [backend/app/db/README.md](../backend/app/db/README.md) | The Firestore adapter's four helpers and the declared but unused relational path, including the one generator | 7 matrix rows | None |
 | [backend/app/schema/README.md](../backend/app/schema/README.md) | All nine Pydantic model classes plus the two inner `Config` classes, and the ownership split inside one file | 12 matrix rows | None |
-| [backend/app/services/README.md](../backend/app/services/README.md) | Three service classes and their fourteen methods, including the nested Pub/Sub callback | 30 matrix rows | None |
+| [backend/app/services/README.md](../backend/app/services/README.md) | Three service classes and their thirteen function definitions, twelve methods plus the nested Pub/Sub callback at `backend/app/services/collaboration_service.py:L80` | 30 matrix rows | None |
 | [backend/app/tasks/README.md](../backend/app/tasks/README.md) | The Celery application, three tasks, the invalid periodic decorator and two undeclared bucket settings | 8 matrix rows | None |
 | [backend/tests/README.md](../backend/tests/README.md) | Three test modules and their three markers, from outside | 6 matrix rows | None. Inline comments excluded by AAP R7, so coverage is README-only |
 | [frontend/src/README.md](../frontend/src/README.md) | The bootstrap path, the routed shell and both frontend manifests | 6 matrix rows | None. Inline comments excluded by AAP R7, so coverage is README-only |

@@ -1,22 +1,15 @@
 /**
- * Convert Draft.js editor content to and from a serialized JSON string.
+ * Convert between a Draft.js editor state and its serialized JSON form.
  *
- * `serializeDocument` reads the current content of an editor state and returns JSON text, and
- * `deserializeDocument` parses JSON text and returns a new editor state. The `draft-js` import does
- * not resolve, because `frontend/package.json` omits the package, and that is the one type error
- * reported against this module.
+ * Both functions call `DocumentSchema.isValid`, which fails twice over. Zod object
+ * schemas expose `parse` and `safeParse` rather than `isValid`. `DocumentSchema`
+ * also describes document metadata rather than Draft.js content, so it would reject
+ * valid content even with the right method. See the HUMAN ASSISTANCE NEEDED marker
+ * below and the two TODO markers inside the functions.
  *
- * `DocumentSchema.isValid` names no method, and both call sites carry the same two faults. A Zod
- * object schema exposes `parse` and `safeParse`, so reading `.isValid` yields `undefined` and each
- * call raises a `TypeError` before its guarded `Error` can throw. The schema is also the wrong one,
- * since `DocumentSchema` models document metadata while the checked values are Draft.js raw content
- * and its JSON text. The marker and the two outstanding-work comments below mark both sites.
+ * `draft-js` is imported and `frontend/package.json` does not declare it.
  *
- * The one caller inverts both signatures. `components/DocumentCanvas.tsx` binds the `EditorState`
- * returned here to a variable named `contentState` and hands it to `EditorState.createWithContent`,
- * which expects a `ContentState`, then passes a `ContentState` to `serializeDocument`.
- *
- * @see ./README.md for the module-level register of these findings.
+ * @see ./README.md
  */
 import { EditorState, convertToRaw, convertFromRaw } from 'draft-js';
 import { DocumentSchema } from '../schema/document';
@@ -26,15 +19,12 @@ import { DocumentSchema } from '../schema/document';
 // Also, the DocumentSchema validation needs to be implemented correctly.
 
 /**
- * Serialize the editor's current content to a JSON string.
+ * Serialize the content of an editor state to a JSON string.
  *
- * @param editorState - Editor state whose `getCurrentContent()` result `convertToRaw` converts.
- * @returns The `JSON.stringify` result.
- * @remarks The guard before the return calls `DocumentSchema.isValid` on the JSON string, so the
- * function raises a `TypeError` there and its `Error('Serialized content does not match
- * DocumentSchema')` never throws. The module header records both faults in that guard.
- *
- * The declared parameter contradicts the one caller, which passes a `ContentState`.
+ * @param editorState - The editor state to serialize.
+ * @returns The raw content state as JSON.
+ * @throws Error when the validation call below rejects the string, and
+ * `TypeError` before that, because `isValid` is not a Zod method.
  */
 export function serializeDocument(editorState: EditorState): string {
   const rawContent = convertToRaw(editorState.getCurrentContent());
@@ -49,16 +39,12 @@ export function serializeDocument(editorState: EditorState): string {
 }
 
 /**
- * Rebuild an editor state from a serialized JSON string.
+ * Rebuild an editor state from a serialized raw content string.
  *
- * @param serializedContent - JSON text handed to `JSON.parse`.
- * @returns An `EditorState` wrapping the `ContentState` that `convertFromRaw` produces.
- * @remarks A parse failure throws `Error('Invalid JSON format for serialized content')`, which is
- * the one error this module can actually raise. The guard that follows calls
- * `DocumentSchema.isValid` on the parsed object, so the function raises a `TypeError` there and its
- * `Error('Parsed content does not match DocumentSchema')` never throws.
- *
- * The declared return contradicts the one caller, which treats the value as a `ContentState`.
+ * @param serializedContent - JSON produced by `serializeDocument`.
+ * @returns An editor state carrying the parsed content.
+ * @throws Error when the string is not JSON, and `TypeError` at the validation
+ * call below, because `isValid` is not a Zod method.
  */
 export function deserializeDocument(serializedContent: string): EditorState {
   let parsedContent;

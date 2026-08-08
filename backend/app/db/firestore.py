@@ -1,35 +1,15 @@
-"""Build the shared Firestore client and expose four document helpers.
+"""Build the shared Firestore client and four collection-level helpers.
 
-One client is constructed at module scope, so every importer shares a single instance.
-The four helpers run synchronously and cover create, read, update and delete work
-against a collection the caller names on each call.
+Import of this module has side effects. Application Default Credentials are
+resolved and the client is constructed at import time, so a missing
+credential fails here rather than at first query. `settings` is imported
+from `app.core.config`, which never creates it, so neither statement runs as
+committed.
 
-`settings` is requested from `app.core.config`, which defines only the `Settings` class
-and a `get_settings` factory, so importing this module raises `ImportError` before the
-credential call runs. Importing it also runs Application Default Credentials discovery,
-which fails without resolvable Google credentials, and binds `credentials` and `project`
-that no line in the repository reads.
-
-No module imports the four helpers. Three modules import the `db` client and call it
-directly instead: `app/main.py`, `app/services/document_service.py` and
-`app/tasks/background_tasks.py`.
-
-`app/main.py:L63` calls `db.is_connected()`, and a Firestore `Client` defines no
-such method, so that call raises `AttributeError`.
-
-`app/main.py:L110` awaits `db.close()`, and the outcome differs. Nothing pins
-`google-cloud-firestore`, so no committed file settles which `close` surface the
-resolved release provides, and no claim about the client's transport state follows
-from this repository. The handler's outcome is settled either way: a synchronous
-`close()` returns `None`, and awaiting `None` raises `TypeError` because `None` is
-not awaitable, while a release exposing no `close` raises `AttributeError`
-instead. See `app/main.py` for the full account.
-
-None of the four helpers opens a transaction, sets a retry policy, sets a
-timeout, or catches an exception.
-
-Every `Lnn` reference below points at the current layout of the file it names. A
-bare `Lnn` points into this file, and a `path:Lnn` points into the named file.
+The four helpers are synchronous and no service calls any of them: the
+services reach Firestore through `self.db.collection(...)` directly. Three
+modules import this file and all three import only `db`.
+See ./README.md for that comparison.
 """
 from google.cloud.firestore import Client
 from google.auth import default
@@ -40,26 +20,21 @@ credentials, project = default()
 db = Client(project=settings.GOOGLE_CLOUD_PROJECT)
 
 def get_document(collection: str, document_id: str) -> dict:
-    """Retrieve one document's stored fields from a named collection.
+    """Read one document from a collection and return its fields.
 
     Args:
-        collection: Name of the Firestore collection holding the document.
+        collection: Firestore collection name.
         document_id: Identifier of the document to read.
 
     Returns:
-        The stored fields as a dictionary when the snapshot exists, and `None` when it
-        does not. The `None` branch contradicts the `-> dict` annotation, so a caller
-        that trusts the annotation and subscripts the result raises `TypeError` for a
-        missing document.
+        The document fields as a dict, or `None` when no document exists.
+        The declared return type is `dict`, and the absent case returns
+        `None`, so the annotation does not cover both paths.
 
     Example:
-        fields = get_document("documents", "abc123")
-        if fields is not None:
-            title = fields["title"]
-
-        The guard is required, because `L68` returns None for a missing
-        snapshot. The example cannot run as committed, because `L36` imports a
-        `settings` name that `app/core/config.py` never defines.
+        >>> fields = get_document('documents', 'abc123')
+        >>> if fields is None:
+        ...     ...  # no such document
     """
     doc_ref = db.collection(collection).document(document_id)
     doc = doc_ref.get()
@@ -68,23 +43,20 @@ def get_document(collection: str, document_id: str) -> dict:
     return None
 
 def create_document(collection: str, data: dict) -> str:
-    """Add a document to a named collection and return its generated identifier.
+    """Add a document to a collection and return its generated identifier.
+
+    Firestore generates the identifier, so the caller cannot choose it.
 
     Args:
-        collection: Name of the Firestore collection to add to.
-        data: Field values to store. Written as given, with no validation against any
-            Pydantic model.
+        collection: Firestore collection name.
+        data: Field values to store.
 
     Returns:
-        The new document's identifier, taken from the second element of the tuple
-        `add()` returns.
+        The new document identifier, taken from the reference that `add()`
+        returns as the second element of its tuple.
 
     Example:
-        document_id = create_document("documents", {"title": "Draft"})
-
-    Note:
-        Side effect is one write to the named collection. Firestore generates the
-        identifier, so the caller cannot supply one through this helper.
+        >>> doc_id = create_document('documents', {'title': 'Notes'})
     """
     doc_ref = db.collection(collection).add(data)
     return doc_ref[1].id
@@ -93,33 +65,27 @@ def update_document(collection: str, document_id: str, data: dict) -> None:
     """Merge field values into an existing document.
 
     Args:
-        collection: Name of the Firestore collection holding the document.
-        document_id: Identifier of the document to update.
-        data: Field values to merge. Keys absent from the dictionary are left as stored.
+        collection: Firestore collection name.
+        document_id: Identifier of the document to change.
+        data: Field values to merge.
 
     Returns:
-        Nothing.
-
-    Note:
-        Side effect is one write. `update()` requires an existing document and raises
-        `NotFound` otherwise, and this helper does not catch that.
+        None. The write reaches Firestore directly, and the call raises
+        `NotFound` when no such document exists.
     """
     doc_ref = db.collection(collection).document(document_id)
     doc_ref.update(data)
 
 def delete_document(collection: str, document_id: str) -> None:
-    """Delete one document from a named collection.
+    """Delete one document from a collection.
 
     Args:
-        collection: Name of the Firestore collection holding the document.
+        collection: Firestore collection name.
         document_id: Identifier of the document to delete.
 
     Returns:
-        Nothing.
-
-    Note:
-        Side effect is one hard delete, with no version retained. Deleting an absent
-        document succeeds silently, so the caller learns nothing about what existed.
+        None. Firestore treats deleting an absent document as success, so
+        the call reports nothing about whether one existed.
     """
     doc_ref = db.collection(collection).document(document_id)
     doc_ref.delete()

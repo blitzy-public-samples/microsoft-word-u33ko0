@@ -3,12 +3,14 @@
 The `microsoft-word-u33ko0` repository implements a browser-based word processor across six
 top-level areas, and neither of its two deployable units runs. The backend cannot import, and the
 observed first failure is a missing name rather than a missing router. `backend/app/main.py:L16`
-imports `app.api.auth`, and `backend/app/api/auth.py:L81` then asks `app.core.config` for a `settings`
-name that module never binds, so `ImportError` ends the import there. Restoring `settings` moves the
-failure down the same file rather than out of it: `backend/app/api/auth.py:L83` imports
-`app.services.user_service`, a module with no file. Only once that module exists does the import reach
-`backend/app/main.py:L16-L19` and the four `*_router` names that no module defines. The
-frontend cannot typecheck, and `npx tsc --noEmit` reports 76 errors.
+imports `app.api.auth`, and `backend/app/api/auth.py:L19` then asks `app.core.config` for a
+`settings` name that module never binds, so `ImportError` ends the import there. Restoring
+`settings` moves the failure down the same file rather than out of it: `backend/app/api/auth.py:L21`
+imports `app.services.user_service`, a module with no file.
+
+Only once that module exists does the import reach `backend/app/main.py:L16-L19` and the four
+`*_router` names that no module defines. The frontend cannot typecheck, and `npx tsc --noEmit`
+reports 76 errors.
 
 Two diagrams carry the argument of this document. The first, under
 [Intended interaction](#intended-interaction), shows the system the authors designed. The second,
@@ -78,12 +80,12 @@ the baseline this documentation measures.
 
 | Area | What it holds | Files | Lines | Module documentation |
 | ------ | --------------- | ------- | ------- | ---------------------- |
-| `frontend/` | The React and TypeScript single-page application (SPA): 26 modules under `src/`, plus `package.json`, `tsconfig.json` and `public/index.html` | 29 | 943 under `src/` | [frontend/src](../frontend/src/README.md) and its six subfolder READMEs |
-| `backend/` | The FastAPI application: 15 modules under `app/`, plus 3 test modules under `tests/` | 18 | 645 under `app/`, 212 under `tests/` | [backend/app](../backend/app/README.md) and its six subpackage READMEs, plus [backend/tests](../backend/tests/README.md) |
-| `infrastructure/` | 3 Terraform files declaring a virtual private cloud (VPC) network, a subnet, a firewall rule and a storage bucket, plus 3 Docker artifacts | 6 | 235 Terraform, 102 Docker | [terraform](../infrastructure/terraform/README.md), [docker](../infrastructure/docker/README.md) |
-| `documentation/` | 3 specification documents recording intended behaviour | 3 | 2,313 | Described from outside, in this file, and indexed at [docs/README.md](README.md). Never edited |
-| `scripts/` | 2 shell scripts: one deploy, one local environment setup | 2 | 101 | [scripts](../scripts/README.md) |
-| `.github/workflows/` | 2 workflows: continuous integration and continuous delivery | 2 | 41 | [workflows](../.github/workflows/README.md) |
+| `frontend/` | The React and TypeScript single-page application (SPA): 26 modules under `src/`, plus `package.json`, `tsconfig.json` and `public/index.html` | 29 | 969 under `src/` | [frontend/src](../frontend/src/README.md) and its six subfolder READMEs |
+| `backend/` | The FastAPI application: 15 modules under `app/`, plus 3 test modules under `tests/` | 18 | 660 under `app/`, 215 under `tests/` | [backend/app](../backend/app/README.md) and its six subpackage READMEs, plus [backend/tests](../backend/tests/README.md) |
+| `infrastructure/` | 3 Terraform files declaring a virtual private cloud (VPC) network, a subnet, a firewall rule and a storage bucket, plus 3 Docker artifacts | 6 | 238 Terraform, 105 Docker | [terraform](../infrastructure/terraform/README.md), [docker](../infrastructure/docker/README.md) |
+| `documentation/` | 3 specification documents recording intended behaviour | 3 | 2,316 | Described from outside, in this file, and indexed at [docs/README.md](README.md). Never edited |
+| `scripts/` | 2 shell scripts: one deploy, one local environment setup | 2 | 103 | [scripts](../scripts/README.md) |
+| `.github/workflows/` | 2 workflows: continuous integration and continuous delivery | 2 | 43 | [workflows](../.github/workflows/README.md) |
 
 The six rows account for 60 files. The root `../README.md` is the 61st, and this engagement read it
 as reference without editing it.
@@ -92,12 +94,13 @@ Two directories carry no README of their own. `frontend/public/` holds one file,
 [frontend/src/README.md](../frontend/src/README.md) describes it. The `infrastructure/` parent holds
 nothing but the two subfolders documented above.
 
-Line counts above are physical line counts at commit `06be74c`, before the documentation engagement
-added comment blocks to 44 source files. Counts for the files that received comments now run higher:
-`frontend/src/` holds 3,111 lines, `backend/app/` holds 3,065, and the three Terraform files hold 281
-between them rather than 238. Docker at 105, `scripts/` at 103 and `.github/workflows/` at 43 are
-unchanged, because none of those files receives an inline comment. The engagement added no executable
-line, so code weight did not change anywhere.
+Line counts above are physical line counts at commit `06be74c`, counting each file's last line even
+where no trailing newline closes it, which is true of all 61. A line-count utility reports one line
+fewer per file. Counts for the files that received comments now run higher: `frontend/src/` holds
+1,748 lines, `backend/app/` holds 1,675, and the three Terraform files hold 281 between them rather
+than 238. Docker at 105, `scripts/` at 103 and `.github/workflows/` at 43 are unchanged, because none
+of those files receives an inline comment. The engagement added no executable line, so code weight did
+not change anywhere.
 
 ## The four tiers
 
@@ -106,22 +109,22 @@ The committed code separates four tiers by directory: client, HTTP application p
 
 | Tier | Directory | Holds | Entry point |
 | ------ | ----------- | ------- | ------------- |
-| Client | `frontend/src/` | 8 components, 4 routed pages, 3 Zod schema modules, 3 client services, 2 slices behind one store, 3 utility modules | `frontend/src/index.tsx:L34` calls `ReactDOM.render`, and `frontend/src/App.tsx:L44` declares the root component |
-| HTTP API | `backend/app/api/` | 4 routers and 14 handlers, 12 of them behind the `get_current_user` dependency | `backend/app/main.py:L24` creates `app = FastAPI()`, and `:L125-L128` mounts all four routers |
-| Domain service | `backend/app/services/` | 3 service classes | `DocumentService` at `backend/app/services/document_service.py:L62`, `CollaborationService` at `backend/app/services/collaboration_service.py:L41`, `ExportService` at `backend/app/services/export_service.py:L63` |
-| Persistence and background | `backend/app/db/`, `backend/app/tasks/` | 2 adapters and 1 Celery application carrying 3 tasks | `backend/app/db/firestore.py:L40` builds the Firestore client, `backend/app/db/sql.py:L16` builds the SQLAlchemy engine, and `backend/app/tasks/background_tasks.py:L98` builds the Celery application. All three are module-level statements that never execute, because each module imports the absent `settings` first, at `firestore.py:L36`, `sql.py:L14` and `background_tasks.py:L92` |
+| Client | `frontend/src/` | 8 components, 4 routed pages, 3 Zod schema modules, 3 client services, 2 slices behind one store, 3 utility modules | `frontend/src/index.tsx:L33` calls `ReactDOM.render`, and `frontend/src/App.tsx:L33` declares the root component |
+| HTTP API | `backend/app/api/` | 4 routers and 14 handlers, 12 of them behind the `get_current_user` dependency | `backend/app/main.py:L24` creates `app = FastAPI()`, and `:L80-L83` mounts all four routers |
+| Domain service | `backend/app/services/` | 3 service classes | `DocumentService` at `backend/app/services/document_service.py:L19`, `CollaborationService` at `backend/app/services/collaboration_service.py:L20`, `ExportService` at `backend/app/services/export_service.py:L18` |
+| Persistence and background | `backend/app/db/`, `backend/app/tasks/` | 2 adapters and 1 Celery application carrying 3 tasks | `backend/app/db/firestore.py:L20` builds the Firestore client, `backend/app/db/sql.py:L16` builds the SQLAlchemy engine, and `backend/app/tasks/background_tasks.py:L22` builds the Celery application. All three are module-level statements that never execute, because each module imports the absent `settings` first, at `firestore.py:L16`, `sql.py:L14` and `background_tasks.py:L16` |
 
 Two backend directories sit across the tiers rather than inside one. `backend/app/schema/` holds the
 Pydantic contracts that cross the client and service boundaries, and `backend/app/core/` holds the
-`Settings` model at `backend/app/core/config.py:L51` plus the token and password primitives at
-`backend/app/core/security.py:L48-L98`. Every backend tier reads one or both. The client tier reads
-neither, because no TypeScript module can import a Python package; the client restates the same
+`Settings` model at `backend/app/core/config.py:L20` plus the token and password primitives at
+`backend/app/core/security.py:L25-L69`. Every backend tier reads one or both. The client tier reads
+neither, because no TypeScript module can import a Python package. The client restates the same
 contracts in Zod under `frontend/src/schema/`, and [data-model.md](data-model.md) records the drift
 that hand-restatement produced.
 
 The client tier runs React 18 and Redux Toolkit, declared at `frontend/package.json:L8` and `:L7`.
 Draft.js supplies the editor surface in 6 modules, and Zod supplies the client contracts in 4.
-`frontend/package.json:L6-L14` declares neither package. `frontend/src/App.tsx:L52-L55` declares
+`frontend/package.json:L6-L14` declares neither package. `frontend/src/App.tsx:L41-L44` declares
 four routes: `/`, `/editor`, `/templates` and `/settings`.
 
 The specification describes a comparable tiering, and the committed directories match that
@@ -206,22 +209,22 @@ The table below names each break, its evidence, its consequence, and the defect 
 
 | Broken edge | Evidence | Consequence | Class |
 | ------------- | ---------- | ------------- | ------- |
-| Composition root to settings, the first failure | `backend/app/main.py:L20` imports `settings` from `app.core.config`, which defines the `Settings` class at `backend/app/core/config.py:L51` and `get_settings()` at `:L126`, and never creates a module-level instance | Eight modules import `settings` directly, and nine module-import failures trace back to the one absent name, because `app.main` fails both on its own import at `:L20` and earlier through `app.api.auth`. `ImportError` ends the import of every one | G2 |
-| Composition root to the four routers, latent behind the row above | `backend/app/main.py:L16-L19` imports `auth_router`, `documents_router`, `users_router` and `templates_router`. All four modules export the bare name `router`, at `backend/app/api/auth.py:L87`, `backend/app/api/documents.py:L51`, `backend/app/api/users.py:L27` and `backend/app/api/templates.py:L75` | No router symbol resolves. A run never reports this, because executing `app.api.auth` at `main.py:L16` raises on the missing `settings` first, and then on the absent `app.services.user_service` module its `:L83` requests. These four names are the third failure, not the second | G2 |
-| Composition root to the SQL adapter | `backend/app/main.py:L22` imports `init_db` from `app.db.sql`, which defines `engine`, `SessionLocal`, `Base` and `get_db` and defines no `init_db`. The startup handler awaits the absent name at `:L60` | `ImportError` ends the import of `app.main` at `:L22`, before the startup handler can run | G1 |
-| Lifecycle handlers to the Firestore client | `backend/app/main.py:L63` calls `db.is_connected()`, which belongs to no release of the Google Cloud Firestore `Client`. `:L110` awaits `db.close()` on the object imported at `:L21`, and nothing pins `google-cloud-firestore`, so no committed file settles which `close` surface the resolved release provides | `:L68-L69` catches the startup `AttributeError` and prints it, so the application would start believing Firestore is reachable. At shutdown a synchronous `close()` returns `None`, and `await None` raises `TypeError`; a release exposing no `close` raises `AttributeError` instead. Whether anything inside the client shuts down first is unestablished here. `:L110` sits in no `try` block, so the cleanup `:L113` records as outstanding is skipped | G5 |
+| Composition root to settings, the first failure | `backend/app/main.py:L20` imports `settings` from `app.core.config`, which defines the `Settings` class at `backend/app/core/config.py:L20` and `get_settings()` at `:L61`, and never creates a module-level instance | Eight modules import `settings` directly, and nine module-import failures trace back to the one absent name, because `app.main` fails both on its own import at `:L20` and earlier through `app.api.auth`. `ImportError` ends the import of every one | G2 |
+| Composition root to the four routers, latent behind the row above | `backend/app/main.py:L16-L19` imports `auth_router`, `documents_router`, `users_router` and `templates_router`. All four modules export the bare name `router`, at `backend/app/api/auth.py:L25`, `backend/app/api/documents.py:L22`, `backend/app/api/users.py:L17` and `backend/app/api/templates.py:L22` | No router symbol resolves. A run never reports this, because executing `app.api.auth` at `main.py:L16` raises on the missing `settings` first, and then on the absent `app.services.user_service` module its `:L21` requests. These four names are the third failure, not the second | G2 |
+| Composition root to the SQL adapter | `backend/app/main.py:L22` imports `init_db` from `app.db.sql`, which defines `engine`, `SessionLocal`, `Base` and `get_db` and defines no `init_db`. The startup handler awaits the absent name at `:L42` | `ImportError` ends the import of `app.main` at `:L22`, before the startup handler can run | G1 |
+| Lifecycle handlers to the Firestore client | `backend/app/main.py:L45` calls `db.is_connected()`, which belongs to no release of the Google Cloud Firestore `Client`. `:L65` awaits `db.close()` on the object imported at `:L21`, and nothing pins `google-cloud-firestore`, so no committed file settles which `close` surface the resolved release provides | `:L50-L51` catches the startup `AttributeError` and prints it, so the application would start believing Firestore is reachable. At shutdown a synchronous `close()` returns `None`, and `await None` raises `TypeError`; a release exposing no `close` raises `AttributeError` instead. Whether anything inside the client shuts down first is unestablished here. `:L65` sits in no `try` block, so the cleanup `:L68` records as outstanding is skipped | G5 |
 | Every backend module to the `app` package | No `__init__.py` file exists anywhere under `backend/`, so `app` and its six subpackages are implicit namespace packages. `infrastructure/docker/backend.Dockerfile:L14` copies `./app` to `/app`, and `:L20` runs `uvicorn main:app` | The `app.` prefix used by every internal import cannot resolve inside the image as built. [backend/app/README.md](../backend/app/README.md) owns this statement | G1 |
-| Router mounting to resource prefixes | `backend/app/main.py:L125-L128` mounts all four routers with no prefix argument, documents at `:L126` ahead of users at `:L127` and templates at `:L128` | Seven protected handlers become unreachable, not five. The five template routes collide with the five document routes on `/` and `/{id}`, and `GET /me` at `backend/app/api/users.py:L29` plus `PUT /me` at `:L50` are claimed by `GET /{document_id}` at `backend/app/api/documents.py:L145` and `PUT /{document_id}` at `:L188`, because a single-segment path template matches the literal `me` | G7 |
-| Root component to the store | `frontend/src/App.tsx:L23` imports `{ store }` as a named symbol, and `frontend/src/store/index.ts:L65` exports the store as a default only | The named import resolves to nothing, and the compiler reports it | G2 |
-| Root component to the router library | `frontend/src/App.tsx:L15` imports `Switch` and `:L52-L55` passes the `component` prop. `frontend/package.json:L11` pins `react-router-dom` at `^6.11.1`, which removed both | Routing cannot compile against the declared dependency version | G8 |
-| Provider and shell duplication | `frontend/src/index.tsx:L36` wraps the application in a react-redux `Provider`, and `frontend/src/App.tsx:L46` wraps the same store again. `frontend/src/App.tsx:L49` and `:L58` render `Header` and `Footer` around every route, and the pages render their own as well | The inner `Provider` is redundant. `Header` renders twice on all four routed pages (`Home.tsx:L56`, `Editor.tsx:L234`, `Settings.tsx:L132`, `Templates.tsx:L171`), and `Footer` renders twice on three of them (`Home.tsx:L72`, `Settings.tsx:L159`, `Templates.tsx:L192`), because `Editor.tsx` renders no footer of its own | G8 |
+| Router mounting to resource prefixes | `backend/app/main.py:L80-L83` mounts all four routers with no prefix argument, documents at `:L81` ahead of users at `:L82` and templates at `:L83` | Seven protected handlers become unreachable, not five. The five template routes collide with the five document routes on `/` and `/{id}`. `GET /me` at `backend/app/api/users.py:L19` plus `PUT /me` at `:L32` are claimed by `GET /{document_id}` at `backend/app/api/documents.py:L68` and `PUT /{document_id}` at `:L96`, because a single-segment path template matches the literal `me` | G7 |
+| Root component to the store | `frontend/src/App.tsx:L20` imports `{ store }` as a named symbol, and `frontend/src/store/index.ts:L36` exports the store as a default only | The named import resolves to nothing, and the compiler reports it | G2 |
+| Root component to the router library | `frontend/src/App.tsx:L12` imports `Switch` and `:L41-L44` passes the `component` prop. `frontend/package.json:L11` pins `react-router-dom` at `^6.11.1`, which removed both | Routing cannot compile against the declared dependency version | G8 |
+| Provider and shell duplication | `frontend/src/index.tsx:L35` wraps the application in a react-redux `Provider`, and `frontend/src/App.tsx:L35` wraps the same store again. `frontend/src/App.tsx:L38` and `:L47` render `Header` and `Footer` around every route, and the pages render their own as well | The inner `Provider` is redundant. `Header` renders twice on all four routed pages (`Home.tsx:L32`, `Editor.tsx:L98`, `Settings.tsx:L61`, `Templates.tsx:L78`). `Footer` renders twice on three of them (`Home.tsx:L48`, `Settings.tsx:L88`, `Templates.tsx:L99`), because `Editor.tsx` renders no footer of its own | G8 |
 | Every frontend module to its own import prefix | Nearly every module imports through a `@/` prefix. `frontend/tsconfig.json:L10-L16` declares five path aliases, and none of them is `@/` | 44 of the 76 type errors come from this one unmapped prefix | G4 |
 | Terraform root to its three modules | `infrastructure/terraform/main.tf:L67-L92` composes `./modules/word_backend`, `./modules/word_frontend` and `./modules/word_database`, with sources at `:L68`, `:L77` and `:L86`. No `modules/` directory exists | `terraform init` reports `Unreadable module directory` and stops | G8 |
 | Delivery pipeline to its deployment descriptors | `.github/workflows/cd.yml:L19-L20` runs `gcloud app deploy app.yaml` and `gcloud app deploy dispatch.yaml`. Neither file is committed | The deploy step fails on its first command | G8 |
 
 Two headline consequences follow, and both come from running the code rather than reading it.
 Importing `app.main` fails through `backend/app/main.py:L16`, then
-`backend/app/api/auth.py:L81`, raising
+`backend/app/api/auth.py:L19`, raising
 `ImportError: cannot import name 'settings' from 'app.core.config'`. Only 3 of the 15 modules under
 `backend/app/` import successfully, and
 [backend/app/README.md](../backend/app/README.md) owns that census. On the client,
@@ -262,7 +265,7 @@ graph LR
     CD["workflows/cd.yml<br/>deploy step"]
     DESC["app.yaml, dispatch.yaml<br/>not committed"]
 
-    INDEX -->|"default import matches the default export, index.tsx:L17"| STORE2
+    INDEX -->|"default import matches the default export, index.tsx:L14"| STORE2
 
     MAIN2 -.->|"imports auth_router, main.py:L16"| AUTHR
     MAIN2 -.->|"imports documents_router, main.py:L17"| DOCR
@@ -270,9 +273,9 @@ graph LR
     MAIN2 -.->|"imports templates_router, main.py:L19"| TMPLR
     MAIN2 -.->|"imports settings, main.py:L20"| CFG
     MAIN2 -.->|"imports init_db, main.py:L22"| SQLA
-    MAIN2 -.->|"calls is_connected at main.py:L63, close at :L110"| FSA
-    APP -.->|"named import of a default-only export, App.tsx:L23"| STORE2
-    APP -.->|"imports Switch at App.tsx:L15, passes component at :L52-L55"| RRD
+    MAIN2 -.->|"calls is_connected at main.py:L45, close at :L65"| FSA
+    APP -.->|"named import of a default-only export, App.tsx:L20"| STORE2
+    APP -.->|"imports Switch at App.tsx:L12, passes component at :L41-L44"| RRD
     ALIAS -.->|"no matching path alias, tsconfig.json:L10-L16"| TSC
     TERRA -.->|"source ./modules/word_*, main.tf:L68, :L77, :L86"| TFMOD
     CD -.->|"deploys 2 absent descriptors, cd.yml:L19-L20"| DESC
@@ -289,21 +292,23 @@ Five boundaries carry data out of one process or trust domain and into another. 
 commits no cross-language contract artifact, so anyone changing a shape on one side of a boundary
 keeps the other side in agreement by hand.
 
-Read the Current state column against one distinction. A file containing a call is not a request path
-that can execute it. This document uses three labels and nothing softer. A **declared call** means the
-source contains the call, and no request or process path reaches it as committed. **Reachable after
-prerequisite** means the path is otherwise complete and one named prerequisite must be satisfied first,
-and the prerequisite is named every time. **Reachable as committed** means a request or process
-executes the call today with no repair. No backend boundary below is reachable as committed, because
-importing `app.main` fails at `backend/app/api/auth.py:L81`, so no handler is ever served.
+Read the Current state column against one distinction. A file containing a call is not a request
+path that can execute it. This document uses three labels and nothing softer. A **declared call**
+means the source contains the call, and no request or process path reaches it as committed.
+**Reachable after prerequisite** means the path is otherwise complete and one named prerequisite
+must be satisfied first, and the prerequisite is named every time.
+
+**Reachable as committed** means a request or process executes the call today with no repair. No
+backend boundary below is reachable as committed, because importing `app.main` fails at
+`backend/app/api/auth.py:L19`, so no handler is ever served.
 
 | Boundary | What crosses it | Contract artifact | Current state |
 | ---------- | ----------------- | ------------------- | --------------- |
-| Browser to HTTP API | JSON request and response bodies, plus a JSON Web Token (JWT) presented as a bearer token. `backend/app/api/auth.py:L89` declares the `get_current_user` dependency that reads it | None shared. The repository commits no OpenAPI document and generates no client | The client and the server disagree on route paths and on the token field name. [troubleshooting.md](troubleshooting.md) records both, under G6 and G7 |
-| HTTP API to domain service | Python calls carrying Pydantic models and identifier strings | The Pydantic contracts under `backend/app/schema/`, described in [data-model.md](data-model.md) | Seven call sites disagree with the signature they target, so the ownership comparison at `backend/app/services/document_service.py:L175` never receives the argument it compares |
-| Domain service to Google Cloud Firestore | Document reads and writes through the `google-cloud-firestore` client library | The collection and field names each caller passes. No schema constrains a stored Firestore document | Declared in the code path only, and no request crosses this boundary today. Nothing contacts the credential chain either: `backend/app/db/firestore.py:L36` asks `app.core.config` for the same absent `settings` name, so the module raises `ImportError` before `:L39` resolves Application Default Credentials (ADC) and before `:L40` builds the client. Once `settings` exists, both lines run at import time and importing the adapter alone contacts the credential chain. Importing the application stops earlier still, at `backend/app/api/auth.py:L81` |
-| Domain service to Google Cloud Storage and Cloud Pub/Sub | Export objects and version 4 signed URLs, plus per-document change messages | Object key layouts and message payload shapes, both chosen at the call site | `backend/app/services/export_service.py:L154-L164` uploads an object and signs a version 4 URL. `backend/app/services/collaboration_service.py:L69` builds a publisher and `:L248` publishes, and no route ever constructs that service. [integration-guide.md](integration-guide.md) labels each integration reachable or scaffolded |
-| Application to Celery and Redis | Task messages for export, retention and statistics work | The task signatures at `backend/app/tasks/background_tasks.py:L101`, `:L152` and `:L287` | `backend/app/core/config.py:L119` declares `REDIS_URL`, and `backend/app/tasks/background_tasks.py:L98` reads it. Nothing provisions Redis, and no worker or beat process is declared anywhere in the repository. [deployment-guide.md](deployment-guide.md) carries the detail |
+| Browser to HTTP API | JSON request and response bodies, plus a JSON Web Token (JWT) presented as a bearer token. `backend/app/api/auth.py:L27` declares the `get_current_user` dependency that reads it | None shared. The repository commits no OpenAPI document and generates no client | The client and the server disagree on route paths and on the token field name. [troubleshooting.md](troubleshooting.md) records both, under G6 and G7 |
+| HTTP API to domain service | Python calls carrying Pydantic models and identifier strings | The Pydantic contracts under `backend/app/schema/`, described in [data-model.md](data-model.md) | Seven call sites disagree with the signature they target, so the ownership comparison at `backend/app/services/document_service.py:L108` never receives the argument it compares |
+| Domain service to Google Cloud Firestore | Document reads and writes through the `google-cloud-firestore` client library | The collection and field names each caller passes. No schema constrains a stored Firestore document | Declared in the code path only, and no request crosses this boundary today. Nothing contacts the credential chain either. `backend/app/db/firestore.py:L16` asks `app.core.config` for the same absent `settings` name, so the module raises `ImportError` before `:L18` resolves Application Default Credentials (ADC) and before `:L20` builds the client. Once `settings` exists, both lines run at import time and importing the adapter alone contacts the credential chain. Importing the application stops earlier still, at `backend/app/api/auth.py:L19` |
+| Domain service to Google Cloud Storage and Cloud Pub/Sub | Export objects and version 4 signed URLs, plus per-document change messages | Object key layouts and message payload shapes, both chosen at the call site | `backend/app/services/export_service.py:L60-L70` uploads an object and signs a version 4 URL. `backend/app/services/collaboration_service.py:L38` builds a publisher and `:L152` publishes, and no route ever constructs that service. [integration-guide.md](integration-guide.md) labels each integration reachable or scaffolded |
+| Application to Celery and Redis | Task messages for export, retention and statistics work | The task signatures at `backend/app/tasks/background_tasks.py:L25`, `:L73` and `:L116` | `backend/app/core/config.py:L48` declares `REDIS_URL`, and `backend/app/tasks/background_tasks.py:L22` reads it. Nothing provisions Redis, and no worker or beat process is declared anywhere in the repository. [deployment-guide.md](deployment-guide.md) carries the detail |
 
 ## Architectural assumptions
 
@@ -313,18 +318,20 @@ contradict all seven.
 | Assumption | Why it must hold | Where it is contradicted |
 | ------------ | ------------------ | -------------------------- |
 | An `app` package sits on the import path | Twelve modules import by absolute package path, for example `from app.core.config import settings` at `backend/app/main.py:L20` | No `__init__.py` file exists anywhere under `backend/`, so all seven namespaces are implicit. `infrastructure/docker/backend.Dockerfile:L14` copies `./app` to `/app` and `:L20` runs `uvicorn main:app`, which flattens the package and leaves the `app.` prefix unresolvable. [backend/app/README.md](../backend/app/README.md) owns this fact |
-| A `settings` singleton is importable from `app.core.config` | Eight modules read configuration through that name, including the CORS middleware at `backend/app/main.py:L118` | `backend/app/core/config.py:L51-L140` defines the `Settings` class and the `get_settings()` factory, and creates no module-level instance |
-| Routers mount under resource prefixes | The client prefixes its calls with `/documents`, and documents and templates each declare five identical route paths | `backend/app/main.py:L125-L128` mounts all four routers with no prefix, so the two resources collide on `/` and `/{id}` and the two profile routes at `backend/app/api/users.py:L29` and `:L50` are shadowed by the single-segment document routes |
-| Ownership travels on one field name | The document handlers compare a stored owner against the caller at `backend/app/api/documents.py:L184`, `:L232` and `:L279`, and the service repeats the comparison at `backend/app/services/document_service.py:L175`, `:L241` and `:L280` | Four positions carry the field under two different names, and one of them is optional with a default. [data-model.md](data-model.md) names all four and names none canonical |
+| A `settings` singleton is importable from `app.core.config` | Eight modules read configuration through that name, including the CORS middleware at `backend/app/main.py:L73` | `backend/app/core/config.py:L20-L74` defines the `Settings` class and the `get_settings()` factory, and creates no module-level instance |
+| Routers mount under resource prefixes | The client prefixes its calls with `/documents`, and documents and templates each declare five identical route paths | `backend/app/main.py:L80-L83` mounts all four routers with no prefix, so the two resources collide on `/` and `/{id}`. The two profile routes at `backend/app/api/users.py:L19` and `:L32` are shadowed by the single-segment document routes |
+| Ownership travels on one field name | The document handlers compare a stored owner against the caller at `backend/app/api/documents.py:L92`, `:L121` and `:L147`, and the service repeats the comparison at `backend/app/services/document_service.py:L108`, `:L148` and `:L184` | Four positions carry the field under two different names, and one of them is optional with a default. [data-model.md](data-model.md) names all four and names none canonical |
 | The `@/` alias resolves to `src/` | 44 executable imports across 13 of the 26 modules under `frontend/src/` use that prefix, and `frontend/src/App.tsx` alone carries seven of them | `frontend/tsconfig.json:L10-L16` declares five aliases, and none of them is `@/`. `react-scripts` 5 would not apply those mappings to bundler resolution in any case |
-| Tailwind CSS compiles the utility classes in the markup | Two modules carry Tailwind class strings: `frontend/src/components/Header.tsx:L59-L70` across twelve `className` attributes, and `frontend/src/pages/Templates.tsx:L170-L187` across seven | No `tailwind.config.js`, no `postcss.config.js` and no stylesheet is committed anywhere, so no authored rule backs those class strings, and once the build blockers are cleared no authored styling would apply |
-| A Redis broker backs Celery | `backend/app/tasks/background_tasks.py:L98` constructs `Celery('microsoft_word', broker=settings.REDIS_URL)` | `infrastructure/docker/docker-compose.yml:L3-L39` declares three services, `frontend`, `backend` and `db`, and no Redis service. `infrastructure/terraform/main.tf` declares no cache resource. Searching all of `infrastructure/` for `redis` or `memorystore` returns nothing |
+| Tailwind CSS compiles the utility classes in the markup | Two modules carry Tailwind class strings: `frontend/src/components/Header.tsx:L34-L45` across twelve `className` attributes, and `frontend/src/pages/Templates.tsx:L77-L94` across seven | No `tailwind.config.js`, no `postcss.config.js` and no stylesheet is committed anywhere, so no authored rule backs those class strings, and once the build blockers are cleared no authored styling would apply |
+| A Redis broker backs Celery | `backend/app/tasks/background_tasks.py:L22` constructs `Celery('microsoft_word', broker=settings.REDIS_URL)` | `infrastructure/docker/docker-compose.yml:L3-L39` declares three services, `frontend`, `backend` and `db`, and no Redis service. `infrastructure/terraform/main.tf` declares no cache resource. Searching all of `infrastructure/` for `redis` or `memorystore` returns nothing |
 
 ## Module documentation
 
 All 19 module READMEs exist and describe the directories mapped above, 19 of 19 with none outstanding.
-Each one opens with Purpose and closes with Known Limitations, and each links back to this file from
-its Architecture Fit heading.
+Each one carries the same nine H2 headings in the same order, opening with Purpose and closing with
+Usage Examples, with Known Limitations second from last. Each links back to this file from its
+Architecture Fit heading and across to [the troubleshooting register](troubleshooting.md) from its
+Known Limitations heading.
 
 Backend:
 

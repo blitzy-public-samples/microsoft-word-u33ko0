@@ -1,32 +1,25 @@
 /**
  * Apply Draft.js inline and block formatting to an editor state.
  *
- * Both exported functions read the current content and selection from an `EditorState`, apply one
- * change, and return a new `EditorState`. `applyInlineStyle` sets an inline style such as bold, and
- * `applyBlockStyle` sets a block type such as a heading.
+ * Both helpers take the editor state as their first argument and the style as their
+ * second. `components/TextEditor.tsx` calls them that way; `components/Toolbar.tsx`
+ * passes the style alone and uses lowercase names where Draft.js expects `BOLD` and
+ * `unstyled`.
  *
- * The `draft-js` import does not resolve, because `frontend/package.json` omits the package. That
- * same import names `SelectionState`, which nothing below references.
+ * `SelectionState` is imported and never used. `draft-js` is imported and
+ * `frontend/package.json` does not declare it.
  *
- * @see ./README.md for the module-level register of these findings.
+ * @see ./README.md
  */
 import { EditorState, Modifier, SelectionState } from 'draft-js';
 
 /**
- * Apply an inline style to the current selection and return the resulting editor state.
+ * Apply one inline style to the current selection.
  *
- * @param editorState - Editor state supplying the content and selection, read through
- * `getCurrentContent()` and `getSelection()`.
- * @param inlineStyle - Inline style name handed to `Modifier.applyInlineStyle`, such as `'BOLD'`.
- * @returns A new `EditorState` from `EditorState.push`, carrying the change type
- * `'apply-inline-style'`.
- * @remarks Both arguments are required. `TextEditor.tsx` passes both, and `Toolbar.tsx` passes one,
- * which binds the style name to `editorState` and leaves `inlineStyle` undefined.
- * @example
- * ```typescript
- * // Cannot run: the `draft-js` import above resolves to no installed package.
- * const next = applyInlineStyle(editorState, 'BOLD');
- * ```
+ * @param editorState - The editor state to change.
+ * @param inlineStyle - A Draft.js inline style name, such as `BOLD` or `ITALIC`.
+ * @returns A new editor state carrying the change, pushed as `apply-inline-style`
+ * so that a single undo reverses it.
  */
 export function applyInlineStyle(editorState: EditorState, inlineStyle: string): EditorState {
   const currentContent = editorState.getCurrentContent();
@@ -42,21 +35,12 @@ export function applyInlineStyle(editorState: EditorState, inlineStyle: string):
 }
 
 /**
- * Change the block type of the current selection and return the resulting editor state.
+ * Set the block type of every block the selection touches.
  *
- * @param editorState - Editor state supplying the content and selection, read through
- * `getCurrentContent()` and `getSelection()`.
- * @param blockType - Block type name handed to `Modifier.setBlockType`, such as `'unstyled'` or
- * `'header-one'`.
- * @returns A new `EditorState` from `EditorState.push`, carrying the change type
- * `'change-block-type'`.
- * @remarks Both arguments are required. `TextEditor.tsx` passes both and uses Draft.js block-type
- * spellings, while `Toolbar.tsx` passes one argument and lowercase names such as `'heading1'`.
- * @example
- * ```typescript
- * // Cannot run: the `draft-js` import above resolves to no installed package.
- * const next = applyBlockStyle(editorState, 'header-one');
- * ```
+ * @param editorState - The editor state to change.
+ * @param blockType - A Draft.js block type, such as `unstyled` or `header-one`.
+ * @returns A new editor state carrying the change, pushed as `change-block-type`
+ * so that a single undo reverses it.
  */
 export function applyBlockStyle(editorState: EditorState, blockType: string): EditorState {
   const currentContent = editorState.getCurrentContent();

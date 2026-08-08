@@ -1,22 +1,15 @@
 /**
- * Render the formatting toolbar: inline styles, block styles and two insert buttons.
+ * Render the formatting toolbar for the editor page.
  *
- * Unresolved imports, every one reported as TS2307 because the `@/` prefix is absent from the
- * `paths` map in `frontend/tsconfig.json`:
- * - `useAppDispatch` does not exist in `frontend/src/store/index.ts`, which exports `RootState`,
- *   `AppDispatch` and a default `store`.
- * - `updateDocument` does not exist in `frontend/src/store/documentSlice.ts`, whose six action
- *   exports do not include that name.
- * - `applyInlineStyle` and `applyBlockStyle` both exist and both declare two parameters, and the
- *   handlers below call them with one argument each.
+ * The component holds no editor state, and the two formatting helpers it calls each
+ * require one. `useAppDispatch` and the `updateDocument` action are both imported
+ * and neither exists in the store folder. See the HUMAN ASSISTANCE NEEDED marker
+ * below.
  *
- * The component holds no editor state. `useAppDispatch()` is the only hook call, and the file
- * declares no `useState`, no `useRef` and no selector, so no `EditorState` reaches either helper.
+ * `components/TextEditor.tsx` calls the same two helpers correctly, and reading the
+ * two side by side shows the contract.
  *
- * The assistance marker below records that the component needs refinement and error handling, and
- * the deferred-work comment in `handleInsert` records that insertion stays unimplemented.
- *
- * @see ./README.md for the component register and the side-by-side reading of `TextEditor.tsx`.
+ * @see ./README.md
  */
 import React from 'react';
 import { applyInlineStyle, applyBlockStyle } from '@/utils/formatting';
@@ -28,46 +21,48 @@ import { updateDocument } from '@/store/documentSlice';
 // Please review and adjust as necessary.
 
 /**
- * Lay out three button groups and dispatch a document update after each formatting click.
+ * Render three inline-style buttons, three block-style buttons and two insert
+ * buttons.
  *
- * @returns The toolbar element wrapping the three button groups.
- * @remarks
- * No side effect reaches the store. Each style button calls a formatting helper with one argument
- * where two are declared, so the style string lands in the `editorState` position and the helper
- * raises a `TypeError` on `.getCurrentContent()`. The exception leaves the handler before the
- * dispatch, and the component holds no `EditorState` to format in any case. The two insert buttons
- * reach `console.log` only, as their outstanding-work comment records.
+ * The style names passed below are lowercase. Draft.js expects `BOLD`, `ITALIC`
+ * and `UNDERLINE` for inline styles, and `unstyled`, `header-one` and
+ * `header-two` for block types. No button would take effect even once the helper
+ * calls are corrected.
  *
- * The style strings do not match Draft.js, which expects `BOLD`, `ITALIC` and `UNDERLINE` for
- * inline styles and `unstyled`, `header-one` and `header-two` for block types.
- *
- * A second mismatch sits on those same two lines, and it stays latent. Both helpers declare an
- * `EditorState` return, per the `EditorState.push` returns at `formatting.ts:L41` and `:L71`. L62
- * and L67 bind that declared type to `updatedContent`, and L63 and L68 would pass it as a
- * `content` value. No diagnostic covers either point today: the three `@/` specifiers at
- * L22, L23 and L24 fail to resolve, so the checker types the two helpers and the dispatched
- * action as `any` and reports only those module-resolution failures. Neither the argument
- * counts above nor this payload question becomes checkable until those imports resolve, and
- * the payload question needs an `updateDocument` action with a declared contract to settle.
- *
- * Accessibility: the wrapper carries no `role="toolbar"` and no accessible name, the six style
- * buttons expose no pressed state through `aria-pressed`, and the two nonfunctional insert
- * buttons carry no `disabled` attribute. Assistive technology therefore presents eight buttons
- * of equal standing, with no state and no grouping.
+ * @returns The toolbar element.
  */
 const Toolbar: React.FC = () => {
   const dispatch = useAppDispatch();
 
+  /**
+   * Apply an inline style and store the result.
+   *
+   * @param style - The style name the pressed button supplies.
+   * @returns Nothing. The helper is called with one argument and declares two, and
+   * the dispatched action does not exist, so the body cannot run.
+   */
   const handleInlineStyle = (style: string) => {
     const updatedContent = applyInlineStyle(style);
     dispatch(updateDocument({ content: updatedContent }));
   };
 
+  /**
+   * Apply a block style and store the result.
+   *
+   * @param style - The block type the pressed button supplies.
+   * @returns Nothing. The same two faults as the inline handler above apply.
+   */
   const handleBlockStyle = (style: string) => {
     const updatedContent = applyBlockStyle(style);
     dispatch(updateDocument({ content: updatedContent }));
   };
 
+  /**
+   * Log that an insert is not implemented.
+   *
+   * @param type - Either `table` or `image`, from the pressed button.
+   * @returns Nothing. See the TODO marker inside.
+   */
   const handleInsert = (type: string) => {
     // TODO: Implement insert functionality
     console.log(`Insert ${type} not implemented yet`);

@@ -1,39 +1,16 @@
-"""Provide the token, password-hashing and current-user security primitives.
+"""Hold the token and password primitives: signing, hashing and verification.
 
-Exports `create_access_token`, `verify_password`, `get_password_hash`,
-`get_current_user`, plus the `pwd_context` and `oauth2_scheme` singletons.
+Three names are used and never imported: `Optional` in the
+`create_access_token` signature, and `User` and `UserService` in
+`get_current_user`. Each raises at first execution rather than at import.
 
-Three names are used and never imported: `Optional` at L48, `User` at L117 and
-`UserService` at L186. Signature annotations evaluate at `def` time, so L48 raises
-`NameError` during module evaluation and L117 would follow. Only L186 waits for a call.
+`jwt.JWTError` in the `except` clause below is sound: `python-jose` exposes
+`JWTError` on its `jwt` module, so that line is not a defect.
 
-`app/api/auth.py` defines a second `get_current_user` with the same purpose and
-different status codes, and every router imports that one rather than this one.
-
-Dependency limitation. The repository commits no backend dependency manifest,
-so nothing pins `python-jose` or `passlib` and nothing excludes a vulnerable
-release. Reviewed secure floor: `python-jose` 3.4.0 or later. Releases below it
-carry GHSA-6c5p-j8vq-pqhj (CVE-2024-33663), a critical algorithm-confusion flaw,
-and GHSA-cjwg-qfpm-7377 (CVE-2024-33664), which allows resource exhaustion
-through a compressed JSON Web Encryption payload. Both advisories turn on the
-token an attacker submits, so the `jwt.decode` at L179 is the remotely reachable
-call. The `jwt.encode` at L79 signs the payload that L73 copies from its `data`
-argument and L78 stamps with an `exp` claim, never a token that arrived with a
-request, so a remote caller cannot steer it. `passlib` 1.7.4 with a
-`bcrypt` backend is what the `CryptContext` at L45 requires, and neither package
-name appears in any tracked file. An environment build therefore resolves both
-imports to whatever release the package index offers on the day it runs.
-
-L43 imports the `get_settings` factory, which `app/core/config.py:L126` defines.
-Eight other modules import a `settings` singleton from that same module, and
-`app/core/config.py` never defines the name.
-
-No module in this repository imports `app.core.security`, so the four functions
-below have no callers. The twelve protected routes import `get_current_user`
-from `app/api/auth.py:L89` instead.
-
-Every `Lnn` reference below points at the current layout of the file it names. A
-bare `Lnn` points into this file, and a `path:Lnn` points into the named file.
+`app/api/auth.py` carries its own `get_current_user` and its own inline
+signing, so both live in two places with different status codes and
+different details. No module imports anything from this file.
+See ./README.md for the comparison.
 """
 from datetime import datetime, timedelta
 from jose import jwt
@@ -46,28 +23,26 @@ pwd_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl='token')
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-    """Sign a JSON Web Token carrying the given claims and an expiry.
+    """Sign a JSON Web Token carrying the supplied claims and an expiry.
+
+    The expiry is added to a copy of `data`, so the caller's dict is left
+    unchanged. `Optional` in the signature is never imported, so the
+    function raises `NameError` when the module is first executed.
 
     Args:
-        data: Claims to embed. Copied before use, so the caller's dictionary is left
-            unchanged.
-        expires_delta: Lifetime for this token. When omitted, the lifetime comes from
-            `settings.ACCESS_TOKEN_EXPIRE_MINUTES`.
+        data: Claims to encode. Callers put the subject identifier in
+            `"sub"`.
+        expires_delta: Optional lifetime. When omitted, the lifetime comes
+            from `settings.ACCESS_TOKEN_EXPIRE_MINUTES`.
 
     Returns:
         The encoded token as a string.
 
-    Raises:
-        NameError: At import time, because `Optional` is used in the signature and never
-            imported.
-
     Example:
-        token = create_access_token({"sub": user_id}, timedelta(minutes=30))
-
-    Note:
-        Adds only the `exp` claim, so no issuer, audience or issued-at claim is set, and
-        no token identifier is recorded that would allow revocation. Expiry is computed
-        from `datetime.utcnow()`, a naive timestamp.
+        >>> token = create_access_token({"sub": "user-123"})
+        >>> token = create_access_token(
+        ...     {"sub": "user-123"}, expires_delta=timedelta(minutes=15)
+        ... )
     """
     settings = get_settings()
     to_encode = data.copy()
@@ -80,33 +55,31 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return encoded_jwt
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Check a plain-text password against a stored bcrypt hash.
+    """Check a plaintext password against a stored bcrypt hash.
 
     Args:
-        plain_password: Password as submitted by the caller.
-        hashed_password: Stored hash to compare against.
+        plain_password: The password as submitted.
+        hashed_password: The stored hash to compare against.
 
     Returns:
-        True when the password matches the hash, false otherwise.
-
-    Note:
-        No caller in the committed tree uses this helper; `app/api/auth.py` delegates
-        authentication to the absent user service instead.
+        True when the password matches the hash.
     """
     return pwd_context.verify(plain_password, hashed_password)
 
 def get_password_hash(password: str) -> str:
-    """Hash a password with bcrypt.
+    """Hash a password with the bcrypt scheme configured on `pwd_context`.
+
+    bcrypt reads at most 72 bytes of input. How a longer password is treated
+    depends on the installed release: older releases truncated silently,
+    while bcrypt 5.0.0 raises `ValueError`. The repository commits no
+    backend manifest, so the resolved `passlib` and `bcrypt` pair, and
+    therefore which behaviour applies, cannot be established here.
 
     Args:
-        password: Plain-text password to hash.
+        password: The password to hash.
 
     Returns:
-        The bcrypt hash, carrying its own salt and cost factor.
-
-    Note:
-        bcrypt truncates input at 72 bytes, so a longer password contributes nothing
-        beyond that length.
+        The bcrypt hash, including its salt and cost parameter.
     """
     return pwd_context.hash(password)
 
@@ -115,64 +88,35 @@ def get_password_hash(password: str) -> str:
 # integrates with the User model and UserService. The exact implementation may vary
 # depending on how these are set up in your project.
 async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
-    """Resolve a bearer token to the user it identifies.
+    """Resolve a bearer token to the user its `sub` claim names.
 
-    See the review marker in the comment block directly above this signature:
-    `UserService` is referenced but no such module exists. L186 raises `NameError`
-    on the first call, because a function body runs only when called. The `User`
-    return annotation at L117 differs: it raises at this `def`, during import.
+    This function is the second `get_current_user` in the tree. The routers
+    depend on the one in `app/api/auth.py`, and nothing imports this one. The
+    two differ in their answers: a missing user is 401 here and 404 there, and
+    the credential detail reads
+    `"Could not validate credentials"` here against
+    `"Invalid authentication credentials"` there.
 
-    L177 calls `get_settings()`, building a second fresh `Settings`. L179 decodes
-    the token. L186 instantiates `UserService`, and L187 awaits an instance method
-    on the result.
-
-    Configuration limitation. L179 verifies the signature with
-    `settings.SECRET_KEY` and restricts the accepted algorithms to
-    `[settings.ALGORITHM]`. Both values arrive unvalidated from
-    `app/core/config.py:L113` and `:L115`, which declare each as a bare `str`, and
-    the consequence depends on which algorithm the environment names. Under a
-    symmetric algorithm such as HS256, this field carries the shared secret that
-    both signs at L79 and verifies at L179, so an empty or guessable value lets an
-    attacker forge a token that L179 accepts. Under an asymmetric algorithm such
-    as RS256, L179 expects a public key in the same field, so a short or
-    low-entropy value forges nothing and verification fails instead of
-    succeeding. The single-entry algorithm list inherits whatever string the
-    environment names rather than an approved algorithm either way.
-
-    `app/api/auth.py:L89` defines a second copy of this function, and the twelve
-    protected routes depend on that copy rather than the one here. The two
-    diverge on the missing-user path: L189 raises status 401, while
-    `app/api/auth.py:L164` raises 404.
+    `User` and `UserService` are used below and imported nowhere, so the
+    body raises `NameError` on its first call. See the HUMAN ASSISTANCE
+    NEEDED marker above.
 
     Args:
-        token: Bearer token, extracted from the `Authorization` header by
+        token: Bearer token, taken from the `Authorization` header by
             `oauth2_scheme`.
 
     Returns:
-        The `User` the token's `sub` claim identifies.
+        The `User` the `sub` claim identifies.
 
     Raises:
-        HTTPException: Status 401 at L182 when the `sub` claim read at L180 is
-            `None`. Status 401 at L184 when `jwt.decode` at L179 raises
-            `jwt.JWTError`. Status 401 at L189 when the lookup at L187 returns
-            `None`. None of the three passes a `headers` argument, so none of the
-            three responses carries a `WWW-Authenticate: Bearer` header. The
-            bearer scheme expects that header on a 401, so a client cannot read
-            the scheme or realm from the rejection and a standards-conforming
-            client library cannot start its re-authentication flow from the
-            response alone.
+        HTTPException: 401 when the claim is absent, when verification
+            fails, or when no user matches. None of the three carries a
+            `WWW-Authenticate` header.
 
     Example:
-        @router.get("/me")
-        async def read_me(user: User = Depends(get_current_user)):
-            return user
-
-    Note:
-        Answers 401 for a missing user, where the duplicate in `app/api/auth.py` answers
-        404, and sends "Could not validate credentials" where that one sends "Invalid
-        authentication credentials". Reads no `is_active` flag, so a deactivated user
-        passes. The assistance marker directly above records the unverified integration
-        with the user model and service.
+        >>> @router.get('/profile')
+        ... async def profile(user: User = Depends(get_current_user)):
+        ...     return user
     """
     settings = get_settings()
     try:

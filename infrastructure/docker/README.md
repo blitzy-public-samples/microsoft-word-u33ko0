@@ -4,8 +4,10 @@
 
 Three files package the two deployable units and stand up a local development stack. `backend.Dockerfile` builds the FastAPI image serving the
 application programming interface (API), and `frontend.Dockerfile` compiles the React bundle for Nginx. `docker-compose.yml` wires both alongside
-a PostgreSQL database on a private bridge network. None of the three works as committed. `docker compose up` stops at build-context resolution,
-and each Dockerfile fails on its own line when built directly. Known Limitations lists every blocker in the order a developer meets it.
+a PostgreSQL database on a private bridge network.
+
+None of the three works as committed. `docker compose up` stops at build-context resolution, and each Dockerfile fails on its own line when built
+directly. Known Limitations lists every blocker in the order a developer meets it.
 
 ## Key Components
 
@@ -61,7 +63,7 @@ All three pinned runtimes are unsupported as of 6 August 2026, so none receives 
 major version and takes whatever patch release the registry currently serves.
 
 Nothing here configures a managed cloud service successfully, and nothing here provisions one. Compose declares no GCP credential mount and no GCP
-project value. Both GCP fields on `Settings` are `Optional` and default to `None` (`backend/app/core/config.py:L116-L117`), so a backend container
+project value. Both GCP fields on `Settings` are `Optional` and default to `None` (`backend/app/core/config.py:L45-L46`), so a backend container
 would reach Firestore, Cloud Storage, and Pub/Sub with no project and no credential path. See
 [the integration guide](../../docs/integration-guide.md) for those paths and their reachability.
 
@@ -81,27 +83,27 @@ Every value Compose supplies sits inline in `docker-compose.yml`. No `.env` file
 
 ### Compose as a backend settings injector
 
-`Settings` declares nine fields at `backend/app/core/config.py:L111-L119`, of which seven carry no default and are required while the two
-`Optional` GCP fields (`:L116-L117`) default to `None`. Compose supplies one of the nine. Six further settings are read from `settings` in
+`Settings` declares nine fields at `backend/app/core/config.py:L40-L48`, of which seven carry no default and are required while the two
+`Optional` GCP fields (`:L45-L46`) default to `None`. Compose supplies one of the nine. Six further settings are read from `settings` in
 application code and declared on no model, so no `.env` file and no Compose entry can supply them through Pydantic. The matrix covers all 15.
 
 | Setting | Declared at | Required | Compose supplies | Consequence |
 | --- | --- | --- | --- | --- |
-| `PROJECT_NAME` | `config.py:L111` | Yes | No | `Settings()` raises `ValidationError`. |
-| `API_V1_STR` | `config.py:L112` | Yes | No | `ValidationError`. Read by no module. |
-| `SECRET_KEY` | `config.py:L113` | Yes | No | `ValidationError`. Signs and verifies every token. |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | `config.py:L114` | Yes | No | `ValidationError`. Sets token lifetime. |
-| `ALGORITHM` | `config.py:L115` | Yes | No | `ValidationError`. Names the JWT algorithm. |
-| `GOOGLE_CLOUD_PROJECT` | `config.py:L116` | No, `Optional` | No | Resolves to `None`, and `backend/app/db/firestore.py:L40` passes it as the Firestore project. |
-| `GOOGLE_APPLICATION_CREDENTIALS` | `config.py:L117` | No, `Optional` | No | Resolves to `None`. No credential file is mounted into any container. |
-| `DATABASE_URL` | `config.py:L118` | Yes | Yes, `docker-compose.yml:L24` | Satisfied. Read at `backend/app/db/sql.py:L16`. |
-| `REDIS_URL` | `config.py:L119` | Yes | No | `ValidationError`. Compose declares no Redis service to point it at. |
-| `ALLOWED_ORIGINS` | Nowhere | n/a | No | `AttributeError` at `backend/app/main.py:L118` when the CORS middleware reads it. |
-| `PROJECT_ID` | Nowhere | n/a | No | `AttributeError` at `backend/app/services/collaboration_service.py:L120`. |
-| `STORAGE_BUCKET_NAME` | Nowhere | n/a | No | `AttributeError` at `backend/app/services/export_service.py:L161`. |
-| `SIGNED_URL_EXPIRATION` | Nowhere | n/a | No | `AttributeError` at `backend/app/services/export_service.py:L169`. |
-| `EXPORT_BUCKET_NAME` | Nowhere | n/a | No | `AttributeError` at `backend/app/tasks/background_tasks.py:L141`. |
-| `DOCUMENT_BUCKET_NAME` | Nowhere | n/a | No | `AttributeError` at `backend/app/tasks/background_tasks.py:L278`. |
+| `PROJECT_NAME` | `config.py:L40` | Yes | No | `Settings()` raises `ValidationError`. |
+| `API_V1_STR` | `config.py:L41` | Yes | No | `ValidationError`. Read by no module. |
+| `SECRET_KEY` | `config.py:L42` | Yes | No | `ValidationError`. Signs and verifies every token. |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | `config.py:L43` | Yes | No | `ValidationError`. Sets token lifetime. |
+| `ALGORITHM` | `config.py:L44` | Yes | No | `ValidationError`. Names the JWT algorithm. |
+| `GOOGLE_CLOUD_PROJECT` | `config.py:L45` | No, `Optional` | No | Resolves to `None`, and `backend/app/db/firestore.py:L20` passes it as the Firestore project. |
+| `GOOGLE_APPLICATION_CREDENTIALS` | `config.py:L46` | No, `Optional` | No | Resolves to `None`. No credential file is mounted into any container. |
+| `DATABASE_URL` | `config.py:L47` | Yes | Yes, `docker-compose.yml:L24` | Satisfied. Read at `backend/app/db/sql.py:L16`. |
+| `REDIS_URL` | `config.py:L48` | Yes | No | `ValidationError`. Compose declares no Redis service to point it at. |
+| `ALLOWED_ORIGINS` | Nowhere | n/a | No | `AttributeError` at `backend/app/main.py:L73` when the CORS middleware reads it. |
+| `PROJECT_ID` | Nowhere | n/a | No | `AttributeError` at `backend/app/services/collaboration_service.py:L69`. |
+| `STORAGE_BUCKET_NAME` | Nowhere | n/a | No | `AttributeError` at `backend/app/services/export_service.py:L60`. |
+| `SIGNED_URL_EXPIRATION` | Nowhere | n/a | No | `AttributeError` at `backend/app/services/export_service.py:L68`. |
+| `EXPORT_BUCKET_NAME` | Nowhere | n/a | No | `AttributeError` at `backend/app/tasks/background_tasks.py:L62`. |
+| `DOCUMENT_BUCKET_NAME` | Nowhere | n/a | No | `AttributeError` at `backend/app/tasks/background_tasks.py:L107`. |
 
 Six required fields are absent and six more are unsatisfiable by any environment mechanism. A backend container built past item 2 of Known
 Limitations would still fail during import, because `backend/app/core/config.py` never constructs a module-level `settings` instance for the eight
@@ -113,7 +115,7 @@ Four barriers stand between `REACT_APP_API_URL` (`docker-compose.yml:L11`) and a
 
 | # | Barrier | Evidence |
 | --- | --- | --- |
-| 1 | The key name does not match | The frontend's only `process.env` read is the `API_BASE_URL` constant at `frontend/src/services/api.ts:L82`, which reads `REACT_APP_API_BASE_URL`. Compose sets `REACT_APP_API_URL` |
+| 1 | The key name does not match | The frontend's only `process.env` read is the `API_BASE_URL` constant at `frontend/src/services/api.ts:L21`, which reads `REACT_APP_API_BASE_URL`. Compose sets `REACT_APP_API_URL` |
 | 2 | Substitution happens at build time, not run time | `frontend/package.json:L29` pins `react-scripts` at `5.0.1`, and Create React App substitutes every `process.env.REACT_APP_*` reference into the bundle during `npm run build` (`frontend.Dockerfile:L17`). The runtime stage starts `nginx:alpine` (`:L20`) and serves already-compiled files, so a Compose `environment` entry arrives after substitution |
 | 3 | The browser cannot resolve the host | `http://backend:5000` names a Compose service, which Docker resolves only for containers joined to `word-app-network` (`docker-compose.yml:L44-L46`). The bundle runs in the user's browser on the host, where `backend` is not a resolvable name |
 | 4 | The port is wrong even from inside the network | The value names 5000, Compose publishes `5000:5000` (`:L21-L22`), and Uvicorn listens on 8000 (`backend.Dockerfile:L20`) |
@@ -123,15 +125,17 @@ name a host the browser can resolve, and carry the port the server listens on.
 
 ## Data Flows
 
-This stack wires two separate browser paths, not one chain. Nginx serves static files only: `frontend.Dockerfile:L23` copies the built bundle into
+This stack wires two separate browser paths, not one chain. Nginx serves static files only. `frontend.Dockerfile:L23` copies the built bundle into
 `/usr/share/nginx/html`, and `frontend.Dockerfile:L26` leaves the custom-configuration copy commented out, so no proxy rule exists and no committed
-`.conf` file supplies one. The browser therefore fetches assets from Nginx on the first path, and the loaded bundle then calls the API itself on the
-second path, straight from the host rather than through Nginx. Both paths break before a request travels them, because neither service builds and
-neither published port matches the port its server listens on.
+`.conf` file supplies one.
+
+The browser therefore fetches assets from Nginx on the first path. The loaded bundle then calls the API itself on the second path, straight from the
+host rather than through Nginx. Both paths break before a request travels them, because neither service builds and neither published port matches the
+port its server listens on.
 
 The final hop is wired but unused. Compose hands the backend a `DATABASE_URL` (`docker-compose.yml:L24`) and `backend/app/db/sql.py:L16` builds an
 engine from it. No router or service calls `get_db` (`:L21`), nothing subclasses `Base` (`:L19`), and no migration tooling is committed.
-Application persistence targets Firestore instead (`backend/app/db/firestore.py:L40`), so the `db` service is provisioned and running rather than
+Application persistence targets Firestore instead (`backend/app/db/firestore.py:L20`), so the `db` service is provisioned and running rather than
 serving reads or writes. A dashed edge below marks a relationship that does not work.
 
 ```mermaid
@@ -164,11 +168,13 @@ The `db` service publishes no port, so only services joined to `word-app-network
 
 The frontend uses a multi-stage build. A Node.js stage compiles the bundle (`frontend.Dockerfile:L2-L17`) and an Nginx stage copies only the
 compiled output (`:L20-L23`), keeping the build toolchain out of the runtime image. The backend uses a single-stage build
-(`backend.Dockerfile:L2-L20`), so the pip toolchain ships inside its runtime image. Compose supplies service discovery by name over a user-defined
-bridge network. All three services join `word-app-network` (`docker-compose.yml:L44-L46`), where Docker resolves each service name through its
-embedded Domain Name System (DNS) server. `DATABASE_URL` relies on that resolution to address the host `db` (`:L24`), because the backend
-container runs on the network. `REACT_APP_API_URL` cannot, because its value (`:L11`) ends up inside a bundle the browser executes on the host,
-where `backend` does not resolve. Applying a container-network name to a browser-side value is the mistake barrier 3 above describes.
+(`backend.Dockerfile:L2-L20`), so the pip toolchain ships inside its runtime image.
+
+Compose supplies service discovery by name over a user-defined bridge network. All three services join `word-app-network`
+(`docker-compose.yml:L44-L46`), where Docker resolves each service name through its embedded Domain Name System (DNS) server. `DATABASE_URL`
+relies on that resolution to address the host `db` (`:L24`), because the backend container runs on the network. `REACT_APP_API_URL` cannot,
+because its value (`:L11`) ends up inside a bundle the browser executes on the host, where `backend` does not resolve. Applying a
+container-network name to a browser-side value is the mistake barrier 3 above describes.
 
 The `db` service keeps state in a named volume rather than the container layer. `postgres_data` (`:L41-L42`) mounts at `/var/lib/postgresql/data`
 (`:L37`), so database files survive a container replacement.
@@ -187,12 +193,12 @@ behavior behind them.
 | 5 | **The backend image loses the `app` package boundary** | `backend.Dockerfile:L14` copies `./app` to `/app` and `:L20` starts `uvicorn main:app`, placing the modules at the filesystem root rather than under an `app` package. Every backend module imports by absolute `app.*` path and no `__init__.py` exists under `backend/`, so the prefix cannot resolve inside the image as built. The [deployment guide](../../docs/deployment-guide.md) carries the full treatment |
 | 6 | **The injected frontend API URL cannot reach the backend, for four independent reasons**, so correcting any one alone fixes nothing | The key name differs, Create React App substitutes at build time, the browser cannot resolve the Compose service name `backend`, and the named port is not the port Uvicorn serves. Configuration above lists all four with evidence |
 | 7 | **Compose supplies 1 of the 15 settings the backend needs** | Six required `Settings` fields are absent, so `Settings()` raises `ValidationError`. Six further settings are read from `settings` and declared on no model, so no environment mechanism can supply them. Both GCP fields resolve to `None`. The matrix under Configuration covers all 15 |
-| 8 | **No Redis service exists, so Celery has no broker** | The `celery_app` construction in `backend/app/tasks/background_tasks.py` passes `settings.REDIS_URL` as the broker, and that field is required with no default (`backend/app/core/config.py:L119`). Compose declares no Redis service and no `REDIS_URL`, and no Memorystore instance exists under `infrastructure/terraform/`. Intended behavior per `documentation/Technical Specifications.md`, TECHNOLOGY STACK heading: Redis runs as Google Cloud Memorystore (L584) |
+| 8 | **No Redis service exists, so Celery has no broker** | The `celery_app` construction in `backend/app/tasks/background_tasks.py` passes `settings.REDIS_URL` as the broker, and that field is required with no default (`backend/app/core/config.py:L48`). Compose declares no Redis service and no `REDIS_URL`, and no Memorystore instance exists under `infrastructure/terraform/`. Intended behavior per `documentation/Technical Specifications.md`, TECHNOLOGY STACK heading: Redis runs as Google Cloud Memorystore (L584) |
 | 9 | **Two provisioning paths name the database differently** | Compose creates `wordapp` for user `postgres` (`:L33-L34`), while `scripts/setup_dev_environment.sh` creates `msword_clone` (L31) for user `msword_user` (L32) and grants privileges on `msword_clone` (L36). Running the script and then Compose leaves two differently named databases |
 | 10 | **The commented-out Nginx configuration has no file behind it** | `frontend.Dockerfile:L26` holds a commented-out `COPY nginx.conf`, and no `nginx.conf` exists in the repository, so the step has nothing to copy even if uncommented. The image ships the stock configuration from `nginx:alpine` (`:L20`), which serves static files with no single-page-application route fallback |
-| 11 | **No healthcheck and no restart policy exist** | Neither keyword appears in `docker-compose.yml`. The `depends_on` entries (`:L12-L13`, `:L25-L26`) order container start only and never wait for readiness, so the backend can start before PostgreSQL accepts connections and any command issued straight after `docker compose up -d` can reach a database still initializing |
+| 11 | **No healthcheck and no restart policy exist** | Neither keyword appears in `docker-compose.yml`. The `depends_on` entries (`:L12-L13`, `:L25-L26`) order container start only and never wait for readiness. The backend can therefore start before PostgreSQL accepts connections, and any command issued straight after `docker compose up -d` can reach a database still initializing |
 | 12 | **All three pinned runtimes are past end of life** | Python 3.9 (`backend.Dockerfile:L2`) ended support on 31 October 2025, Node.js 14 (`frontend.Dockerfile:L2`) on 30 April 2023, and PostgreSQL 13 (`docker-compose.yml:L31`) on 13 November 2025. None receives security patches as of 6 August 2026, so every image this stack builds ships an unsupported runtime. `nginx:alpine` (`frontend.Dockerfile:L20`) pins no version, so a rebuild can change the serving runtime with no file changing |
-| 13 | **No `.dockerignore` bounds either build context, and the frontend build copies the whole of it** | No `.dockerignore` is tracked anywhere in the repository, so a build sends every file under the named directory to the daemon as its [build context](https://docs.docker.com/build/concepts/context/). `frontend.Dockerfile:L14` then runs `COPY . .`, which writes that entire context into the build stage **on top of** the `node_modules` its own `npm ci` at `:L11` installed, so a host `frontend/node_modules` silently replaces the one the image resolved. A local `.env` or key file in the tree travels the same route. The final stage copies only `/app/build` (`:L23`), so the shipped image stays clean while the uploaded context and the build cache do not. `backend.Dockerfile:L14` copies `./app` alone and so writes less into the image, and its `./backend` context still uploads in full. A reviewed `.dockerignore` is a prerequisite for either direct build |
+| 13 | **No `.dockerignore` bounds either build context, and the frontend build copies the whole of it** | No `.dockerignore` is tracked anywhere in the repository, so a build sends every file under the named directory to the daemon as its [build context](https://docs.docker.com/build/concepts/context/). `frontend.Dockerfile:L14` then runs `COPY . .`, which writes that entire context into the build stage **on top of** the `node_modules` its own `npm ci` at `:L11` installed. A host `frontend/node_modules` therefore silently replaces the one the image resolved. A local `.env` or key file in the tree travels the same route. The final stage copies only `/app/build` (`:L23`), so the shipped image stays clean while the uploaded context and the build cache do not. `backend.Dockerfile:L14` copies `./app` alone and so writes less into the image, and its `./backend` context still uploads in full. A reviewed `.dockerignore` is a prerequisite for either direct build |
 
 `backend.Dockerfile:L22` carries the folder's only human-assistance marker. Its four items at `:L24-L27` ask for review of the Python 3.9 base
 image, the location of `requirements.txt`, the location of `./app`, and any further configuration. No deferred-work comment appears in the folder.
@@ -212,12 +218,12 @@ docker compose up --build
 The command fails at once. Docker finds no file named `Dockerfile` in either build context, per `docker-compose.yml:L6-L7` and `:L19-L20`, so
 neither service builds.
 
-Build either image directly, naming the real Dockerfile and a matching context. **Write a reviewed
-`.dockerignore` first.** No `.dockerignore` is tracked anywhere in this repository. Each command below
-therefore uploads its whole named directory to the daemon, including a local `frontend/node_modules`,
-a `backend/venv` and any `.env` or key file sitting in the tree. Limitation 13 below carries the full
-consequence. The `-f` path is relative to the shell's working directory, not to the context argument, so
-run both from the repository root as written.
+Build either image directly, naming the real Dockerfile and a matching context. **Write a reviewed `.dockerignore` first.** No `.dockerignore` is
+tracked anywhere in this repository. Each command below therefore uploads its whole named directory to the daemon, including a local
+`frontend/node_modules`, a `backend/venv` and any `.env` or key file sitting in the tree.
+
+Limitation 13 below carries the full consequence. The `-f` path is relative to the shell's working directory, not to the context argument, so run
+both from the repository root as written.
 
 ```bash
 cd "$(git rev-parse --show-toplevel)"

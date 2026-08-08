@@ -1,16 +1,13 @@
 /**
- * Compose the application shell, and declare the client-side route table.
+ * Compose the routed application shell: providers, chrome and four routes.
  *
- * @remarks
- * Seven `@/` specifiers do not resolve, because `tsconfig.json` declares aliases that
- * exclude the prefix. The store import fails twice, binding `{ store }` by name where
- * `store/index.ts` exports `store` only as the default.
+ * `store` is imported as a named export and `store/index.ts` exports it as a
+ * default, so the import resolves to `undefined`. `Switch` is the react-router-dom
+ * version 5 API, and version 6.8.1 is the declared dependency, which replaced it
+ * with `Routes`.
  *
- * Three router call sites use react-router-dom v5 APIs while the manifest declares v6.
- * Version 6 exports `Routes` rather than `Switch`, and `Route` accepts neither
- * `component` nor `exact`.
+ * @see ./README.md
  */
-
 import React from 'react';
 import { BrowserRouter, Route, Switch } from 'react-router-dom';
 import { Provider } from 'react-redux';
@@ -23,23 +20,15 @@ import Settings from '@/pages/Settings';
 import { store } from '@/store/index';
 
 /**
- * Render the shared header and footer around a routed main area, inside a Redux and router shell.
+ * Render the provider tree, the chrome and the four declared routes.
  *
- * @returns The provider, router and shell element tree wrapping the routed page area.
- * @remarks
- * The component declares the complete routed surface: `/` to `Home`, `/editor` to `Editor`,
- * `/templates` to `Templates`, `/settings` to `Settings`. Five links elsewhere target absent paths.
+ * The component wraps its tree in a second `Provider`, because `index.tsx` already
+ * wraps `App` in one. `App` also renders `Header` and `Footer` here while `Home`,
+ * `Editor`, `Templates` and `Settings` render their own, so every route paints the
+ * chrome twice. Two `Header` instances mean two navigation landmarks with the same
+ * accessible name, which a screen-reader user cannot tell apart.
  *
- * Accessibility: the shell owns the one `<main>` landmark, and `Home`, `Settings` and `Templates`
- * each render a second inside it, nesting one main within another. All four pages repeat the
- * `Header`, so `banner` and the unnamed `<nav>` at `components/Header.tsx:L66` both duplicate on
- * every route, leaving two indistinguishable navigation landmarks that each need a distinct name.
- * Three pages repeat the `Footer`, so `contentinfo` duplicates on three routes, not on `Editor`.
- *
- * Intended behavior per `documentation/Technical Specifications.md`, "USER INTERFACE DESIGN"
- * heading: `Toolbar`, `DocumentCanvas` and `Sidebar` sit under `App` rather than under `Editor`.
- *
- * @see ./README.md for the shell-level register of these findings.
+ * @returns The application element tree.
  */
 const App: React.FC = () => {
   return (

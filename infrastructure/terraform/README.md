@@ -74,7 +74,7 @@ External dependencies come from outside the repository:
 | `google` provider | `main.tf:L9-L12` | None. No `terraform` block exists in this folder, and the `provider` block declares no `version` argument, so `terraform init` would resolve whatever release currently matches once module resolution succeeds. |
 | An AWS provider | Nowhere | Not declared. The 14 outputs read 12 `aws_*` addresses across `outputs.tf`, and no file in this folder configures a provider that could create them. |
 
-One external service the application expects has no infrastructure behind it here. `backend/app/core/config.py:L119`
+One external service the application expects has no infrastructure behind it here. `backend/app/core/config.py:L48`
 declares a `REDIS_URL` setting, and this configuration declares no Memorystore instance, so nothing here provisions that
 endpoint. For how each external service is reached, see [the integration guide](../../docs/integration-guide.md).
 
@@ -197,10 +197,10 @@ what blocks what rather than alphabetically.
    is the entire range the subnetwork occupies (`main.tf:L27`). Any host in the subnet can reach any port on any other
    host in the subnet.
 
-3. **No `terraform` block exists in this folder.** The absence carries three consequences: no `required_providers` entry
-   pins the `google` provider, no `required_version` constraint pins Terraform itself, and no backend is configured, so
-   state is written to a local file beside these sources. The `provider` block declares no `version` argument either
-   (`main.tf:L9-L12`).
+3. **No `terraform` block exists in this folder.** The absence carries three consequences. No `required_providers`
+   entry pins the `google` provider, no `required_version` constraint pins Terraform itself, and no backend is
+   configured, so state is written to a local file beside these sources. The `provider` block declares no `version`
+   argument either (`main.tf:L9-L12`).
 
 4. **11 of the 13 declared variables are referenced nowhere.** Only `project_id` and `region` appear in any expression.
    Two of the 11 point at capabilities the configuration never declares. `storage_class` (`variables.tf:L37-L41`) has no
@@ -210,16 +210,18 @@ what blocks what rather than alphabetically.
 5. **No variable declares a `validation` block.** `environment` (`variables.tf:L53-L57`) accepts any string, including
    one that matches none of the `dev`, `staging` or `prod` values its own description lists.
 
-6. **14 outputs read 12 undeclared AWS addresses across 9 resource types.** `outputs.tf` declares, in file order,
-   `api_gateway_endpoint` (`outputs.tf:L5-L8`), `api_gateway_stage` (`:L10-L13`), `database_connection_string`
-   (`:L18-L22`), `read_replica_connection_string` (`:L24-L28`), `main_storage_bucket_name` (`:L33-L36`),
-   `backup_storage_bucket_name` (`:L38-L41`), `compute_instance_public_ip` (`:L43-L46`), `compute_instance_private_ip`
-   (`:L48-L51`), `compute_instance_id` (`:L53-L56`), `lambda_function_name` (`:L62-L65`),
-   `cloudfront_distribution_domain` (`:L67-L70`), `vpc_id` (`:L74-L77`), `public_subnet_ids` (`:L79-L82`) and
-   `private_subnet_ids` (`:L84-L87`). Between them they read 12 distinct addresses across these 9 types:
-   `aws_api_gateway_deployment`, `aws_api_gateway_stage`, `aws_cloudfront_distribution`, `aws_db_instance`,
-   `aws_instance`, `aws_lambda_function`, `aws_s3_bucket`, `aws_subnet` and `aws_vpc`. No file in this folder declares
-   any of them, and no AWS provider is configured.
+6. **14 outputs read 12 undeclared AWS addresses across 9 resource types.** `outputs.tf` declares 14 outputs. The
+   first seven, in file order, are `api_gateway_endpoint` (`outputs.tf:L4-L7`), `api_gateway_stage` (`:L9-L12`),
+   `database_connection_string` (`:L18-L22`), `read_replica_connection_string` (`:L24-L28`),
+   `main_storage_bucket_name` (`:L33-L36`), `backup_storage_bucket_name` (`:L38-L41`) and `compute_instance_public_ip`
+   (`:L43-L46`). The other seven are `compute_instance_private_ip` (`:L48-L51`), `compute_instance_id` (`:L53-L56`),
+   `lambda_function_name` (`:L62-L65`), `cloudfront_distribution_domain` (`:L67-L70`), `vpc_id` (`:L74-L77`),
+   `public_subnet_ids` (`:L79-L82`) and `private_subnet_ids` (`:L84-L87`).
+
+   Between them they read 12 distinct addresses across these 9 types: `aws_api_gateway_deployment`,
+   `aws_api_gateway_stage`, `aws_cloudfront_distribution`, `aws_db_instance`, `aws_instance`, `aws_lambda_function`,
+   `aws_s3_bucket`, `aws_subnet` and `aws_vpc`. No file in this folder declares any of them, and no AWS provider is
+   configured.
 
 7. **Two outputs interpolate a database password into their value.** `database_connection_string` builds a
    `postgresql://` string containing `aws_db_instance.main.password` (`outputs.tf:L18-L22`, password at `:L20`), and
@@ -231,24 +233,28 @@ what blocks what rather than alphabetically.
 8. **`vpc_id` exports a resource no file declares, while the declared network is exported nowhere.** The output reads
    `aws_vpc.main.id` (`outputs.tf:L74-L77`), and the network this configuration actually creates is
    `google_compute_network.word_network` (`main.tf:L19-L22`). No output **value** in `outputs.tf` references a
-   `google_*` resource, so the network, subnetwork, firewall rule and bucket are all unexported. Two comment blocks in
-   the same file do name Google resources, at `outputs.tf:L30-L32` and `outputs.tf:L72-L73`, and a comment exports
-   nothing. The claim here is about the 14 `value` expressions rather than about every occurrence of the string.
+   `google_*` resource, so the network, subnetwork, firewall rule and bucket are all unexported.
 
-9. **The cloud provider is declared three different ways across the repository.** The committed code targets GCP. The evidence runs to the
-   `google` provider (`main.tf:L9-L12`), `google-github-actions/setup-gcloud@v0.2.0` with GCP secrets
-   (`.github/workflows/cd.yml:L13`, `:L15-L16`), two `gcloud app deploy` calls (`:L19-L20`), `gsutil` and `gcloud` at
-   `scripts/deploy.sh:L23`, `:L27`, `:L31` and `:L35`. The root README also names Google Cloud Platform
-   (`README.md:L18`). `outputs.tf` targets AWS across the 12 addresses in item 6.
-   `documentation/Software Project Proposal.md` targets Microsoft Azure under its `ASSUMPTIONS` heading
-   (`documentation/Software Project Proposal.md:L193`), under its `DEPENDENCIES` heading (`:L214`, `:L229`) and in its
-   `BUDGET AND COST ESTIMATES` table (`:L277`), and names neither AWS nor GCP.
-   `documentation/Technical Specifications.md` mentions neither AWS nor Azure, so `outputs.tf` contradicts the
-   in-repository specification as well as the provider `main.tf` configures. Two script references compound the split:
-   `scripts/deploy.sh:L23` uploads to a hard-coded `gs://my-word-app-bucket/` where `main.tf:L51` declares
-   `word-documents-${var.project_id}`, and `scripts/deploy.sh:L31` connects to a Cloud SQL instance this configuration
-   never declares. Both specification documents record declared intent rather than system behavior, and
-   [the deployment guide](../../docs/deployment-guide.md) carries the full treatment.
+   Two comment blocks in the same file do name Google resources, at `outputs.tf:L30-L32` and `outputs.tf:L72-L73`, and
+   a comment exports nothing. The claim here is about the 14 `value` expressions rather than about every occurrence of
+   the string.
+
+9. **The cloud provider is declared three different ways across the repository.** The committed code targets GCP. The
+   evidence runs to the `google` provider (`main.tf:L9-L12`), `google-github-actions/setup-gcloud@v0.2.0` with GCP
+   secrets (`.github/workflows/cd.yml:L13`, `:L15-L16`), two `gcloud app deploy` calls (`:L19-L20`), `gsutil` and
+   `gcloud` at `scripts/deploy.sh:L23`, `:L27`, `:L31` and `:L35`. The root README also names Google Cloud Platform
+   (`README.md:L18`).
+
+`outputs.tf` targets AWS across the 12 addresses in item 6. `documentation/Software Project Proposal.md` targets
+Microsoft Azure under its `ASSUMPTIONS` heading (`documentation/Software Project Proposal.md:L193`), under its
+`DEPENDENCIES` heading (`:L214`, `:L229`) and in its `BUDGET AND COST ESTIMATES` table (`:L277`), and names neither
+AWS nor GCP. `documentation/Technical Specifications.md` mentions neither AWS nor Azure, so `outputs.tf` contradicts
+the in-repository specification as well as the provider `main.tf` configures.
+
+Two script references compound the split: `scripts/deploy.sh:L23` uploads to a hard-coded `gs://my-word-app-bucket/`
+where `main.tf:L51` declares `word-documents-${var.project_id}`, and `scripts/deploy.sh:L31` connects to a Cloud SQL
+instance this configuration never declares. Both specification documents record declared intent rather than system
+behavior, and [the deployment guide](../../docs/deployment-guide.md) carries the full treatment.
 
 10. **Two `HUMAN ASSISTANCE NEEDED` markers sit in this folder, and no TODO markers.** The first closes `main.tf`
     (`main.tf:L94-L99`) and names four review items: the subnet CIDR range, additional firewall rules, the bucket
@@ -256,58 +262,56 @@ what blocks what rather than alphabetically.
     `compute_instance_id` and `lambda_function_name` blocks, and names the gap between the outputs and the resources the
     configuration defines. Both markers survive this documentation pass unchanged.
 
-11. **No ignore rule protects the state file, and the state file would hold a plaintext password.**
-    No `.gitignore` and no `.terraformignore` is tracked anywhere in the repository. The two rule
-    files govern different things, and only one of them bears on staging. A `.gitignore` is what keeps
-    a path out of `git add`; a
-    [`.terraformignore`](https://developer.hashicorp.com/terraform/cli/cloud/settings) excludes files
-    from the configuration Terraform uploads to HCP Terraform, and has no effect on Git. Item 3
-    leaves state local, so an apply writes `terraform.tfstate` and a `.terraform` directory into this
-    folder. An apply that finds prior local state to preserve adds a `terraform.tfstate.backup` beside
-    the first, and a first apply does not. Nothing stops `git add` from staging any of
-    them, and item 7 puts a resolved database password inside the state. A state backend with
-    encryption at rest, plus a `.gitignore` excluding `*.tfstate*` and `.terraform/`, are
-    prerequisites for any apply.
+11. **No ignore rule protects the state file, and the state file would hold a plaintext password.** No `.gitignore`
+    and no `.terraformignore` is tracked anywhere in the repository. The two rule files govern different things, and
+    only one of them bears on staging. A `.gitignore` is what keeps a path out of `git add`; a
+    [`.terraformignore`](https://developer.hashicorp.com/terraform/cli/cloud/settings) excludes files from the
+    configuration Terraform uploads to HCP Terraform, and has no effect on Git.
 
-12. **Bucket versioning is enabled with no lifecycle rule, so retention is undecided.**
-    `main.tf:L56-L58` enables `versioning` on `word_documents`, and `main.tf:L50-L59` declares
-    no `lifecycle_rule` and no retention policy. Cloud Storage therefore archives the current
-    generation on a delete or an overwrite instead of removing the bytes. The archived
-    generation persists until a lifecycle rule expires it or a caller deletes it by generation
-    number. The exposure is prospective rather than present, because no committed source file
-    stores user content in this bucket. `main.tf:L51` names the bucket
-    `word-documents-${var.project_id}`, and a repository-wide search finds that name in no
-    other tracked file. The three bucket names the application reads are `STORAGE_BUCKET_NAME`
-    (`backend/app/services/export_service.py:L154` and `backend/app/services/export_service.py:L228`),
-    `EXPORT_BUCKET_NAME` (`backend/app/tasks/background_tasks.py:L141`) and `DOCUMENT_BUCKET_NAME`
-    (`backend/app/tasks/background_tasks.py:L278`), and `Settings` declares none of the three
-    (`backend/app/core/config.py:L111-L119`). A document delete reaches no bucket at all:
-    `DocumentService.delete_document` removes the Firestore document and stops
-    (`backend/app/services/document_service.py:L283-L284`). The one committed object-delete
-    call sits in the unreachable retention task
-    (`backend/app/tasks/background_tasks.py:L278-L280`), reads the undeclared
-    `DOCUMENT_BUCKET_NAME`, and targets the key `{user_id}/{doc_id}` built at
-    `backend/app/tasks/background_tasks.py:L279`, which no writer creates. The three upload
-    sites write `exports/{document.id}.pdf` (`backend/app/services/export_service.py:L155`),
-    `exports/{document.id}.docx` (`backend/app/services/export_service.py:L229`) and
-    `exports/{user_id}/{document_id}.{export_format}`
-    (`backend/app/tasks/background_tasks.py:L142`). Three decisions are therefore prerequisites
-    before this bucket holds user content and before any object-delete path reaches it. The
-    three are a stated retention period, a `lifecycle_rule` that expires noncurrent generations
-    against that period, and a delete path that removes every generation rather than only the
-    live one. Connecting a delete path first would leave deleted content readable to any caller
-    holding `storage.objects.get` on a noncurrent generation.
+    Item 3 leaves state local, so an apply writes `terraform.tfstate` and a `.terraform` directory into this folder.
+    An apply that finds prior local state to preserve adds a `terraform.tfstate.backup` beside the first, and a first
+    apply does not. Nothing stops `git add` from staging any of them, and item 7 puts a resolved database password
+    inside the state. A state backend with encryption at rest, plus a `.gitignore` excluding `*.tfstate*` and
+    `.terraform/`, are prerequisites for any apply.
 
-13. **Teardown fails once the bucket holds an object.** `main.tf:L50-L59` sets no `force_destroy`, and
-    the provider defaults that argument to `false`, so Terraform will not delete a bucket that still
-    contains objects and fails the run instead
-    ([provider reference](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/storage_bucket)).
-    Item 12 compounds it: versioning at `main.tf:L56-L58` keeps a noncurrent generation after every
-    delete, so a bucket that looks empty through the application still holds objects, and
-    `terraform destroy` stops on it. Clearing the bucket therefore means removing every generation,
-    not every live object. Two paths close this, and each is a decision rather than a default:
-    empty the bucket deliberately before a destroy, or set `force_destroy` explicitly with a reviewed
-    policy stating that a destroy is allowed to delete stored user content.
+12. **Bucket versioning is enabled with no lifecycle rule, so retention is undecided.** `main.tf:L56-L58` enables
+    `versioning` on `word_documents`, and `main.tf:L50-L59` declares no `lifecycle_rule` and no retention policy.
+    Cloud Storage therefore archives the current generation on a delete or an overwrite instead of removing the bytes.
+    The archived generation persists until a lifecycle rule expires it or a caller deletes it by generation number.
+
+The exposure is prospective rather than present, because no committed source file stores user content in this bucket.
+`main.tf:L51` names the bucket `word-documents-${var.project_id}`, and a repository-wide search finds that name in no
+other tracked file. The three bucket names the application reads are `STORAGE_BUCKET_NAME`
+(`backend/app/services/export_service.py:L60` and `backend/app/services/export_service.py:L92`), `EXPORT_BUCKET_NAME`
+(`backend/app/tasks/background_tasks.py:L62`) and `DOCUMENT_BUCKET_NAME`
+(`backend/app/tasks/background_tasks.py:L107`), and `Settings` declares none of the three
+(`backend/app/core/config.py:L40-L48`). A document delete reaches no bucket at all: `DocumentService.delete_document`
+removes the Firestore document and stops (`backend/app/services/document_service.py:L187-L188`).
+
+The one committed object-delete call sits in the unreachable retention task
+(`backend/app/tasks/background_tasks.py:L107-L109`), reads the undeclared `DOCUMENT_BUCKET_NAME`, and targets the key
+`{user_id}/{doc_id}` built at `backend/app/tasks/background_tasks.py:L108`, which no writer creates. The three upload
+sites write `exports/{document.id}.pdf` (`backend/app/services/export_service.py:L61`), `exports/{document.id}.docx`
+(`backend/app/services/export_service.py:L93`) and `exports/{user_id}/{document_id}.{export_format}`
+(`backend/app/tasks/background_tasks.py:L63`). Three decisions are therefore prerequisites before this bucket holds
+user content and before any object-delete path reaches it.
+
+The three are a stated retention period, a `lifecycle_rule` that expires noncurrent generations against that period,
+and a delete path that removes every generation rather than only the live one. Connecting a delete path first would
+leave deleted content readable to any caller holding `storage.objects.get` on a noncurrent generation.
+
+13. **Teardown fails once the bucket holds an object.** `main.tf:L50-L59` sets no `force_destroy`, and the provider
+    defaults that argument to `false`, so Terraform will not delete a bucket that still contains objects and fails the
+    run instead ([provider
+    reference](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/storage_bucket)).
+
+    Item 12 compounds it. Versioning at `main.tf:L56-L58` keeps a noncurrent generation after every delete, so a
+    bucket that looks empty through the application still holds objects, and `terraform destroy` stops on it. Clearing
+    the bucket therefore means removing every generation, not every live object.
+
+    Two paths close this, and each is a decision rather than a default. One is to empty the bucket
+    deliberately before a destroy. The other is to set `force_destroy` explicitly, with a reviewed
+    policy stating that a destroy may delete stored user content.
 
 For the repository-wide defect register built from the same evidence, see [the troubleshooting
 guide](../../docs/troubleshooting.md).
@@ -318,7 +322,7 @@ Clean-machine prerequisites live in [the onboarding guide](../../docs/onboarding
 what this directory does.
 
 One command here is safe. `terraform fmt -check` reads the three files without rewriting them, needs no initialization
-and contacts no network. It exits non-zero and names `main.tf`, because the committed bytes carry trailing
+and contacts no network. The check exits non-zero and names `main.tf`, because the committed bytes carry trailing
 whitespace at `main.tf:L53` and `main.tf:L55`.
 
 ```bash
@@ -370,14 +374,14 @@ Error: Unreadable module directory
 The directory  could not be read for module "word_backend" at main.tf:67.
 ```
 
-Three qualifications apply. Wording, ordering and how many errors print before
-Terraform stops all vary by release. No version is pinned here, because `main.tf`
-declares neither a `terraform` block nor a `required_version` constraint (item 3
-above). Only the first of the three module errors is reproduced. The locator
-moved with this documentation pass. Terraform reported `main.tf:52` against the
-pre-comment file at `06be74c`, and a run today reports `main.tf:67`, where the
-`word_backend` block now opens. The blocking defect is the absent
-`./modules/word_*` directories (`main.tf:L67-L92`) whichever release reports it.
+Three qualifications apply. Wording, ordering and how many errors print before Terraform stops all vary by release. No
+version is pinned here, because `main.tf` declares neither a `terraform` block nor a `required_version` constraint
+(item 3 above).
+
+Only the first of the three module errors is reproduced. The locator moved with this documentation pass. Terraform
+reported `main.tf:52` against the pre-comment file at `06be74c`, and a run today reports `main.tf:67`, where the
+`word_backend` block now opens. The blocking defect is the absent `./modules/word_*` directories (`main.tf:L67-L92`)
+whichever release reports it.
 
 One command here runs without initialization: `terraform fmt -check` reads the files without rewriting them. The command
 exits non-zero and names `main.tf`, which carries trailing whitespace at `main.tf:L53` and `main.tf:L55`.
