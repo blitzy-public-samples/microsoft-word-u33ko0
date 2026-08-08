@@ -121,8 +121,16 @@ async def register_user(user: UserCreate):
             when an account exists for the submitted address. The route is
             public, so the two different responses report to any caller
             whether an address holds an account.
-        ValueError: From bcrypt 5.0.0 at L131 on a password over 72 bytes.
-            The public route then answers an unhandled 500 to any caller.
+        ValueError: From the hash call below, which reaches bcrypt through
+            passlib's `CryptContext` rather than directly, so the resolved pair
+            of distributions decides when it raises and no manifest pins
+            either. With passlib 1.7.4 and bcrypt 5.0.0 every call raises,
+            whatever the password length. Passlib probes its backend with a
+            255-byte secret, and bcrypt 5.0.0 rejects any input over 72 bytes.
+            With a bcrypt release passlib can drive, only a password over 72
+            bytes raises, and only from 5.0.0 onward. Either way this public
+            route answers an unhandled 500 to any caller, and registration
+            cannot succeed at all on the first pairing.
     """
     existing_user = await UserService.get_user_by_email(user.email)
     if existing_user:

@@ -117,8 +117,8 @@ rather than as defect-free today. The other two modules carry faults in their ow
   and `:L40` never reach a caller.
 - **No module calls either credential check.** A search across `frontend/src` finds `validateEmail` and `validatePassword` only at their
   declarations, `validation.ts:L21` and `:L36`. No registration or sign-in interface exists to call them.
-- **`DocumentSchema.isValid` carries three faults, at `documentUtils.ts:L34` and `:L59`.** First, `isValid` is not a member of a Zod object schema.
-  `DocumentSchema` is built with `z.object` at `frontend/src/schema/document.ts:L23-L31`, and a Zod object exposes `parse` and `safeParse`. Reading
+- **`DocumentSchema.isValid` carries three faults, at `documentUtils.ts:L34` and `:L59`.** First, `isValid` is not a member of a Zod object schema: `DocumentSchema` is built with `z.object` at
+  `frontend/src/schema/document.ts:L23-L31`, and a Zod object exposes `parse` and `safeParse` only. Reading
   `.isValid` therefore yields `undefined`, and calling it raises a `TypeError` before the guarded `Error` at `documentUtils.ts:L35` or `:L60` can
   throw. Second, the schema models the wrong shape, declaring the metadata fields `id`, `title`, `content`, `owner_id`, `created_at`, `updated_at`
   and `collaborators`, while `convertToRaw` produces Draft.js raw content shaped `{ blocks, entityMap }`. Third, `documentUtils.ts:L34` passes the

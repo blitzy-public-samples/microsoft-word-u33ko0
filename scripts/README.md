@@ -108,30 +108,35 @@ Only `frontend/package.json` is tracked. `requirements.txt`, `app.yaml`, `db_mig
 
 ## Data Flows
 
-A deployment run reads one environment variable and then executes eight stages in fixed line order, from `deploy.sh:L4` to `deploy.sh:L47`. Four of the
-eight fail deterministically against the committed repository, at `:L11`, `:L15`, `:L27` and `:L31`, because each names a file the tree does not track. One
-succeeds, the archive at `:L19`. One performs no work, because `:L40-L44` are comments.
+A deployment run reads one environment variable and then executes eight stages in fixed line order, from `deploy.sh:L4` to `deploy.sh:L47`. Every stage
+below falls into one of four outcomes, and the prose, the diagram and its accessibility description all use these four names.
 
-The outcomes of the two remaining cloud stages, `gsutil cp` at `:L23` and `backend-services update` at `:L35`, are not established by anything in this
-repository. Each depends on the ambient `gcloud` identity and on a resource no committed file provisions. No stage checks the exit status of the one before
-it, so a failure at `:L11` still reaches the upload at `:L23` and the deploy at `:L27`.
+| Outcome | Stages | Why |
+| --- | --- | --- |
+| **Fails deterministically**, 4 stages | `:L11`, `:L15`, `:L27`, `:L31` | Each names a file the tree does not track |
+| **Succeeds conditionally**, 1 stage | `:L19` | The archive runs only where `zip` is installed, and neither script installs it (see the `zip` row under [External](#external)) |
+| **Performs no work**, 1 stage | `:L37-L44` | `:L40-L44` are comments, so the post-deployment checks run nothing |
+| **Outcome unestablished**, 2 stages | `:L23`, `:L35` | Each depends on the ambient `gcloud` identity and on a resource no committed file provisions |
+
+No stage checks the exit status of the one before it, so a failure at `:L11` still reaches the upload at `:L23` and the deploy at `:L27`.
 
 ```mermaid
 flowchart TD
-    accTitle: The deploy.sh stage sequence and the blocker at each stage
-    accDescr: A deployment run executes eight stages in fixed line order from deploy.sh:L4 to deploy.sh:L47. Seven of the eight fail against the committed repository. A dashed edge leaves a stage that fails, and its label names the reason. The run continues across every failure because nothing checks an exit status.
+    accTitle: The deploy.sh stage sequence and the outcome of each stage
+    accDescr: A deployment run executes eight stages in fixed line order from deploy.sh:L4 to deploy.sh:L47. Four fail deterministically, at L11, L15, L27 and L31. One succeeds where zip is installed, the archive at L19. One performs no work, the post-deployment checks at L37 to L44. Two have an outcome this repository cannot establish, the upload at L23 and the backend-services update at L35. A dashed edge leaves a stage that fails or whose outcome is unestablished, and its label names the reason. The run continues across every failure because nothing checks an exit status.
     G["Credentials guard<br/>deploy.sh:L4-L7"] --> B["npm run build<br/>deploy.sh:L11"]
     B -.->|"build fails: no root package.json"| T["python -m pytest tests/<br/>deploy.sh:L15"]
     T -.->|"pytest fails: no root tests/ directory"| Z["zip -r app.zip<br/>deploy.sh:L19"]
-    Z -->|"archives node_modules, venv, .env"| U["gsutil cp to gs://my-word-app-bucket/<br/>deploy.sh:L23"]
+    Z -->|"succeeds where zip is installed:<br/>archives node_modules, venv, .env"| U["gsutil cp to gs://my-word-app-bucket/<br/>deploy.sh:L23"]
     U -.->|"outcome unestablished: needs an authenticated CLI<br/>and a bucket nothing here provisions"| D["gcloud app deploy app.yaml<br/>deploy.sh:L27"]
     D -.->|"deploy fails: no app.yaml tracked"| M["gcloud sql connect &lt; db_migrations.sql<br/>deploy.sh:L31"]
     M -.->|"migration fails: no db_migrations.sql"| C["backend-services update --enable-cdn<br/>deploy.sh:L35"]
     C -.->|"outcome unestablished: names no --global or<br/>--region scope, and the backend service<br/>is not provisioned here"| P["Post-deployment checks<br/>deploy.sh:L37-L44"]
     P -.->|"no check runs: L40-L44 are comments"| S["echo Deployment completed successfully!<br/>deploy.sh:L47"]
-%% A dashed edge leaves a stage that either fails against the committed repository
-%% or has an outcome this repository cannot establish. The run continues across it
-%% because nothing checks an exit status.
+%% A dashed edge leaves a stage that fails against the committed repository, performs
+%% no work, or has an outcome this repository cannot establish. The one solid edge
+%% leaves the archive, which succeeds wherever zip is installed. The run continues
+%% across every failure because nothing checks an exit status.
 ```
 
 A setup run moves in one direction, from host packages at `setup_dev_environment.sh:L5` to the printed instructions at `:L56`. The run fails at `:L26`, succeeds

@@ -24,7 +24,7 @@ Three classes and thirteen `def` statements, located against the committed files
 | `delete_document` | Async method | `document_service.py:L159` | Declares `(document_id: str, user_id: str)`. Deletes at L188 and returns the literal `True` at L191 whatever the delete did. |
 | `CollaborationService` | Class | `collaboration_service.py:L20` | Socket registry plus Pub/Sub publish and subscribe. No application module imports this class. |
 | `CollaborationService.__init__` | Constructor | `collaboration_service.py:L32` | Builds a `PublisherClient` at L38 and a `SubscriberClient` at L39, then sets `active_connections = {}` at L40. Both clients are built eagerly. |
-| `connect` | Async method | `collaboration_service.py:L44` | Registers the socket at L66, derives the topic at L69 and the subscription at L70, creates the subscription at L73, subscribes at L95, then blocks on `future.result()` at L98. L66 keys by user, so a second socket for the same document and user replaces the first without closing it, and the shared name at L70 makes the second `create_subscription` answer `AlreadyExists`, which L76 prints before L77 returns. |
+| `connect` | Async method | `collaboration_service.py:L44` | Registers the socket at L66, derives the topic at L69 and the subscription at L70, creates the subscription at L73, subscribes at L95, then blocks on `future.result()` at L98. L66 keys by user, so a second socket for the same document and user replaces the first without closing it. The shared name at L70 then makes the second `create_subscription` answer `AlreadyExists`, which L76 prints before L77 returns. |
 | `callback` | Nested function | `collaboration_service.py:L80` | Closure passed to `subscribe` at L95. Calls `message.ack()` at L92, then `asyncio.run(websocket.send_json(...))` at L93. |
 | `disconnect` | Async method | `collaboration_service.py:L103` | Removes the socket from the registry at L118 to L121 and deletes the subscription at L126. L124 rebuilds the name from the document and user alone, so L126 deletes the subscription every socket for that pair shares. |
 | `broadcast_change` | Async method | `collaboration_service.py:L133` | Publishes a JavaScript Object Notation (JSON) encoded change to the document topic at L152 and waits on the publish future at L153. |
@@ -227,7 +227,7 @@ both answer `NotFound` without one.
 
 Per-process in-memory connection registry. `active_connections` at `collaboration_service.py:L40` is a plain dictionary
 with no lock and no shared store, so a second worker process sees none of the sockets the first one holds. Keying by user
-rather than by connection is what lets a second socket evict the first, so holding both would need a unique connection
+rather than by connection is what lets a second socket evict the first. Holding both would need a unique connection
 identifier per socket and subscription ownership that is reference counted or idempotent.
 
 Acknowledge-before-send message handling. `message.ack()` at L92 runs before `websocket.send_json(...)` at L93, so

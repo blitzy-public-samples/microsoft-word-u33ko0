@@ -86,7 +86,7 @@ Nothing in this directory is configured, so the table records the verified negat
 | `Settings` fields from `backend/app/core/config.py:L20` | No. No module here imports `app.core.config` | DECLARED, unread by this suite |
 | Environment variables | No. Neither `os.environ` nor `os.getenv` appears in any of the three modules | Neither declared nor read |
 | pytest configuration | No. `pytest.ini`, `conftest.py`, `tox.ini` and every `[tool.pytest]` host are absent | READ-BUT-NEVER-DECLARED |
-| Package roots through `__init__.py` | No. Zero `__init__.py` files exist under `backend/`, so `app`, `backend`, `services` and `backend.tests` resolve as implicit namespace packages when their parent directory sits on the path, and never as regular packages | READ-BUT-NEVER-DECLARED |
+| Package roots through `__init__.py` | No. Zero `__init__.py` files exist under `backend/`. So `app`, `backend`, `services` and `backend.tests` resolve as implicit namespace packages when their parent directory sits on the path, and never as regular packages | READ-BUT-NEVER-DECLARED |
 | Interpreter `sys.path` and working directory | Yes, implicitly. Every import in all three modules resolves against them | READ-BUT-NEVER-DECLARED |
 
 The last two rows carry the whole configuration surface. Namespace-package resolution is what makes the three `services.*` imports reachable at all, and no single working

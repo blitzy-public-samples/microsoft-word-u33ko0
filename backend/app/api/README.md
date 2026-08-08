@@ -16,9 +16,9 @@ answers a request as committed, and the Reachability column names each reason.
 | `router` | `APIRouter` instance | `documents.py:L22` | Carries five document routes. `main.py:L17` imports the name `documents_router`. |
 | `router` | `APIRouter` instance | `users.py:L17` | Carries two profile routes. `main.py:L18` imports the name `users_router`. |
 | `router` | `APIRouter` instance | `templates.py:L22` | Carries five template routes. `main.py:L19` imports the name `templates_router`. |
-| `get_current_user` | Async dependency | `auth.py:L27` | Decodes the bearer token at L53 and loads the user at L60. Guards all twelve protected handlers. A second function of the same name sits at `core/security.py:L90`. |
+| `get_current_user` | Async dependency | `auth.py:L27` | Decodes the bearer token at L53 and loads the user at L60. Guards all twelve protected handlers. A second function of the same name sits at `core/security.py:L119`. |
 | `oauth2_scheme` | `OAuth2PasswordBearer` | `auth.py:L23` | Extracts the bearer token. Constructed with `tokenUrl='token'`, matching the `POST /token` path at `auth.py:L65`. |
-| `pwd_context` | `CryptContext` | `auth.py:L24` | Configured with `schemes=['bcrypt']`. Hashes a registration password at `auth.py:L131`. |
+| `pwd_context` | `CryptContext` | `auth.py:L24` | Configured with `schemes=['bcrypt']`. Hashes a registration password at `auth.py:L139`. |
 | Per-handler service objects | `DocumentService`, `TemplateService`, `UserService` | `documents.py:L45`, `templates.py:L38`, `users.py:L57` | Eleven of the fourteen handlers construct their own service instance. `auth.py` calls `UserService` methods on the class instead, at L60, L90, L127 and L132, and `get_current_user_info` at `users.py:L20` calls no service at all. |
 
 The four routers publish fourteen handlers. Twelve declare `current_user: User = Depends(get_current_user)` and two declare
@@ -174,9 +174,9 @@ Dispatch never begins, and two separate faults stop it. `main.py:L16-L19` reques
 exports, so the composition root binds nothing. Past that name mismatch, the mounted paths overlap: `main.py:L80-L83` passes
 no `prefix=` on any of its four `include_router` calls, verified across all four.
 
-The overlap takes three forms. Static paths collide directly: `POST /` at `documents.py:L24` and `POST /` at
-`templates.py:L24` are the same method on the same path, and `GET /` at `documents.py:L49` and `templates.py:L42` repeat the
-pair. Dynamic paths collide positionally, because Starlette matches a path template by shape rather than by parameter name.
+The overlap takes three forms. Static paths collide directly. `POST /` at `documents.py:L24` and `POST /` at
+`templates.py:L24` are the same method on the same path, and `GET /` at `documents.py:L49` and `templates.py:L42` repeat
+the pair. Dynamic paths collide positionally, because Starlette matches a path template by shape rather than by parameter name.
 `/{document_id}` and `/{template_id}` both compile to one single-segment template, so the differing parameter name changes
 nothing about matching.
 
@@ -246,10 +246,10 @@ error message, and each becomes live the moment the import failure is repaired.
 | 1 | Rate limiting or throttling on any route, including the two public ones | `main.py:L71` adds one middleware and it is CORS. No limiter, dependency or proxy configuration is committed. The public routes are `auth.py:L65` (`POST /token`) and `:L102` (`POST /register`) |
 | 2 | A request body size limit | No handler, middleware or server flag bounds a body. `schema/document.py:L27` declares `content` as a bare `str` |
 | 3 | Field length or format bounds on any model field | Neither `schema/document.py` nor `schema/user.py` contains a single `Field(` call, so no `max_length`, `min_length` or pattern applies. `schema/user.py:L26` declares `email: str` rather than an email type |
-| 4 | A server-side password policy on registration | `schema/user.py:L38` declares `password: str` with no constraint and `auth.py:L131` hashes whatever arrives. The only policy in the repository is client-side, at `frontend/src/utils/validation.ts:L36-L42`, and a client-side check is not a control |
-| 5 | Responses that do not distinguish known accounts | Registration answers a known address with 400 `Email already registered` at `auth.py:L128-L129`. Login is correctly uniform, answering 401 `Incorrect username or password` at `:L91-L92`, so registration is the enumeration oracle |
+| 4 | A server-side password policy on registration | `schema/user.py:L38` declares `password: str` with no constraint and `auth.py:L139` hashes whatever arrives. The only policy in the repository is client-side, at `frontend/src/utils/validation.ts:L36-L42`, and a client-side check is not a control |
+| 5 | Responses that do not distinguish known accounts | Registration answers a known address with 400 `Email already registered` at `auth.py:L136-L137`. Login is correctly uniform, answering 401 `Incorrect username or password` at `:L91-L92`, so registration is the enumeration oracle |
 | 6 | Any check on `is_active` before a token is honoured | `schema/user.py:L71` declares the field and no code path reads it. `auth.py:L60` loads the user and `:L63` returns it immediately, so a deactivated account keeps full access for the life of its token |
-| 7 | A `WWW-Authenticate: Bearer` header on an explicitly raised 401 | Three 401 sites in this directory set no `headers`: `auth.py:L55-L56`, `:L58` and `:L91-L92`. The duplicate dependency at `core/security.py:L126`, `:L128` and `:L133` behaves the same way. The scheme itself does send the challenge. `OAuth2PasswordBearer` at `auth.py:L23` keeps the default `auto_error`. A request with no `Authorization` header, or one that is not bearer, therefore receives 401 `Not authenticated` with the header attached and never reaches a handler |
+| 7 | A `WWW-Authenticate: Bearer` header on an explicitly raised 401 | Three 401 sites in this directory set no `headers`: `auth.py:L55-L56`, `:L58` and `:L91-L92`. The duplicate dependency at `core/security.py:L155`, `:L157` and `:L162` behaves the same way. The scheme itself does send the challenge. `OAuth2PasswordBearer` at `auth.py:L23` keeps the default `auto_error`. A request with no `Authorization` header, or one that is not bearer, therefore receives 401 `Not authenticated` with the header attached and never reaches a handler |
 | 8 | Any constraint on the JWT secret, algorithm, lifetime or claim set | `core/config.py:L42`, `:L44` and `:L43` declare `SECRET_KEY`, `ALGORITHM` and `ACCESS_TOKEN_EXPIRE_MINUTES` as bare types with no validator or allowed-value list. `auth.py:L95-L99` encodes exactly `sub` and `exp`, so no issuer, audience or token identifier exists and no issued token can be revoked before `exp` |
 | 9 | Object-level authorization on any template route | `templates.py:L81`, `:L107` and `:L131` delegate to a `TemplateService` that no file defines. The 404 detail at `:L83` reads `Template not found`, while `:L109` and `:L133` read `Template not found or user not authorized`, so two of the three messages promise a check no committed code performs |
 
@@ -264,20 +264,20 @@ belong to the package rather than to these four routers.
 - **The module cannot import.** `auth.py:L19` requests the `settings` name from `app.core.config`, which declares only the
 `Settings` class at `core/config.py:L20` and the `get_settings` factory at L61. L19 raises first. `auth.py:L21` requests
 `app.services.user_service`, a module with no file, and would raise next.
-- **A second `get_current_user` exists.** `auth.py:L27` defines one and `core/security.py:L90` defines another.
+- **A second `get_current_user` exists.** `auth.py:L27` defines one and `core/security.py:L119` defines another.
 `documents.py:L19`, `templates.py:L19` and `users.py:L15` import the local one, so the `auth.py` contract governs all twelve
 protected routes.
 - **The two definitions disagree on status and on wording.** `auth.py:L62` raises 404 for a missing user and
-`core/security.py:L133` raises 401 for the same condition, both with the detail `User not found`. The invalid-token branches
-also differ: `auth.py:L56` and `:L58` read `Invalid authentication credentials`, while `core/security.py:L126` and `:L128`
+`core/security.py:L162` raises 401 for the same condition, both with the detail `User not found`. The invalid-token branches
+also differ: `auth.py:L56` and `:L58` read `Invalid authentication credentials`, while `core/security.py:L155` and `:L157`
 read `Could not validate credentials`. `core/security.py` uses the `status.HTTP_401_UNAUTHORIZED` constant and `auth.py` uses
 bare integers.
-- **Four calls treat `UserService` as a class rather than an instance**, at `auth.py:L60`, `:L90`, `:L127` and `:L132`,
+- **Four calls treat `UserService` as a class rather than an instance**, at `auth.py:L60`, `:L90`, `:L135` and `:L140`,
 calling methods directly on the imported name. The module holding that class does not exist, so its declared signatures
 cannot be read. **The token is also signed inline**: `auth.py:L95-L99` calls `jwt.encode` in the handler body and duplicates
 `create_access_token` at `core/security.py:L25`, which no module in this directory imports.
-- **The read model declares no field for the password hash, and that does not exclude exposure.** `auth.py:L131` computes the
-hash and `:L132` passes it to the absent `UserService.create_user`. `UserCreate` does declare `password`, at
+- **The read model declares no field for the password hash, and that does not exclude exposure.** `auth.py:L139` computes the
+hash and `:L140` passes it to the absent `UserService.create_user`. `UserCreate` does declare `password`, at
 `schema/user.py:L38`, and the `User` read model at `schema/user.py:L56` declares `id`, `created_at`, `updated_at`,
 `is_active` and `is_superuser` at L68-L72 and no field able to hold a hash. A model without a field is not a filter on this
 route.
@@ -285,7 +285,7 @@ route.
 - The register handler at `auth.py:L103` declares no return annotation, and its decorator at `:L102` sets no
 `response_model`. FastAPI applies no output contract, so whatever the absent service returns passes through unchanged. **Hash
 exposure on the registration route cannot be ruled out**, and stays unknown until both the service and a response contract
-exist. Separately, **two validated fields are dropped**: `:L132` passes only `user.email` and `hashed_password`, so the
+exist. Separately, **two validated fields are dropped**: `:L140` passes only `user.email` and `hashed_password`, so the
 `username` and `full_name` that `UserCreate` validates at `schema/user.py:L27-L28` are lost.
 
 `documents.py` limitations:
@@ -339,7 +339,7 @@ Twelve explicit `raise HTTPException` statements exist across the four modules, 
 
 | Status | Sites | Condition |
 | --- | --- | --- |
-| 400 | `auth.py:L129`, `users.py:L60` | Email already registered; user update returned falsy. |
+| 400 | `auth.py:L137`, `users.py:L60` | Email already registered; user update returned falsy. |
 | 401 | `auth.py:L56`, `:L58`, `:L92` | Token missing a `sub` claim; token failed to decode; credentials rejected. |
 | 403 | `documents.py:L93`, `:L122`, `:L148` | The ownership comparison failed on read, update and delete. |
 | 404 | `auth.py:L62`, `templates.py:L83`, `:L109`, `:L133` | User not found; template not found on read, update and delete. |
@@ -383,7 +383,7 @@ from app.schema.user import UserCreate
 UserCreate(
     email="user@example.com",
     username="user",
-    password="...",             # schema/user.py:L38, hashed at auth.py:L131
+    password="...",             # schema/user.py:L38, hashed at auth.py:L139
 )                               # full_name defaults to None at schema/user.py:L28
 
 DocumentCreate(

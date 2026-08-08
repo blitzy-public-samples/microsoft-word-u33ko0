@@ -150,8 +150,8 @@ them canonical.
   `app.schema.template`, and `backend/app/schema/` holds only `document.py` and `user.py`.
 - **`orm_mode` pins the package to Pydantic 1.x.** `user.py:L74-L81` sets `orm_mode = True`, which Pydantic 2 renamed to `from_attributes`. Under Pydantic 2 the old key raises a `UserWarning` and is then ignored, so attribute-based
   construction stops working while the import itself still succeeds.
-- **The read model declares no field for the password hash.** `app/api/auth.py:L131` computes
-  `pwd_context.hash(user.password)` and `:L132` passes the result on, while `User` at `user.py:L56-L72` declares no field to carry it. `UserCreate.password` at `user.py:L38` does exist, so the read at `auth.py:L131` resolves correctly.
+- **The read model declares no field for the password hash.** `app/api/auth.py:L139` computes
+  `pwd_context.hash(user.password)` and `:L140` passes the result on, while `User` at `user.py:L56-L72` declares no field to carry it. `UserCreate.password` at `user.py:L38` does exist, so the read at `auth.py:L139` resolves correctly.
 - **`is_active` and `is_superuser` are declared and never read.** `user.py:L71` and `:L72` declare both on the read
   model, and no code path reads either one.
 - **`updated_at` has no counterpart in the client-side user contract.** `user.py:L70` declares it on `User`. That model

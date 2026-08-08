@@ -93,7 +93,7 @@ in this documentation set that carries an advisory identifier or a version floor
 concerns the two verifying call sites this package owns. `python-jose` releases through 3.3.0 carry
 [CVE-2024-33663](https://github.com/advisories/GHSA-6c5p-j8vq-pqhj), an algorithm confusion weakness with OpenSSH ECDSA and
 other key formats, fixed in 3.4.0. The advisory concerns verification rather than signing, so the exposed calls would be
-`jwt.decode` at `core/security.py:L123` and `api/auth.py:L53`, not the `jwt.encode` calls at `core/security.py:L54` and
+`jwt.decode` at `core/security.py:L152` and `api/auth.py:L53`, not the `jwt.encode` calls at `core/security.py:L54` and
 `api/auth.py:L95-L99`.
 
 **Whether this repository is exposed cannot be established here, and three preconditions decide it.** The installed release
@@ -124,7 +124,7 @@ it by name. The ten a direct import names:
 | fastapi | 0.89.0 or newer | Response models come from return annotations. No `response_model=` argument appears on any of the 14 handlers. |
 | pydantic | 1.x only | `BaseSettings` is imported from the main package at `core/config.py:L17`, `orm_mode = True` appears at `schema/user.py:L81`, and `.dict(exclude_unset=True)` at `services/document_service.py:L152` is the version 1 API. |
 | sqlalchemy | 1.4 or newer | `declarative_base` is imported from `sqlalchemy.orm` at `db/sql.py:L13` and called at L19. Version 1.3 exposed that name from `sqlalchemy.ext.declarative` instead. |
-| python-jose | Unestablished | `from jose import jwt` at `core/security.py:L16` and `api/auth.py:L16`, with `except jwt.JWTError` at `core/security.py:L127`. |
+| python-jose | Unestablished | `from jose import jwt` at `core/security.py:L16` and `api/auth.py:L16`, with `except jwt.JWTError` at `core/security.py:L156`. |
 | passlib with a bcrypt backend | Unestablished | `from passlib.context import CryptContext` at `core/security.py:L17` and `api/auth.py:L17`, used with `schemes=['bcrypt']` at `core/security.py:L22`. |
 | google-cloud-firestore | Unestablished | `from google.cloud.firestore import Client` at `db/firestore.py:L14` and `services/document_service.py:L14`. |
 | google-auth | Unestablished | `from google.auth import default` at `db/firestore.py:L15`. |
@@ -158,7 +158,7 @@ relatively. The path therefore resolves against the working directory of the pro
 
 | Setting | Status | Location | Read by |
 | --- | --- | --- | --- |
-| `SECRET_KEY`, `ALGORITHM`, `ACCESS_TOKEN_EXPIRE_MINUTES` | DECLARED | `core/config.py:L42-L44` | `api/auth.py:L53`, `L94-L98`; `core/security.py:L52-L54`, `L123` |
+| `SECRET_KEY`, `ALGORITHM`, `ACCESS_TOKEN_EXPIRE_MINUTES` | DECLARED | `core/config.py:L42-L44` | `api/auth.py:L53`, `L94-L98`; `core/security.py:L52-L54`, `L152` |
 | `DATABASE_URL` | DECLARED | `core/config.py:L47` | `db/sql.py:L16`, at import time |
 | `GOOGLE_CLOUD_PROJECT` | DECLARED | `core/config.py:L45` | `db/firestore.py:L20`, at import time |
 | `REDIS_URL` | DECLARED | `core/config.py:L48` | `tasks/background_tasks.py:L22`, at import time |
@@ -294,10 +294,10 @@ misconfiguration. Each is unexploitable while import fails, and each becomes liv
 | Package-wide gap | Evidence |
 | --- | --- |
 | The two public routes carry no abuse controls, and no route carries a rate limit. Their unauthenticated status is intended, so the gap is throttling, anti-automation and anti-enumeration rather than authentication. `main.py:L71` adds one middleware and it is CORS | `api/auth.py:L65` and `:L102` are public by design; no limiter, lockout, captcha or proxy configuration is committed |
-| Object authorization is attempted on three handlers only. Of the fourteen routes, twelve declare the token dependency and two are public. The twelve split four ways: three attempt an ownership comparison, two are self-scoped by the token and need none, one is the create path that fails before it persists, and six leave object scope unestablished | Attempted at `api/documents.py:L92`, `:L121`, `:L147`. Self-scoped: `api/users.py` GET and PUT `/me`. Create fails at Firestore encoding before the write at `services/document_service.py:L73`. Unestablished: GET `/documents` plus the five template routes. `api/auth.py:L65` and `:L102` are the two public routes |
+| Object authorization is attempted on three handlers only. Of the fourteen routes, twelve declare the token dependency and two are public. The twelve split four ways. Three attempt an ownership comparison, two are self-scoped by the token and need none, one is the create path that fails before it persists, and six leave object scope unestablished | Attempted at `api/documents.py:L92`, `:L121`, `:L147`. Self-scoped: `api/users.py` GET and PUT `/me`. Create fails at Firestore encoding before the write at `services/document_service.py:L73`. Unestablished: GET `/documents` plus the five template routes. `api/auth.py:L65` and `:L102` are the two public routes |
 | CORS origins come from a field no settings class declares, alongside credentialed access and full wildcards | `main.py:L73` reads `settings.ALLOWED_ORIGINS`, absent from `core/config.py:L40-L48`; `:L74` sets `allow_credentials=True`, `:L75-L76` allow every method and header |
 | The JWT secret, algorithm and lifetime are unconstrained, and tokens carry no issuer, audience or identifier | `core/config.py:L42`, `:L44`, `:L43` declare bare types with no validator; `api/auth.py:L95-L99` encodes only `sub` and `exp` |
-| No explicitly raised 401 carries a `WWW-Authenticate: Bearer` challenge | Six explicit raises set no `headers`: `api/auth.py:L55-L56`, `:L58`, `:L91-L92`, `core/security.py:L126`, `:L128`, `:L133`. The scheme itself is the exception. `OAuth2PasswordBearer` at `api/auth.py:L23` and `core/security.py:L23` leaves `auto_error` at its default. A missing or non-bearer `Authorization` header is therefore answered by FastAPI with its own 401 carrying the challenge, before any handler runs |
+| No explicitly raised 401 carries a `WWW-Authenticate: Bearer` challenge | Six explicit raises set no `headers`: `api/auth.py:L55-L56`, `:L58`, `:L91-L92`, `core/security.py:L155`, `:L157`, `:L162`. The scheme itself is the exception. `OAuth2PasswordBearer` at `api/auth.py:L23` and `core/security.py:L23` leaves `auto_error` at its default. A missing or non-bearer `Authorization` header is therefore answered by FastAPI with its own 401 carrying the challenge, before any handler runs |
 | No request body bound and no field length bound anywhere | Neither `schema/document.py` nor `schema/user.py` contains a single `Field(` call, and no middleware limits a body |
 
 [core/README.md](core/README.md) carries the token contract in full and [api/README.md](api/README.md) carries the per-handler
@@ -337,12 +337,12 @@ or `.apply_async` call exists anywhere. `CollaborationService` at `services/coll
 no WebSocket endpoint is registered in `main.py` or under `api/` and no package module imports the class. The four adapter
 helpers at `db/firestore.py:L22`, `L45`, `L64` and `L79` have no caller, because services use the raw client instead.
 - **Undefined names raise in two different places, and the difference decides how each is diagnosed.** A name in a signature is
-evaluated when Python executes the `def`. `Optional` at `core/security.py:L25` and `User` at `:L90` each raise `NameError` while
+evaluated when Python executes the `def`. `Optional` at `core/security.py:L25` and `User` at `:L119` each raise `NameError` while
 `app.core.security` is still loading, and `L25` raises first. A name in a function body raises only under exercise:
-`UserService` at `core/security.py:L130`, and `datetime` at `tasks/background_tasks.py:L96` and `:L146` against the
+`UserService` at `core/security.py:L159`, and `datetime` at `tasks/background_tasks.py:L96` and `:L146` against the
 `timedelta`-only import at `:L20`.
 - **Nine `HUMAN ASSISTANCE NEEDED` markers and six `TODO` markers stand in the package.** Markers sit at `main.py:L38`,
-`api/users.py:L54`, `core/security.py:L86`, `services/collaboration_service.py:L42` and `L131`,
+`api/users.py:L54`, `core/security.py:L115`, `services/collaboration_service.py:L42` and `L131`,
 `services/document_service.py:L114`, `services/export_service.py:L38`, and `tasks/background_tasks.py:L49` and `L91`. The `TODO`
 markers sit at `main.py:L49` and `L68`, and `services/export_service.py:L57`, `L62`, `L89` and `L94`.
 - **Two instructions in the root `README.md` do not work against this package.** `L42` directs a reader to `pip install -r

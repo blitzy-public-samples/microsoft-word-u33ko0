@@ -321,14 +321,25 @@ guide](../../docs/troubleshooting.md).
 Clean-machine prerequisites live in [the onboarding guide](../../docs/onboarding.md), so the examples below cover only
 what this directory does.
 
-One command here is safe. `terraform fmt -check` reads the three files without rewriting them, needs no initialization
-and contacts no network. The check exits non-zero and names `main.tf`, because the committed bytes carry trailing
+One command here modifies nothing. `terraform fmt -check` reads the three files without rewriting them, needs no
+initialization and contacts no network. The check **exits 3** and prints `main.tf`, because the committed bytes carry trailing
 whitespace at `main.tf:L53` and `main.tf:L55`.
 
 ```bash
 cd infrastructure/terraform
-terraform fmt -check
+terraform fmt -check -diff   # exits 3, and -diff shows the whole difference
 ```
+
+The whole difference is two lines of whitespace. `main.tf:L53` and `main.tf:L55` each hold two spaces inside the
+`google_storage_bucket.word_documents` block and would become empty lines. No expression, argument or block changes, so
+running `terraform fmt` without `-check` rewrites those two lines and nothing else. Every exit code below was observed
+against the committed tree with Terraform v1.15.8.
+
+| Command | Exit code | What it reports |
+| --- | --- | --- |
+| `terraform fmt -check` | 3 | Formatting differences exist, and the run names `main.tf` |
+| `terraform fmt -check -recursive` | 3 | The same result, because all three files sit in this directory |
+| `terraform validate` | 1 | A different failure: the configuration is not initialized, so the absent modules stop it before any formatting question arises |
 
 The block below is **diagnostic only**. `terraform init` writes a `.terraform` directory holding an
 empty `modules/` subdirectory and then stops, so the run writes no lock file and downloads no
@@ -383,5 +394,6 @@ reported `main.tf:52` against the pre-comment file at `06be74c`, and a run today
 `word_backend` block now opens. The blocking defect is the absent `./modules/word_*` directories (`main.tf:L67-L92`)
 whichever release reports it.
 
-One command here runs without initialization: `terraform fmt -check` reads the files without rewriting them. The command
-exits non-zero and names `main.tf`, which carries trailing whitespace at `main.tf:L53` and `main.tf:L55`.
+One command here runs without initialization, and it also reports a failure. `terraform fmt -check` exits 3 over two
+lines of trailing whitespace, which the [exit-code table above](#usage-examples) separates from this initialization
+failure.

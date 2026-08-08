@@ -117,7 +117,7 @@ The committed code separates four tiers by directory: client, HTTP application p
 Two backend directories sit across the tiers rather than inside one. `backend/app/schema/` holds the
 Pydantic contracts that cross the client and service boundaries, and `backend/app/core/` holds the
 `Settings` model at `backend/app/core/config.py:L20` plus the token and password primitives at
-`backend/app/core/security.py:L25-L69`. Every backend tier reads one or both. The client tier reads
+`backend/app/core/security.py:L25-L88`. Every backend tier reads one or both. The client tier reads
 neither, because no TypeScript module can import a Python package. The client restates the same
 contracts in Zod under `frontend/src/schema/`, and [data-model.md](data-model.md) records the drift
 that hand-restatement produced.

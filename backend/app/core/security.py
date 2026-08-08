@@ -57,20 +57,44 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Check a plaintext password against a stored bcrypt hash.
 
+    The call goes through passlib's `CryptContext`, not through `bcrypt`
+    directly, so the resolved pair of distributions decides the contract. No
+    manifest pins either one. With passlib 1.7.4 and bcrypt 5.0.0 the boolean
+    contract below does not hold for any input, because passlib initialises its
+    bcrypt backend on the first call and that step fails. See `Raises:`.
+
     Args:
         plain_password: The password as submitted.
         hashed_password: The stored hash to compare against.
 
     Returns:
-        True when the password matches the hash.
+        True when the password matches the hash, False when it does not.
+
+    Raises:
+        ValueError: On every call when the resolved pair is passlib 1.7.4 with
+            bcrypt 5.0.0, with the misleading message that a password cannot be
+            longer than 72 bytes. Passlib probes its backend with a 255-byte
+            secret, bcrypt 5.0.0 rejects any input over 72 bytes, and the
+            probe's error escapes. Input length is irrelevant, and the failure
+            repeats because passlib does not cache the failed probe.
+        TypeError: When `hashed_password` is None, which the absent
+            `app.services.user_service` would otherwise have to rule out.
+        Exception: `passlib.exc.UnknownHashError` when `hashed_password` holds a
+            value no configured scheme recognises, such as a plaintext column
+            from a partially migrated store.
     """
     return pwd_context.verify(plain_password, hashed_password)
 
 def get_password_hash(password: str) -> str:
     """Hash a password with the bcrypt scheme configured on `pwd_context`.
 
-    No schema bounds the input, so bcrypt alone decides the outcome. Older
-    releases truncate at 72 bytes, so longer passwords collide on that prefix.
+    No schema bounds the input, so the resolved distributions decide the
+    outcome. Two facts combine, and reading either alone gives the wrong
+    contract. bcrypt reads at most 72 bytes: releases before 5.0.0 truncate a
+    longer password, so two passwords sharing a 72-byte prefix produce
+    interchangeable hashes, while 5.0.0 raises instead of truncating. The call
+    here reaches bcrypt through passlib, whose 1.7.4 release cannot drive
+    bcrypt 5.0.0 at all.
 
     Args:
         password: The password to hash, unbounded by any schema rule.
@@ -79,7 +103,12 @@ def get_password_hash(password: str) -> str:
         The bcrypt hash, including its salt and cost parameter.
 
     Raises:
-        ValueError: From bcrypt 5.0.0 when the password exceeds 72 bytes.
+        ValueError: On every call, whatever the input length, when the resolved
+            pair is passlib 1.7.4 with bcrypt 5.0.0. The message names a
+            72-byte limit and the cause is passlib's own 255-byte backend
+            probe, so the message misdescribes the failure. With a bcrypt
+            release passlib can drive, such as 4.3.0, this call raises only
+            where bcrypt itself raises, which for 4.x is never on length.
     """
     return pwd_context.hash(password)
 

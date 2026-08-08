@@ -44,9 +44,9 @@ class CollaborationService:
     async def connect(self, websocket: WebSocket, document_id: str, user_id: str) -> None:
         """Register an editor socket and subscribe it to the document topic.
 
-        The socket is stored under the document and user identifiers, so a
-        second socket for the same pair replaces the first at L66 without
-        closing it, and the evicted editor stops receiving anything. Both
+        The socket is stored under the document and user identifiers. A second
+        socket for the same pair replaces the first at L66 without closing it,
+        and the evicted editor stops receiving anything. Both
         connections resolve to one subscription name at L70, so the second
         `create_subscription` at L73 returns `AlreadyExists`, which L76
         prints before L77 returns, leaving that socket registered with no
@@ -104,9 +104,9 @@ class CollaborationService:
         """Remove an editor socket and delete its Pub/Sub subscription.
 
         The document entry is dropped once its last socket goes at L121.
-        L124 rebuilds the subscription name from the document and user
-        alone, so L126 deletes the name every socket for that pair shares,
-        and closing one tab cuts the feed to another. Deletion errors print.
+        L124 rebuilds the subscription name from the document and user alone,
+        so L126 deletes the name every socket for that pair shares. Closing
+        one tab therefore cuts the feed to another. Deletion errors print.
 
         Args:
             document_id: Document the editor was working on.

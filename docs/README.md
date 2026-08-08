@@ -4,7 +4,7 @@ The documents in this directory describe the `microsoft-word-u33ko0` repository 
 committed, gaps included. Every measurement takes commit `06be74c` as its baseline, and every
 locator points at the current branch head. The three specification documents under
 `../documentation/` describe an aspirational system instead, and nothing here inherits their claims.
-Where the committed code and a specification disagree, the documentation states both positions and
+Where the committed code and a specification disagree, this set states both positions and
 labels which is which. Every factual claim carries a file reference, so you can check any sentence
 against the line it came from.
 

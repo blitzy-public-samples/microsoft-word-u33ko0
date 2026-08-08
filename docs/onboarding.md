@@ -1,9 +1,10 @@
 # Onboarding Guide
 
-The `microsoft-word-u33ko0` repository does not run. Two commands succeed on a clean machine, a third
-runs to completion and exits nonzero by design, and every path past those three stops at a line named
-below. Work through the setup, expect the failures this guide predicts, then use the closing task list
-to choose what to repair first.
+The `microsoft-word-u33ko0` repository does not run. Four commands complete on a clean machine: two
+succeed and two run to completion and report failure by design.
+[What you can actually run today](#what-you-can-actually-run-today) lists all four, and every path
+past them stops at a line named below. Work through the setup, expect the failures this guide
+predicts, then use the closing task list to choose what to repair first.
 
 The [root README](../README.md) is the only other onboarding document here, and six of its statements
 contradict the committed tree, one of them only in part. Three sit in the README's installation and run
@@ -64,17 +65,12 @@ because every gap in this guide lands against one of them.
 - **Document lifecycle.** Create, read, update and delete, abbreviated CRUD, across five HTTP
   handlers and four service methods.
 - **Ownership-based authorization.** Of the fourteen handlers, twelve declare bearer authentication
-  and two are public. Declaring that dependency is not the same as enforcing an owner check, and the
-  twelve split four ways, registered with locators in
-  [troubleshooting.md](troubleshooting.md#g91-the-backend-http-surface). Three attempt an owner
-  check, on the document read, update and delete paths, and current call defects stop all three
-  before the comparison. Two are self-scoped, because both profile handlers read the token's own
-  subject at `backend/app/api/users.py:L20` and `:L33`. One is document create, which stores nothing:
-  `backend/app/api/documents.py:L46` hands the whole `current_user` object where
-  `backend/app/services/document_service.py:L42` declares `user_id: str`, and Firestore cannot encode
-  a Pydantic model, so the write at `:L73` raises before it is sent. The remaining six, the document
-  list handler and the five template handlers, cannot have their scope established, because each calls
-  something no file defines. No object check is enforced anywhere today.
+  and two are public. Declaring that dependency is not the same as enforcing an owner check, and no
+  object check is enforced anywhere today, with every locator in
+  [troubleshooting.md](troubleshooting.md#g91-the-backend-http-surface). Three handlers attempt an
+  owner comparison, and current call defects stop all three before it. Two are self-scoped to the
+  token's own subject at `backend/app/api/users.py:L20` and `:L33`, one is document create, which
+  stores nothing, and the remaining six call something no file defines.
 - **Rich-text editing.** Draft.js holds the editor state, and two helpers apply inline and block
   formatting.
 - **Templates.** Five handlers and a card gallery on the client.
@@ -101,9 +97,10 @@ No committed file targets Windows. On Windows, run everything inside Windows Sub
 backend setup section](#setting-up-the-backend). The frontend commands need no substitution, because
 `npm` and `npx` take the same form on every platform.
 
-Four tools carry a declared version, and each version comes from a committed file. Each also carries a
-conflict worth knowing before you install anything. Two more tools are needed and declared nowhere:
-Git, to obtain the code, and `zip`, which `scripts/deploy.sh:L19` calls and
+Three of the four tools below carry a declared version, and each of those versions comes from a
+committed file. The fourth, the Google Cloud SDK, is named with no version at all. Each row also
+carries a conflict worth knowing before you install anything. Two more tools are needed and declared
+nowhere: Git, to obtain the code, and `zip`, which `scripts/deploy.sh:L19` calls and
 `scripts/setup_dev_environment.sh:L10` never installs. The command block below installs all six.
 
 | Tool | Version to install | Where it is declared | Conflict |
@@ -128,8 +125,13 @@ anywhere.
 That end-of-life status changes how you install two of the four tools. A current distribution's own
 repositories no longer carry Python 3.9 or Node 14, so install each through its version manager and
 the rest through the package manager. Install the two version managers first, because a clean machine
-carries neither. The commands below are the full prerequisite set for a Debian or Ubuntu machine, in
-order:
+carries neither.
+
+Three platforms are covered below, and each gets one exact sequence. Debian and Ubuntu come first,
+macOS with Homebrew follows, and Windows runs the Debian sequence unchanged inside WSL. No other
+platform is covered here, and no step below asks you to choose a value.
+
+The commands below are the full prerequisite set for a Debian or Ubuntu machine, in order:
 
 ```bash
 # 1. Packages the distribution still carries. zip is needed by scripts/deploy.sh:L19,
@@ -142,20 +144,20 @@ sudo apt-get install -y git curl wget zip make build-essential llvm xz-utils tk-
   libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev libncurses5-dev \
   libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev postgresql
 
-# 2. nvm, the Node Version Manager. Clone it, then check out a release tag you have
-# verified rather than tracking the default branch. https://github.com/nvm-sh/nvm
+# 2. nvm, the Node Version Manager. Clone it, then check out a release tag rather
+# than tracking the default branch. https://github.com/nvm-sh/nvm
 git clone https://github.com/nvm-sh/nvm.git "$HOME/.nvm"
-git -C "$HOME/.nvm" checkout <tag>       # a tag from the project's releases page
+git -C "$HOME/.nvm" checkout v0.40.6     # nvm's current release, 15 July 2026
 . "$HOME/.nvm/nvm.sh"                    # add this line to your shell profile
 
 # 3. Node 14, the version this repository declares.
 nvm install 14
 nvm use 14
 
-# 4. pyenv, under the same rule: clone, then check out a verified tag.
+# 4. pyenv, under the same rule: clone, then check out a release tag.
 # https://github.com/pyenv/pyenv
 git clone https://github.com/pyenv/pyenv.git "$HOME/.pyenv"
-git -C "$HOME/.pyenv" checkout <tag>
+git -C "$HOME/.pyenv" checkout v2.8.3    # pyenv's current release, 5 August 2026
 export PYENV_ROOT="$HOME/.pyenv"         # add these three lines to your
 export PATH="$PYENV_ROOT/bin:$PATH"      # shell profile as well
 eval "$(pyenv init -)"
@@ -173,23 +175,63 @@ less install_google_cloud_sdk.bash       # read it first
 bash install_google_cloud_sdk.bash --disable-prompts
 ```
 
-Two of those steps carry a deliberate placeholder. `<tag>` stays unresolved because pinning a tag you
-have checked is the whole point, and a tag named here would go stale without warning. For a build
-machine, prefer the fully pinned Cloud SDK route instead of step 6: a versioned archive with a
+Both version-manager tags above are real releases, checked against each project's own releases API on
+8 August 2026. A later tag works as well, and the two named here let the block run as written. For a
+build machine, prefer the fully pinned Cloud SDK route instead of step 6: a versioned archive with a
 published checksum, listed under
 [versioned archives](https://docs.cloud.google.com/sdk/docs/downloads-versioned-archives).
 
-On macOS, `brew install git curl zip postgresql@13` replaces step 1 and
-`brew install --cask google-cloud-sdk` replaces step 6. Homebrew packages both version managers, so
-steps 2 and 4 become `brew install nvm pyenv` followed by the same shell-profile lines. Steps 3 and 5
-are identical on both platforms. Using a version manager for the two runtimes also keeps an
-unsupported interpreter out of the system path.
+Step 1 installs whatever PostgreSQL major version the distribution carries, which is not 13, and no
+command in this guide connects to it. The paragraph on PostgreSQL priority further down this section
+explains why the version does not matter here.
 
-Every Python version below is pinned. The repository commits no manifest, so this documentation set
-resolved one mutually compatible set for Python 3.9 and records it here rather than leaving the
-choice open. Unpinned guidance is not a reproducible clean-machine path, and a fresh resolution on a
-later date would install a different and possibly incompatible set. Adding the resolved set to a
-committed manifest fell outside this engagement, so the pins live in this document only.
+macOS runs a different sequence rather than a substitution, because two steps behave differently:
+
+```bash
+# 1. Packages Homebrew carries. PostgreSQL is deliberately absent; see below.
+brew install git curl zip
+
+# 2. nvm, following Homebrew's own caveat rather than the git-clone lines above.
+# Homebrew states that upstream does not support managing nvm this way.
+brew install nvm
+mkdir -p "$HOME/.nvm"
+export NVM_DIR="$HOME/.nvm"                    # add these two lines to
+. "$(brew --prefix)/opt/nvm/nvm.sh"            # ~/.zshrc
+
+# 3. Node 14. On Apple Silicon, read the note below before running this.
+nvm install 14
+nvm use 14
+
+# 4. pyenv. Homebrew puts the binary on PATH, so only the init line is needed.
+brew install pyenv
+eval "$(pyenv init -)"                         # add this line to ~/.zshrc
+pyenv install 3.9
+pyenv local 3.9
+
+# 5. Google Cloud SDK.
+brew install --cask google-cloud-sdk
+```
+
+Two macOS facts sit behind that sequence. Homebrew disabled `postgresql@13` on 1 March 2026, marking
+it unsupported, so `brew install postgresql@13` now fails outright. Two honest options remain:
+`docker compose up db` uses the committed `postgres:13` image at
+`../infrastructure/docker/docker-compose.yml:L31`, and `brew install postgresql@17` gives a supported
+server four major versions ahead of the declaration.
+
+Node 14 is the second fact. The Node.js release index lists only `osx-x64` builds for every 14.x
+release, including the final 14.21.3, and the first macOS `arm64` build is 16.0.0. On Apple Silicon,
+`nvm install 14` therefore has no binary to fetch and falls back to a source build. Running the whole
+sequence under Rosetta with `arch -x86_64 zsh` is the shorter route.
+
+Using a version manager for the two runtimes on either platform keeps an unsupported interpreter out
+of the system path.
+
+Every Python version below is pinned, and so are the two version-manager tags above. The repository
+commits no manifest, so this documentation set resolved one mutually compatible set for Python 3.9
+and records it here. Adding that set to a committed manifest fell outside this engagement, so the
+pins live in this document only. Decision row 24 in
+[decision-log.md](decision-log.md#the-decision-table) records the alternatives and the risk that
+pinning in prose carries.
 
 Choosing a newer runtime changes which failures you meet rather than removing them. Current Pydantic
 breaks `backend/app/core/config.py:L17` on the first import, and
@@ -209,9 +251,13 @@ engine, a session factory and a declarative base, and no module in the repositor
 base, defines a model, or calls the session. The relational path stays dead while Firestore carries
 every document write. See [data-model.md](data-model.md#persistence-overview) for the split.
 
-Git is installed above, and the README's clone command still cannot get you the code.
-`../README.md:L29` clones `https://github.com/your-organization/microsoft-word.git`, a placeholder
-organisation. Clone from wherever this repository actually lives.
+Git is installed above, and no clone step is needed to follow this guide. You are reading a file
+inside the repository, so the checkout already exists. Every command below runs from the repository
+root, the directory holding `frontend/`, `backend/` and this `docs/` directory.
+
+The README's clone command cannot get you a second copy. `../README.md:L29` clones
+`https://github.com/your-organization/microsoft-word.git`, a placeholder organisation that does not
+resolve. Run `git remote -v` in this checkout to read the remote that does.
 
 ## Before you install anything
 
@@ -467,13 +513,31 @@ releases requires Python 3.10 or newer, so no `python-multipart` pin closes them
 3.9. The [dated register](troubleshooting.md#the-dated-dependency-and-advisory-register) carries the
 version-by-version evidence.
 
+A third constraint binds two of the names together. `passlib` and `bcrypt` are a pair, and the
+current release of each cannot work with the other, so both carry a pin below.
+
 ```bash
 pip install \
   "fastapi>=0.89.0" "pydantic>=1.10,<2" "SQLAlchemy>=1.4" \
-  python-jose passlib bcrypt python-multipart python-dotenv \
+  python-jose "passlib==1.7.4" "bcrypt==4.3.0" python-multipart python-dotenv \
   celery redis psycopg2-binary cryptography uvicorn \
   google-cloud-firestore google-cloud-storage google-cloud-pubsub google-auth
 ```
+
+The two pins are the reason to read this paragraph before running the command. Leaving both names
+unpinned resolves passlib 1.7.4, its last release, beside bcrypt 5.0.0. That pair raises
+`ValueError: password cannot be longer than 72 bytes` on **every** hash and every verify, including a
+five-byte password.
+
+Three facts explain it. Passlib initialises its bcrypt backend by hashing a 255-byte probe secret,
+bcrypt 5.0.0 rejects any input over 72 bytes, and the probe's error escapes to the caller. The
+message names a limit the submitted password never reaches, so it misdescribes its own cause. bcrypt
+4.3.0 is a release passlib can drive, verified directly against the committed `CryptContext`
+construction, which is why the command pins it.
+
+Repairing this properly is a dependency change rather than a documentation one.
+[troubleshooting.md](troubleshooting.md#the-passlib-and-bcrypt-pairing-decides-whether-any-password-can-be-hashed)
+sets out the mechanism, the pinning route and the two maintained replacements.
 
 `starlette` arrives as a `fastapi` dependency, so those seventeen names cover all seventeen
 distributions the import graph requires as well as the four that configuration selects. The command
@@ -573,10 +637,12 @@ exits non-zero, one error per module, and each names a different import root:
 | `test_db.py` | `L6`, `from backend.db.firestore_operations import FirestoreOperations` | `ModuleNotFoundError: No module named 'backend.db'` |
 | `test_services.py` | `L3`, `from services.document_service import DocumentService` | `ModuleNotFoundError: No module named 'services'` |
 
-Two blockers sit behind those three errors, and no single `PYTHONPATH` value clears the first. The
-import roots disagree: `app.*` needs `backend/` on the import path, bare `services.*` needs
-`backend/app/`, and `backend.*` needs the repository root. Zero `__init__.py` files exist under
-`backend/`, so every root that does resolve resolves as an implicit namespace package.
+Two blockers sit behind those three errors, and no single directory on `PYTHONPATH` clears the first.
+The import roots disagree: `app.*` needs `backend/` on the import path, bare `services.*` needs
+`backend/app/`, and `backend.*` needs the repository root. One `PYTHONPATH` value can list all three
+directories at once, so the roots are reachable together; no single entry reaches more than one of
+them. Zero `__init__.py` files exist under `backend/`, so every root that does resolve resolves as an
+implicit namespace package.
 
 The second blocker is absent targets. Six module names have no file behind them at any root:
 `app.models` and `app.database` (`test_api.py:L4-L5`), `backend.db.firestore_operations` and
@@ -607,8 +673,8 @@ stops.
 
 The second and fourth rows are worth reading twice. Both tools run to completion, which makes them the
 most informative commands in the repository, and both still fail. Reading "the tool ran" as "the check
-passed" is the easiest mistake to make here. That is why this section counts commands that complete
-rather than commands that succeed.
+passed" is the easiest mistake to make here. The table therefore counts commands that complete, and
+the Exit status column separates the two that succeed from the two that report failure.
 
 Parse the backend without writing anything into the tree:
 
@@ -712,8 +778,8 @@ surfaces only once every row above it is repaired.
 | Third | Four router names that no module exports | `backend/app/main.py:L16-L19` imports `auth_router`, `documents_router`, `users_router` and `templates_router`, and all four modules export the bare name `router` | Nothing. The four `ImportError`s surface one at a time, because each import line stops `main.py` on its own |
 | Fourth | Two absent template modules | `backend/app/api/templates.py:L17` imports from `app.schema.template` and `:L18` from `app.services.template_service`, and neither file exists | Nothing. Reached when `backend/app/main.py:L19` executes `app.api.templates` |
 | Fifth | The absent `init_db` symbol | `backend/app/main.py:L22` imports `init_db` from `app.db.sql`, which defines `engine`, `SessionLocal`, `Base` and `get_db` and no `init_db` | Nothing. Reached once all four router imports resolve |
-| Latent, at definition time | Undefined names in a signature, which Python evaluates when it executes the `def` | Registered in [troubleshooting.md](troubleshooting.md#the-verified-import-census) | Nothing, and nothing above clears them. `Optional` at `backend/app/core/security.py:L25` and `User` at `:L90` both sit in signature annotations, so each raises `NameError` while the module is still being evaluated |
-| Latent, at execution time | Undefined names in a function body, which Python evaluates only on a call | Registered in [troubleshooting.md](troubleshooting.md#the-verified-import-census) | Nothing, and nothing above clears them. `UserService` at `backend/app/core/security.py:L130`, `asyncio` and `json` in `backend/app/services/collaboration_service.py`, and `datetime` in `backend/app/tasks/background_tasks.py` |
+| Latent, at definition time | Undefined names in a signature, which Python evaluates when it executes the `def` | Registered in [troubleshooting.md](troubleshooting.md#the-verified-import-census) | Nothing, and nothing above clears them. `Optional` at `backend/app/core/security.py:L25` and `User` at `:L119` both sit in signature annotations, so each raises `NameError` while the module is still being evaluated |
+| Latent, at execution time | Undefined names in a function body, which Python evaluates only on a call | Registered in [troubleshooting.md](troubleshooting.md#the-verified-import-census) | Nothing, and nothing above clears them. `UserService` at `backend/app/core/security.py:L159`, `asyncio` and `json` in `backend/app/services/collaboration_service.py`, and `datetime` in `backend/app/tasks/background_tasks.py` |
 
 A future contributor cannot stop after two repairs. Adding the `settings` instance clears nine of
 the twelve failing modules, and the next error comes from the same file rather than from
@@ -773,7 +839,7 @@ problem and has a cause somewhere else.
 | --------- | -------------- | ---------------------- |
 | The `@/` import prefix resolves nowhere | 44 of the 57 module-resolution errors, and a client that never bundles | `frontend/tsconfig.json:L10-L16` plus the `react-scripts` pin at `frontend/package.json:L29` |
 | `npm ci` cannot run anywhere | The CI job and the frontend image both stop at their install step | `.github/workflows/ci.yml:L19` and `infrastructure/docker/frontend.Dockerfile:L11` |
-| Six backend distributions appear in no import statement | The environment build fails again after each fix | [The backend setup section](#setting-up-the-backend) and [the authoritative inventory](../backend/app/README.md) |
+| Seven backend distributions have to be installed by name and appear in no import statement | The environment build fails again after each fix | [The backend setup section](#setting-up-the-backend) and [the authoritative inventory](../backend/app/README.md) |
 | Tailwind CSS never compiles | An interface with no styling at all | No `tailwind.config.js`, no `postcss.config.js` and no committed stylesheet |
 
 **The `@/` prefix.** Forty-four imports across 13 of the 26 frontend modules use it, and adding the alias to
@@ -786,20 +852,24 @@ so both automated invocations fail before any test or build step runs. Any fix t
 also changes what the pipeline installs, which is why
 [troubleshooting.md](troubleshooting.md#npm-ci-cannot-run-anywhere) records the two sites separately.
 
-**The invisible six.** A developer who builds the Python environment by reading import statements
-installs ten distributions and stops. Six more surface one at a time, each as execution reaches it:
+**The invisible seven.** A developer who builds the Python environment by reading import statements
+installs ten distributions and stops. Eleven more are needed, four of which arrive transitively with
+the packages above. The remaining seven have to be named, and each surfaces as execution reaches it:
 
 - `uvicorn` when you try to serve the application.
-- `bcrypt` when a password is hashed.
+- `bcrypt` when a password is hashed, and a second time when the resolved release turns out to be one
+  passlib cannot drive.
 - `python-multipart` when a login form is posted.
 - A PostgreSQL driver when the engine at `backend/app/db/sql.py:L16` connects.
 - A Redis client when Celery attaches to the broker at `backend/app/tasks/background_tasks.py:L22`.
 - `cryptography` when `settings.ALGORITHM` names an asymmetric signing algorithm.
+- `python-dotenv` when Pydantic reads the `env_file` named at `backend/app/core/config.py:L58`, which
+  happens only once a `.env` file exists.
 
 The first three belong to [the authoritative inventory](../backend/app/README.md), which counts them
-as one runtime and two conditional entries. The last three are chosen by a configuration value rather
+as one runtime and two conditional entries. The last four are chosen by a configuration value rather
 than by an import, so the inventory excludes them.
-[The backend setup section](#setting-up-the-backend) names each of those three beside the value that
+[The backend setup section](#setting-up-the-backend) names each of those four beside the value that
 selects it. Install from both places in one pass.
 
 **Tailwind.** Utility classes appear throughout the components, and nothing compiles them. No Tailwind
@@ -956,7 +1026,8 @@ Module documentation for the facts this guide draws on:
 Reference material, read and never edited:
 
 - [../README.md](../README.md), the root README. Prerequisites at `L22-L23` are accurate. The
-  instructions at `L42` and `L44` name a file and a path the tree does not carry.
+  instruction at `L42` installs from a `requirements.txt` the tree does not carry, and the one at
+  `L55` starts `uvicorn main:app` from `backend/`, where no `main.py` sits.
 - [Technical Specifications](<../documentation/Technical Specifications.md>), declared intent. The
   five level-one headings sit at `L3` INTRODUCTION, `L125` SYSTEM ARCHITECTURE, `L300` SYSTEM DESIGN,
   `L523` TECHNOLOGY STACK and `L620` SECURITY CONSIDERATIONS, and the file carries no numbered section

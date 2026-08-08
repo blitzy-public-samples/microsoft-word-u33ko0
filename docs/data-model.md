@@ -3,9 +3,9 @@
 Two contract languages describe the same four entity families in this repository, and no artifact
 keeps them in agreement. The Pydantic models under `backend/app/schema/` and the Zod schemas under
 `frontend/src/schema/` have drifted apart as a result. [Why drift arose](#why-drift-arose) covers
-the mechanism, and the sections after it enumerate the individual divergences. The ordering choice,
-along with every other judgement this documentation set made, is recorded in
-[decision-log.md](decision-log.md).
+the mechanism, and the sections after it enumerate the individual divergences. That ordering is
+decision row 22 in [decision-log.md](decision-log.md#the-decision-table), which also carries the
+alternatives weighed and the risk it accepts.
 
 Persistence splits the same way. Google Cloud Firestore is the implemented persistence target for
 every record the code writes, and the Cloud SQL path stays declared and unreachable. Neither target
@@ -286,7 +286,7 @@ Three properties of this file shape the drift downstream.
 contract pins the backend to Pydantic 1.x. The setting lets a model read attributes off an object
 instead of a dictionary, and no ORM model exists anywhere in the backend for it to read.
 
-`User` declares no field for the password hash. `backend/app/api/auth.py:L131` computes one with
+`User` declares no field for the password hash. `backend/app/api/auth.py:L139` computes one with
 `pwd_context.hash(user.password)` during registration, and the response contract at
 `backend/app/schema/user.py:L56` has nowhere to carry it. `UserCreate` declares `password` at
 `backend/app/schema/user.py:L38`, so the plaintext field crosses the boundary inbound and the hash
@@ -372,7 +372,7 @@ rather than committed behaviour.
 | Timestamp type | `datetime`, which the server serializes to text | `z.date()` at `document.ts:L28`, `:L29`, `:L43` | `timestamp` at `documentation/Technical Specifications.md:L334-L335` | `z.date()` rejects an ISO 8601 string, so validation would fail on correct server data |
 | Collaborator list | no model declares one | `collaborators: z.array(z.string())` at `document.ts:L30` | a `Collaborators` node in the Firestore diagram at `documentation/Technical Specifications.md:L325`, with no field enumerated | A client-only array. No handler returns one, so a response never carries the field |
 | User modification timestamp | `updated_at` required at `user.py:L70` | absent from `UserSchema` at `user.ts:L19-L27` | `created_at` only, at `documentation/Technical Specifications.md:L354` | The client type cannot carry a field the server contract requires |
-| Password | required on `UserCreate` at `user.py:L38`, absent from `User` at `:L56` | modelled in neither schema | not enumerated in either collection listing | The hash computed at `backend/app/api/auth.py:L131` has no modelled home outbound |
+| Password | required on `UserCreate` at `user.py:L38`, absent from `User` at `:L56` | modelled in neither schema | not enumerated in either collection listing | The hash computed at `backend/app/api/auth.py:L139` has no modelled home outbound |
 | Display name | `username` at `user.py:L27`, `full_name` at `:L28` | `username` at `user.ts:L22`, `full_name` at `:L23` | `display_name` at `documentation/Technical Specifications.md:L353` | Three names for one concept, and the client reads a fourth at `Header.tsx:L53`, `Home.tsx:L35` and `Settings.tsx:L36` |
 | Avatar | no model declares one | no schema declares one | not enumerated | `Header.tsx:L52` sets an image source from `currentUser.avatar`, which no contract declares |
 | Page count | no model declares `pages` | no schema declares `pages` | not enumerated | `background_tasks.py:L139` evaluates `len(document.pages)` against a contract without the field |
@@ -611,18 +611,20 @@ The one edge drawn between them is dashed and labelled as the absent join.
 declares no props, so `handleContentChange` at `:L92` is never called. The `content` state at `:L31`
 therefore keeps the empty string it was initialised with.
 
-Path B follows the update contract, because the editor calls `updateDocument`. The create contract is
-a separate path with the same destination. `frontend/src/services/api.ts:L81` posts to
+Path B follows the update contract, because the editor calls `updateDocument`, and the create
+contract is a separate path with the same destination. `frontend/src/services/api.ts:L81` posts to
 `/documents`, `backend/app/api/documents.py:L24` binds `DocumentCreate` from
 `backend/app/schema/document.py:L30`, and `backend/app/services/document_service.py:L70-L73`
 serializes the model, adds `user_id` and `id`, and calls `set`. That assembled dictionary carries
 `owner_id` from the payload alongside `user_id` from the argument, so the two owner identities meet in
-one structure. The write does not complete, and no record is stored. The router passes the whole
-`current_user` object at `backend/app/api/documents.py:L46` where `document_service.py:L42` declares
-`user_id: str`, and the Firestore client cannot encode a Pydantic model into a stored value, so `set`
-at `:L73` raises while it builds the write and before it sends anything. The dual-identity structure
-therefore exists in memory only, which is where the drift this document catalogues would land once the
-call site passes a string.
+one structure.
+
+The write does not complete, because the router passes the whole `current_user` object at
+`backend/app/api/documents.py:L46` where `document_service.py:L42` declares `user_id: str`. The
+Firestore client cannot encode a Pydantic model into a stored value, so `set` at `:L73` raises before
+it sends anything and no record is stored. The dual-identity structure therefore exists in memory
+only, which is where the drift this document catalogues would land once the call site passes a
+string.
 
 ## Related documentation
 
