@@ -69,17 +69,17 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 def get_password_hash(password: str) -> str:
     """Hash a password with the bcrypt scheme configured on `pwd_context`.
 
-    bcrypt reads at most 72 bytes of input. How a longer password is treated
-    depends on the installed release: older releases truncated silently,
-    while bcrypt 5.0.0 raises `ValueError`. The repository commits no
-    backend manifest, so the resolved `passlib` and `bcrypt` pair, and
-    therefore which behaviour applies, cannot be established here.
+    No schema bounds the input, so bcrypt alone decides the outcome. Older
+    releases truncate at 72 bytes, so longer passwords collide on that prefix.
 
     Args:
-        password: The password to hash.
+        password: The password to hash, unbounded by any schema rule.
 
     Returns:
         The bcrypt hash, including its salt and cost parameter.
+
+    Raises:
+        ValueError: From bcrypt 5.0.0 when the password exceeds 72 bytes.
     """
     return pwd_context.hash(password)
 

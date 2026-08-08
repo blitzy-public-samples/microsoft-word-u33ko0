@@ -19,10 +19,10 @@ from app.core.config import settings
 class DocumentService:
     """Read and write document records in the `documents` collection.
 
-    Each method compares the stored `user_id` against the caller before it
-    returns or changes anything, which is the only authorization the
-    document feature has. The class declares no `get_documents`, and
-    `app/api/documents.py` calls one.
+    `get_document`, `update_document` and `delete_document` compare the
+    stored `user_id` against the caller, and those three are the only
+    object-level authorization here. `create_document` compares nothing.
+    The class declares no `get_documents`, and `app/api/documents.py` calls one.
 
     Public methods:
         create_document: Store a new document and return it.
@@ -43,15 +43,14 @@ class DocumentService:
         """Store a new document owned by the given user.
 
         The record is assembled from the request body, then a `user_id` key
-        and the Firestore-generated `id` are added, so the stored record
-        carries `user_id` while the `Document` contract declares `owner_id`.
-        Neither `created_at` nor `updated_at` is written, and both are
-        required on `Document`, so the return below raises a validation
-        error.
+        and the Firestore-generated `id` are added. Given the declared `str`,
+        the record would carry `user_id` while `Document` declares `owner_id`.
+        The router passes a `User`, which Firestore cannot encode, so the
+        write raises before it is sent and nothing is stored. Neither
+        `created_at` nor `updated_at` is written, and both are required.
 
         Args:
-            document: The validated request body, declared
-                `DocumentCreate`.
+            document: The validated request body, declared `DocumentCreate`.
             user_id: Identifier of the owning user. The router passes the
                 whole `User` object instead.
 
@@ -60,6 +59,7 @@ class DocumentService:
 
         Raises:
             HTTPException: 400 when the title or the content is empty.
+            TypeError: From Firestore encoding when `user_id` holds a `User`.
         """
         # Validate input data
         if not document.title or not document.content:

@@ -126,8 +126,9 @@ section that carries the detail.
 | `ModuleNotFoundError: No module named 'app.services.user_service'` | Importing `app.api.users` or `app.api.auth` | [G1](#g1-absent-modules-referenced-by-committed-code) | `backend/app/api/users.py:L14` and `backend/app/api/auth.py:L21` |
 | `NameError: name 'Optional' is not defined` | Importing `app.core.security` | [G3](#g3-undefined-names-that-raise-at-execution) | `backend/app/core/security.py:L25` uses `Optional` with no import behind it |
 | Template endpoints return document responses | Calling any `/{id}` route | [G7 shadowed routes](#document-routes-shadow-the-template-and-profile-routes) | `backend/app/main.py:L80-L83` mounts every router with no prefix |
-| `GET /me` returns a document read, or 404 for a document called `me` | Fetching the signed-in profile | [G7 shadowed routes](#document-routes-shadow-the-template-and-profile-routes) | `backend/app/api/documents.py:L68` claims every single-segment path ahead of `backend/app/api/users.py:L19` |
-| `POST /documents` answers 405 while `PUT /documents/{id}` answers 404 | Calling the document API from the client | [G7 client routes](#the-client-calls-six-routes-and-no-server-route-matches-any-of-them) | `frontend/src/services/api.ts:L82` and `:L95` prefix a segment no route declares |
+| `GET /me` answers 401 without valid credentials, and with them returns a document read or a 404 for a document called `me` | Fetching the signed-in profile | [G7 shadowed routes](#document-routes-shadow-the-template-and-profile-routes) | `backend/app/api/documents.py:L68` claims every single-segment path ahead of `backend/app/api/users.py:L19`, and both routes are protected, so the token resolves before the substitution is observable |
+| `POST /documents` answers 405 while `PUT /documents/{id}` answers 404 | Calling the document API from the client | [G7 client routes](#the-client-calls-six-routes-and-no-server-route-matches-any-of-them) | `frontend/src/services/api.ts:L82` and `:L95` prefix a segment no route declares. Routing settles both before any dependency runs, so neither depends on credentials |
+| `GET /documents` answers 401 without valid credentials and 500 with them | Listing documents from the client | [G7 client routes](#the-client-calls-six-routes-and-no-server-route-matches-any-of-them) | `frontend/src/services/api.ts:L70` sends one segment, which the protected `GET /{document_id}` at `backend/app/api/documents.py:L68` claims |
 | Login answers 422 rather than 401 once the path is corrected | Signing in | [G7 client routes](#the-client-calls-six-routes-and-no-server-route-matches-any-of-them) | `frontend/src/services/auth.ts:L36` sends JSON `email`, and `backend/app/api/auth.py:L66` reads a form `username` |
 | `npm ci` fails in continuous integration, reporting `ENOENT` on npm 6 or `EUSAGE` on npm 7 and newer | Running the CI workflow | [G8 npm ci](#npm-ci-cannot-run-anywhere) | `.github/workflows/ci.yml:L19` runs at the repository root, where no manifest and no lockfile exist. `ci.yml:L17` pins Node 14, which ships npm 6 |
 | `docker compose build` cannot find a Dockerfile | Building the containers | [G8 Compose contexts](#compose-points-at-dockerfiles-that-are-not-there) | `infrastructure/docker/docker-compose.yml:L6-L7` and `:L19-L20` |
@@ -495,13 +496,30 @@ reach a release the code could load. The last two columns then ask whether a fix
 on the Python version the repository documents. Runtime support comes from each release's own
 `Requires-Python` metadata.
 
+Two tables follow, and the split is deliberate. This repository needs 47 distributions in total: 21
+declared in `../frontend/package.json`, 5 imported by the frontend and declared nowhere, 17 required
+by the backend, and 4 more that a configuration value rather than a committed line makes necessary.
+Setting out 47 advisory histories would bury the rows that decide anything, so the first table is
+**risk-based** and carries only the distributions where a published advisory reaches a release this
+code could load. The second table is the **complete inventory** of all 47, so nothing is silently
+omitted. Absence from the risk table means no advisory was found for that distribution on the date
+above, never that it went unlisted, and the inventory states which of the two applies per row.
+
+**Risk table.** Nine rows, all PyPI. Seven carry a published advisory that reaches a release this code
+could load. The remaining two, `bcrypt` and `passlib`, carry no advisory and appear because their
+behaviour decides what registration does at `../backend/app/api/auth.py:L131`. The one npm advisory
+sits below the inventory, because these columns ask a Python question.
+
 | Distribution | What the code requires | Advisories reaching a loadable release | Highest release installable on Python 3.9 | Fixed release reachable on 3.9 |
 | --- | --- | --- | --- | --- |
 | `python-jose` | Any release exposing `jwt` and `JWTError`, imported at `../backend/app/core/security.py:L16` | [CVE-2024-33663](https://github.com/advisories/GHSA-6c5p-j8vq-pqhj) algorithm confusion with OpenSSH ECDSA and other key formats, and [CVE-2024-33664](https://github.com/advisories/GHSA-cjwg-qfpm-7377) resource exhaustion decoding a compressed JWE token. Both fixed in 3.4.0. [CVE-2016-7036](https://github.com/advisories/GHSA-w799-prg3-cx77) non-constant-time HMAC comparison, fixed in 1.3.2 | 3.5.0, whose metadata requires Python 3.9 or newer | Yes. 3.4.0 and 3.5.0 both install |
 | `pydantic` | 1.x only. `../backend/app/core/config.py:L17` imports `BaseSettings` from the main package and `../backend/app/schema/user.py:L81` sets `orm_mode`, both of which Pydantic 2 moved or renamed | [CVE-2024-3772](https://github.com/advisories/GHSA-mr82-8j83-vxmv) regular-expression denial of service, fixed in 1.10.13 on the 1.x line. [CVE-2021-29510](https://github.com/advisories/GHSA-5jqp-qgf6-3pvh) infinite loop on an `infinity` date input, fixed in 1.8.2 | The 1.10 series, whose metadata requires Python 3.7 or newer | Yes. `>=1.10.13,<2` satisfies both advisories and keeps 1.x |
 | `python-multipart` | Any release FastAPI can use to parse the form body at `../backend/app/api/auth.py:L66` | Nine advisories, fixed across 0.0.7, 0.0.18, 0.0.22, 0.0.26, 0.0.27, 0.0.30 for three of them, and 0.0.31 | 0.0.20. Every release from 0.0.21 onward requires Python 3.10 or newer | **No.** 0.0.20 carries the two earliest fixes and none of the seven from 0.0.22 onward |
 | `celery` | Any release exposing `Celery`, imported at `../backend/app/tasks/background_tasks.py:L14` | [CVE-2021-23727](https://github.com/advisories/GHSA-q4xr-rc97-m4xx) command injection through a stored result, fixed in 5.2.2 | 5.6.3, whose metadata requires Python 3.9 or newer | Yes. Every release from 5.2.2 onward installs |
-| `bcrypt` | Any release `passlib` can drive as its bcrypt backend, configured at `../backend/app/core/security.py:L22` | None recorded against the distribution. One behaviour difference does affect the contract: bcrypt reads at most 72 bytes, older releases truncated a longer password silently, and 5.0.0 raises `ValueError` instead. The docstring at `../backend/app/core/security.py:L72-L76` records that difference | 5.0.0, whose metadata requires Python 3.8 or newer | Not applicable |
+| `bcrypt` | Any release `passlib` can drive as its bcrypt backend, configured at `../backend/app/core/security.py:L22` | None recorded against the distribution. One behaviour difference does affect the contract: bcrypt reads at most 72 bytes, older releases truncated a longer password silently, and 5.0.0 raises `ValueError` instead. The docstring records that difference, with the truncation behaviour at `../backend/app/core/security.py:L72-L73` and the raising release named in its `Raises:` entry at `:L82` | 5.0.0, whose metadata requires Python 3.8 or newer | Not applicable |
+| `starlette` | Any release `fastapi` depends on. Arrives transitively and is named by no committed line | [CVE-2026-54283](https://github.com/advisories/GHSA-82w8-qh3p-5jfq), unbounded resource allocation when `request.form()` parses an `application/x-www-form-urlencoded` body. Affects 0.4.1 up to but excluding 1.3.1, fixed in 1.3.1, rated 7.5. The precondition is met by committed code: `../backend/app/api/auth.py:L66` parses exactly that body type through `OAuth2PasswordRequestForm`, on a public route | 0.49.3, because 1.3.1 and every later release require Python 3.10 or newer | **No.** The fix is unreachable on Python 3.9 |
+| `ecdsa` | Any release `python-jose` depends on. Arrives transitively and is named by no committed line | [CVE-2024-23342](https://github.com/advisories/GHSA-wj6h-64fc-37mp), the Minerva timing attack on the P-256 curve. Reaches signing, key generation and key exchange, and leaves signature verification unaffected. The maintainers record no planned fix | 0.19.2 | **No fix exists.** The precondition is an elliptic-curve `ALGORITHM` value, and `settings.ALGORITHM` is declared on no model, so no committed file selects one |
+| `pyasn1` | Any release `python-jose` depends on, by way of `rsa`. Arrives transitively and is named by no committed line | Two advisories, each rated 7.5: [CVE-2026-23490](https://github.com/advisories/GHSA-63vm-454h-vhhq), fixed in 0.6.2, and [CVE-2026-30922](https://github.com/advisories/GHSA-jr27-m4p2-rc6r), fixed in 0.6.3 | 0.6.4 | **Yes.** Both fixed releases install on Python 3.9 |
 | `passlib` | Any release exposing `CryptContext`, imported at `../backend/app/core/security.py:L17` | None recorded against the distribution | 1.7.4, which declares no Python floor | Not applicable |
 
 One row breaks the pattern, and it is the reason this table exists. The highest `python-multipart`
@@ -516,6 +534,75 @@ not collide with the Pydantic 1.x requirement, because the 1.10 series supports 
 Two limits on this table. Whether any advisory is exploitable in this repository depends on values no
 committed file supplies, and each entry below states its own preconditions. The advisory set also
 grows, so a reader repairing this repository should re-query rather than trust the date above.
+
+#### The complete distribution inventory
+
+All 47 distributions, so no dependency of this repository goes unlisted. The Advisory status column
+says one of three things, and the difference matters. **Risk table** means the row above carries the
+detail. **None recorded** means the distribution was queried and nothing was found. **Not
+individually queried** means exactly that: it is an admission, not a clearance, and a reader relying
+on the row should query it. The Reachability column gives the highest release installable on Python
+3.9 for every PyPI row, taken from each release's own `Requires-Python` metadata; npm rows state the
+declared range, because no committed file pins a Node version that `npm` would enforce.
+
+| # | Distribution | Class | Declared range or inferred requirement | Advisory status | Reachability and the precondition that would make it matter |
+| --- | --- | --- | --- | --- | --- |
+| 1 | `@reduxjs/toolkit` | npm runtime, declared | `^1.9.5` | Not individually queried | Nothing loads it, because the client cannot build |
+| 2 | `react` | npm runtime, declared | `^18.2.0` | Not individually queried | React 18 is declared while `../frontend/src/index.tsx` uses the React 17 `ReactDOM.render` entry point |
+| 3 | `react-dom` | npm runtime, declared | `^18.2.0` | Not individually queried | As `react` |
+| 4 | `react-redux` | npm runtime, declared | `^8.0.5` | Not individually queried | `Provider` is mounted twice, in `index.tsx` and again in `App.tsx` |
+| 5 | `react-router-dom` | npm runtime, declared | `^6.11.1` | **Advisory reaches it.** See the npm row below | Highest 6.x is 6.30.4 and no 6.x release carries the patch. The precondition is an open redirect, and no redirect construct exists anywhere in `../frontend/src/` |
+| 6 | `tailwindcss` | npm runtime, declared | `^3.3.2` | Not individually queried | No `tailwind.config.js`, no `postcss.config.js` and no stylesheet is committed, so no utility class compiles |
+| 7 | `typescript` | npm runtime, declared | `^4.9.5` | Not individually queried | Declared as a runtime rather than a development dependency |
+| 8 | `@testing-library/jest-dom` | npm dev, declared | `^5.16.5` | Not individually queried | No frontend test file is committed, so nothing consumes it |
+| 9 | `@testing-library/react` | npm dev, declared | `^14.0.0` | Not individually queried | As row 8 |
+| 10 | `@testing-library/user-event` | npm dev, declared | `^14.4.3` | Not individually queried | As row 8 |
+| 11 | `@types/jest` | npm dev, declared | `^29.5.1` | Not individually queried | Types only, erased at compile time |
+| 12 | `@types/node` | npm dev, declared | `^18.16.3` | Not individually queried | Types only. Declares Node 18 types against a documented Node 14 runtime |
+| 13 | `@types/react` | npm dev, declared | `^18.2.0` | Not individually queried | Types only |
+| 14 | `@types/react-dom` | npm dev, declared | `^18.2.1` | Not individually queried | Types only |
+| 15 | `@typescript-eslint/eslint-plugin` | npm dev, declared | `^5.59.2` | Not individually queried | No workflow step runs a lint, so it never executes in automation |
+| 16 | `@typescript-eslint/parser` | npm dev, declared | `^5.59.2` | Not individually queried | As row 15 |
+| 17 | `eslint` | npm dev, declared | `^8.39.0` | Not individually queried | Configured inline in `../frontend/package.json` rather than in a config file, and never run by automation |
+| 18 | `eslint-config-prettier` | npm dev, declared | `^8.8.0` | Not individually queried | As row 17 |
+| 19 | `eslint-plugin-react` | npm dev, declared | `^7.32.2` | Not individually queried | As row 17 |
+| 20 | `prettier` | npm dev, declared | `^2.8.8` | Not individually queried | No Prettier configuration file is committed, so the 100-character convention rests on the default |
+| 21 | `react-scripts` | npm dev, declared | `5.0.1`, an exact pin | Not individually queried | Version 5 does not apply `tsconfig` `paths` to webpack resolution, which is why the `@/` prefix cannot be fixed in `tsconfig.json` alone |
+| 22 | `axios` | npm, imported and declared nowhere | Any release exposing `AxiosInstance`, imported at `../frontend/src/services/api.ts:L15` and `auth.ts:L16` | Not individually queried | Absent from the manifest, so `npm install` never fetches it and the import fails resolution |
+| 23 | `draft-js` | npm, imported and declared nowhere | Any release exposing `EditorState`, `ContentState` and `RichUtils`. Imported by six modules | Not individually queried | As row 22 |
+| 24 | `@types/draft-js` | npm, imported and declared nowhere | Types for the six Draft.js importers | Not individually queried | As row 22 |
+| 25 | `zod` | npm, imported and declared nowhere | Any release exposing `z`. Imported by the three schema modules and `utils/validation.ts` | Not individually queried | As row 22 |
+| 26 | `socket.io-client` | npm, imported and declared nowhere | Any release exposing `io`, imported at `../frontend/src/services/collaboration.ts` | Not individually queried | As row 22. The server side declares a FastAPI `WebSocket` instead, so the two ends do not share a protocol |
+| 27 | `fastapi` | PyPI, required | 0.89.0 or newer, because response models come from return annotations and no handler passes `response_model=` | Not individually queried | 0.128.8 on Python 3.9 |
+| 28 | `uvicorn` | PyPI, required | Any release able to serve `main:app`, named at `../infrastructure/docker/backend.Dockerfile:L20` | Not individually queried | 0.39.0 on Python 3.9 |
+| 29 | `starlette` | PyPI, required, transitive with `fastapi` | Whatever `fastapi` resolves | Risk table | 0.49.3 on Python 3.9, and the fixed 1.3.1 needs Python 3.10, so the fix is unreachable. The precondition is met by committed code |
+| 30 | `pydantic` | PyPI, required | 1.x only, fixed by the `BaseSettings` import at `../backend/app/core/config.py:L17` and `orm_mode` at `../backend/app/schema/user.py:L81` | Risk table | 2.13.4 installs on Python 3.9 but breaks both 1.x usages, so the ceiling is a code constraint rather than a runtime one |
+| 31 | `python-jose` | PyPI, required | Any release exposing `jwt` and `JWTError` | Risk table | 3.5.0 on Python 3.9. The import name differs from the distribution name |
+| 32 | `ecdsa` | PyPI, required, transitive with `python-jose` | Whatever `python-jose` resolves | Risk table | 0.19.2 on Python 3.9, and no fix exists. Needs an elliptic-curve `ALGORITHM`, which no committed file selects |
+| 33 | `rsa` | PyPI, required, transitive with `python-jose` | Whatever `python-jose` resolves | Not individually queried | 4.9.1 on Python 3.9 |
+| 34 | `pyasn1` | PyPI, required, transitive with `rsa` | Whatever `rsa` resolves | Risk table | 0.6.4 on Python 3.9, and both fixes are reachable there |
+| 35 | `passlib` | PyPI, required | Any release exposing `CryptContext` | None recorded | 1.7.4, which declares no Python floor. Does not depend on `bcrypt`, which is why row 36 has to be installed by hand |
+| 36 | `bcrypt` | PyPI, required, declared by nothing | Any release `passlib` can drive as its bcrypt backend | None recorded | 5.0.0 on Python 3.9, and 5.0.0 raises `ValueError` above 72 bytes where earlier releases truncate. Entry 4 in G9.1 records what that means for registration |
+| 37 | `python-multipart` | PyPI, required, declared by nothing | Any release FastAPI can use to parse the form body at `../backend/app/api/auth.py:L66` | Risk table | 0.0.20 on Python 3.9, and seven of the nine fixes land only from 0.0.22, which needs Python 3.10 |
+| 38 | `google-cloud-firestore` | PyPI, required | Any release exposing `Client`, imported at `../backend/app/db/firestore.py` | Not individually queried | 2.27.0 on Python 3.9 |
+| 39 | `google-cloud-storage` | PyPI, required | Any release exposing `Client`, used by the export path | Not individually queried | 3.9.0 on Python 3.9 |
+| 40 | `google-cloud-pubsub` | PyPI, required | Any release exposing `PublisherClient` and `SubscriberClient` | Not individually queried | 2.38.0 on Python 3.9. No route constructs the collaboration service, so nothing loads it today |
+| 41 | `google-auth` | PyPI, required, transitive | Any release exposing `default` for Application Default Credentials | Not individually queried | 2.50.0 on Python 3.9 |
+| 42 | `sqlalchemy` | PyPI, required | 1.4 or newer, because `../backend/app/db/sql.py:L13` imports `declarative_base` from `sqlalchemy.orm` | Not individually queried | 2.0.51 on Python 3.9. No model subclasses `Base`, so the path is declared and dead |
+| 43 | `celery` | PyPI, required | Any release exposing `Celery` | Risk table | 5.6.3 on Python 3.9. No producer enqueues a task and no broker is provisioned |
+| 44 | `psycopg2-binary` | PyPI, conditional | Needed once the Cloud SQL path is exercised through `DATABASE_URL` | Not individually queried | 2.9.12 on Python 3.9 |
+| 45 | `redis` | PyPI, conditional | Needed once a Celery worker attaches to `REDIS_URL` | Not individually queried | 7.0.1 on Python 3.9. Compose declares no Redis service and Terraform declares no Memorystore instance |
+| 46 | `cryptography` | PyPI, conditional | Needed once `settings.ALGORITHM` names an RSA or ECDSA algorithm | Not individually queried | 43.0.3 on Python 3.9 |
+| 47 | `python-dotenv` | PyPI, conditional | Needed by Pydantic 1.x to read the `Config.env_file` value at `../backend/app/core/config.py:L58` | Not individually queried | 1.2.1 on Python 3.9. The read happens only when the named file is found, so an absent `.env` hides the absent distribution |
+
+**The one npm advisory.** `react-router-dom` is declared `^6.11.1` at `../frontend/package.json`, and
+[CVE-2026-53668](https://github.com/advisories/GHSA-jjmj-jmhj-qwj2) covers 6.30.2 through 6.30.4 with
+**no patched 6.x release**; the fix ships in `react-router` 7.13.0. The declared range resolves inside
+the affected span, so no `npm install` under that range reaches a patched release. The precondition is
+an open redirect in the application, and this repository has none: no `Navigate`, `useNavigate`,
+`Redirect`, `history.push` or `window.location` construct appears anywhere under `../frontend/src/`,
+and `../frontend/src/App.tsx` declares four static routes. Closing the row means a major-version move
+to `react-router` 7, which is a code change rather than a version bump.
 
 ### The unmapped import prefix
 
@@ -768,12 +855,13 @@ are repaired, so dispatch actually happens.
 
 | Client call | Locator | Dispatch outcome |
 |-------------|---------|------------------|
-| `GET /documents` | `frontend/src/services/api.ts:L70` | `/documents` is one path segment, so it matches `GET /{document_id}` at `backend/app/api/documents.py:L68` and `document_id` binds to the literal string `documents`. No body follows. That handler raises first: `:L91` passes one argument to the two-parameter `get_document` signature at `backend/app/services/document_service.py:L78`, so a `TypeError` propagates and the response is a 500. The declared `Document[]` never meets a document object |
-| `POST /documents` | `frontend/src/services/api.ts:L82` | The single-segment shape matches `GET`, `PUT` and `DELETE` at `backend/app/api/documents.py:L68`, `:L96` and `:L126`, and no router declares `POST /{document_id}`. Starlette answers **405 Method Not Allowed**, not 404 |
-| `PUT /documents/{id}` | `frontend/src/services/api.ts:L95` | Two path segments, and no two-segment route exists in any of the four routers. The response is **404** |
+| `GET /documents` | `frontend/src/services/api.ts:L70` | `/documents` is one path segment, so it matches `GET /{document_id}` at `backend/app/api/documents.py:L68` and `document_id` binds to the literal string `documents`. No body follows. The matched route is protected at `backend/app/api/documents.py:L69`, so the dependency resolves before the body runs, and the outcome depends on credentials. Without a valid token the response is **401** and the handler never executes. For an authenticated caller whose user record resolves, `:L91` passes one argument to the two-parameter `get_document` signature at `backend/app/services/document_service.py:L78`, so a `TypeError` propagates and the response is a **500**. The declared `Document[]` never meets a document object on either path |
+| `POST /documents` | `frontend/src/services/api.ts:L82` | The single-segment shape matches `GET`, `PUT` and `DELETE` at `backend/app/api/documents.py:L68`, `:L96` and `:L126`, and no router declares `POST /{document_id}`. Starlette answers **405 Method Not Allowed**, not 404. Routing settles that before any dependency runs, so the outcome does not depend on credentials |
+| `PUT /documents/{id}` | `frontend/src/services/api.ts:L95` | Two path segments, and no two-segment route exists in any of the four routers. The response is **404**, again settled by routing before any dependency runs, so it too is independent of credentials |
 
-A 500 from a raising handler, a 405 and a 404 are three distinct symptoms from one root cause.
-A developer who repairs only the call that returns 404 leaves the other two in place.
+Four distinct symptoms come from one root cause, and only the first depends on who is calling. `GET`
+answers 401 or 500 according to the credentials presented, while the 405 and the 404 are fixed by
+routing alone. A developer who repairs only the call that returns 404 leaves the other three in place.
 
 `frontend/src/services/auth.ts:L16` imports the bare `axios` global and uses it at `L36`, `:L54`
 and `:L71`, bypassing the configured instance created at `frontend/src/services/api.ts:L61`.
@@ -809,6 +897,8 @@ segment. Both fall inside the pattern the document router already claimed.
 route whose pattern matches, so the document handler wins every collision. **Seven of the twelve
 protected handlers are unreachable**: all five template handlers and both profile handlers. A request
 to `GET /me` reaches the single-document read with `document_id` bound to the literal string `me`.
+Both routes are protected, so that substitution is only observable to a caller who presents valid
+credentials. Without them the shared dependency answers 401, and the shadowing stays invisible.
 
 ### The collaboration path has no route and two protocols
 
@@ -1371,14 +1461,17 @@ guessing.
 ### G9.1 The backend HTTP surface
 
 Fourteen handlers exist across four routers. Twelve declare the bearer dependency and two are public.
-The controls below are absent from all of them.
+Each control below is absent from one or more of those paths rather than from every one of them.
+Several rows qualify their own scope, naming a path that is already conformant or a check that is
+attempted, so read each row's scope from the row itself. Entry 7 records one 401 path that does carry
+a challenge, and entry 12 records three handlers that attempt an owner comparison.
 
 | # | Absent control | Evidence | What the absence permits once routes serve traffic |
 |---|----------------|----------|-----------------------------------------------------|
 | 1 | Rate limiting or throttling on any route, including the two public ones | `backend/app/main.py:L71` adds one middleware, and it is CORS. No limiter, no dependency and no proxy configuration is committed anywhere. The public routes are `backend/app/api/auth.py:L65` (`POST /token`) and `:L102` (`POST /register`) | Unmetered credential guessing against `/token` and unmetered account creation against `/register` |
 | 2 | A request body size limit | No handler, no middleware and no server flag bounds a body. `backend/app/schema/document.py:L27` declares `content` as a bare `str` | A single request can carry an unbounded document body into a Firestore write |
 | 3 | Field length or format bounds on any model field | Neither `backend/app/schema/document.py` nor `backend/app/schema/user.py` contains a single `Field(` call, so no `max_length`, no `min_length` and no pattern applies to any field. `backend/app/schema/user.py:L26` declares `email: str` rather than an email type | Oversized and malformed values validate successfully and reach storage |
-| 4 | A server-side password policy | `backend/app/schema/user.py:L38` declares `password: str` with no constraint, and `backend/app/api/auth.py:L131` hashes whatever arrives. The only policy in the repository is client-side, at `frontend/src/utils/validation.ts:L36-L42`, and a client-side check is not a control | Any password, including an empty string, is accepted at registration |
+| 4 | A server-side password policy | `backend/app/schema/user.py:L38` declares `password: str` with no constraint, and `backend/app/api/auth.py:L131` hashes whatever arrives. The only policy in the repository is client-side, at `frontend/src/utils/validation.ts:L36-L42`, and a client-side check is not a control | No length or complexity rule applies at the schema, so an empty password validates and reaches the hash. Acceptance and hashing are separate steps, and what happens above 72 bytes is decided by the resolved bcrypt release, which no committed manifest pins. bcrypt 5.0.0 raises `ValueError`, which surfaces as an unhandled 500 on the public register route. Earlier releases truncate at 72 bytes, so two longer passwords sharing that prefix authenticate interchangeably |
 | 5 | Uniform responses that do not distinguish known accounts | Registration answers a known address with 400 `Email already registered` at `backend/app/api/auth.py:L128-L129`. Login answers a bad credential with 401 `Incorrect username or password` at `:L91-L92`, which is correctly uniform. The registration route is the enumeration oracle | An attacker learns which email addresses hold accounts by submitting registrations |
 | 6 | Any check on `is_active` before a token is honoured | `backend/app/schema/user.py:L71` declares `is_active`, and no code path in the repository reads it. `backend/app/api/auth.py:L63` returns the user immediately after lookup, and `backend/app/core/security.py:L130-L133` does the same in the duplicate dependency | A deactivated account keeps full access for the life of its token |
 | 7 | A `WWW-Authenticate: Bearer` header on every 401 | Two sources answer 401, and only one carries a challenge. `OAuth2PasswordBearer`, constructed at `backend/app/api/auth.py:L23` and `backend/app/core/security.py:L23`, leaves `auto_error` at its default `True`, and FastAPI's OAuth2 base raises `HTTPException(401, headers={"WWW-Authenticate": "Bearer"})` for a missing or non-bearer `Authorization` header, so that path is conformant. The six explicit raises are not, at `backend/app/api/auth.py:L55-L56`, `:L58`, `:L91-L92`, and `backend/app/core/security.py:L126`, `:L128`, `:L133`. None of the six sets a `headers` argument | A client that presents a malformed or expired token, or a valid token for an absent user, receives a 401 with no challenge. The client cannot distinguish that case from an authorization failure by header alone |
@@ -1386,17 +1479,21 @@ The controls below are absent from all of them.
 | 9 | Issuer, audience and token identifier claims, and any revocation path | `backend/app/api/auth.py:L95-L99` encodes exactly two claims, `sub` and `exp`. The decode at `:L53` reads `sub` only, and `backend/app/core/security.py:L123` does the same | A token cannot be scoped to one service or one audience, and no issued token can be withdrawn before it expires |
 | 10 | A declared, reviewed CORS origin list | `backend/app/main.py:L73` reads `settings.ALLOWED_ORIGINS`, and `backend/app/core/config.py:L40-L48` never declares that field, so the value comes from outside every declared contract. `:L74` sets `allow_credentials=True` while `:L75` and `:L50` allow every method and every header | Credentialed cross-origin access is configured against an origin source no committed file declares or supplies. Which origins a deployment would permit is therefore unreviewable here, and so is whether the list is safe |
 | 11 | Object-level authorization on any template route | `backend/app/api/templates.py:L81`, `:L107` and `:L131` delegate to a `TemplateService`, and no file exists at `backend/app/services/template_service.py`. The 404 detail at `:L83` reads `Template not found`, while `:L109` and `:L133` read `Template not found or user not authorized`, so two of the three messages promise a check that no committed code performs | Unestablished. No router line performs a check, and the delegate that would is absent, so what a template request authorizes cannot be read from this repository. Two of the three messages advertise a check, which is enough to make a reader assume one runs |
-| 12 | Object-level authorization on four of the twelve protected handlers | Of the fourteen handlers, twelve require a bearer token and two are public, at `backend/app/api/auth.py:L65` and `:L102`. Three of the twelve attempt an owner comparison, at `backend/app/api/documents.py:L92`, `:L121` and `:L147`, each raising 403 at `:L93`, `:L122` and `:L148`. The remaining nine perform none, and the paragraph below splits them by what that absence means | Bearer authentication alone decides access on the document list handler and the five template handlers, and none of the six can be shown to scope its result to the caller |
+| 12 | Enforced object-level authorization on any of the twelve protected handlers | Of the fourteen handlers, twelve require a bearer token and two are public, at `backend/app/api/auth.py:L65` and `:L102`. The twelve split four ways. Three attempt an owner comparison, at `backend/app/api/documents.py:L92`, `:L121` and `:L147`, each raising 403 at `:L93`, `:L122` and `:L148`, and none of the three reaches its comparison. Two are self-scoped by the token, at `backend/app/api/users.py:L20` and `:L33`. One is the create path at `backend/app/api/documents.py:L46`, which fails before it persists. Six leave object scope unestablished. The paragraph below takes each group in turn | Bearer authentication alone decides access on the document list handler and the five template handlers, and none of the six can be shown to scope its result to the caller. No object check is enforced anywhere today |
 
-The nine protected handlers with no owner check do not all mean the same thing, and entry 12 counts
-only the ones where the absence matters. Three groups divide them.
+The twelve protected handlers do not all mean the same thing, and entry 12 counts only the ones where
+the absence matters. Four groups divide them.
 
-- **Self-scoped by the token, three handlers.** `backend/app/api/users.py:L20` returns
+- **Self-scoped by the token, two handlers.** `backend/app/api/users.py:L20` returns
   `current_user` itself and `:L33` updates `current_user.id`, so each handler addresses the token's
-  own subject and no path parameter can name another account. `backend/app/api/documents.py:L46`
-  passes `current_user` into the create call, so a new document is written under the caller's own
-  identity. No owner check is missing from these three, because no other user's object is
-  addressable.
+  own subject and no path parameter can name another account. No owner check is missing from these
+  two, because no other user's object is addressable.
+- **Blocked before persistence, one handler.** `backend/app/api/documents.py:L46` passes
+  `current_user`, a `User` object, where `backend/app/services/document_service.py:L42` declares
+  `user_id: str`. The Firestore client cannot encode a Pydantic model into a stored value, so the
+  write at `backend/app/services/document_service.py:L73` raises before it is sent. No document is
+  stored, so the create path establishes no owner at all rather than establishing the caller as the
+  owner.
 - **Unestablished, six handlers.** `backend/app/api/documents.py:L65` calls
   `DocumentService.get_documents`, which the class does not define, so what the list handler would
   return cannot be read from this repository. The five template handlers delegate to an absent
@@ -1408,9 +1505,9 @@ only the ones where the absence matters. Three groups divide them.
   [G5](#g5-call-site-contract-violations) stop the enclosing handlers before the comparison is
   reached.
 
-The accurate accounting is fourteen handlers, twelve protected and two public, with three attempted
-object checks, three self-scoped handlers and six whose scope is unestablished. Zero object checks
-are enforced today.
+The accurate accounting is fourteen handlers, twelve protected and two public. The twelve split into
+three attempted object checks, two self-scoped handlers, one create path blocked before persistence,
+and six whose scope is unestablished. Zero object checks are enforced today.
 
 ### G9.2 The frontend client
 
@@ -1449,6 +1546,7 @@ caller could establish the identity and the authorization the method never check
 | 20 | Authorization against the document being joined | The same method never checks that `user_id` may read `document_id` before it derives a topic at `:L69` and a subscription at `:L70` | The method performs no ownership or membership check. A caller has to authorize the pair itself, and a route that did not would join any caller to any document identifier |
 | 21 | Validation of `document_id` before it names a broker resource | `:L69` and `:L70` interpolate the value straight into Pub/Sub resource paths, and `:L103` does the same on disconnect | The method validates no format and consults no allow-list, so an unvalidated identifier reaches a resource path. A caller has to constrain the value before the interpolation happens |
 | 22 | A payload schema and a size bound on broadcast changes | `:L133` declares `change: dict` with no model behind it, and `:L152` serialises whatever arrives with `json.dumps` | Arbitrary unbounded structures are published to every subscriber |
+| 22a | Per-connection identity in the socket registry, so two sessions for one user can coexist | `:L66` keys `active_connections` by `user_id` rather than by connection, so a second socket for the same document and user replaces the first without closing it. Both sockets resolve to one subscription name at `:L70`, so the second `create_subscription` at `:L73` answers `AlreadyExists`, which `:L76` prints before `:L77` returns. On disconnect, `:L124` rebuilds that same shared name and `:L126` deletes it | A second session evicts the first from the registry and receives no feed itself, and either session closing deletes the subscription the other still depends on. Holding both would need a unique connection identifier per socket and subscription ownership that is reference counted or idempotent |
 | 23 | Producer authentication and authorization on the Celery broker | `backend/app/tasks/background_tasks.py:L22` builds the Celery application from `settings.REDIS_URL` alone. No committed file gives that setting a value and no service provides Redis. The transport security, the access control list and the credentials a deployment would use are therefore all unestablished here. The URL could encode a password or select `rediss://`, and nothing tracked says whether it does. See [G8 no Redis broker](#no-redis-service-backs-the-celery-broker) | Anyone who reaches the broker enqueues work that workers execute, and no committed control stands in the way |
 | 24 | Format allow-listing and idempotency on the export task | `:L25` accepts `export_format` and `:L63` interpolates it into the object key `exports/{user_id}/{document_id}.{export_format}`. No allowed-value check and no deduplication key exists | A caller influences the stored object path, and a replayed message repeats the work |
 | 25 | An authorization check before a signed link is minted | `backend/app/services/export_service.py:L66-L70` and `:L98-L102` generate a v4 signed URL immediately after upload, with no check that the requester may read the document | A link is issued to whoever reached the call |
@@ -1483,6 +1581,8 @@ have no caller in `backend/app/` at all. No signed URL is produced by this repos
 | 37 | Two credential literals safe to commit | `infrastructure/docker/docker-compose.yml:L35` sets `POSTGRES_PASSWORD=password`, and `scripts/setup_dev_environment.sh:L32` creates a database user with the same literal. Compose maps no port for the database service, which limits reach and does not make either literal safe | A committed credential is reused in an environment that is reachable |
 | 38 | A supported runtime on any of three declared versions | Python 3.9 reached end of support on 31 October 2025 and is named at `infrastructure/docker/backend.Dockerfile:L2`. Node.js 14 left support on 30 April 2023, with its final release 14.21.3 shipped on 16 February 2023, and is named at `.github/workflows/ci.yml:L17` and `infrastructure/docker/frontend.Dockerfile:L2`. PostgreSQL 13 reached end of life on 13 November 2025 and is named at `infrastructure/docker/docker-compose.yml:L31` | Three components receive no security patches, and no future vulnerability in any of them will be fixed upstream |
 | 39 | Any committed transport security or security headers | `infrastructure/docker/frontend.Dockerfile:L20` serves through `nginx:alpine`, and `:L26` leaves the `COPY nginx.conf` line commented out. No `nginx.conf` is tracked, so no TLS configuration, no HSTS, no Content Security Policy and no proxy rule is committed | The served client carries no transport or header protection from anything in this repository |
+| 39a | A non-root runtime user in either image | No `USER` instruction appears in `infrastructure/docker/backend.Dockerfile` or in either stage of `infrastructure/docker/frontend.Dockerfile`. `python:3.9-slim` (`backend.Dockerfile:L2`), `node:14-alpine` (`frontend.Dockerfile:L2`) and `nginx:alpine` (`:L20`) all default to root, so Uvicorn at `backend.Dockerfile:L20` and the Nginx master at `frontend.Dockerfile:L32` both start as uid 0 | Every process in both images runs as root, so an exploited process begins with root inside the container, and with host root wherever the runtime is not user-namespaced. Closing it needs a `USER` with a non-root uid in each final stage |
+| 39b | Any containment or resource bound on a Compose service | `infrastructure/docker/docker-compose.yml` declares no `user:`, `read_only:`, `cap_drop:`, `security_opt:`, `pids_limit:`, `mem_limit:` or `cpus:`, and no `deploy.resources.limits` block | Each of the three services keeps the default Linux capability set, a writable root filesystem, and unbounded CPU, memory and process count, so one runaway container can exhaust the host and a compromised one can raise its own privileges. Closing it needs capabilities dropped to only what each service uses, `no-new-privileges`, a read-only root filesystem with explicit writable `tmpfs` paths, and per-service CPU and memory limits |
 | 40 | A network rule narrower than the whole subnet | `infrastructure/terraform/main.tf:L35` declares a firewall rule opening TCP ports 0 through 65535 across the subnet range | Every port on every instance in the subnet is reachable from every other address in it |
 
 ### Where these entries are owned

@@ -44,22 +44,22 @@ class CollaborationService:
     async def connect(self, websocket: WebSocket, document_id: str, user_id: str) -> None:
         """Register an editor socket and subscribe it to the document topic.
 
-        The socket is stored under the document and user identifiers, then a
-        per-document, per-user subscription is created and a blocking
-        `future.result()` holds the coroutine open. When subscription
-        creation fails the method prints the error and returns, leaving the
-        socket registered with nothing feeding it. See the HUMAN ASSISTANCE
-        NEEDED marker above.
+        The socket is stored under the document and user identifiers, so a
+        second socket for the same pair replaces the first at L66 without
+        closing it, and the evicted editor stops receiving anything. Both
+        connections resolve to one subscription name at L70, so the second
+        `create_subscription` at L73 returns `AlreadyExists`, which L76
+        prints before L77 returns, leaving that socket registered with no
+        feed. A blocking `future.result()` then holds the coroutine open.
+        See the HUMAN ASSISTANCE NEEDED marker above.
 
         Args:
-            websocket: The connected client socket, declared as a FastAPI
-                `WebSocket`.
+            websocket: The connected client socket, a FastAPI `WebSocket`.
             document_id: Document the editor opened. Used as the topic name.
             user_id: The editing user, used in the subscription name.
 
         Returns:
-            None. The declared return type is `None` and the body blocks
-            until the subscription ends.
+            None. The body blocks until the subscription ends.
         """
         if document_id not in self.active_connections:
             self.active_connections[document_id] = {}
@@ -103,10 +103,10 @@ class CollaborationService:
     async def disconnect(self, document_id: str, user_id: str) -> None:
         """Remove an editor socket and delete its Pub/Sub subscription.
 
-        The document entry is dropped once its last socket goes, so the
-        registry does not accumulate empty documents. Subscription deletion
-        failures are printed and swallowed, so a leaked subscription is not
-        reported to the caller.
+        The document entry is dropped once its last socket goes at L121.
+        L124 rebuilds the subscription name from the document and user
+        alone, so L126 deletes the name every socket for that pair shares,
+        and closing one tab cuts the feed to another. Deletion errors print.
 
         Args:
             document_id: Document the editor was working on.

@@ -1,7 +1,7 @@
 """Build the router for the five document create, read, update and delete routes.
 
-Every handler declares `get_current_user` as a dependency, constructs its own
-`DocumentService` and compares ownership in its own body.
+Every handler declares `get_current_user` and builds its own `DocumentService`.
+Only `get_document`, `update_document` and `delete_document` compare ownership.
 
 Three call-site contracts do not hold. The service declares `user_id: str`
 and receives the whole `User` object. `get_documents` is called and
@@ -25,10 +25,10 @@ router = APIRouter()
 async def create_document(document: DocumentCreate, current_user: User = Depends(get_current_user)) -> Document:
     """Create a document owned by the authenticated caller.
 
-    Answers 200 on success, because the decorator sets no `status_code`.
-    The `current_user` object is passed where the service declares
-    `user_id: str`, so the stored owner value is a `User` rather than an
-    identifier.
+    Answers 200 on success, because the decorator sets no `status_code`, and
+    no success is reachable. `current_user` is passed where the service
+    declares `user_id: str`, and the Firestore client cannot encode a
+    Pydantic model, so the write raises before it is sent. Nothing is stored.
 
     Args:
         document: Validated request body, declared `DocumentCreate`.
@@ -39,8 +39,8 @@ async def create_document(document: DocumentCreate, current_user: User = Depends
         The created `Document`, as the return annotation declares.
 
     Raises:
-        HTTPException: 400, raised by the service when the title or the
-            content is empty.
+        HTTPException: 400 from the service on empty title or content.
+        TypeError: From Firestore encoding, because `user_id` holds a `User`.
     """
     document_service = DocumentService()
     created_document = await document_service.create_document(document, current_user)

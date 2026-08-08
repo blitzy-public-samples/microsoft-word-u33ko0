@@ -615,9 +615,14 @@ Path B follows the update contract, because the editor calls `updateDocument`. T
 a separate path with the same destination. `frontend/src/services/api.ts:L81` posts to
 `/documents`, `backend/app/api/documents.py:L24` binds `DocumentCreate` from
 `backend/app/schema/document.py:L30`, and `backend/app/services/document_service.py:L70-L73`
-serializes the model, adds `user_id` and `id`, and commits with `set`. That path stores both
-`owner_id` from the payload and `user_id` from the argument, which is the write that creates two owner
-identities in one record.
+serializes the model, adds `user_id` and `id`, and calls `set`. That assembled dictionary carries
+`owner_id` from the payload alongside `user_id` from the argument, so the two owner identities meet in
+one structure. The write does not complete, and no record is stored. The router passes the whole
+`current_user` object at `backend/app/api/documents.py:L46` where `document_service.py:L42` declares
+`user_id: str`, and the Firestore client cannot encode a Pydantic model into a stored value, so `set`
+at `:L73` raises while it builds the write and before it sends anything. The dual-identity structure
+therefore exists in memory only, which is where the drift this document catalogues would land once the
+call site passes a string.
 
 ## Related documentation
 

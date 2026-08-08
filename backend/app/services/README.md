@@ -18,15 +18,15 @@ Three classes and thirteen `def` statements, located against the committed files
 | --- | --- | --- | --- |
 | `DocumentService` | Class | `document_service.py:L19` | Document create, read, update and delete against the `documents` Firestore collection. Declares four public methods and no `get_documents`. |
 | `DocumentService.__init__` | Constructor | `document_service.py:L33` | Binds the shared Firestore client to `self.db` at L40. Takes no arguments, so the client cannot be substituted for a test double. |
-| `create_document` | Async method | `document_service.py:L42` | Rejects an empty title or body with HTTP 400 at L66, writes `user_id` at L71 and the generated `id` at L72, then persists at L73 and returns `Document(**doc_data)` at L76. |
+| `create_document` | Async method | `document_service.py:L42` | Rejects an empty title or body with HTTP 400 at L66, sets `user_id` at L71 and the generated `id` at L72, then calls `set` at L73. The router passes a `User`, which Firestore cannot encode, so L73 raises before the write is sent and the return at L76 is never reached. |
 | `get_document` | Async method | `document_service.py:L78` | Declares `(document_id: str, user_id: str)`. Raises 404 at L105 when the record is absent and 403 at L109 when `user_id` does not match. Returns the record at L112. |
 | `update_document` | Async method | `document_service.py:L116` | Declares `(document_id, document: DocumentUpdate, user_id)`. Runs three Firestore operations: read at L142, write at L153, re-read at L156. Serializes with `.dict(exclude_unset=True)` at L152. |
 | `delete_document` | Async method | `document_service.py:L159` | Declares `(document_id: str, user_id: str)`. Deletes at L188 and returns the literal `True` at L191 whatever the delete did. |
 | `CollaborationService` | Class | `collaboration_service.py:L20` | Socket registry plus Pub/Sub publish and subscribe. No application module imports this class. |
 | `CollaborationService.__init__` | Constructor | `collaboration_service.py:L32` | Builds a `PublisherClient` at L38 and a `SubscriberClient` at L39, then sets `active_connections = {}` at L40. Both clients are built eagerly. |
-| `connect` | Async method | `collaboration_service.py:L44` | Registers the socket at L66, derives the topic at L69 and the subscription at L70, creates the subscription at L73, subscribes at L95, then blocks on `future.result()` at L98. |
+| `connect` | Async method | `collaboration_service.py:L44` | Registers the socket at L66, derives the topic at L69 and the subscription at L70, creates the subscription at L73, subscribes at L95, then blocks on `future.result()` at L98. L66 keys by user, so a second socket for the same document and user replaces the first without closing it, and the shared name at L70 makes the second `create_subscription` answer `AlreadyExists`, which L76 prints before L77 returns. |
 | `callback` | Nested function | `collaboration_service.py:L80` | Closure passed to `subscribe` at L95. Calls `message.ack()` at L92, then `asyncio.run(websocket.send_json(...))` at L93. |
-| `disconnect` | Async method | `collaboration_service.py:L103` | Removes the socket from the registry at L118 to L121 and deletes the subscription at L126. |
+| `disconnect` | Async method | `collaboration_service.py:L103` | Removes the socket from the registry at L118 to L121 and deletes the subscription at L126. L124 rebuilds the name from the document and user alone, so L126 deletes the subscription every socket for that pair shares. |
 | `broadcast_change` | Async method | `collaboration_service.py:L133` | Publishes a JavaScript Object Notation (JSON) encoded change to the document topic at L152 and waits on the publish future at L153. |
 | `ExportService` | Class | `export_service.py:L18` | Uploads export artifacts and returns signed links. Declares two methods and no `convert_document`. |
 | `ExportService.__init__` | Constructor | `export_service.py:L29` | Builds a Cloud Storage `Client()` at L36. Construction runs at instantiation, so a missing credential fails there rather than at first upload. |
@@ -144,7 +144,7 @@ sequenceDiagram
     Note over CS,PUB: Registers into<br/>active_connections at L66.<br/>topic projects/PROJECT_ID/topics/<br/>document_id at L69, subscription<br/>projects/PROJECT_ID/subscriptions/<br/>document_id_user_id at L70.<br/>settings.PROJECT_ID is undeclared,<br/>read at L69, L70, L124 and L149.
     CS ->> SUB: create_subscription, L73
     SUB -->> CS: failure, L76
-    Note over CS,PUB: print at L76, then the<br/>early return at L128 leaves<br/>the L117 socket registered<br/>with no subscription
+    Note over CS,PUB: print at L76, then the<br/>early return at L77 leaves<br/>the L66 socket registered<br/>with no subscription
     CS ->> SUB: subscribe, L95
     CS ->> CS: future.result(), L98
     Note over CS,PUB: subscribe(subscription,<br/>callback) at L95, then<br/>future.result() at L98<br/>blocks the event loop
@@ -226,7 +226,9 @@ exists: no `create_topic` call sits anywhere in the repository, and `create_subs
 both answer `NotFound` without one.
 
 Per-process in-memory connection registry. `active_connections` at `collaboration_service.py:L40` is a plain dictionary
-with no lock and no shared store, so a second worker process sees none of the sockets the first one holds.
+with no lock and no shared store, so a second worker process sees none of the sockets the first one holds. Keying by user
+rather than by connection is what lets a second socket evict the first, so holding both would need a unique connection
+identifier per socket and subscription ownership that is reference counted or idempotent.
 
 Acknowledge-before-send message handling. `message.ack()` at L92 runs before `websocket.send_json(...)` at L93, so
 Pub/Sub treats a delivery as settled before the client receives it and will not redeliver it.

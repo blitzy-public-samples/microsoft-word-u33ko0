@@ -104,25 +104,25 @@ async def register_user(user: UserCreate):
     """Register an account from submitted credentials.
 
     The route is public and answers 200 on success. The handler hashes the
-    submitted password with `pwd_context` before creating the account. The call
-    passes on only the email and that hash, so the validated `username` and
-    `full_name` never reach the service.
+    submitted password with `pwd_context`, then passes on only the email and
+    that hash. The service never receives `username` or `full_name`.
 
     Args:
         user: Submitted account details, declared `UserCreate`, carrying
             `email`, `username`, `full_name` and `password`.
 
     Returns:
-        Whatever `UserService.create_user` produced. The handler declares
-        no return annotation and the decorator sets no `response_model`, so
-        FastAPI applies no output contract, and
-        `app.services.user_service` does not exist.
+        Whatever `UserService.create_user` produced. The handler declares no
+        return annotation and the decorator sets no `response_model`, so
+        FastAPI applies no output contract. `app.services.user_service` is absent.
 
     Raises:
         HTTPException: 400 with the detail `"Email already registered"`
             when an account exists for the submitted address. The route is
             public, so the two different responses report to any caller
             whether an address holds an account.
+        ValueError: From bcrypt 5.0.0 at L131 on a password over 72 bytes.
+            The public route then answers an unhandled 500 to any caller.
     """
     existing_user = await UserService.get_user_by_email(user.email)
     if existing_user:

@@ -63,8 +63,8 @@ const api = createApiClient();
 /**
  * Fetch every document the caller can see.
  *
- * @returns A promise for the document array. The path is `/documents`, and the
- * server mounts its document router at the root, so the request would answer 404.
+ * @returns A promise for the document array. `/documents` is one segment, matching the protected
+ * `GET /{document_id}`. No intended route is reached: 401 without a token, 500 once authenticated.
  */
 export const getDocuments = async (): Promise<Document[]> => {
   const response = await api.get<Document[]>('/documents');
@@ -75,8 +75,8 @@ export const getDocuments = async (): Promise<Document[]> => {
  * Create a document.
  *
  * @param documentData - Title, content and optional owner for the new document.
- * @returns A promise for the created document. The path is `/documents` against a
- * server route of `/`.
+ * @returns A promise for the created document. No route declares `POST` on a single segment, so
+ * Starlette answers 405 before any dependency runs.
  */
 export const createDocument = async (documentData: DocumentCreate): Promise<Document> => {
   const response = await api.post<Document>('/documents', documentData);
@@ -88,8 +88,8 @@ export const createDocument = async (documentData: DocumentCreate): Promise<Docu
  *
  * @param documentId - Identifier of the document to change.
  * @param documentData - The fields to change.
- * @returns A promise for the updated document. The path is
- * `/documents/{id}` against a server route of `/{document_id}`.
+ * @returns A promise for the updated document. The two-segment path `/documents/{id}` matches no
+ * declared route, so Starlette answers 404 before any dependency runs.
  */
 export const updateDocument = async (documentId: string, documentData: DocumentUpdate): Promise<Document> => {
   const response = await api.put<Document>(`/documents/${documentId}`, documentData);

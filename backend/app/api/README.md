@@ -215,10 +215,10 @@ Authentication arrives by dependency injection. Twelve handlers declare `current
 FastAPI resolves the token before the handler body runs. All twelve resolve the local function at `auth.py:L27`, imported at
 `documents.py:L19`, `templates.py:L19` and `users.py:L15`.
 
-Document authorization is duplicated rather than owned by one tier. Three router branches compare `document.user_id` against
-`current_user.id` at `documents.py:L92`, `:L121` and `:L147`, raising 403 at `:L93`, `:L122` and `:L148`. The service repeats
-the same comparison at `services/document_service.py:L108`, `:L148` and `:L184`. Nothing reconciles the two, and no template
-or profile handler performs an object-level check at all.
+Declaring the token dependency is not enforcing object authorization. Twelve handlers declare it, and three attempt an object check:
+`documents.py:L92`, `:L121` and `:L147` compare `document.user_id` against `current_user.id`, raising 403 at `:L93`, `:L122` and `:L148`.
+Of the other nine, two are self-scoped (`users.py` GET and PUT `/me`), one is create, which fails before it persists, and six leave
+scope unestablished. The service repeats the comparison at `services/document_service.py:L108`, `:L148` and `:L184`, reconciled by nothing.
 
 Eleven handlers construct a service per request, and three do not. Every document handler builds a fresh `DocumentService()`
 in its own body at `documents.py:L45`, `:L64`, `:L90`, `:L119` and `:L145`. The template handlers repeat the pattern at

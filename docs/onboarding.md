@@ -64,15 +64,17 @@ because every gap in this guide lands against one of them.
 - **Document lifecycle.** Create, read, update and delete, abbreviated CRUD, across five HTTP
   handlers and four service methods.
 - **Ownership-based authorization.** Of the fourteen handlers, twelve declare bearer authentication
-  and two are public. Three of the twelve attempt an owner check, on the document read, update and
-  delete paths, and current call defects stop all three. The other nine perform none, and that
-  absence means three different things, registered with locators in
-  [troubleshooting.md](troubleshooting.md#g91-the-backend-http-surface).
-
-- Three are self-scoped: both profile handlers read the token's own subject at
-  `backend/app/api/users.py:L20` and `:L33`, and document create writes under the caller at
-  `backend/app/api/documents.py:L46`. The scope of the remaining six, the document list handler and
-  the five template handlers, cannot be established, because each calls something no file defines.
+  and two are public. Declaring that dependency is not the same as enforcing an owner check, and the
+  twelve split four ways, registered with locators in
+  [troubleshooting.md](troubleshooting.md#g91-the-backend-http-surface). Three attempt an owner
+  check, on the document read, update and delete paths, and current call defects stop all three
+  before the comparison. Two are self-scoped, because both profile handlers read the token's own
+  subject at `backend/app/api/users.py:L20` and `:L33`. One is document create, which stores nothing:
+  `backend/app/api/documents.py:L46` hands the whole `current_user` object where
+  `backend/app/services/document_service.py:L42` declares `user_id: str`, and Firestore cannot encode
+  a Pydantic model, so the write at `:L73` raises before it is sent. The remaining six, the document
+  list handler and the five template handlers, cannot have their scope established, because each calls
+  something no file defines. No object check is enforced anywhere today.
 - **Rich-text editing.** Draft.js holds the editor state, and two helpers apply inline and block
   formatting.
 - **Templates.** Five handlers and a card gallery on the client.

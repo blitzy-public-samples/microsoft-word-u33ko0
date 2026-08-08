@@ -1,13 +1,13 @@
 """Declare the application settings model and a factory that builds it.
 
-Nine settings are declared and none carries a default, so constructing
-`Settings` requires all nine from the environment or from a `.env` file that
-the repository does not commit.
+Nine settings are declared and none carries an explicit default. Seven are
+required, because the two `Optional[str]` fields default to `None` under
+Pydantic 1.x, where `BaseSettings` also still lives. The seven must arrive
+from the environment or from a `.env` file the repository does not commit.
 
-The module creates no module-level `settings` instance, and nine modules
-import one from here. That single absence is what stops the backend from
-importing. `BaseSettings` is imported from `pydantic`, where it lives in
-Pydantic 1.x only.
+The module creates no module-level `settings` instance, and eight modules
+import one by name, which is what stops the backend importing.
+`core/security.py:L20` imports the `get_settings` factory instead.
 
 Six further settings are read elsewhere and declared nowhere:
 `ALLOWED_ORIGINS`, `PROJECT_ID`, `STORAGE_BUCKET_NAME`,
@@ -20,9 +20,9 @@ from typing import Optional
 class Settings(BaseSettings):
     """Hold the settings the application reads from its environment.
 
-    Every field is required, and `API_V1_STR` is declared but read by no
-    module. `SECRET_KEY`, `ALGORITHM` and `ACCESS_TOKEN_EXPIRE_MINUTES`
-    carry no length bound, no allowed-value list and no range check.
+    Seven fields are required, the two `Optional[str]` fields default to
+    `None`, and `API_V1_STR` is declared but read by no module. `SECRET_KEY`,
+    `ALGORITHM` and `ACCESS_TOKEN_EXPIRE_MINUTES` carry no bound or range check.
 
     Attributes:
         PROJECT_NAME: Display name for the application.
@@ -68,7 +68,7 @@ def get_settings() -> Settings:
         A new `Settings`.
 
     Raises:
-        ValidationError: When any of the nine required fields is absent
+        ValidationError: When any of the seven required fields is absent
             from both the environment and the `.env` file.
     """
     return Settings()
