@@ -44,8 +44,19 @@ const Templates: React.FC = () => {
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const currentUser = useAppSelector(selectCurrentUser);
 
-  /** Fetch the template list once on mount. */
+  // Mount effect. The dependency array is empty, so the fetch below runs once and
+  // never re-runs. Nothing refreshes the list afterwards.
   useEffect(() => {
+    /**
+     * Fetch the template list and store it in page state.
+     *
+     * Takes no argument. `getTemplates` is imported from `@/services/api`, which
+     * declares no such export, so the call cannot resolve as committed.
+     *
+     * @returns A promise that resolves once the fetch settles. A failure is
+     * caught and written to the console, so the promise never rejects. See the
+     * HUMAN ASSISTANCE NEEDED marker inside the catch block.
+     */
     const fetchTemplates = async () => {
       try {
         const fetchedTemplates = await getTemplates();

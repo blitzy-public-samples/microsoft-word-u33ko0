@@ -24,10 +24,10 @@ Three classes and thirteen `def` statements, located against the committed files
 | `delete_document` | Async method | `document_service.py:L159` | Declares `(document_id: str, user_id: str)`. Deletes at L188 and returns the literal `True` at L191 whatever the delete did. |
 | `CollaborationService` | Class | `collaboration_service.py:L20` | Socket registry plus Pub/Sub publish and subscribe. No application module imports this class. |
 | `CollaborationService.__init__` | Constructor | `collaboration_service.py:L32` | Builds a `PublisherClient` at L38 and a `SubscriberClient` at L39, then sets `active_connections = {}` at L40. Both clients are built eagerly. |
-| `connect` | Async method | `collaboration_service.py:L44` | Registers the socket at L66, derives the topic at L69 and the subscription at L70, creates the subscription at L73, subscribes at L95, then blocks on `future.result()` at L98. L66 keys by user, so a second socket for the same document and user replaces the first without closing it. The shared name at L70 then makes the second `create_subscription` answer `AlreadyExists`, which L76 prints before L77 returns. |
-| `callback` | Nested function | `collaboration_service.py:L80` | Closure passed to `subscribe` at L95. Calls `message.ack()` at L92, then `asyncio.run(websocket.send_json(...))` at L93. |
-| `disconnect` | Async method | `collaboration_service.py:L103` | Removes the socket from the registry at L118 to L121 and deletes the subscription at L126. L124 rebuilds the name from the document and user alone, so L126 deletes the subscription every socket for that pair shares. |
-| `broadcast_change` | Async method | `collaboration_service.py:L133` | Publishes a JavaScript Object Notation (JSON) encoded change to the document topic at L152 and waits on the publish future at L153. |
+| `connect` | Async method | `collaboration_service.py:L44` | Registers the socket at L66, derives the topic at L69 and the subscription at L70, creates the subscription at L73, subscribes at L99, then blocks on `future.result()` at L102. L66 keys by user, so a second socket for the same document and user replaces the first without closing it. The shared name at L70 then makes the second `create_subscription` answer `AlreadyExists`, which L76 prints before L77 returns. |
+| `callback` | Nested function | `collaboration_service.py:L80` | Closure passed to `subscribe` at L99. Calls `message.ack()` at L96, then `asyncio.run(websocket.send_json(...))` at L97. |
+| `disconnect` | Async method | `collaboration_service.py:L107` | Removes the socket from the registry at L118 to L121 and deletes the subscription at L126. L124 rebuilds the name from the document and user alone, so L126 deletes the subscription every socket for that pair shares. |
+| `broadcast_change` | Async method | `collaboration_service.py:L137` | Publishes a JavaScript Object Notation (JSON) encoded change to the document topic at L152 and waits on the publish future at L153. |
 | `ExportService` | Class | `export_service.py:L18` | Uploads export artifacts and returns signed links. Declares two methods and no `convert_document`. |
 | `ExportService.__init__` | Constructor | `export_service.py:L29` | Builds a Cloud Storage `Client()` at L36. Construction runs at instantiation, so a missing credential fails there rather than at first upload. |
 | `export_to_pdf` | Method | `export_service.py:L40` | Plain `def`. Uploads the literal string `"PDF_CONTENT"` at L63 to `exports/{document.id}.pdf`, then returns a version 4 signed uniform resource locator (URL) built at L66 to L68. |
@@ -81,8 +81,8 @@ described in [../../../docs/integration-guide.md](../../../docs/integration-guid
 | `settings` from `app.core.config` | `document_service.py:L17`, `collaboration_service.py:L18`, `export_service.py:L16` | No | `../core/config.py` declares the `Settings` class at L20 and no module-level instance. All three modules fail at import. |
 | `Client` from `google.cloud.firestore` | `document_service.py:L14` | Yes, and unused | The module never names `Client` again. Only the pre-built `db` is used. |
 | `WebSocketDisconnect` from `fastapi` | `collaboration_service.py:L15` | Yes, and unused | No `except WebSocketDisconnect` clause exists in the module. |
-| `asyncio` | Used at `collaboration_service.py:L93` | No | No import statement for `asyncio` exists. The name raises `NameError` on the first message delivered, not at import. |
-| `json` | Used at `collaboration_service.py:L152` | No | No import statement for `json` exists. The name raises `NameError` on the first `broadcast_change` call, not at import. |
+| `asyncio` | Used at `collaboration_service.py:L97` | No | No import statement for `asyncio` exists. The name raises `NameError` on the first message delivered, not at import. |
+| `json` | Used at `collaboration_service.py:L156` | No | No import statement for `json` exists. The name raises `NameError` on the first `broadcast_change` call, not at import. |
 | `DocumentService.get_documents` | Called at `../api/documents.py:L65` | No | The class declares four methods at L42, L78, L116 and L159, and no `get_documents`. |
 | `ExportService.convert_document` | Called at `../tasks/background_tasks.py:L59` | No | The class declares `export_to_pdf` at L40 and `export_to_docx` at L74, and no `convert_document`. |
 | `app.services.user_service` | Imported at `../api/auth.py:L21` and `../api/users.py:L14` | No | No `user_service.py` exists in this folder. |
@@ -111,7 +111,7 @@ nine fields at L40 to L48, and no line in that file declares any of the names be
 
 | Setting | Read at | Status |
 | --- | --- | --- |
-| `PROJECT_ID` | `collaboration_service.py:L69`, `:L70`, `:L124`, `:L149` | READ-BUT-NEVER-DECLARED |
+| `PROJECT_ID` | `collaboration_service.py:L69`, `:L70`, `:L128`, `:L153` | READ-BUT-NEVER-DECLARED |
 | `STORAGE_BUCKET_NAME` | `export_service.py:L60`, `:L92` | READ-BUT-NEVER-DECLARED |
 | `SIGNED_URL_EXPIRATION` | `export_service.py:L68`, `:L100` | READ-BUT-NEVER-DECLARED |
 
@@ -123,9 +123,8 @@ fails first, so no caller reaches the attribute error today.
 
 Document reads and writes flow one way: a router constructs `DocumentService`, the method calls Firestore, and the
 method returns a `Document` model. Collaboration and export both fan out through a Google Cloud service, and both
-diagrams below mark the broken edges with dashed lines.
-
-Diagram 1 traces one editor session through `connect` at L44 and one edit through `broadcast_change` at L133.
+diagrams below mark the broken edges with dashed lines. Diagram 1 traces one editor session through `connect` at L44 and
+one edit through `broadcast_change` at L137.
 
 ```mermaid
 sequenceDiagram
@@ -215,22 +214,21 @@ is not an `HTTPException`.
 
 Async signatures wrapping a synchronous software development kit (SDK). Seven of the nine public
 methods are `async def`, and every Firestore and Pub/Sub call inside them is synchronous and
-blocking. `future.result()` at `collaboration_service.py:L98` blocks the event loop for the
+blocking. `future.result()` at `collaboration_service.py:L102` blocks the event loop for the
 subscription's life. Read-modify-read update follows: `update_document` costs three Firestore
 operations for one edit, the read at L142, the write at L153 and the re-read at L156.
 
 Per-document Pub/Sub topic and subscription fan-out. One topic per document at
-`projects/{PROJECT_ID}/topics/{document_id}`, L69 and L149. One subscription per document and user pair at
+`projects/{PROJECT_ID}/topics/{document_id}`, L69 and L153. One subscription per document and user pair at
 `projects/{PROJECT_ID}/subscriptions/{document_id}_{user_id}`, L70 and L124. The pattern assumes a topic that already
-exists: no `create_topic` call sits anywhere in the repository, and `create_subscription` at L73 and `publish` at L152
+exists: no `create_topic` call sits anywhere in the repository, and `create_subscription` at L73 and `publish` at L156
 both answer `NotFound` without one.
 
 Per-process in-memory connection registry. `active_connections` at `collaboration_service.py:L40` is a plain dictionary
-with no lock and no shared store, so a second worker process sees none of the sockets the first one holds. Keying by user
-rather than by connection is what lets a second socket evict the first. Holding both would need a unique connection
-identifier per socket and subscription ownership that is reference counted or idempotent.
+with no lock and no shared store, so a second worker process sees none of the sockets the first one holds. The dictionary
+is keyed by user rather than by connection, and entry 22a in the security table below traces what that costs.
 
-Acknowledge-before-send message handling. `message.ack()` at L92 runs before `websocket.send_json(...)` at L93, so
+Acknowledge-before-send message handling. `message.ack()` at L96 runs before `websocket.send_json(...)` at L97, so
 Pub/Sub treats a delivery as settled before the client receives it and will not redeliver it.
 
 Eager client construction in `__init__`. `PublisherClient` and `SubscriberClient` at `collaboration_service.py:L38` and
@@ -242,24 +240,20 @@ Three patterns a reader might expect are absent. No service inherits a common ba
 dependency container, and FastAPI's `Depends` never yields one. Every handler constructs its own instance per request,
 at `../api/documents.py:L45`, `:L64`, `:L90`, `:L119` and `:L145`.
 
-The order of the two checks decides which status code a caller receives, traced line by line
-below. `create_document` writes the compared value: L71 sets `doc_data['user_id'] = user_id`
-from the caller's argument and L73 persists that dictionary, so every later comparison reads
-that stored key.
+The order of the two checks decides which status code a caller receives. `create_document` writes the compared value: L71
+sets `doc_data['user_id'] = user_id` from the caller's argument and L73 persists that dictionary, so every later
+comparison reads that stored key.
 
-Existence is checked first in all three guarded methods. `if not doc.exists` runs at L104, L144
-and L180, and each raises HTTP 404 immediately after, at L172, L127 and L145. Ownership is never
-evaluated for a document that does not exist.
+Existence is checked first in all three guarded methods, by `if not doc.exists` at L104, L144 and L180, each raising HTTP
+404 on the next line at L105, L145 and L181. Ownership is checked second, by `doc.to_dict()['user_id'] != user_id` at
+L108, L148 and L184, each raising HTTP 403 at L109, L149 and L185. Ownership is never evaluated for a document that does
+not exist. So a caller asking for another user's document receives 403, and a caller asking for an identifier that was
+never stored receives 404. The two cases are distinguishable from outside, so any authenticated caller can learn whether a
+given identifier exists.
 
-Ownership is checked second. `doc.to_dict()['user_id'] != user_id` runs at L108, L148 and L184, and each raises HTTP
-403 at L109, L149 and L185. A caller asking for another user's document therefore receives 403, and a caller asking
-for a document that was never stored receives 404. The two cases are distinguishable from outside, so any
-authenticated caller can learn whether a given identifier exists.
-
-Two facts change what the comparison actually reads. The stored key is `user_id`, written at L71,
-while the `Document` contract declares `owner_id` at `../schema/document.py:L28`. The comparison
-reads the raw Firestore dictionary rather than the model, so it works on the stored key. The routers
-that read `.user_id` off a returned `Document` do not.
+Two facts change what the comparison actually reads. The stored key is `user_id`, written at L71, while the `Document`
+contract declares `owner_id` at `../schema/document.py:L28`. The comparison reads the raw Firestore dictionary rather
+than the model, so it works on the stored key. The routers that read `.user_id` off a returned `Document` do not.
 
 ## Known Limitations
 
@@ -270,22 +264,21 @@ more than any other backend directory. All eight are preserved in place. The fou
 | --- | --- |
 | `document_service.py:L114-L115` | `# This function might need additional error handling and validation` |
 | `collaboration_service.py:L42-L43` | `# The following method has a confidence level of 0.6 and may need adjustments for production readiness` |
-| `collaboration_service.py:L131-L132` | `# The following method has a confidence level of 0.7 and may need adjustments for production readiness` |
+| `collaboration_service.py:L135-L136` | `# The following method has a confidence level of 0.7 and may need adjustments for production readiness` |
 | `export_service.py:L38-L39` | `# The following methods have a low confidence score and may require additional implementation details or error handling` |
 
 Each marker opens with `# HUMAN ASSISTANCE NEEDED` on its own first line. The `export_service.py:L38` marker says
-"methods", plural, so it annotates both `export_to_pdf` at L40 and `export_to_docx` at L74. All four `TODO` markers
-sit in the same file: L57, L62, L89 and L94.
+"methods", plural, so it annotates both `export_to_pdf` at L40 and `export_to_docx` at L74. All four `TODO` markers sit
+in that same file, at L57, L62, L89 and L94.
 
-Thirteen call sites violate a contract this folder declares, grouped below into nine rows
-because two rows carry three sites each. None is repaired here.
+Thirteen call sites violate a contract this folder declares, grouped below into eight rows because one row carries four
+sites and another three. None is repaired here.
 
 | Call site | Defect |
 | --- | --- |
 | `../api/documents.py:L46` | Passes `current_user`, a `User` object, where `create_document` declares `user_id: str` at L42. The specification's own example at `documentation/Technical Specifications.md:L443` passes `current_user.id`, a string, so the specification contradicts the committed call. |
 | `../api/documents.py:L65` | Calls `get_documents`, which `DocumentService` does not define. |
-| `../api/documents.py:L91`, `:L120`, `:L146` | Call `get_document(document_id)` with one argument against the two-argument signature at L78. |
-| `../tasks/background_tasks.py:L135` | The fourth one-argument `get_document` call site. |
+| `../api/documents.py:L91`, `:L120`, `:L146` and `../tasks/background_tasks.py:L135` | Four sites call `get_document(document_id)` with one argument against the two-argument signature at L78. |
 | `../tasks/background_tasks.py:L56` | Correct arity, and not awaited on an `async def`, so the name binds a coroutine object that L59 passes onward. |
 | `../api/documents.py:L123` | Supplies two of the three arguments `update_document` declares at L116, omitting `user_id`. |
 | `../api/documents.py:L149` | Supplies one of the two arguments `delete_document` declares at L159, omitting `user_id`. |
@@ -299,36 +292,45 @@ Beyond the call sites:
   `../../tests/test_services.py:L4` and `:L39`, reached through a bare `services.*` import root that
   locates this file only while `backend/app/` sits on the import path. `connect`, `disconnect` and
   `broadcast_change` therefore never run.
-- **The export methods write literal strings.** `export_service.py:L63` uploads `"PDF_CONTENT"` and
-  `:L95` uploads `"DOCX_CONTENT"`, and no conversion code exists in either method. Neither the upload
-  nor the version 4 signature completes today. `settings.STORAGE_BUCKET_NAME` at `:L60` is undeclared,
-  and signing needs credentials able to sign bytes, meaning a private key or an IAM `signBlob` grant.
+- **The export methods write literal strings.** `export_service.py:L63` uploads `"PDF_CONTENT"` and `:L95` uploads
+  `"DOCX_CONTENT"`, and no conversion code exists in either method. Neither the upload nor the version 4 signature
+  completes today: `settings.STORAGE_BUCKET_NAME` at `:L60` is undeclared, and entry 26 below carries the signing
+  credential the signature needs.
 - **Three sites fail Pydantic validation on missing timestamps.** `../schema/document.py` declares
   `created_at` at L63 and `updated_at` at L64 as required, and `create_document` assembles
   `doc_data` at `document_service.py:L70` to `:L72` without either, so `Document(**doc_data)` at
   `:L76` raises. Nothing writes them to Firestore, so `:L112` and `:L157` raise for the same reason.
 - **Two sibling service modules are imported and absent.** `app.services.user_service` at
   `../api/auth.py:L21` and `../api/users.py:L14`; `app.services.template_service` at `../api/templates.py:L18`.
-- **Two undefined names raise at first call, not at import.** `asyncio` at
-  `collaboration_service.py:L93` and `json` at `:L152`, neither imported. `:L154` catches the second
-  and `:L156` prints it, so a publish failure never reaches the caller. A failed subscription is silent
-  too: `:L76` prints, `:L77` returns, and the socket registered at `:L66` keeps its registry entry.
+- **Two undefined names raise at first call, not at import.** `asyncio` at `collaboration_service.py:L97` and `json` at
+  `:L152`, neither imported. `:L154` catches the second and `:L156` prints it, so a publish failure never reaches the
+  caller. A failed subscription is silent too, which entry 22a below traces.
 - **Four imports are unused.** `Client` at `document_service.py:L14` and `settings` at `:L17`, which the module never
   dereferences, plus `WebSocketDisconnect` at `collaboration_service.py:L15` and `Document` at `:L17`.
 - **`delete_document` reports success unconditionally.** `document_service.py:L191` returns the literal `True`
   whatever `doc_ref.delete()` at `:L188` did. The value means the method reached its last line, not that a document
   was removed, and a Firestore delete of a missing document succeeds silently.
-- **Both mutating methods check, then write, with nothing between.** `update_document` reads at
-  `document_service.py:L142`, tests existence at `:L144` and ownership at `:L148`, then writes at
-  `:L153` with no transaction and no precondition. `delete_document` repeats the shape at `:L178`,
-  `:L180`, `:L184` and `:L188`. A concurrent owner change between the read and the write is silently
-  overwritten, and a concurrent delete makes the `update()` fail on a document the check said existed.
+- **Both mutating methods check, then write, with nothing between.** `update_document` reads at `document_service.py:L142`,
+  tests existence at `:L144` and ownership at `:L148`, then writes at `:L153` with no transaction and no precondition.
+  `delete_document` repeats the shape at `:L178`, `:L180`, `:L184` and `:L188`. A concurrent owner change between the read
+  and the write is silently overwritten, and a concurrent delete makes the `update()` fail on a document the check said existed.
 - **The folder is inconsistent on `async`.** Both `ExportService` methods are plain `def` at `export_service.py:L40`
   and `:L74`, while the seven public methods in the other two modules are all `async def`.
 
-Every defect above is listed with its symptom and remediation in
-[../../../docs/troubleshooting.md](../../../docs/troubleshooting.md). Judgement calls behind the documentation choices
-sit in the [decision log](../../../docs/decision-log.md).
+### Absent security controls
+
+Seven entries in the repository-wide [G9 register](../../../docs/troubleshooting.md#g9-absent-security-controls) have their
+call site in this folder, and the locators below match the register.
+
+| # | Absent control | Evidence in this folder | What the absence permits |
+| --- | --- | --- | --- |
+| 19, 20, 21 | Authentication, authorization and identifier validation on the collaboration handshake | `collaboration_service.py:L44` takes `websocket`, `document_id` and `user_id` as plain arguments and no route constructs the service, so nothing verifies a token before the socket is registered at `:L64-L66`. The method never checks that `user_id` may read `document_id`, then interpolates the value straight into a topic at `:L69`, a subscription at `:L70` and a delete at `:L107` | The method establishes no identity, performs no ownership or membership check and validates no format, so a caller has to prove and constrain all three before calling. A route forwarding a client-supplied value would let a client join as any identity, to any document identifier |
+| 22 | A payload schema and a size bound on broadcast changes | `:L133` declares `change: dict` with no model behind it, and `:L152` serialises whatever arrives with `json.dumps` | Arbitrary unbounded structures are published to every subscriber |
+| 22a | Per-connection identity in the socket registry, so two sessions for one user can coexist | `:L66` keys `active_connections` by `user_id` rather than by connection, so a second socket for the same document and user replaces the first without closing it. Both resolve to one subscription name at `:L70`, so the second `create_subscription` at `:L73` answers `AlreadyExists`, which `:L76` prints before `:L77` returns. On disconnect, `:L124` rebuilds that shared name and `:L126` deletes it | A second session evicts the first from the registry and receives no feed itself, and either session closing deletes the subscription the other still depends on. Holding both would need a unique connection identifier per socket and subscription ownership that is reference counted or idempotent |
+| 25, 26 | An authorization check before a signed link is minted, plus a reviewed expiry and a protected signing credential | `export_service.py:L66-L70` and `:L98-L102` generate a version 4 signed URL immediately after upload, with no check that the requester may read the document. Both read `settings.SIGNED_URL_EXPIRATION`, which `../core/config.py:L40-L48` never declares, while `../tasks/background_tasks.py:L67` signs with `expiration=timedelta(hours=1)` and passes no `version`, so the two paths do not agree on a signing scheme | A link is issued to whoever reached the call. Signing needs a credential able to sign bytes, meaning a private key or an IAM `signBlob` grant. A signed URL is a bearer credential, so possession alone authorises the read for its whole validity window |
+
+Every defect above is listed with its symptom and remediation in [../../../docs/troubleshooting.md](../../../docs/troubleshooting.md),
+and the judgement calls behind the documentation choices sit in the [decision log](../../../docs/decision-log.md).
 
 ## Usage Examples
 
@@ -365,8 +367,8 @@ missing timestamp fields, and `Document(**doc.to_dict())` at L112 raises for the
 
 `CollaborationService` has no usage example. No route constructs the class and no WebSocket endpoint exists under
 `backend/`, so no example can show the class in service. An example calling `connect` would stop at L69 with
-`AttributeError` for the undeclared `settings.PROJECT_ID`, and an example calling `broadcast_change` would stop at L149
-for the same reason. The `NameError` for `json` at L152 never reaches a caller, because L157 catches it and L156 prints
+`AttributeError` for the undeclared `settings.PROJECT_ID`, and an example calling `broadcast_change` would stop at L153
+for the same reason. The `NameError` for `json` at L156 never reaches a caller, because L158 catches it and L160 prints
 it.
 
 Exporting to Portable Document Format (PDF), per the signature at `export_service.py:L40`. The method

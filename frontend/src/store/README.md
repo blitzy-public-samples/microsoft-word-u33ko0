@@ -100,7 +100,7 @@ them. The values below are the fixed constants the slices hold, and source sets 
 ## Data Flows
 
 One path through the directory is traceable end to end, and a single action drives it. `pages/Editor.tsx:L18` imports
-`setCurrentDocument`, `pages/Editor.tsx:L45` dispatches it with the record fetched at `:L43`, and the reducer at
+`setCurrentDocument`, `pages/Editor.tsx:L51` dispatches it with the record fetched at `:L49`, and the reducer at
 `documentSlice.ts:L44` writes `state.currentDocument`. `RootState` at `index.ts:L32` then types that state for
 `services/api.ts:L18`.
 

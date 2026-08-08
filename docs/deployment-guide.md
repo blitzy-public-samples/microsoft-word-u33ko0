@@ -286,7 +286,7 @@ GCP fields at `:L45-L46` default to `None`. Compose injects `DATABASE_URL` only.
 | `GOOGLE_APPLICATION_CREDENTIALS` | `config.py:L46` | No, `Optional` | No | Resolves to `None`. No credential file is mounted into any container |
 | `DATABASE_URL` | `config.py:L47` | Yes | Yes, `docker-compose.yml:L24` | Satisfied. Read at `backend/app/db/sql.py:L16` |
 | `REDIS_URL` | `config.py:L48` | Yes | No | `ValidationError`. No Redis service exists to point it at |
-| `ALLOWED_ORIGINS` | Nowhere | n/a | No | `AttributeError` at `backend/app/main.py:L73` |
+| `ALLOWED_ORIGINS` | Nowhere | n/a | No | `AttributeError` at `backend/app/main.py:L77` |
 | `PROJECT_ID` | Nowhere | n/a | No | `AttributeError` at `backend/app/services/collaboration_service.py:L69` |
 | `STORAGE_BUCKET_NAME` | Nowhere | n/a | No | `AttributeError` at `backend/app/services/export_service.py:L60` |
 | `SIGNED_URL_EXPIRATION` | Nowhere | n/a | No | `AttributeError` at `backend/app/services/export_service.py:L68` |
@@ -411,7 +411,7 @@ closes it. Every one is future work; this documentation pass changes no manifest
 | 8 | No federated identity is configured | Nothing in either workflow requests an OIDC token, and no workload identity pool or provider appears in `infrastructure/terraform/` | Create a pool and provider, request `id-token: write` on the job, and add an attribute condition restricting the provider to this repository, because an unconditioned provider lets any repository authenticate |
 | 9 | No credential rotation or audit exists | No committed file records which IAM role `GCP_SA_KEY` carries, when it was issued, or when it is next rotated. [Continuous delivery](#continuous-delivery) above records the same gap | Record the role, set a rotation schedule, and audit key use, until item 7 removes the key |
 | 10 | Neither build context is bounded, and the frontend build copies the whole of it | No `.dockerignore` is tracked anywhere in the repository, so each build uploads its whole named directory to the daemon as its [build context](https://docs.docker.com/build/concepts/context/). `infrastructure/docker/frontend.Dockerfile:L14` then runs `COPY . .`, writing that context into the build stage on top of the `node_modules` its own `npm ci` at `:L11` installed. A local `.env` or key file in the tree travels the same route. The final stage copies only `/app/build` at `:L23`, so the shipped image stays clean while the uploaded context and the build cache do not | Commit a reviewed `.dockerignore` excluding at least `node_modules`, a local virtual environment, `.env` and key material, and treat it as a prerequisite for either direct build |
-| 11 | Every container process runs as root | No `USER` instruction appears in `infrastructure/docker/backend.Dockerfile` or in either stage of `infrastructure/docker/frontend.Dockerfile`, and `python:3.9-slim`, `node:14-alpine` and `nginx:alpine` all default to root. Uvicorn at `backend.Dockerfile:L20` and the Nginx master at `frontend.Dockerfile:L32` therefore start as uid 0, so an exploited process begins with root inside the container | Add a `USER` with a non-root uid to each final stage, placed after the steps that need write access, and make the served paths readable by that uid |
+| 11 | The backend process and the Nginx master run as root | No `USER` instruction appears in `infrastructure/docker/backend.Dockerfile` or in either stage of `infrastructure/docker/frontend.Dockerfile`, and `python:3.9-slim`, `node:14-alpine` and `nginx:alpine` all default to root. Uvicorn at `backend.Dockerfile:L20` and the Nginx master at `frontend.Dockerfile:L32` therefore start as uid 0. Nginx workers are the one exception, because the `nginx:alpine` default configuration carries `user nginx;` and `frontend.Dockerfile:L26` leaves the override commented out, so the workers drop to an unprivileged user. An exploited backend process or Nginx master still begins with root inside the container | Add a `USER` with a non-root uid to each final stage, placed after the steps that need write access, and make the served paths readable by that uid |
 | 12 | No container is contained or resource bounded | `infrastructure/docker/docker-compose.yml` declares no `user:`, `read_only:`, `cap_drop:`, `security_opt:`, `pids_limit:`, `mem_limit:` or `cpus:`, and no `deploy.resources.limits` block. Each of the three services keeps the default Linux capability set, a writable root filesystem and unbounded CPU, memory and process count. One runaway container can then exhaust the host, and a compromised one can raise its own privileges | Drop all capabilities and add back only what each service needs, set `no-new-privileges`, and mount the root filesystem read-only with explicit writable `tmpfs` paths. Then give every service a CPU and memory limit |
 
 [../.github/workflows/README.md](../.github/workflows/README.md) carries rows 5 through 8 against the
@@ -609,7 +609,7 @@ committed line reconciles them.
 
 ## Why a deploy fails as committed
 
-A deploy fails at eleven points, and the eleven are not eleven parallel problems. Six execution paths
+A deploy fails at eleven points, and the eleven are not eleven parallel problems. Eight execution paths
 exist, each path hits one blocker, and the rest of that path's blockers sit behind it unreported. The
 table below groups them so a reader can tell what a run will actually say from what it will say next.
 
@@ -673,11 +673,16 @@ final script, each naming the file and line that stops the step.
     than running `gcloud auth activate-service-account`.
 
     `:L23` then fails unless the host already carries an authenticated `gcloud`, a default project
-    and write access to the target. That target is hard-coded `gs://my-word-app-bucket/`, which no
-    Terraform creates, so the upload fails there in any case. `:L31` pipes an uncommitted
-    `db_migrations.sql` into Cloud SQL as a `root` role neither provisioning path creates. `:L35`
-    updates a backend service with no `--global` or `--region` scope. `:L47` echoes `Deployment
-    completed successfully!` with no guard, whatever the earlier stages returned.
+    and write access to the target. That target is hard-coded `gs://my-word-app-bucket/`, and no
+    committed Terraform declares it, because `infrastructure/terraform/main.tf:L50-L51` provisions
+    `word-documents-${var.project_id}` instead. Nothing in this repository therefore establishes the
+    deploy target, and whether the upload succeeds depends on external state and on the caller's
+    permissions.
+
+    `:L31` pipes an uncommitted `db_migrations.sql` into Cloud SQL as a `root` role
+    neither provisioning path creates. `:L35` updates a backend service with no `--global` or
+    `--region` scope. `:L47` echoes `Deployment completed successfully!` with no guard, whatever the
+    earlier stages returned.
 
 [troubleshooting.md](troubleshooting.md#g8-platform-and-automation-defects) carries the same eleven
 entries inside the full defect register, alongside the backend import failure and the 76 frontend

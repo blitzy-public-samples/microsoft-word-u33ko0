@@ -704,7 +704,7 @@ it.
 ```mermaid
 graph LR
     accTitle: What runs today and where each run stops
-    accDescr: A decision node fans out to nine tasks. Three run to completion. Six stop, and each failure node names the file and line that stops it.
+    accDescr: A decision node fans out to nine tasks. Four run to completion and two of those succeed. Five stop, and each failure node names the file and line that stops it. The test path stops until pytest is installed, then completes and reports three collection errors.
     START{"What do you<br/>want to do?"}
 
     START --> A["Install client<br/>dependencies"]
@@ -727,13 +727,15 @@ graph LR
     G -.->|"stops"| GNO1["infrastructure/docker/<br/>frontend.Dockerfile:L11<br/>npm ci with no lockfile"]
     G -.->|"stops"| GNO2["infrastructure/docker/<br/>backend.Dockerfile:L8<br/>COPY of an absent requirements.txt"]
     H -.->|"stops"| HNO0["No manifest declares pytest<br/>ModuleNotFoundError:<br/>No module named 'pytest'"]
-    HNO0 -.->|"stops again"| HNO1["backend/tests/test_api.py:L3<br/>'app' is not on sys.path from the<br/>repository root"]
-    HNO1 -.->|"stops again"| HNO2["With backend/ and backend/app/ on<br/>the path: 6 import targets name no<br/>file, and 3 services modules resolve<br/>only from backend/app/"]
+    HNO0 -->|"install pytest,<br/>then it completes"| HOK["Completes, exit non-zero<br/>3 collection errors, one per<br/>module, and no test body runs"]
+    HOK -.->|"first cause"| HNO1["backend/tests/test_api.py:L3<br/>'app' is not on sys.path from the<br/>repository root"]
+    HNO1 -.->|"then"| HNO2["With backend/ and backend/app/ on<br/>the path: 6 import targets name no<br/>file, and 3 services modules resolve<br/>only from backend/app/"]
     I -.->|"stops"| INO["infrastructure/terraform/main.tf<br/>:L68, :L77, :L86<br/>three module sources absent"]
 
 %% A solid edge marks a path that runs to completion, and its node states whether the run succeeded.
 %% A dashed edge marks a path that stops before completing, and every failure node names the file
-%% and line that stops it.
+%% and line that stops it. A dashed edge leaving a completion node points at a cause of the failure
+%% that node reports rather than at a further stop.
 ```
 
 ## Where a run stops, with evidence
@@ -824,8 +826,8 @@ specifiers after the compiler has accepted them. Nothing reports the resolver pr
 ### Everything else
 
 The remaining defects live in [troubleshooting.md](troubleshooting.md), ordered twice over. A
-symptom-first index runs in the order a developer meets each problem, and eight taxonomy sections run
-from absent modules through platform defects. Open
+symptom-first index runs in the order a developer meets each problem, and nine taxonomy sections run
+from absent modules through platform defects and then absent security controls. Open
 [the symptom-first index](troubleshooting.md#symptom-first-index) when you hit an error this guide
 did not predict. For the eleven separate reasons a deploy fails, read
 [deployment-guide.md](deployment-guide.md#why-a-deploy-fails-as-committed).
@@ -889,7 +891,7 @@ table gives each one its destination and its trap.
 
 | What you are adding | Where it goes | What to watch |
 | --------------------- | --------------- | --------------- |
-| An HTTP endpoint | A router module under `backend/app/api/`, registered in `backend/app/main.py` | `backend/app/main.py:L80-L83` mounts every router with no prefix, so documents and templates already collide on identical paths. Give a new router a prefix or plan the collision |
+| An HTTP endpoint | A router module under `backend/app/api/`, registered in `backend/app/main.py` | `backend/app/main.py:L84-L87` mounts every router with no prefix, so documents and templates already collide on identical paths. Give a new router a prefix or plan the collision |
 | Domain logic | A service class under `backend/app/services/` | 7 of the 9 public service methods are declared `async` and call the synchronous Firestore software development kit (SDK) inside, so the declaration promises concurrency the body does not deliver. The other 2 are the plain `def` export methods at `backend/app/services/export_service.py:L40` and `:L74`, which no caller can await. Pick one form deliberately, because the directory already uses both |
 | A persistence call | An adapter function under `backend/app/db/` | No service consumes the four Firestore helpers in `backend/app/db/firestore.py`. Services construct their own client instead, so pick one path deliberately |
 | A data contract | Both `backend/app/schema/` and `frontend/src/schema/` | Nothing generates either side from the other. See the trap below |
@@ -939,15 +941,73 @@ each module exports. Write `app.schema.template` and `app.services.template_serv
 Until all five land, `import app.main` raises before any other work can be tested. The undefined
 names registered in [troubleshooting.md](troubleshooting.md#the-verified-import-census) still raise
 afterwards, two of them while the module is being evaluated and the rest on a call.
-2. **Make the client typecheck.** `frontend/src/schema/document.ts` omits three requested names, not
-   one. Export an inferred `Document` type first, following the pattern its sibling already uses at
-   `frontend/src/schema/user.ts:L30`, which clears three of the five request positions on its own.
-   The names `DocumentCreate` and `DocumentUpdate` need a schema written before a type can be
-   inferred, because no Zod object in the module models a creation or an update payload.
 
-   Then add `useAppSelector` and `useAppDispatch` to `frontend/src/store/index.ts`, which seven
-   modules import. The three absent document names produce five of the six `TS2305` errors across
-   three modules, and each edit removes a whole error class rather than a single line.
+2. **Make the client typecheck.** Fifteen repairs stand between the committed tree and zero type
+   errors, and the first four unmask the rest.
+
+   The baseline is 76 errors across seven rule codes: 57 `TS2307`, 6 `TS2305`, 5 `TS7006`, 4
+   `TS2322`, 2 `TS2614`, 1 `TS2552` and 1 `TS2339`. Read 76 as a floor rather than a total. A probe
+   that added only `@/*` to the `paths` block cleared 39 errors and surfaced 32 more that module
+   resolution had been hiding. `TS2614` went from 2 to 24, `TS2305` from 6 to 8, and `TS2724` and
+   `TS2554` appeared for the first time, at 6 and 2.
+
+   Work the repairs below in the order given.
+
+   - **Map the `@/` prefix for the type-checker.** `frontend/tsconfig.json:L10-L16` declares five
+     path mappings and none of them is `@/*`, so 44 of the 57 `TS2307` errors name a `@/` target.
+     Adding `"@/*": ["*"]` beside the existing five clears 39 of those, against the `baseUrl` of
+     `src` already set at `:L9`.
+   - **Resolve the same prefix in the bundler.** `react-scripts` 5 does not read the `paths` block
+     when it configures webpack, so a `tsconfig` edit fixes `tsc` and leaves the dev server failing
+     on the identical imports. Either add a bundler-side resolver or rewrite the `@/` imports as
+     relative paths.
+   - **Write the five absent modules.** `@/components/StylePanel`, `@/components/CommentPanel`,
+     `@/components/RevisionPanel`, `@/utils/tableUtils` and `@/utils/imageUtils` each carry one
+     `TS2307` that the alias mapping does not clear. The prefix then resolves and the file still
+     does not exist.
+   - **Declare the five undeclared packages.** `draft-js` accounts for 6 `TS2307`, `zod` for 4,
+     `axios` for 2 and `socket.io-client` for 1, and none of the four appears in
+     `frontend/package.json`. Add `@types/draft-js` as the fifth, because Draft.js ships no bundled
+     typings. The four repairs above together take `TS2307` to zero and make the rest visible.
+
+   - **Export the three document names.** `frontend/src/schema/document.ts` omits `Document`,
+     `DocumentCreate` and `DocumentUpdate`, which is five of the six `TS2305`. Export an inferred
+     `Document` first, following the pattern its sibling uses at
+     `frontend/src/schema/user.ts:L30`, which clears three of the five. `DocumentCreate` and
+     `DocumentUpdate` each need a Zod object written first, because no object in the module models
+     a creation or an update payload.
+   - **Migrate the router API.** `frontend/src/App.tsx:L12` imports `Switch`, the sixth `TS2305`.
+     `frontend/package.json` pins `react-router-dom` at `^6.11.1`, and version 6 replaced `Switch`
+     with `Routes`. The usage at `:L40` and `:L45` moves with the import.
+   - **Correct the two reducer imports.** `frontend/src/store/index.ts:L15-L16` imports
+     `documentReducer` and `userReducer` by name while both slice modules export their reducer as a
+     default. Each import resolves to `undefined`, so the store registers no reducer.
+   - **Add the two store hooks.** `useAppSelector` and `useAppDispatch` are absent from
+     `frontend/src/store/index.ts`, and seven modules import them. The pair accounts for ten of the
+     errors the probe surfaced, six as `TS2614` and four as `TS2724`.
+   - **Add the four absent slice members.** `documentSlice` defines no `updateDocument` action and
+     no `selectCurrentDocument` selector. `userSlice` defines no `updateUser` and no
+     `selectCurrentUser`. The four together account for eight further errors.
+   - **Import each default-exported module by default.** `Header`, `Footer`, `Toolbar`,
+     `DocumentCanvas`, `Sidebar` and `store` itself are imported by name from modules that export
+     only a default. Those account for nine errors, including the single `TS2552` in
+     `frontend/src/services/api.ts`.
+   - **Give the request interceptor a token source that exists.** The single `TS2339` reports that
+     `auth` is absent from the store's state type. `frontend/src/store/index.ts` registers a
+     `document` key and a `user` key and no `auth` key. Register an auth slice, or read the token
+     from somewhere the store holds it.
+   - **Export the three missing API functions.** `getDocument`, `getTemplates` and
+     `updateUserSettings` are imported by three pages and defined nowhere.
+     `frontend/src/services/api.ts:L69`, `:L81` and `:L94` export only `getDocuments`,
+     `createDocument` and `updateDocument`.
+   - **Annotate the five implicitly typed parameters.** Each of the five `TS7006` errors names a
+     parameter that declares no type.
+   - **Correct the four type mismatches.** The four `TS2322` errors include the two inverse
+     `EditorState` and `ContentState` assignments in
+     `frontend/src/components/DocumentCanvas.tsx`.
+   - **Fix the two formatting-helper call sites.** The two `TS2554` errors the probe surfaced are
+     the toolbar's one-argument calls to the two-argument helpers in
+     `frontend/src/utils/formatting.ts`.
 3. **Reconcile the field names.** The ownership field exists in four positions, and this
    documentation set names none of them canonical.
    [data-model.md](data-model.md#the-ownership-field-four-positions-none-canonical) lists all four
@@ -959,14 +1019,14 @@ afterwards, two of them while the module is being evaluated and the rest on a ca
    contains a single `Field(` call.
 
    Add a limiter to the two public routes, `POST /token` at `backend/app/api/auth.py:L65` and `POST
-   /register` at `:L102`, because `backend/app/main.py:L71` adds one middleware and it is CORS.
+   /register` at `:L102`, because `backend/app/main.py:L75` adds one middleware and it is CORS.
    Constrain the three token settings that `backend/app/core/config.py:L42-L44` declares as bare
    values, giving `SECRET_KEY` a minimum length, `ALGORITHM` an allowed-value list and
    `ACCESS_TOKEN_EXPIRE_MINUTES` a ceiling.
 
-   Declare `ALLOWED_ORIGINS` as well, because `backend/app/main.py:L73` reads it and no `Settings`
-   field defines it. Line `:L74` sets `allow_credentials=True` beside the wildcard method and header
-   lists at `:L75` and `:L76`.
+   Declare `ALLOWED_ORIGINS` as well, because `backend/app/main.py:L77` reads it and no `Settings`
+   field defines it. Line `:L78` sets `allow_credentials=True` beside the wildcard method and header
+   lists at `:L79` and `:L80`.
    [troubleshooting.md](troubleshooting.md#g91-the-backend-http-surface) registers all twelve absent
    HTTP controls with evidence, and the infrastructure defects in
    [deployment-guide.md](deployment-guide.md) form a separate list.
@@ -1034,4 +1094,4 @@ Reference material, read and never edited:
   anchor.
 - [Software Requirements Specifications](<../documentation/Software Requirements Specifications (SRS).md>),
   declared intent. The 30-second auto-save requirement sits under the SAFETY heading at `L540`, at
-  `L543`, and the editor implements a five-second debounce at `frontend/src/pages/Editor.tsx:L82`.
+  `L543`, and the editor implements a five-second debounce at `frontend/src/pages/Editor.tsx:L91`.

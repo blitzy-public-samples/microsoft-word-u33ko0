@@ -99,7 +99,7 @@ Six more are read from a `settings` object by other modules and are declared now
 
 | Key | Status | Declared at | Read at |
 | --- | --- | --- | --- |
-| `PROJECT_NAME` | DECLARED | `config.py:L40` | No consumer. `main.py:L86` sets `app.title` from the string literal `"Microsoft Word Backend"`. |
+| `PROJECT_NAME` | DECLARED | `config.py:L40` | No consumer. `main.py:L90` sets `app.title` from the string literal `"Microsoft Word Backend"`. |
 | `API_V1_STR` | DECLARED | `config.py:L41` | No consumer anywhere in the repository. The name appears exactly once, at its own declaration. |
 | `SECRET_KEY` | DECLARED | `config.py:L42` | `security.py:L54`, `:L152`; `api/auth.py:L53`, `:L97` |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | DECLARED | `config.py:L43` | `security.py:L52`; `api/auth.py:L94` |
@@ -108,8 +108,8 @@ Six more are read from a `settings` object by other modules and are declared now
 | `GOOGLE_APPLICATION_CREDENTIALS` | DECLARED | `config.py:L46` | Never dereferenced through `settings`. See the note below. |
 | `DATABASE_URL` | DECLARED | `config.py:L47` | `db/sql.py:L16`, at import time |
 | `REDIS_URL` | DECLARED | `config.py:L48` | `tasks/background_tasks.py:L22`, as the Celery broker argument |
-| `ALLOWED_ORIGINS` | READ-BUT-NEVER-DECLARED | Nowhere | `main.py:L73`, as the Cross-Origin Resource Sharing (CORS) allow-list |
-| `PROJECT_ID` | READ-BUT-NEVER-DECLARED | Nowhere | `services/collaboration_service.py:L69`, `:L70`, `:L124`, `:L149` |
+| `ALLOWED_ORIGINS` | READ-BUT-NEVER-DECLARED | Nowhere | `main.py:L77`, as the Cross-Origin Resource Sharing (CORS) allow-list |
+| `PROJECT_ID` | READ-BUT-NEVER-DECLARED | Nowhere | `services/collaboration_service.py:L69`, `:L70`, `:L128`, `:L153` |
 | `STORAGE_BUCKET_NAME` | READ-BUT-NEVER-DECLARED | Nowhere | `services/export_service.py:L60`, `:L92` |
 | `SIGNED_URL_EXPIRATION` | READ-BUT-NEVER-DECLARED | Nowhere | `services/export_service.py:L68`, `:L100` |
 | `EXPORT_BUCKET_NAME` | READ-BUT-NEVER-DECLARED | Nowhere | `tasks/background_tasks.py:L62` |
@@ -281,7 +281,7 @@ belongs to the reviewed manifest and lock recorded as future work in
   Any future implementation must satisfy one form or the other.
 - **Two configuration access paths exist and one works.** `security.py:L20` imports the `get_settings` factory, which
   `config.py:L61` defines. Eight other modules import the `settings` singleton, which `config.py` does not define.
-- **Three declared keys have no consumer.** `PROJECT_NAME` at `config.py:L40` is unread because `main.py:L86` uses a
+- **Three declared keys have no consumer.** `PROJECT_NAME` at `config.py:L40` is unread because `main.py:L90` uses a
   string literal. `API_V1_STR` at `config.py:L41` appears once, at its own declaration.
   `GOOGLE_APPLICATION_CREDENTIALS` at `config.py:L46` is never dereferenced through `settings`, though the like-named
   environment variable is read by ADC at `db/firestore.py:L19` and guarded at `scripts/deploy.sh:L4`.

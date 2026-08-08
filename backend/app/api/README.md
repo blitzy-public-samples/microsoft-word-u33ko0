@@ -67,7 +67,7 @@ return the service result. Repository-wide layering sits in
 
 The specification and the committed code diverge on the route surface. That file diagrams every path behind a prefix at
 `Technical Specifications.md:L406-L433`, grouping routes under `/auth`, `/documents`, `/users` and `/templates`. The
-committed code mounts all four routers with no prefix at `main.py:L80-L83`, so every path lands at the application root. The
+committed code mounts all four routers with no prefix at `main.py:L84-L87`, so every path lands at the application root. The
 prefix absence is what puts the document and template paths on the same addresses.
 
 Four routes the specification declares have no committed handler: `POST /logout` at `Technical Specifications.md:L414`, `POST
@@ -171,7 +171,7 @@ sequenceDiagram
 ```
 
 Dispatch never begins, and two separate faults stop it. `main.py:L16-L19` requests four `*_router` names that no module
-exports, so the composition root binds nothing. Past that name mismatch, the mounted paths overlap: `main.py:L80-L83` passes
+exports, so the composition root binds nothing. Past that name mismatch, the mounted paths overlap: `main.py:L84-L87` passes
 no `prefix=` on any of its four `include_router` calls, verified across all four.
 
 The overlap takes three forms. Static paths collide directly. `POST /` at `documents.py:L24` and `POST /` at
@@ -190,7 +190,7 @@ twelve protected handlers in total.
 graph TD
     accTitle: Why the documents router owns every colliding path
     accDescr: main.py mounts all four routers with no prefix, so identical paths collide. The documents router registers first and owns the shared shapes, leaving seven protected handlers unreachable.
-    MAIN["main.py:L80-L83<br/>four include_router<br/>calls, no prefix"]
+    MAIN["main.py:L84-L87<br/>four include_router<br/>calls, no prefix"]
     NAMES["modules export<br/>the bare name<br/>router:<br/>auth.py:L25,<br/>documents.py:L22,<br/>users.py:L17,<br/>templates.py:L22"]
 
     MAIN -.->|"L16-L19 request<br/>auth_router,<br/>documents_router,<br/>users_router,<br/>templates_router.<br/>No module<br/>exports them."| NAMES
@@ -243,7 +243,7 @@ error message, and each becomes live the moment the import failure is repaired.
 
 | # | Absent control | Evidence |
 | --- | --- | --- |
-| 1 | Rate limiting or throttling on any route, including the two public ones | `main.py:L71` adds one middleware and it is CORS. No limiter, dependency or proxy configuration is committed. The public routes are `auth.py:L65` (`POST /token`) and `:L102` (`POST /register`) |
+| 1 | Rate limiting or throttling on any route, including the two public ones | `main.py:L75` adds one middleware and it is CORS. No limiter, dependency or proxy configuration is committed. The public routes are `auth.py:L65` (`POST /token`) and `:L102` (`POST /register`) |
 | 2 | A request body size limit | No handler, middleware or server flag bounds a body. `schema/document.py:L27` declares `content` as a bare `str` |
 | 3 | Field length or format bounds on any model field | Neither `schema/document.py` nor `schema/user.py` contains a single `Field(` call, so no `max_length`, `min_length` or pattern applies. `schema/user.py:L26` declares `email: str` rather than an email type |
 | 4 | A server-side password policy on registration | `schema/user.py:L38` declares `password: str` with no constraint and `auth.py:L139` hashes whatever arrives. The only policy in the repository is client-side, at `frontend/src/utils/validation.ts:L36-L42`, and a client-side check is not a control |
@@ -313,7 +313,7 @@ log](../../../docs/decision-log.md) records why this documentation names no cano
 `TemplateUpdate` from `app.schema.template`, and `templates.py:L18` requests `TemplateService` from
 `app.services.template_service`. Neither file exists. Import fails before the decorators at L24, L42, L59, L86 and L112
 execute, so the five handlers never register.
-- **All five template routes are shadowed as well.** Registration order at `main.py:L81` and `main.py:L83` gives every
+- **All five template routes are shadowed as well.** Registration order at `main.py:L85` and `main.py:L87` gives every
 colliding path to the documents router, as the Data Flows section sets out.
 - **Object authorization is unimplemented and unverifiable here.** Every template handler carries
 `Depends(get_current_user)`, so a caller is authenticated, and no handler compares the template against that caller. The
@@ -330,7 +330,7 @@ take its 400 branch at `:L60`, and `:L61` would return a coroutine where the sig
 implementation would work as written.
 - **The service module is absent.** `users.py:L14` requests `app.services.user_service`, and no file exists at that path.
 - **Both profile routes are shadowed.** `documents.py:L68` and `:L96` register the same single-segment shape earlier at
-`main.py:L81`, so neither `/me` route ever runs.
+`main.py:L85`, so neither `/me` route ever runs.
 - **The directory's only assistance marker sits here.** `users.py:L54` carries `# HUMAN ASSISTANCE NEEDED`, with companion
 lines at `:L55` and `:L56` recording that the `UserService.update_user` contract is unverified. No `TODO` marker exists
 anywhere in this directory.

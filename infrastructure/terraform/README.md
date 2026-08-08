@@ -202,8 +202,8 @@ what blocks what rather than alphabetically.
    configured, so state is written to a local file beside these sources. The `provider` block declares no `version`
    argument either (`main.tf:L9-L12`).
 
-4. **11 of the 13 declared variables are referenced nowhere.** Only `project_id` and `region` appear in any expression.
-   Two of the 11 point at capabilities the configuration never declares. `storage_class` (`variables.tf:L37-L41`) has no
+4. **11 of the 13 declared variables are referenced nowhere.** Only `project_id` and `region` appear in any expression,
+   and two of the 11 others point at capabilities the configuration never declares. `storage_class` (`variables.tf:L37-L41`) has no
    effect, because the bucket sets no storage class (`main.tf:L50-L59`). `database_tier` (`variables.tf:L44-L48`) has
    nothing to size, because no Cloud SQL instance exists.
 

@@ -55,8 +55,12 @@ async def startup_event():
 async def shutdown_event():
     """Close the database connections during shutdown.
 
-    `db.close()` is awaited on a Firestore `Client`, which declares no
-    `close()`, so the handler raises `AttributeError` on shutdown.
+    `db.close()` is awaited on the Firestore `Client` built at
+    `app/db/firestore.py:L20`. No manifest pins `google-cloud-firestore`, so
+    two questions about the resolved client surface decide the outcome and
+    neither is settled here: whether `close()` exists, and whether it returns
+    something `await` accepts. A synchronous `close()` returns `None`, and
+    `await None` raises `TypeError`.
 
     Returns:
         None. FastAPI runs this on the `shutdown` event.

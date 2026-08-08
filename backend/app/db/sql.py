@@ -22,14 +22,12 @@ def get_db() -> Session:
     """Yield a database session and close it when the caller finishes.
 
     The generator shape suits FastAPI's `Depends`, which runs the code after
-    the `yield` once the response is sent. No route declares it.
+    the `yield` once the response is sent. No route declares it. The declared
+    return type is `Session`, and the body yields, so calling this returns a
+    generator rather than the session the annotation names.
 
     Yields:
         A `Session` bound to the module-level engine.
-
-    Returns:
-        Nothing. The declared return type is `Session`, and the body yields,
-        so the callable returns a generator rather than a session.
     """
     db = SessionLocal()
     try:

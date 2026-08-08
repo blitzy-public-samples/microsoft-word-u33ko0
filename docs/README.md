@@ -104,14 +104,16 @@ complete register lives in [troubleshooting.md](troubleshooting.md).
 
 Diagrams are Mermaid fenced blocks, which GitHub renders with no build step. A diagram depicting a
 broken relationship draws the broken edge dashed and labels it, so intent and reality stay
-distinguishable at a glance.
+distinguishable at a glance. A solid edge means the relationship holds in the committed code. A
+dashed edge means the code states the relationship and cannot satisfy it, and the edge label says
+why. One example reads as a dashed edge from `main.py` to `core/config.py` labelled "imports
+`settings`, which nothing defines".
 
-```mermaid
-graph LR
-    accTitle: The dashed-edge convention this documentation set uses
-    accDescr: One dashed edge runs from a node labelled main.py to a node labelled core/config.py. The edge label reads "imports settings, which nothing defines", so the dash marks a relationship the code states and cannot satisfy. Every diagram in this set follows the same convention.
-    MAIN["main.py"] -.->|"imports settings, which nothing defines"| CFG["core/config.py"]
-```
+Every diagram in the set carries `accTitle` and `accDescr` metadata, so a reader using a screen
+reader gets the same content as the rendered picture.
+
+Twenty-four diagrams sit across 20 of the 28 files in this set. This index carries none, because a
+list of links reads better than a picture of one.
 
 ### 4. Reachability vocabulary
 

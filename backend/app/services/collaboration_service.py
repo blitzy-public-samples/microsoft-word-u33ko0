@@ -88,6 +88,10 @@ class CollaborationService:
 
             Args:
                 message: The received Pub/Sub message.
+
+            Returns:
+                None. The acknowledgement and the forward are both side
+                effects, and the subscriber discards any value returned.
             """
             message.ack()
             asyncio.run(websocket.send_json(message.data))
@@ -103,9 +107,9 @@ class CollaborationService:
     async def disconnect(self, document_id: str, user_id: str) -> None:
         """Remove an editor socket and delete its Pub/Sub subscription.
 
-        The document entry is dropped once its last socket goes at L121.
-        L124 rebuilds the subscription name from the document and user alone,
-        so L126 deletes the name every socket for that pair shares. Closing
+        The document entry is dropped once its last socket goes at L125.
+        L128 rebuilds the subscription name from the document and user alone,
+        so L130 deletes the name every socket for that pair shares. Closing
         one tab therefore cuts the feed to another. Deletion errors print.
 
         Args:

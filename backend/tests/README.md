@@ -40,7 +40,7 @@ L26, L36, L46, L52, L57, L63 and L73. Three of those seven paths correspond to a
 
 The other four do not. `/documents/` and `/templates/` carry a trailing slash that `:L418` and `:L429` do not declare. The specification declares neither `POST
 /users` nor `GET /users/{id}`, listing only `GET /users/me` at `:L424`, `PUT /users/me` at `:L425` and `GET /users/{id}/documents` at `:L426`. Intended behavior per
-that section: each resource group answers under its own prefix. The committed routers mount with no prefix at `backend/app/main.py:L80-L83`, so the server answers on
+that section: each resource group answers under its own prefix. The committed routers mount with no prefix at `backend/app/main.py:L84-L87`, so the server answers on
 `/`, `/{id}`, `/token`, `/register` and `/me`, and this pass changes neither side.
 
 The specification also names one backend testing framework where this directory uses two. Its `TECHNOLOGY STACK > Backend` list names Pytest alone, at
@@ -153,7 +153,7 @@ committed endpoint, and column five names the first mismatch a reader would hit 
 | --- | --- | --- | --- | --- | --- |
 | `L26` | `POST /auth/login` | JavaScript Object Notation (JSON) `username` and `password`, no header | 200 with `access_token` | `POST /token`, `backend/app/api/auth.py:L65` | Path. No registered route carries two segments. Correct the path and the encoding still fails: `auth.py:L66` binds `OAuth2PasswordRequestForm`, which reads form fields, so request validation answers 422 before the 200 branch |
 | `L31` | `POST /auth/login` | JSON with a wrong password, no header | 401 | `POST /token`, `auth.py:L65` | The same path miss, then the same 422 before the 401 branch at `auth.py:L92` |
-| `L36` | `POST /documents/` | JSON `title` and `content`, bearer header from `get_token()` | 201 with `title` | `POST /`, `documents.py:L24` | Path. `main.py:L80-L83` mounts every router with no prefix, so the create route is `/`. The decorator sets no `status_code`, so a success answers 200 rather than 201 |
+| `L36` | `POST /documents/` | JSON `title` and `content`, bearer header from `get_token()` | 201 with `title` | `POST /`, `documents.py:L24` | Path. `main.py:L84-L87` mounts every router with no prefix, so the create route is `/`. The decorator sets no `status_code`, so a success answers 200 rather than 201 |
 | `L46` | `GET /documents/{id}` | Bearer header only | 200 with `title` | `GET /{document_id}`, `documents.py:L68` | Path. The `documents` segment is not mounted, and `/{document_id}` collides with the template router's `/{template_id}` at `templates.py:L59` |
 | `L52` | `POST /users/` | JSON `username`, `email` and `password`, no header | 201 with `username` | None. `users.py` registers `GET /me` at `L19` and `PUT /me` at `L32` only | No user-creation route exists on that router. Registration lives at `POST /register`, `auth.py:L102`, which answers 200 and takes `UserCreate` |
 | `L57` | `GET /users/{id}` | Bearer header only | 200 with `username` | `GET /me`, `users.py:L19` | Contract shape. The server identifies the user from the token dependency, not from a path parameter, so no per-identifier user route exists |

@@ -82,8 +82,20 @@ neither is a third-party dependency. The [data model reference](../../../docs/da
 
 ## Configuration
 
-Neither module reads a setting, an environment variable or a constant, so the package has no configuration surface. For the settings the rest of the
-backend expects, see [onboarding](../../../docs/onboarding.md).
+Neither module reads a setting or an environment variable. Two surfaces still shape validation, and both are declared inside the models themselves, so
+the table records the verified negatives alongside them.
+
+| Configuration input | Read by this package | Status |
+| --- | --- | --- |
+| `Settings` fields from `app/core/config.py:L20` | No. Neither module imports `app.core.config` | DECLARED, unread by this package |
+| Environment variables | No. Neither `os.environ` nor `os.getenv` appears in either module | Neither declared nor read |
+| Pydantic model config | Yes, one. `class Config` at `user.py:L74` sets `orm_mode = True` at `:L81` | DECLARED, in `user.py` only |
+| Field-level constraints through `Field()` | No. No `Field(` call appears in either module, so no length, range or pattern rule is declared | Neither declared nor read |
+| Field defaults | Yes, eight, and every one of them is `None`: `document.py:L28`, `:L48`, `:L49` and `user.py:L28`, `:L51`, `:L52`, `:L53`, `:L54` | DECLARED |
+
+The last three rows carry the whole surface. `orm_mode` is what pins the package to Pydantic 1.x, which the Dependencies table above records. The eight
+`None` defaults are what let a create payload validate without `owner_id`. No `Field()` rule appears either, which is why no string in either module has
+a maximum length. For the settings the rest of the backend expects, see [onboarding](../../../docs/onboarding.md).
 
 ## Data Flows
 

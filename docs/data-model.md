@@ -99,8 +99,8 @@ contracts below describe records that nothing stores.
 ### The Cloud SQL path
 
 `backend/app/db/sql.py:L16` builds an engine from `settings.DATABASE_URL` at import time, `:L17`
-builds `SessionLocal`, and `:L19` builds `Base`. `:L21-L38` defines `get_db()`, the repository's
-only generator, yielding a session at `:L36` and closing it at `:L38`.
+builds `SessionLocal`, and `:L19` builds `Base`. `:L21-L36` defines `get_db()`, the repository's
+only generator, yielding a session at `:L34` and closing it at `:L36`.
 
 Nothing downstream uses any of it:
 
@@ -456,13 +456,13 @@ the declared effect of a step, not an effect anyone has watched happen.
 Two separate frontend paths reach into these steps, and no committed line joins them. The first runs
 from the Draft.js canvas into the Redux store: `frontend/src/components/DocumentCanvas.tsx:L57`
 handles an editor change, serializes at `:L59` and dispatches at `:L60`. The second runs from the
-editor page into the REST client: `frontend/src/pages/Editor.tsx:L73` defines `autoSave` and `:L75`
+editor page into the REST client: `frontend/src/pages/Editor.tsx:L82` defines `autoSave` and `:L84`
 calls `updateDocument` with the page's own `content` state.
 
-The join that would connect them is absent. `Editor.tsx:L102` renders `<DocumentCanvas
+The join that would connect them is absent. `Editor.tsx:L111` renders `<DocumentCanvas
 content={content} onContentChange={handleContentChange} />`, and `DocumentCanvas` declares no props
-at all, so `handleContentChange` at `Editor.tsx:L92` is never invoked and no canvas edit ever
-reaches the page state that `:L75` sends. Read the outbound table as one repaired pipeline rather
+at all, so `handleContentChange` at `Editor.tsx:L101` is never invoked and no canvas edit ever
+reaches the page state that `:L84` sends. Read the outbound table as one repaired pipeline rather
 than as traffic: completed per-change serializations count zero, and dispatches carrying a
 serialized string count zero.
 
@@ -485,18 +485,18 @@ code would perform once the caller is repaired.
 | 2 | `convertToRaw` | `frontend/src/utils/documentUtils.ts:L30` | `EditorState` would become a raw content object of `blocks` and `entityMap`. Unreached from the one caller |
 | 3 | `JSON.stringify` | `:L31` | The raw object becomes one string. Unreached |
 | 4 | `DocumentSchema.isValid` | `:L34` | Nothing. Given a correct argument the call raises in its own right, so the serializer would still never return its string |
-| 5 | Request body | `frontend/src/services/api.ts:L82` for a create, `:L95` for an update | A `content` string travels here, and it does not come from step 4. `frontend/src/pages/Editor.tsx:L75` sends the page's own `content` state, which no canvas edit updates |
+| 5 | Request body | `frontend/src/services/api.ts:L82` for a create, `:L95` for an update | A `content` string travels here, and it does not come from step 4. `frontend/src/pages/Editor.tsx:L84` sends the page's own `content` state, which no canvas edit updates |
 | 6 | Pydantic validation | `DocumentCreate` at `backend/app/schema/document.py:L30` | The body becomes a typed model, and `owner_id` is accepted from the caller |
 | 7 | `document.dict()` | `backend/app/services/document_service.py:L70` | The model becomes a plain dictionary |
 | 8 | Key additions | `:L71` and `:L72` | The service adds `user_id` and then `id`, so one record carries both ownership names |
 | 9 | Firestore write | `:L73` | `doc_ref.set(doc_data)` declares the write into `documents`. The write never executes: no handler is served, and the adapter raises at `backend/app/db/firestore.py:L16` |
 
 The editor takes the update variant rather than the create variant.
-`frontend/src/pages/Editor.tsx:L82` schedules `autoSave` five seconds after a change, and `:L75`
+`frontend/src/pages/Editor.tsx:L91` schedules `autoSave` five seconds after a change, and `:L84`
 calls `updateDocument` with `{ content }` alone. The service update path at
 `backend/app/services/document_service.py:L141-L157` costs three Firestore operations: a read at
 `:L142`, a write at `:L153`, and a second read at `:L156`. The effect dependency array at
-`Editor.tsx:L84` lists `content` and `currentDocument?.id`, and `content` only changes through
+`Editor.tsx:L93` lists `content` and `currentDocument?.id`, and `content` only changes through
 `handleContentChange`, which nothing calls. The timer therefore fires once, five seconds after mount,
 and never restarts.
 
@@ -555,9 +555,9 @@ graph TD
     end
 
     subgraph PATHB["Path B, editor page to REST. Fires once, five seconds after mount."]
-        PSTATE["page content state<br/>Editor.tsx:L31, set by handleContentChange at :L92"]
-        SAVE["autoSave closure<br/>Editor.tsx:L73, timer at :L82"]
-        BODY["PUT request body<br/>Editor.tsx:L75 calls updateDocument, api.put at api.ts:L95"]
+        PSTATE["page content state<br/>Editor.tsx:L31, set by handleContentChange at :L101"]
+        SAVE["autoSave closure<br/>Editor.tsx:L82, timer at :L91"]
+        BODY["PUT request body<br/>Editor.tsx:L84 calls updateDocument, api.put at api.ts:L95"]
         PYD["Pydantic DocumentUpdate<br/>bound at documents.py:L97, declared at document.py:L39"]
         DICT["plain dictionary<br/>dict(exclude_unset=True), document_service.py:L152"]
         WRITE["doc_ref.update<br/>document_service.py:L153"]
@@ -583,10 +583,10 @@ graph TD
     GUARD1 -.->|"would raise once the caller is repaired: isValid is not a Zod API, and checks content against a metadata schema"| DISP
     DISP -.->|"documentSlice exports six actions and no updateDocument, so the dispatch names an action that does not exist"| RDX
 
-    ES -.->|"ABSENT JOIN: Editor.tsx:L102 passes content and onContentChange to a propless component, so nothing calls handleContentChange and no committed line carries Path A into Path B"| PSTATE
+    ES -.->|"ABSENT JOIN: Editor.tsx:L111 passes content and onContentChange to a propless component, so nothing calls handleContentChange and no committed line carries Path A into Path B"| PSTATE
 
     PSTATE --> SAVE
-    SAVE -.->|"FIRST FAULT on Path B: Editor.tsx:L75 dereferences currentDocument.id with no guard, and api.ts:L40 reads a store binding the module never imports"| BODY
+    SAVE -.->|"FIRST FAULT on Path B: Editor.tsx:L84 dereferences currentDocument.id with no guard, and api.ts:L40 reads a store binding the module never imports"| BODY
     BODY --> PYD --> DICT --> WRITE --> STORE
 
     STORE --> READ --> MODEL
@@ -607,8 +607,8 @@ graph TD
 Path A and Path B are two separate paths in the committed source, and no line joins them. Path A ends
 at a Redux dispatch, and Path B builds its request body from page state that Path A never reaches.
 The one edge drawn between them is dashed and labelled as the absent join.
-`frontend/src/pages/Editor.tsx:L102` passes `content` and `onContentChange` to a component that
-declares no props, so `handleContentChange` at `:L92` is never called. The `content` state at `:L31`
+`frontend/src/pages/Editor.tsx:L111` passes `content` and `onContentChange` to a component that
+declares no props, so `handleContentChange` at `:L101` is never called. The `content` state at `:L31`
 therefore keeps the empty string it was initialised with.
 
 Path B follows the update contract, because the editor calls `updateDocument`, and the create

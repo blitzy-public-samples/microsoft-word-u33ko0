@@ -33,13 +33,13 @@ reference point.
 
 Only `TableEditor` and `ImageEditor` declare a props interface, and the other six are propless. `DocumentCanvas` is the one
 whose propless declaration contradicts its caller, which Known Limitations reads against
-`frontend/src/pages/Editor.tsx:L102`.
+`frontend/src/pages/Editor.tsx:L111`.
 
 ## Architecture Fit
 
 These components sit below the routed pages and above the Redux store and the shared utilities.
-`frontend/src/pages/Editor.tsx` composes three of them, rendering `Toolbar` at `Editor.tsx:L100`, `DocumentCanvas` at
-`Editor.tsx:L102` and `Sidebar` at `Editor.tsx:L103`. `frontend/src/App.tsx` composes the chrome, rendering `Header` at
+`frontend/src/pages/Editor.tsx` composes three of them, rendering `Toolbar` at `Editor.tsx:L109`, `DocumentCanvas` at
+`Editor.tsx:L111` and `Sidebar` at `Editor.tsx:L112`. `frontend/src/App.tsx` composes the chrome, rendering `Header` at
 `App.tsx:L38` and `Footer` at `App.tsx:L47`.
 
 The container and presentational split is partial, because three of the eight reach the store themselves rather than taking
@@ -159,7 +159,7 @@ these components.
 graph TD
     accTitle: The editor component tree and the EditorState journey
     accDescr: Dashed edges mark a relationship that cannot resolve, including the three named imports of default exports the page uses, the store read through an absent hook, and the two inverse type errors on the outbound and inbound halves of one round trip. The thick edge marks the one helper call supplying both declared arguments. A solid edge downstream of a dashed one describes intended shape only, because nothing past the first dashed edge runs. Every node names its own file.
-    PAGE["pages/Editor.tsx<br/>renders at<br/>Editor.tsx:L100-L103"]
+    PAGE["pages/Editor.tsx<br/>renders at<br/>Editor.tsx:L109-L112"]
     STORE["Redux store<br/>currentDocument<br/>.content"]
     PAGE -.->|"named import of a<br/>default export,<br/>Editor.tsx:L13"| TB["Toolbar<br/>Toolbar.tsx:L34"]
     PAGE -.->|"named import of a<br/>default export,<br/>Editor.tsx:L15"| SB["Sidebar<br/>Sidebar.tsx:L22"]
@@ -241,7 +241,7 @@ the `EditorState` that `deserializeDocument` returns to a variable named `conten
 either one alone moves the other further from its declared type.
 
 `DocumentCanvas.tsx:L15` already imports `ContentState`, the type `EditorState.createWithContent()` accepts, and leaves it
-unreferenced. Four further facts apply. `:L34` declares a propless `React.FC` while `frontend/src/pages/Editor.tsx:L102`
+unreferenced. Four further facts apply. `:L34` declares a propless `React.FC` while `frontend/src/pages/Editor.tsx:L111`
 passes `content` and `onContentChange`.
 
 The change handler pays no serialization cost, because `DocumentCanvas.tsx:L59` raises before the helper converts anything.
@@ -283,7 +283,7 @@ the tree, so an atomic image block would not render.
 No upload route exists anywhere in the repository to receive image bytes, and `:L61-L63` returns an empty element. Two
 assistance markers sit in this file, at `:L30` and `:L59`.
 
-**`TextEditor.tsx`, 78 lines.** No module imports this component, so no page mounts it. `frontend/src/pages/Editor.tsx:L102`
+**`TextEditor.tsx`, 78 lines.** No module imports this component, so no page mounts it. `frontend/src/pages/Editor.tsx:L111`
 renders `DocumentCanvas` instead, which makes `DocumentCanvas` the editor a reader reaches. `handleKeyCommand` at
 `TextEditor.tsx:L41` is the file's second documentable construct, and an assistance marker sits at `:L26`.
 
@@ -300,7 +300,7 @@ positives hold: `Header.tsx:L34` uses a semantic `header` element and `:L41` a `
 `button`, a React Router `Link` rendering an anchor, or a Draft.js `Editor`, so each is keyboard reachable. The defects:
 
 - **`Header` renders twice per route, so every route exposes two unnamed navigation landmarks.** `App.tsx:L38` renders one
-`Header`, and each page renders its own at `pages/Home.tsx:L32`, `pages/Editor.tsx:L98`, `pages/Templates.tsx:L78` and
+`Header`, and each page renders its own at `pages/Home.tsx:L32`, `pages/Editor.tsx:L107`, `pages/Templates.tsx:L89` and
 `pages/Settings.tsx:L61`. Both copies present the same `nav` at `Header.tsx:L41` with no `aria-label`, so assistive
 technology announces two identical navigation regions and a reader cannot tell them apart. Distinct accessible names on each
 `nav` are required, and the duplicate render is the defect to remove first. `Footer.tsx:L23` duplicates the `contentinfo`
@@ -339,6 +339,20 @@ unfinished work. The markers sit at `Toolbar.tsx:L19`, `TextEditor.tsx:L26`, `Do
 is why a reader scanning the top of that file misses it. The outstanding-work comment is at `Toolbar.tsx:L67`, inside the
 `handleInsert` handler both insert buttons call, and `Header.tsx`, `Footer.tsx` and `Sidebar.tsx` carry neither.
 
+### Absent security controls
+
+One entry in the repository-wide [G9 register](../../../docs/troubleshooting.md#g9-absent-security-controls) has a call site in
+this directory. The locator below matches the register.
+
+| # | Absent control | Evidence in this directory | What the absence permits |
+| --- | --- | --- | --- |
+| 18 | An allow-list on remote image sources | `Header.tsx:L52` renders `currentUser.avatar` as the `src` of an unconstrained `img`, with no `referrerPolicy` attribute, and no Content Security Policy is committed anywhere in the repository | A stored URL causes the browser to contact an arbitrary host, disclosing the viewer address and referrer to it |
+
+Two things bound that entry today. `UserSchema` declares no `avatar` field, which the field-drift note above records, so the read
+yields `undefined` and the browser requests nothing. Neither `frontend/public/index.html` nor any server response header sets a
+`Content-Security-Policy`, so no `img-src` directive would constrain the request once a repaired user contract supplies a value.
+Entry 18 also fires from `../pages/Templates.tsx:L100`, which the [pages README](../pages/README.md) records.
+
 See [the troubleshooting register](../../../docs/troubleshooting.md) for the whole repository.
 
 ## Usage Examples
@@ -359,7 +373,7 @@ Neither snippet runs today. `draft-js` is absent from `frontend/package.json:L6-
 `Toolbar.tsx:L15` and `TextEditor.tsx:L16` match no `frontend/tsconfig.json` alias.
 
 ```tsx
-// pages/Editor.tsx:L102, against the propless React.FC at DocumentCanvas.tsx:L34.
+// pages/Editor.tsx:L111, against the propless React.FC at DocumentCanvas.tsx:L34.
 <DocumentCanvas content={content} onContentChange={handleContentChange} />
 ```
 

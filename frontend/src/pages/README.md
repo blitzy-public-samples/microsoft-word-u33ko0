@@ -16,12 +16,12 @@ heading below cites each one.
 | Component | Type | Location | Description |
 | --- | --- | --- | --- |
 | `Home` | Routed page, default export | `Home.tsx:L27`, exported at `L53` | Renders the welcome screen and three quick-access links. Takes no props. `App.tsx:L16` imports it as a default. |
-| `Editor` | Routed page, default export | `Editor.tsx:L28`, exported at `L110` | Loads a document, holds the editor content string at `L31` and runs the auto-save timer. Takes no props. `App.tsx:L17` imports it as a default. |
-| `Templates` | Routed page, default export | `Templates.tsx:L42`, exported at `L104` | Attempts a template fetch on mount through a helper `services/api.ts` does not export, so it issues no request, and renders a card grid over the empty initial state. Takes no props. `App.tsx:L18` imports it as a default. |
+| `Editor` | Routed page, default export | `Editor.tsx:L28`, exported at `L119` | Loads a document, holds the editor content string at `L31` and runs the auto-save timer. Takes no props. `App.tsx:L17` imports it as a default. |
+| `Templates` | Routed page, default export | `Templates.tsx:L42`, exported at `L115` | Attempts a template fetch on mount through a helper `services/api.ts` does not export, so it issues no request, and renders a card grid over the empty initial state. Takes no props. `App.tsx:L18` imports it as a default. |
 | `Settings` | Routed page, default export | `Settings.tsx:L33`, exported at `L93` | Renders a controlled two-field profile form. Takes no props. `App.tsx:L19` imports it as a default. |
-| `handleContentChange` | Handler, `(newContent: string) => void` | `Editor.tsx:L92-L94` | Writes the incoming string to the `content` state at `Editor.tsx:L31`. Passed to `DocumentCanvas` at `L102`. |
+| `handleContentChange` | Handler, `(newContent: string) => void` | `Editor.tsx:L101-L103` | Writes the incoming string to the `content` state at `Editor.tsx:L31`. Passed to `DocumentCanvas` at `L102`. |
 | `handleSubmit` | Handler, `async (e: React.FormEvent)` | `Settings.tsx:L47-L57` | Calls `e.preventDefault()` at `L48`, sends `{ name, email }` at `L50` and dispatches `updateUser` at `L51`. |
-| `handleTemplateSelection` | Handler, `(templateId: string) => void` | `Templates.tsx:L70-L74` | Stores the identifier at `L71` and returns. No navigation follows. |
+| `handleTemplateSelection` | Handler, `(templateId: string) => void` | `Templates.tsx:L81-L85` | Stores the identifier at `L71` and returns. No navigation follows. |
 | `Template` | Interface, module-local, not exported | `Templates.tsx:L25-L30` | Declares `id`, `name`, `description` and `thumbnail`. Types the state at `Templates.tsx:L43`. |
 
 None of the four pages declares a props type, so each is a `React.FC` with no type parameter. `App.tsx:L16-L19` imports all
@@ -35,13 +35,13 @@ layer sits between a page and its data. None declares a props type, so each is a
 
 The container boundary runs one way only in part. Three of the eight modules under `frontend/src/components` read or write
 the store themselves rather than taking data from the page that renders them: `Header.tsx:L31`, `Toolbar.tsx:L35` and
-`DocumentCanvas.tsx:L35-L36`. `Editor.tsx:L98`, `:L100` and `:L102` render all three, so on that route the page and its
+`DocumentCanvas.tsx:L35-L36`. `Editor.tsx:L107`, `:L109` and `:L111` render all three, so on that route the page and its
 children reach the same store independently.
 
 `documentation/Technical Specifications.md` places the shell differently. Its `USER INTERFACE DESIGN` heading at `L449`
 carries a diagram at `L453-L480` that makes five components direct children of `App`: `Header`, `Toolbar`, `DocumentCanvas`,
 `Sidebar` and `Footer` at `L455-L459`. The committed code splits that tree. `App.tsx` renders only `Header` at `L38` and
-`Footer` at `L47`, while `Editor.tsx` renders `Toolbar` at `L100`, `DocumentCanvas` at `L102` and `Sidebar` at `L103` inside
+`Footer` at `L47`, while `Editor.tsx` renders `Toolbar` at `L109`, `DocumentCanvas` at `L111` and `Sidebar` at `L112` inside
 the page. Intended behavior per that heading: `App` mounts all five once, and a routed page fills the canvas region below
 them.
 
@@ -96,25 +96,25 @@ whole frontend sits at `services/api.ts:L21`. Four hard-coded literals stand in 
 
 | Value | Literal | Location | Classification |
 | --- | --- | --- | --- |
-| Auto-save delay | `5000` milliseconds | `Editor.tsx:L82` | Hard-coded literal. No environment variable, no named constant and no override path. |
+| Auto-save delay | `5000` milliseconds | `Editor.tsx:L91` | Hard-coded literal. No environment variable, no named constant and no override path. |
 | Name field default | `''` | `Settings.tsx:L36` | Hard-coded fallback behind `currentUser?.name`. |
 | Email field default | `''` | `Settings.tsx:L37` | Hard-coded fallback behind `currentUser?.email`. |
-| Template fetch trigger | `[]` | `Templates.tsx:L61` | Hard-coded empty dependency array. Fixes the fetch to one run on mount. |
+| Template fetch trigger | `[]` | `Templates.tsx:L72` | Hard-coded empty dependency array. Fixes the fetch to one run on mount. |
 
 ## Data Flows
 
 The `Editor` page runs two effects against the same document identifier, and neither reaches the server. The first effect at
-`Editor.tsx:L40-L55` guards on `currentDocument?.id` at `L52`, calls `getDocument` at `L43`, writes the response to local
-state at `L44` and dispatches `setCurrentDocument` at `L45`. The guard never passes. `currentDocument` starts at `null` in
-`frontend/src/store/documentSlice.ts`, and the only `setCurrentDocument` dispatch in the committed source is `L45` itself,
+`Editor.tsx:L37-L61` guards on `currentDocument?.id` at `L58`, calls `getDocument` at `L49`, writes the response to local
+state at `L50` and dispatches `setCurrentDocument` at `L51`. The guard never passes. `currentDocument` starts at `null` in
+`frontend/src/store/documentSlice.ts`, and the only `setCurrentDocument` dispatch in the committed source is `L51` itself,
 inside this guarded effect, so no committed path seeds the identifier.
 
 The second effect at `L72-L84` schedules `autoSave` through a five-second `setTimeout` at `L82` and clears it at `L83` during
 cleanup. Its dependency array at `L84` lists `content` and `currentDocument?.id`, so a change to either restarts the delay,
-and no edit ever changes `content`. `handleContentChange` at `L92-L94` is the only writer, and `L102` passes that handler to
+and no edit ever changes `content`. `handleContentChange` at `L101-L103` is the only writer, and `L111` passes that handler to
 `DocumentCanvas` as `onContentChange` while `components/DocumentCanvas.tsx:L34` declares `React.FC` with no props type.
 
-The timer therefore fires once, five seconds after mount, and `L75` reads `currentDocument.id` on `null`. The resulting
+The timer therefore fires once, five seconds after mount, and `L84` reads `currentDocument.id` on `null`. The resulting
 `TypeError` is raised inside the `try` at `L74`, caught at `L76` and logged at `L77`. The closure resolves, no request is
 sent, and no signal reaches the reader.
 
@@ -135,26 +135,26 @@ sequenceDiagram
     Note over User,Store: TERMINAL. Three boundaries stop the<br/>mount: App.tsx:L17 reaches this page<br/>through the unmapped @/ prefix, and<br/>App.tsx:L12 and :L42 use the Switch<br/>element and component prop that<br/>react-router-dom 6 removed.
     Page--xStore: read currentDocument
     Note over Page,API: TERMINAL. Editor.tsx:L30 calls<br/>useAppSelector, which store/index.ts<br/>never exports. Were it exported, the<br/>read returns null at L30.
-    Page--xPage: guard at L52
-    Note over Page,API: TERMINAL. The guard on<br/>currentDocument?.id at L52 never<br/>passes, so getDocument at L43 never<br/>runs and neither do L44 and L45.
+    Page--xPage: guard at L58
+    Note over Page,API: TERMINAL. The guard on<br/>currentDocument?.id at L58 never<br/>passes, so getDocument at L49 never<br/>runs and neither do L50 and L51.
     User--xPage: edit the canvas
-    Note over User,Store: TERMINAL. DocumentCanvas takes<br/>no props, so the Editor.tsx:L92<br/>change callback is never called.
-    Page->>Page: setTimeout at L82
-    Note over Page,API: setTimeout(autoSave, 5000) at L82<br/>fires once on mount, five seconds<br/>after the page loads, with no null<br/>guard and no empty-content guard.
-    Page--xPage: read id at L75
-    Note over Page,API: currentDocument.id at L75 raises a<br/>TypeError, caught at L76 and logged<br/>at L77, so updateDocument is<br/>never reached.
+    Note over User,Store: TERMINAL. DocumentCanvas takes<br/>no props, so the Editor.tsx:L101<br/>change callback is never called.
+    Page->>Page: setTimeout at L91
+    Note over Page,API: setTimeout(autoSave, 5000) at L91<br/>fires once on mount, five seconds<br/>after the page loads, with no null<br/>guard and no empty-content guard.
+    Page--xPage: read id at L84
+    Note over Page,API: currentDocument.id at L84 raises a<br/>TypeError, caught at L85 and logged<br/>at L86, so updateDocument is<br/>never reached.
 ```
 
 The other three pages run shorter flows, and neither page that names a REST function reaches the server. `services/api.ts`
 exports exactly three functions, `getDocuments` at `L69`, `createDocument` at `L81` and `updateDocument` at `L94`, and
-neither call below names one of them. `Templates.tsx:L48-L61` awaits `getTemplates` at `L51` and would store the result at
-`L52`, so the module fails resolution and the page issues no request. `Settings.tsx:L47-L57` is the same attempt in submit
+neither call below names one of them. `Templates.tsx:L60-L83` awaits `getTemplates` at `L62` and would store the result at
+`L63`, so the module fails resolution and the page issues no request. `Settings.tsx:L47-L57` is the same attempt in submit
 form, awaiting `updateUserSettings` at `L50` and dispatching the response at `L51`, and it too issues no request.
 `Home.tsx:L28` reads the current user and calls no REST function at all.
 
 ## Design Patterns
 
-**Debounced auto-save through a fixed timeout.** `Editor.tsx:L82` schedules one five-second `setTimeout`, `L83` clears it
+**Debounced auto-save through a fixed timeout.** `Editor.tsx:L91` schedules one five-second `setTimeout`, `L83` clears it
 during cleanup, and `frontend/package.json` declares no debounce library.
 
 **Container pages selecting from a single store.** Each page reads state through `useAppSelector` at `Editor.tsx:L30`,
@@ -166,8 +166,8 @@ The editor keeps a `content` string at `Editor.tsx:L31` and `Templates.tsx:L43` 
 **Controlled form state.** `Settings.tsx:L67-L73` binds the name input's `value` at `L70` and `onChange` at `L71` to the
 state at `L36`. `L77-L83` binds the email input the same way at `L80` and `L81` against `L37`.
 
-**Effect-driven loading on mount.** `Editor.tsx:L40-L55` keys its effect on `currentDocument?.id` at `L55`.
-`Templates.tsx:L48-L61` passes an empty array at `L61` and runs once.
+**Effect-driven loading on mount.** `Editor.tsx:L37-L61` keys its effect on `currentDocument?.id` at `L61`.
+`Templates.tsx:L49-L72` passes an empty array at `L61` and runs once.
 
 ## Known Limitations
 
@@ -183,15 +183,15 @@ only correct case in the directory.
 
 **Auto-save.** The implemented interval and the specified interval differ by twenty-five seconds.
 
-- `Editor.tsx:L82` implements a fixed five-second `setTimeout`. Under the `SAFETY` heading at `documentation/Software
+- `Editor.tsx:L91` implements a fixed five-second `setTimeout`. Under the `SAFETY` heading at `documentation/Software
 Requirements Specifications (SRS).md:L540`, `L543` specifies auto-save every thirty seconds during active editing. The code
 saves after five.
 - `L544` of that same document promises a local cache of recent changes for crash recovery. No page in this directory writes
 one.
-- The second effect at `Editor.tsx:L72-L84` has no null guard and no empty-content guard, unlike the first effect, which
-guards at `L52`. The timer fires once, five seconds after mount, and `L75` reads `.id` on a `null` value. The `TypeError`
-never escapes: the `try` at `L74` catches it, `L77` logs it, and the async closure resolves without sending a request.
-- Load and save failures reach `console.error` at `Editor.tsx:L47` and `L77` and go nowhere else. No page shows an error to
+- The second effect at `Editor.tsx:L70-L93` has no null guard and no empty-content guard, unlike the first effect, which
+guards at `L58`. The timer fires once, five seconds after mount, and `L84` reads `.id` on a `null` value. The `TypeError`
+never escapes: the `try` at `L83` catches it, `L86` logs it, and the async closure resolves without sending a request.
+- Load and save failures reach `console.error` at `Editor.tsx:L53` and `L86` and go nowhere else. No page shows an error to
 the user, and no retry follows.
 
 **Contract drift.** Two shapes the pages rely on do not match the schemas in [`../schema/README.md`](../schema/README.md).
@@ -206,15 +206,15 @@ never imports the schema.
 
 **Call sites and routing.** Two pages call across a boundary the receiving code does not offer.
 
-- `Editor.tsx:L102` passes `content` and `onContentChange` to `DocumentCanvas`, which takes no props.
+- `Editor.tsx:L111` passes `content` and `onContentChange` to `DocumentCanvas`, which takes no props.
 `components/DocumentCanvas.tsx:L34` declares `React.FC` and reads `currentDocument` at `L36`.
 - `Home.tsx:L37`, `L40` and `L43` link to `/new-document`, `/open-document` and `/recent-documents`. `App.tsx:L41-L44`
 declares `/`, `/editor`, `/templates` and `/settings`, and matches none.
 - The shell duplicates route by route. `App.tsx` wraps every route in `Header` at `L38`, `main` at `L39-L46` and `Footer` at
   `L47`. `Home.tsx` adds `Header` at `L32`, `main` at `L33` and `Footer` at `L48`. `Templates.tsx` adds the same three at
-  `L78`, `L79` and `L99`, and `Settings.tsx` at `L61`, `L62` and `L88`.
+  `L89`, `L90` and `L110`, and `Settings.tsx` at `L61`, `L62` and `L88`.
 
-- `Editor.tsx:L98` adds `Header` alone and renders neither its own `Footer` nor its own `main`. `Header` therefore
+- `Editor.tsx:L107` adds `Header` alone and renders neither its own `Footer` nor its own `main`. `Header` therefore
   renders twice on all four routes, `Footer` twice on three, and a second `main` nests inside the first on three.
 - No page mounts as committed. `App.tsx:L12` imports `Switch` and `L40` renders it, and the `react-router-dom` major version
 declared at `frontend/package.json:L11` removed that export. The router surface belongs to [`../README.md`](../README.md).
@@ -222,38 +222,38 @@ declared at `frontend/package.json:L11` removed that export. The router surface 
 **Dead code and terminal interactions.** Two values go unread, one click leads nowhere, and one initialization runs too
 early.
 
-- `Templates.tsx:L44` declares `selectedTemplate`, which `L71` writes and nothing reads, and `L45` reads `currentUser`
-without using it. `L86` wires the card click to `handleTemplateSelection`, which stores an identifier at `L71` and ends, so
+- `Templates.tsx:L44` declares `selectedTemplate`, which `L82` writes and nothing reads, and `L45` reads `currentUser`
+without using it. `L97` wires the card click to `handleTemplateSelection`, which stores an identifier at `L82` and ends, so
 the click leads nowhere.
 - `Settings.tsx:L36-L37` initialise the form state once from `currentUser`. A `currentUser` that arrives after the first
 render leaves both fields empty.
 
 **Accessibility.** Every interactive control here is a native element or a Router `Link`, with one exception, so each of the
-rest is keyboard reachable without an extra handler. The exception is the template card at `Templates.tsx:L83-L86`, a
+rest is keyboard reachable without an extra handler. The exception is the template card at `Templates.tsx:L94-L97`, a
 clickable `div` that the last bullet below covers. `Settings.tsx` associates both labels correctly, `L66` to the input at
 `L69` and `L76` to the input at `L79`. No contrast ratio is asserted below, because no stylesheet is committed and no
 authored colour pair exists to measure.
 
-- Three routes expose two `main` landmarks. `App.tsx:L39` opens the outer one, and `Home.tsx:L33`, `Templates.tsx:L79` and
+- Three routes expose two `main` landmarks. `App.tsx:L39` opens the outer one, and `Home.tsx:L33`, `Templates.tsx:L90` and
 `Settings.tsx:L62` each open a second inside it.
 - The `banner` role duplicates on all four routes and `contentinfo` on three, through the shell duplication cited above, and
 no `aria-label` distinguishes either copy. The duplicate `banner` brings a duplicate `navigation` landmark with it, because
 both `Header` copies render the same `nav` at `components/Header.tsx:L41` with no accessible name. Every route therefore
 announces two identical navigation regions. Each surviving landmark needs a distinct name, and removing the second render at
-`Home.tsx:L32`, `Editor.tsx:L98`, `Templates.tsx:L78` and `Settings.tsx:L61` comes first.
-- `Editor` renders no heading. `Home.tsx:L34`, `Settings.tsx:L63` and `Templates.tsx:L80` each render an `h1`, and
-`Editor.tsx:L96-L107` renders none.
-- The editor canvas exposes an unnamed text box. `Editor.tsx:L102` renders `DocumentCanvas`, whose Draft.js `Editor` carries
+`Home.tsx:L32`, `Editor.tsx:L107`, `Templates.tsx:L89` and `Settings.tsx:L61` comes first.
+- `Editor` renders no heading. `Home.tsx:L34`, `Settings.tsx:L63` and `Templates.tsx:L91` each render an `h1`, and
+`Editor.tsx:L105-L116` renders none.
+- The editor canvas exposes an unnamed text box. `Editor.tsx:L111` renders `DocumentCanvas`, whose Draft.js `Editor` carries
 no accessible name, as [`../components/README.md`](../components/README.md) records at the source.
-- `Templates.tsx:L83-L95` renders each card as a `div` with `onClick` at `L86`, no `role`, no `tabIndex` and no key handler,
+- `Templates.tsx:L94-L106` renders each card as a `div` with `onClick` at `L97`, no `role`, no `tabIndex` and no key handler,
 so a keyboard user cannot reach or activate a card.
 - No page authors a focus indicator, and no rule set exists to carry one, so focus visibility rests on the browser default.
 
 **Styling.** Two conventions coexist, and no authored rule backs either one.
 
-- Bespoke semantic class names appear in `Home.tsx` at `L31`, `L33`, `L36`, `L37`, `L40` and `L43`, in `Editor.tsx` at `L97`,
-`L99` and `L101`, at `Settings.tsx:L60` and at `Templates.tsx:L77`.
-- Tailwind utility classes appear in the body of `Templates.tsx` at `L79`, `L80`, `L81`, `L91`, `L93` and `L94`. `L85`
+- Bespoke semantic class names appear in `Home.tsx` at `L31`, `L33`, `L36`, `L37`, `L40` and `L43`, in `Editor.tsx` at `L106`,
+`L99` and `L101`, at `Settings.tsx:L60` and at `Templates.tsx:L88`.
+- Tailwind utility classes appear in the body of `Templates.tsx` at `L90`, `L91`, `L92`, `L102`, `L104` and `L105`. `L96`
 combines `template-card` with six Tailwind utilities, so one attribute mixes both conventions.
 - No `tailwind.config.js`, no `postcss.config.js` and no stylesheet is committed anywhere, so once the build blockers are
 cleared no authored styling would apply under either convention. `frontend/package.json:L12` declares `tailwindcss` at
@@ -263,12 +263,26 @@ rather than a compliance gap.
 **Markers and outstanding work.** The authors left four assistance markers and six outstanding-work comments here, and
 `Home.tsx` carries none.
 
-- Assistance markers sit at `Editor.tsx:L20`, `Settings.tsx:L18`, `Templates.tsx:L55` and `Templates.tsx:L72`.
-- Outstanding-work comments sit at `Editor.tsx:L48`, `Editor.tsx:L78`, `Settings.tsx:L52`, `Settings.tsx:L55`,
-`Templates.tsx:L56` and `Templates.tsx:L73`.
-- The subjects are error handling at `Editor.tsx:L48`, `L78` and `Templates.tsx:L56`, user feedback at `Settings.tsx:L52` and
-`L55`, and navigation at `Templates.tsx:L73`. `Templates.tsx` pairs a marker with a comment twice, at `L55-L56` and
-`L72-L73`.
+- Assistance markers sit at `Editor.tsx:L20`, `Settings.tsx:L18`, `Templates.tsx:L66` and `Templates.tsx:L83`.
+- Outstanding-work comments sit at `Editor.tsx:L54`, `Editor.tsx:L87`, `Settings.tsx:L52`, `Settings.tsx:L55`,
+`Templates.tsx:L67` and `Templates.tsx:L84`.
+- The subjects are error handling at `Editor.tsx:L54`, `L78` and `Templates.tsx:L67`, user feedback at `Settings.tsx:L52` and
+`L55`, and navigation at `Templates.tsx:L84`. `Templates.tsx` pairs a marker with a comment twice, at `L55-L56` and
+`L83-L84`.
+
+### Absent security controls
+
+Three entries in the repository-wide [G9 register](../../../docs/troubleshooting.md#g9-absent-security-controls) have a call
+site in this directory. The locators below match the register.
+
+| # | Absent control | Evidence in this directory | What the absence permits |
+| --- | --- | --- | --- |
+| 14 | Redaction before an error is logged | `Editor.tsx:L53` and `:L86`, `Templates.tsx:L65` and `Settings.tsx:L54` each pass a whole error object to `console.error`. An Axios error carries the request configuration, which includes the `Authorization` header, the full URL and the request body | Nothing leaks today, because the client cannot build and no request carries a token. Once the blockers clear, any failed request whose configuration holds a bearer token or a document body puts both in the browser console and in anything that collects from it |
+| 16 | Ordering protection on the auto-save path | `Editor.tsx:L91` schedules a save five seconds after the last edit, and nothing tracks whether an earlier save is still in flight | A slower earlier save can land after a later one and overwrite newer content |
+| 18 | An allow-list on remote image sources | `Templates.tsx:L100` renders `template.thumbnail` as an unconstrained `src`, with no `referrerPolicy`, and no Content Security Policy is committed | A stored URL causes the browser to contact an arbitrary host, disclosing the viewer address and referrer to it |
+
+Entry 14 also fires from `../services/auth.ts:L57`, and entry 18 also fires from `../components/Header.tsx:L52`. The
+[services README](../services/README.md) and the [components README](../components/README.md) record those call sites.
 
 The repository-wide defect register carries every entry above with its symptom and cross-references:
 [`docs/troubleshooting.md`](../../../docs/troubleshooting.md).
@@ -288,10 +302,10 @@ The repository-wide defect register carries every entry above with its symptom a
 The block does not mount today, because `App.tsx:L40` wraps the routes in `Switch` and the `react-router-dom` version at
 `frontend/package.json:L11` no longer exports `Switch`.
 
-**Reading the auto-save timer.** `Editor.tsx:L72-L84` schedules and cancels the save.
+**Reading the auto-save timer.** `Editor.tsx:L70-L93` schedules and cancels the save.
 
 ```tsx
-// frontend/src/pages/Editor.tsx:L72-L84
+// frontend/src/pages/Editor.tsx:L70-L93
 useEffect(() => {
   const autoSave = async () => {
     try {
@@ -307,23 +321,23 @@ useEffect(() => {
 }, [content, currentDocument?.id]);
 ```
 
-The effect never reaches the server as committed. `L75` dereferences `currentDocument.id` with no guard, so a `null` document
-raises a `TypeError` five seconds after mount. The `catch` at `L76` absorbs it and `L77` logs it, so the closure resolves and
+The effect never reaches the server as committed. `L84` dereferences `currentDocument.id` with no guard, so a `null` document
+raises a `TypeError` five seconds after mount. The `catch` at `L85` absorbs it and `L86` logs it, so the closure resolves and
 the page shows nothing.
 
 **Calling the page handlers.** The first block below reproduces a committed declaration verbatim. The second is abbreviated:
-every line is verbatim except the two comment lines at `Templates.tsx:L72-L73`, which are summarised rather than quoted.
+every line is verbatim except the two comment lines at `Templates.tsx:L83-L84`, which are summarised rather than quoted.
 
 ```tsx
-// frontend/src/pages/Editor.tsx:L92-L94
+// frontend/src/pages/Editor.tsx:L101-L103
 const handleContentChange = (newContent: string) => {
   setContent(newContent);
 };
 
-// frontend/src/pages/Templates.tsx:L70-L74, comments abbreviated
+// frontend/src/pages/Templates.tsx:L81-L85, comments abbreviated
 const handleTemplateSelection = (templateId: string) => {
   setSelectedTemplate(templateId);
-  // an assistance marker at L72, then an outstanding-work comment at L73 asking for
+  // an assistance marker at L83, then an outstanding-work comment at L84 asking for
   // navigation to a template editing page or the next step in the process
 };
 ```

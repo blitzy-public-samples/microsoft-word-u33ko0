@@ -1,6 +1,6 @@
 # backend/app
 
-The FastAPI application package. Fifteen Python modules, 1,675 physical lines at the current branch head, 13 top-level classes
+The FastAPI application package. Fifteen Python modules, 1,718 physical lines at the current branch head, 13 top-level classes
 and 43 function and method definitions, documented as committed.
 
 ## Purpose
@@ -9,7 +9,7 @@ and 43 function and method definitions, documented as committed.
 persistence adapters, three domain services, the Pydantic validation contracts, and one Celery task module. The route modules
 publish the application programming interface (API) over the hypertext transfer protocol (HTTP).
 
-`main.py` builds the application object at `main.py:L24` and mounts all four routers at `main.py:L80-L83`. The package does not
+`main.py` builds the application object at `main.py:L24` and mounts all four routers at `main.py:L84-L87`. The package does not
 run as committed. `import app.main` raises `ImportError: cannot import name 'settings' from 'app.core.config'` through
 `main.py:L16` then `api/auth.py:L19`, and only 3 of the 15 modules import successfully.
 
@@ -19,10 +19,10 @@ run as committed. `import app.main` raises `ImportError: cannot import name 'set
 | --- | --- | --- | --- |
 | `app` | FastAPI instance | `main.py:L24` | The application object. Constructed with no arguments, so no title, version or docs URL is set at construction. |
 | `startup_event` | Async lifecycle handler | `main.py:L27` | Awaits `init_db()` at L42 and checks `db.is_connected()` at L45. Catches every exception at L50 and prints it at L51, so startup continues after a failed check. |
-| `shutdown_event` | Async lifecycle handler | `main.py:L55` | Awaits `db.close()` at L65 on the client built at `db/firestore.py:L20`. No manifest pins `google-cloud-firestore`, so whether `close()` exists and whether it returns something `await` accepts both depend on the resolved client surface. |
-| Cross-origin resource sharing (CORS) | Middleware call | `main.py:L71-L77` | Registers the CORS middleware. Reads `settings.ALLOWED_ORIGINS` at L73 and allows all methods and headers. |
-| Router mounts | Four `include_router` calls | `main.py:L80-L83` | All four routers mount with no prefix, in the order auth, documents, users, templates. |
-| Title and version | Attribute assignment | `main.py:L86-L87` | Set after the middleware and routers are already installed. |
+| `shutdown_event` | Async lifecycle handler | `main.py:L55` | Awaits `db.close()` at L69 on the client built at `db/firestore.py:L20`. No manifest pins `google-cloud-firestore`, so whether `close()` exists and whether it returns something `await` accepts both depend on the resolved client surface. |
+| Cross-origin resource sharing (CORS) | Middleware call | `main.py:L75-L81` | Registers the CORS middleware. Reads `settings.ALLOWED_ORIGINS` at L77 and allows all methods and headers. |
+| Router mounts | Four `include_router` calls | `main.py:L84-L87` | All four routers mount with no prefix, in the order auth, documents, users, templates. |
+| Title and version | Attribute assignment | `main.py:L90-L91` | Set after the middleware and routers are already installed. |
 | `api/` | Sub-package, 4 modules | `api/auth.py:L25`, `api/documents.py:L22`, `api/users.py:L17`, `api/templates.py:L22` | 14 HTTP handlers across four `APIRouter` objects, each exported as the bare name `router`. See [api/README.md](api/README.md). |
 | `core/` | Sub-package, 2 modules | `core/config.py:L20`, `core/security.py:L25` | The `Settings` model plus the JSON Web Token (JWT) and password-hashing primitives. See [core/README.md](core/README.md). |
 | `db/` | Sub-package, 2 modules | `db/firestore.py:L20`, `db/sql.py:L16` | Two persistence adapters. Both construct their client or engine at import time. See [db/README.md](db/README.md). |
@@ -43,7 +43,7 @@ committed code, not a claim on the specification's authority.
 
 First, the specification diagrams a prefixed route surface. `documentation/Technical Specifications.md, SYSTEM DESIGN > API
 DESIGN (L402)` places every route under `/auth`, `/documents`, `/users` or `/templates` in its diagram at L406-L433. The
-committed code mounts all four routers with no prefix at `main.py:L80-L83`, so every route lands at the application root, which
+committed code mounts all four routers with no prefix at `main.py:L84-L87`, so every route lands at the application root, which
 is what makes the documents and templates paths collide.
 
 Second, the specification names twelve backend components and the package implements three. `documentation/Technical
@@ -163,8 +163,8 @@ relatively. The path therefore resolves against the working directory of the pro
 | `GOOGLE_CLOUD_PROJECT` | DECLARED | `core/config.py:L45` | `db/firestore.py:L20`, at import time |
 | `REDIS_URL` | DECLARED | `core/config.py:L48` | `tasks/background_tasks.py:L22`, at import time |
 | `PROJECT_NAME`, `API_V1_STR`, `GOOGLE_APPLICATION_CREDENTIALS` | DECLARED, never read | `core/config.py:L40`, `L41`, `L46` | Nothing. No module dereferences any of the three. |
-| `ALLOWED_ORIGINS` | READ-BUT-NEVER-DECLARED | First read at `main.py:L73` | The CORS middleware registration at `main.py:L71-L77` |
-| `PROJECT_ID` | READ-BUT-NEVER-DECLARED | First read at `services/collaboration_service.py:L69` | Pub/Sub topic and subscription paths, also `:L70`, `:L124` and `:L149` |
+| `ALLOWED_ORIGINS` | READ-BUT-NEVER-DECLARED | First read at `main.py:L77` | The CORS middleware registration at `main.py:L75-L81` |
+| `PROJECT_ID` | READ-BUT-NEVER-DECLARED | First read at `services/collaboration_service.py:L69` | Pub/Sub topic and subscription paths, also `:L70`, `:L128` and `:L153` |
 | `STORAGE_BUCKET_NAME` | READ-BUT-NEVER-DECLARED | First read at `services/export_service.py:L60` | Both export methods, also L92 |
 | `SIGNED_URL_EXPIRATION` | READ-BUT-NEVER-DECLARED | First read at `services/export_service.py:L68` | Both export methods, also L100 |
 | `EXPORT_BUCKET_NAME` | READ-BUT-NEVER-DECLARED | First read at `tasks/background_tasks.py:L62` | The export task at `tasks/background_tasks.py:L25` |
@@ -265,8 +265,8 @@ resolves credentials and `db/sql.py:L16` opens an engine as soon as either modul
 
 ## Design Patterns
 
-`main.py` is a composition root. The module builds the application at `main.py:L24`, registers middleware at `main.py:L71-L77`
-and mounts routers at `main.py:L80-L83`, and holds no business logic of its own. Each router owns one resource, so
+`main.py` is a composition root. The module builds the application at `main.py:L24`, registers middleware at `main.py:L75-L81`
+and mounts routers at `main.py:L84-L87`, and holds no business logic of its own. Each router owns one resource, so
 `api/documents.py`, `api/users.py`, `api/templates.py` and `api/auth.py` each publish a single family of paths. The Pydantic
 models under `schema/` validate at the boundary: `api/documents.py:L17` imports `Document`, `DocumentCreate` and
 `DocumentUpdate`. The handler signatures convert an incoming body into a checked model before any service sees it.
@@ -293,9 +293,9 @@ misconfiguration. Each is unexploitable while import fails, and each becomes liv
 
 | Package-wide gap | Evidence |
 | --- | --- |
-| The two public routes carry no abuse controls, and no route carries a rate limit. Their unauthenticated status is intended, so the gap is throttling, anti-automation and anti-enumeration rather than authentication. `main.py:L71` adds one middleware and it is CORS | `api/auth.py:L65` and `:L102` are public by design; no limiter, lockout, captcha or proxy configuration is committed |
+| The two public routes carry no abuse controls, and no route carries a rate limit. Their unauthenticated status is intended, so the gap is throttling, anti-automation and anti-enumeration rather than authentication. `main.py:L75` adds one middleware and it is CORS | `api/auth.py:L65` and `:L102` are public by design; no limiter, lockout, captcha or proxy configuration is committed |
 | Object authorization is attempted on three handlers only. Of the fourteen routes, twelve declare the token dependency and two are public. The twelve split four ways. Three attempt an ownership comparison, two are self-scoped by the token and need none, one is the create path that fails before it persists, and six leave object scope unestablished | Attempted at `api/documents.py:L92`, `:L121`, `:L147`. Self-scoped: `api/users.py` GET and PUT `/me`. Create fails at Firestore encoding before the write at `services/document_service.py:L73`. Unestablished: GET `/documents` plus the five template routes. `api/auth.py:L65` and `:L102` are the two public routes |
-| CORS origins come from a field no settings class declares, alongside credentialed access and full wildcards | `main.py:L73` reads `settings.ALLOWED_ORIGINS`, absent from `core/config.py:L40-L48`; `:L74` sets `allow_credentials=True`, `:L75-L76` allow every method and header |
+| CORS origins come from a field no settings class declares, alongside credentialed access and full wildcards | `main.py:L77` reads `settings.ALLOWED_ORIGINS`, absent from `core/config.py:L40-L48`; `:L74` sets `allow_credentials=True`, `:L75-L76` allow every method and header |
 | The JWT secret, algorithm and lifetime are unconstrained, and tokens carry no issuer, audience or identifier | `core/config.py:L42`, `:L44`, `:L43` declare bare types with no validator; `api/auth.py:L95-L99` encodes only `sub` and `exp` |
 | No explicitly raised 401 carries a `WWW-Authenticate: Bearer` challenge | Six explicit raises set no `headers`: `api/auth.py:L55-L56`, `:L58`, `:L91-L92`, `core/security.py:L155`, `:L157`, `:L162`. The scheme itself is the exception. `OAuth2PasswordBearer` at `api/auth.py:L23` and `core/security.py:L23` leaves `auto_error` at its default. A missing or non-bearer `Authorization` header is therefore answered by FastAPI with its own 401 carrying the challenge, before any handler runs |
 | No request body bound and no field length bound anywhere | Neither `schema/document.py` nor `schema/user.py` contains a single `Field(` call, and no middleware limits a body |
@@ -316,8 +316,8 @@ table.
 while `db/sql.py` declares `engine`, `SessionLocal`, `Base` and `get_db` and nothing else.
 - **All five template routes are unreachable.** `api/documents.py` registers `/` twice and `/{document_id}` three times, at L24,
 L49, L68, L96 and L126. `api/templates.py` registers the same five shapes with `/{template_id}` at L24, L42, L59, L86 and L112.
-Starlette path parameters are positional, so both identifier paths compile to one pattern. `main.py:L81` mounts documents before
-`:L83` mounts templates, neither with a prefix, and the first wins every match.
+Starlette path parameters are positional, so both identifier paths compile to one pattern. `main.py:L85` mounts documents before
+`:L87` mounts templates, neither with a prefix, and the first wins every match.
 - **The `app` package boundary exists only by convention.** No `__init__.py` file exists anywhere under `backend/`, so `app` and
 its six sub-packages are implicit namespace packages, while every module imports by absolute `app.*` path.
 
@@ -327,9 +327,9 @@ package, so the `app.*` prefix cannot resolve inside the image as built. `L8` of
 exists nowhere in the repository. See [../../docs/deployment-guide.md](../../docs/deployment-guide.md).
 - **Both lifecycle handlers are broken.** `main.py:L45` calls `db.is_connected()`, which the Firestore client does not provide.
 `main.py:L50` catches every exception and `main.py:L51` prints it, so startup completes and the application serves requests
-against connections it never verified. `main.py:L65` awaits `db.close()`. A synchronous `close()` returns `None`, and `await
+against connections it never verified. `main.py:L69` awaits `db.close()`. A synchronous `close()` returns `None`, and `await
 None` raises `TypeError`; nothing pins the client, so its transport state is unestablished.
-- **Six settings are read and never declared,** starting with `settings.ALLOWED_ORIGINS` at `main.py:L73`, and three declared
+- **Six settings are read and never declared,** starting with `settings.ALLOWED_ORIGINS` at `main.py:L77`, and three declared
 fields are never read: `PROJECT_NAME`, `API_V1_STR` and `GOOGLE_APPLICATION_CREDENTIALS`, at `core/config.py:L40`, `L41` and
 `L46`.
 - **Three code paths have no caller.** The Celery queue at `tasks/background_tasks.py:L22` has no producer, because no `.delay`
@@ -342,9 +342,9 @@ evaluated when Python executes the `def`. `Optional` at `core/security.py:L25` a
 `UserService` at `core/security.py:L159`, and `datetime` at `tasks/background_tasks.py:L96` and `:L146` against the
 `timedelta`-only import at `:L20`.
 - **Nine `HUMAN ASSISTANCE NEEDED` markers and six `TODO` markers stand in the package.** Markers sit at `main.py:L38`,
-`api/users.py:L54`, `core/security.py:L115`, `services/collaboration_service.py:L42` and `L131`,
+`api/users.py:L54`, `core/security.py:L115`, `services/collaboration_service.py:L42` and `L135`,
 `services/document_service.py:L114`, `services/export_service.py:L38`, and `tasks/background_tasks.py:L49` and `L91`. The `TODO`
-markers sit at `main.py:L49` and `L68`, and `services/export_service.py:L57`, `L62`, `L89` and `L94`.
+markers sit at `main.py:L49` and `L72`, and `services/export_service.py:L57`, `L62`, `L89` and `L94`.
 - **Two instructions in the root `README.md` do not work against this package.** `L42` directs a reader to `pip install -r
 requirements.txt`, and no such file exists. `L55` starts `uvicorn main:app` from `backend`, while the application object lives
 at `backend/app/main.py`. The root README is reference material here and receives no edit.

@@ -143,8 +143,8 @@ record.
 | F2 | `App` to `store/index.ts` | `App.tsx:L20` names `{ store }`, while `store/index.ts:L36` exports a default only |
 | F3 | `BrowserRouter` to `Switch` | `App.tsx:L12` imports `Switch` from `react-router-dom`, and `frontend/package.json:L11` declares `^6.11.1`, which removed the element |
 | F4 | `Switch` to the four routes | Two boundaries at once. Each page arrives through the `@/` prefix at `App.tsx:L16-L19`, and `:L41-L44` pass the `component` prop that version 6 removed, with `exact` alongside it at `:L41` |
-| F5 | `Home`, `Templates` and `Settings` to `Header` | Doubled shell: banner and contentinfo twice, neither copy named. Each page renders its own `Header` and `Footer` inside the pair `App.tsx:L38` and `:L47` already provides, at `Home.tsx:L32` and `:L48`, `Templates.tsx:L78` and `:L99`, and `Settings.tsx:L61` and `:L88` |
-| F6 | `Editor` to `Header` | Doubled banner only, neither copy named. `Editor.tsx:L98` renders a second `Header` and no `Footer` |
+| F5 | `Home`, `Templates` and `Settings` to `Header` | Doubled shell: banner and contentinfo twice, neither copy named. Each page renders its own `Header` and `Footer` inside the pair `App.tsx:L38` and `:L47` already provides, at `Home.tsx:L32` and `:L48`, `Templates.tsx:L89` and `:L110`, and `Settings.tsx:L61` and `:L88` |
+| F6 | `Editor` to `Header` | Doubled banner only, neither copy named. `Editor.tsx:L107` renders a second `Header` and no `Footer` |
 
 The second `Provider` at `App.tsx:L35` is redundant rather than broken, so the node states it instead of drawing an edge back
 to `index.tsx:L35`.
@@ -198,8 +198,8 @@ packages.
 `frontend/package.json:L9`.
 - **The store is provided twice and the shell renders twice.** `App.tsx:L35` repeats the `Provider` already set at
 `index.tsx:L35`. `App.tsx:L38` and `:L47` render `Header` and `Footer` around every route, while `pages/Home.tsx` (`:L32`,
-`:L48`), `pages/Templates.tsx` (`:L78`, `:L99`) and `pages/Settings.tsx` (`:L61`, `:L88`) each render their own pair.
-`pages/Editor.tsx:L98` renders a second `Header` and no `Footer`, so the banner duplicates on four routes and the footer on
+`:L48`), `pages/Templates.tsx` (`:L89`, `:L110`) and `pages/Settings.tsx` (`:L61`, `:L88`) each render their own pair.
+`pages/Editor.tsx:L107` renders a second `Header` and no `Footer`, so the banner duplicates on four routes and the footer on
 three.
 - **The doubled shell puts two unnamed navigation landmarks on every route.** Both `Header` copies render the same `nav` at
 `components/Header.tsx:L41` with no `aria-label`, so assistive technology announces two identical navigation regions and a

@@ -29,7 +29,7 @@ The directory sits between the routed pages and the server, and it is the only p
 
 The endpoint paths make the divergence precise, and they sit between the client and the committed server rather than between the client and declared intent. Under the specification's `## API DESIGN` heading, an `/auth` group declares `POST /login` and `POST /logout` (`documentation/Technical Specifications.md:L408`, `:L413-L414`). A `/documents` group declares `GET /documents` and `POST /documents` (`:L409`, `:L417-L418`). The client follows those four declarations at `auth.ts:L36`, `auth.ts:L54`, `api.ts:L70` and `api.ts:L82`.
 
-The committed server follows none of them. `backend/app/main.py:L80-L83` mounts all four routers with no prefix, so the document routes serve `/` and `/{document_id}` (`backend/app/api/documents.py:L24-L126`). The token route is `POST /token` (`backend/app/api/auth.py:L65`). One path matches neither side. `auth.ts:L71` calls `GET /auth/me`, while the specification declares `GET /users/me` (`documentation/Technical Specifications.md:L424`) and the server exposes `GET /me` (`backend/app/api/users.py:L19`).
+The committed server follows none of them. `backend/app/main.py:L84-L87` mounts all four routers with no prefix, so the document routes serve `/` and `/{document_id}` (`backend/app/api/documents.py:L24-L126`). The token route is `POST /token` (`backend/app/api/auth.py:L65`). One path matches neither side. `auth.ts:L71` calls `GET /auth/me`, while the specification declares `GET /users/me` (`documentation/Technical Specifications.md:L424`) and the server exposes `GET /me` (`backend/app/api/users.py:L19`).
 
 For the repository-wide map of these boundaries, see [`docs/architecture-overview.md`](../../../docs/architecture-overview.md).
 
@@ -68,7 +68,7 @@ The two environment variable names do not match, so `API_BASE_URL` at `api.ts:L2
 
 ## Data Flows
 
-One document request is written in the committed source, and it stops twice. `frontend/src/pages/Editor.tsx:L75` reads `currentDocument.id` to build the first argument, and that read raises before `updateDocument` is entered, which [`../pages/README.md`](../pages/README.md) records at the caller.
+One document request is written in the committed source, and it stops twice. `frontend/src/pages/Editor.tsx:L84` reads `currentDocument.id` to build the first argument, and that read raises before `updateDocument` is entered, which [`../pages/README.md`](../pages/README.md) records at the caller.
 
 A repaired caller would then stop inside the shared instance. `api.ts:L40` reads `(store.getState() as RootState).auth.token`, and the expression fails twice over. No module imports `store` into `api.ts`, so the identifier is undefined at call time. The `auth` property is also absent, because `frontend/src/store/index.ts:L25-L28` registers only the reducer keys `document` and `user`. A reader who adds the missing import still gets a failure on the absent key.
 
@@ -80,13 +80,13 @@ The diagram traces the directory's only committed call site. `frontend/src/pages
 sequenceDiagram
     accTitle: A REST call from the editor page through the bearer interceptor
     accDescr: The call stops twice. The argument read raises before updateDocument is entered, and the request interceptor raises because the store is never imported and no auth reducer key exists. The path below the first stop describes intended shape only.
-    participant Page as Editor.tsx<br/>autoSave L73-L80
+    participant Page as Editor.tsx<br/>autoSave L82-L89
     participant Fn as updateDocument<br/>api.ts:L94
     participant Int as request<br/>interceptor<br/>api.ts:L38-L47
     participant Srv as FastAPI<br/>server
 
     Page--xPage: read id at L75
-    Note over Page,Int: FIRST STOP. Reading<br/>currentDocument.id at Editor.tsx:L75<br/>raises, so updateDocument is<br/>never entered.
+    Note over Page,Int: FIRST STOP. Reading<br/>currentDocument.id at Editor.tsx:L84<br/>raises, so updateDocument is<br/>never entered.
     Page--xFn: updateDocument(...)
     Note over Fn,Srv: The steps below run only once<br/>the caller is repaired.
     Fn->>Int: api.put at L95
@@ -99,7 +99,7 @@ sequenceDiagram
 
 ### Caller and server contracts
 
-Six client call sites exist across `api.ts` and `auth.ts`. The table sets each one against the committed server route it aims at. `backend/app/main.py:L80-L83` mounts every router with no prefix, so a server path carries no group segment.
+Six client call sites exist across `api.ts` and `auth.ts`. The table sets each one against the committed server route it aims at. `backend/app/main.py:L84-L87` mounts every router with no prefix, so a server path carries no group segment.
 
 | # | Client call site | Client request | Committed server route | Agrees on |
 | --- | --- | --- | --- | --- |
@@ -133,7 +133,7 @@ Every item below comes from the committed code. Two of the three modules have no
 - `createApiClient` at `api.ts:L31` is declared `const` with no `export`, so no other module can build a client.
 - The response interceptor at `api.ts:L49-L55` adds no behavior, because both of its branches return their argument unchanged.
 - `api.ts:L21` reads `REACT_APP_API_BASE_URL` while `infrastructure/docker/docker-compose.yml:L11` injects `REACT_APP_API_URL`, so `baseURL` is `undefined`.
-- The three `/documents` paths fail three different ways once the blockers above clear, because `backend/app/main.py:L80-L83` mounts every router with no prefix. `GET /documents` at `api.ts:L70` is a single path segment, so it matches `GET /{document_id}`, declared at `backend/app/api/documents.py:L68`, and binds `document_id` to the literal string `documents`. That route is protected at `backend/app/api/documents.py:L69`, so its outcome depends on credentials before it depends on anything else.
+- The three `/documents` paths fail three different ways once the blockers above clear, because `backend/app/main.py:L84-L87` mounts every router with no prefix. `GET /documents` at `api.ts:L70` is a single path segment, so it matches `GET /{document_id}`, declared at `backend/app/api/documents.py:L68`, and binds `document_id` to the literal string `documents`. That route is protected at `backend/app/api/documents.py:L69`, so its outcome depends on credentials before it depends on anything else.
 - Without a valid token the `get_current_user` dependency answers 401 and the handler body never runs. An authenticated caller whose user record resolves reaches `:L91`, which raises `TypeError` and answers 500. The call there passes `get_document(document_id)` one argument against the two the signature at `../../../backend/app/services/document_service.py:L78` requires. Either way no document comes back, and no `Document[]` the caller declared either.
 - `POST /documents` at `api.ts:L82` matches the same single-segment shape for which no router declares `POST`, so Starlette answers 405 rather than 404, before any dependency runs. `PUT /documents/${documentId}` at `api.ts:L95` carries two segments that no route declares, so it answers 404, also before any dependency runs. Neither of those two outcomes depends on credentials.
 - Three importers name symbols this module never defines: `getDocument` (`frontend/src/pages/Editor.tsx:L16`), `getTemplates` (`frontend/src/pages/Templates.tsx:L14`) and `updateUserSettings` (`frontend/src/pages/Settings.tsx:L14`). All three imports use the `@/` prefix, which `frontend/tsconfig.json:L10-L16` never maps, so each import fails module resolution before the compiler checks the member name. The parent [`../README.md`](../README.md) owns the alias root cause.
@@ -156,10 +156,24 @@ Every item below comes from the committed code. Two of the three modules have no
 - `collaboration.ts:L37` calls `io()` with no URL, so the client connects to the page origin.
 - `setupEventListeners` at `collaboration.ts:L47-L52` has a body of comments only, so the client handles no inbound event and can emit without ever receiving.
 - `joinDocument`, `leaveDocument` and `sendChanges` (`collaboration.ts:L62`, `:L74`, `:L94`) are each declared `async` and contain no `await`, so every returned promise resolves before any server round trip. The declared type contradicts the runtime behavior.
-- The emitted payload does not match the server. `collaboration.ts:L96-L99` sends `{ documentId, changes }` over Socket.IO, while `backend/app/services/collaboration_service.py:L44` declares `connect(self, websocket: WebSocket, document_id: str, user_id: str)` against a FastAPI `WebSocket` and `:L133` declares `broadcast_change(self, document_id: str, change: dict)`. No WebSocket route exists in `backend/app/api/` or `backend/app/main.py`, so the collaboration path is unreachable from both ends.
+- The emitted payload does not match the server. `collaboration.ts:L96-L99` sends `{ documentId, changes }` over Socket.IO, while `backend/app/services/collaboration_service.py:L44` declares `connect(self, websocket: WebSocket, document_id: str, user_id: str)` against a FastAPI `WebSocket` and `:L137` declares `broadcast_change(self, document_id: str, change: dict)`. No WebSocket route exists in `backend/app/api/` or `backend/app/main.py`, so the collaboration path is unreachable from both ends.
 - `collaboration.ts:L16` imports `RootState` and `collaboration.ts:L17` imports the absent `Document` type, and the module references neither.
 - `collaboration.ts:L107` default-exports the class, and no module in `frontend/src` imports the file, so nothing constructs it.
 - Three assistance markers left by the module's authors sit at `collaboration.ts:L48` (inbound event listeners in `setupEventListeners`), `collaboration.ts:L54` (`joinDocument`) and `collaboration.ts:L81` (`sendChanges`).
+
+### Absent security controls
+
+Four entries in the repository-wide [G9 register](../../../docs/troubleshooting.md#g9-absent-security-controls) have a call site in this
+directory. The locators below match the register, so a reader working here does not have to open it.
+
+| # | Absent control | Evidence in this directory | What the absence permits |
+| --- | --- | --- | --- |
+| 13 | Storage of the bearer token outside script-readable persistence | `auth.ts:L38` writes the login response value to `localStorage`, and `api.ts:L40` looks for a token in Redux instead, so nothing reads the stored value back | [Token storage exposure](#token-storage-exposure) below carries this entry in full |
+| 14 | Redaction before an error is logged | `auth.ts:L57` passes a whole error object to `console.error`. An Axios error carries the request configuration, which includes the `Authorization` header, the full URL and the request body | Nothing leaks today, because the client cannot build and no request carries a token. Once the blockers clear, any failed request whose configuration holds a bearer token or a document body puts both in the browser console and in anything that collects from it |
+| 15 | A request timeout or a cancellation path | `api.ts:L32-L34` creates the Axios instance with a `baseURL` and no `timeout`, and no call site passes an `AbortSignal` | A request hangs indefinitely, and no in-flight request can be withdrawn |
+| 17 | Any applied response validation | Four Zod object schemas exist across the three modules under `../schema/`, and no function here passes a response through any of them. `auth.ts:L72` asserts `as User` instead, which is a compile-time claim that checks nothing at runtime | Server responses are trusted unvalidated, and a schema that exists gives no protection |
+
+Entry 14 also fires from four page call sites, which [`../pages/README.md`](../pages/README.md) records.
 
 ### Token storage exposure
 

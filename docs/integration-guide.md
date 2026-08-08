@@ -60,7 +60,7 @@ Four integrations, four labels, and no overlap between them. No integration earn
 | ------------- | ---------------- | -------------- | ------------- | ------------------------ |
 | Google Cloud Firestore | `google-cloud-firestore` | **WIRED, BLOCKED AT IMPORT** | `DocumentService`, constructed by all five document handlers at `backend/app/api/documents.py:L45`, `:L64`, `:L90`, `:L119` and `:L145` | `GOOGLE_CLOUD_PROJECT`, declared at `backend/app/core/config.py:L45` |
 | Google Cloud Storage | `google-cloud-storage` | **NOT REACHABLE** | `ExportService.export_to_pdf` at `backend/app/services/export_service.py:L40` and `export_to_docx` at `:L74`, plus the export task at `backend/app/tasks/background_tasks.py:L62-L67`. No handler calls either method, and no producer enqueues the task | `STORAGE_BUCKET_NAME`, `SIGNED_URL_EXPIRATION`, `EXPORT_BUCKET_NAME` and `DOCUMENT_BUCKET_NAME`, none of them declared |
-| Google Cloud Pub/Sub | `google-cloud-pubsub` | **SCAFFOLDED ONLY** | `CollaborationService.connect` at `backend/app/services/collaboration_service.py:L44` and `broadcast_change` at `:L133`, and no route constructs that class | `PROJECT_ID`, not declared |
+| Google Cloud Pub/Sub | `google-cloud-pubsub` | **SCAFFOLDED ONLY** | `CollaborationService.connect` at `backend/app/services/collaboration_service.py:L44` and `broadcast_change` at `:L137`, and no route constructs that class | `PROJECT_ID`, not declared |
 | Redis, as the Celery broker | `celery` | **ABSENT** | `celery_app` at `backend/app/tasks/background_tasks.py:L22`, carrying three tasks | `REDIS_URL`, declared at `backend/app/core/config.py:L48` |
 
 Four labels carry one fixed meaning in this guide and in the rest of the documentation set.
@@ -126,7 +126,7 @@ graph TD
     BROWSER["Browser client<br/>frontend/src/"]
     SOCK["socket.io-client<br/>collaboration.ts<br/>:L37, io() with<br/>no URL"]
     APP["FastAPI application<br/>main.py:L24"]
-    ROUTERS["4 routers,<br/>14 handlers<br/>main.py:L80-L83<br/>no prefix"]
+    ROUTERS["4 routers,<br/>14 handlers<br/>main.py:L84-L87<br/>no prefix"]
     COLSVC["CollaborationService<br/>collaboration_service<br/>.py:L20, constructed<br/>by no route"]
     DOCSVC["DocumentService<br/>document_service<br/>.py:L19"]
     TASKS["3 Celery tasks<br/>background_tasks.py<br/>:L25, :L73, :L116"]
@@ -164,9 +164,9 @@ absence of a call rather than a call. No route anywhere constructs `Collaboratio
 | ------ | ------ | -------------------------------- | ------------------------ |
 | S1 | Browser to FastAPI application | REST over HTTP | Nothing completes. The application cannot import. Past that repair the client still reaches no intended route: `frontend/src/services/api.ts:L40` throws inside the request interceptor, and every document call carries a `/documents` prefix no route declares. `GET /documents` does match the protected single-segment read, so it answers 401 or 500 according to the credentials presented, while the other two calls are settled by routing alone |
 | S2 | Browser to socket.io-client | `io()` at `frontend/src/services/collaboration.ts:L37` | No module imports `collaboration.ts`, so nothing constructs the client class, and `io()` receives no URL |
-| S3 | Application to the four routers | `backend/app/main.py:L80-L83` would register four routers | `:L16-L19` import `auth_router`, `documents_router`, `users_router` and `templates_router`, and all four modules export the bare name `router` |
+| S3 | Application to the four routers | `backend/app/main.py:L84-L87` would register four routers | `:L16-L19` import `auth_router`, `documents_router`, `users_router` and `templates_router`, and all four modules export the bare name `router` |
 | S4 | socket.io-client to CollaborationService | a Socket.IO connection from the browser | No route joins Socket.IO to the FastAPI WebSocket signature the service declares |
-| S5 | CollaborationService to Pub/Sub | subscribe at `backend/app/services/collaboration_service.py:L95`, publish at `:L152` | Neither runs, because nothing constructs the class. `settings.PROJECT_ID` is undeclared at `:L69`, `:L70`, `:L124` and `:L149`. The subscription name at `:L70` identifies a document and user rather than a connection. A second session for one user would therefore answer `AlreadyExists` at `:L73`, and either session closing would delete the shared subscription at `:L126` |
+| S5 | CollaborationService to Pub/Sub | subscribe at `backend/app/services/collaboration_service.py:L99`, publish at `:L156` | Neither runs, because nothing constructs the class. `settings.PROJECT_ID` is undeclared at `:L69`, `:L70`, `:L128` and `:L153`. The subscription name at `:L70` identifies a document and user rather than a connection. A second session for one user would therefore answer `AlreadyExists` at `:L73`, and either session closing would delete the shared subscription at `:L130` |
 | S6 | Routers to DocumentService | constructed at `backend/app/api/documents.py:L45`, `:L64`, `:L90`, `:L119` and `:L145` | Every call breaks its signature. `:L46` hands a `User` where `user_id: str` is declared, so `set` at `backend/app/services/document_service.py:L73` raises while it builds the write and nothing is stored. `:L91`, `:L120` and `:L146` pass one argument to a two-parameter `get_document`, and `:L65` calls `get_documents`, which the class never defines. All five handlers sit behind the token dependency, so a caller without valid credentials receives 401 and reaches none of these faults |
 | S7 | Routers to the Celery tasks | nothing | No producer. Zero `.delay()` and zero `.apply_async()` call sites exist anywhere |
 | S8 | DocumentService to Firestore | set at `backend/app/services/document_service.py:L73`, get at `:L102`, update at `:L153`, delete at `:L188`, all written in full | Each read then builds `Document(**...)` against `created_at` and `updated_at`, required at `backend/app/schema/document.py:L63-L64` and written by nothing |
@@ -402,7 +402,7 @@ the four.
 `backend/app/core/config.py:L40-L48` declares nine fields, and the four above appear in none of
 them. Attribute access on a Pydantic model raises `AttributeError` for an undeclared field, so each
 read fails at the line that makes it. Two further fields share the same status, `ALLOWED_ORIGINS` at
-`backend/app/main.py:L73` and `PROJECT_ID` in the collaboration service. Six settings are therefore
+`backend/app/main.py:L77` and `PROJECT_ID` in the collaboration service. Six settings are therefore
 read and never declared, against nine that are declared.
 [../backend/app/core/README.md](../backend/app/core/README.md) carries the full configuration
 census.
@@ -528,9 +528,9 @@ need one topic per document identifier, created outside this repository before a
 | Call | Locator | Needs a topic | Status without a pre-created topic |
 | ------ | --------- | --------------- | ------------------------------------- |
 | `create_subscription` | `collaboration_service.py:L73` | Yes, as the `topic` argument | **BLOCKED.** `NotFound`, caught at `:L74`, printed at `:L76`, then `:L77` returns |
-| `subscribe` | `collaboration_service.py:L95` | No, it names the subscription | Never reached, because `:L77` returned first |
-| `delete_subscription` | `collaboration_service.py:L126` | No, it names the subscription | `NotFound` for a subscription that was never created, caught at `:L127` and printed at `:L129` |
-| `publish` | `collaboration_service.py:L152` | Yes, as the destination path | **BLOCKED.** `NotFound`, caught at `:L154`, printed at `:L156`, and the method returns normally |
+| `subscribe` | `collaboration_service.py:L99` | No, it names the subscription | Never reached, because `:L77` returned first |
+| `delete_subscription` | `collaboration_service.py:L130` | No, it names the subscription | `NotFound` for a subscription that was never created, caught at `:L131` and printed at `:L133` |
+| `publish` | `collaboration_service.py:L156` | Yes, as the destination path | **BLOCKED.** `NotFound`, caught at `:L158`, printed at `:L160`, and the method returns normally |
 
 Creating the topic outside the repository is therefore a prerequisite for the collaboration path.
 The prerequisite sits behind the earlier blockers rather than in front of them: no route constructs the class, and
@@ -540,11 +540,11 @@ The prerequisite sits behind the earlier blockers rather than in front of them: 
 
 - **`asyncio` is undefined, and two further faults sit on the same line.** The callback at
   `backend/app/services/collaboration_service.py:L80` calls
-  `asyncio.run(websocket.send_json(message.data))` at `:L93`, and the module imports no `asyncio`,
+  `asyncio.run(websocket.send_json(message.data))` at `:L97`, and the module imports no `asyncio`,
   so the first delivered message raises `NameError`. Supplying the import exposes the second fault:
   `message.data` is `bytes` on a Pub/Sub message, `WebSocket.send_json` serializes with
   `json.dumps`, and `json.dumps` rejects `bytes`. Nothing decodes the payload, while
-  `broadcast_change` encoded it as UTF-8 at `:L152`, so the round trip is unbalanced.
+  `broadcast_change` encoded it as UTF-8 at `:L156`, so the round trip is unbalanced.
 
   The third fault is event-loop ownership. `asyncio.run` builds a new loop and closes it on return,
   while the `WebSocket` belongs to the server's already-running loop. `asyncio.run` also refuses
@@ -738,7 +738,7 @@ split of 12 protected against 2 public, and the fact that no handler declares a 
 Field-level drift belongs to [data-model.md](data-model.md).
 
 One mismatch applies to three of the four workflows, so read it once here.
-`backend/app/main.py:L80-L83` mounts all four routers with no prefix. The client prefixes its
+`backend/app/main.py:L84-L87` mounts all four routers with no prefix. The client prefixes its
 document calls with `/documents` at `frontend/src/services/api.ts:L70`, `:L82` and `:L95`, and no
 server route carries that segment.
 
@@ -767,7 +767,7 @@ for all six client call sites.
 | Dimension | Client, `login` at `frontend/src/services/auth.ts:L34` | Server, `POST /token` at `backend/app/api/auth.py:L65` |
 | --- | --- | --- |
 | Method | `POST` | `POST` |
-| Path | `/auth/login` | `/token`, since `backend/app/main.py:L80` mounts the router with no prefix |
+| Path | `/auth/login` | `/token`, since `backend/app/main.py:L84` mounts the router with no prefix |
 | Origin | Page origin. `auth.ts:L16` imports the bare `axios` global, which carries no `baseURL` | Wherever the service is served |
 | Encoding | JSON. Axios serializes the object literal at `:L36` | `application/x-www-form-urlencoded`, because `:L66` declares `OAuth2PasswordRequestForm` |
 | Credential fields | `email` and `password` | `username` and `password` |
@@ -845,7 +845,7 @@ Four mismatches:
   `DocumentBase` at `backend/app/schema/document.py:L28`, which `Document` inherits at `:L51`.
   [data-model.md](data-model.md#the-ownership-field-four-positions-none-canonical) names all four
   positions the field takes and names none of them canonical.
-- **Auto-save interval.** The code waits five seconds, at `Editor.tsx:L82`.
+- **Auto-save interval.** The code waits five seconds, at `Editor.tsx:L91`.
   `documentation/Software Requirements Specifications (SRS).md:L543`, under the SAFETY heading at
   `L540`, describes an auto-save that fires every thirty seconds. Read the thirty-second figure as
   declared intent and the five-second timer as committed behaviour.
@@ -885,8 +885,8 @@ Four mismatches:
   `created_at` and `updated_at`. Two fields exist only in the interface and four exist only in the
   schema. [data-model.md](data-model.md#two-incompatible-template-shapes) carries the field-level
   comparison.
-- **Every template handler is unreachable.** `backend/app/main.py:L81` registers the document router
-  and `:L83` registers the template router, both with no prefix. FastAPI matches in registration
+- **Every template handler is unreachable.** `backend/app/main.py:L85` registers the document router
+  and `:L87` registers the template router, both with no prefix. FastAPI matches in registration
   order, and `/{document_id}` and `/{template_id}` compile to the same single-segment shape, so the
   document handler answers first for every single-segment path. The five paths in `templates.py`
   duplicate the five in `documents.py` exactly.
@@ -914,8 +914,8 @@ Four mismatches:
 - **`updateUserSettings` does not exist.** `frontend/src/services/api.ts` exports the same three
   functions at `:L69`, `:L81` and `:L94`, and none of them is `updateUserSettings`.
 - **Both profile routes are shadowed.** `/me` is a literal path and still a single segment, so it
-  falls inside the pattern the document router already claimed. `backend/app/main.py:L81` registers
-  documents ahead of `:L82` profiles, so `GET /{document_id}` at
+  falls inside the pattern the document router already claimed. `backend/app/main.py:L85` registers
+  documents ahead of `:L86` profiles, so `GET /{document_id}` at
   `backend/app/api/documents.py:L68` answers `GET /me` and `PUT /{document_id}` at `:L96` answers
   `PUT /me`. A profile fetch reaches the single-document read with `document_id` bound to the literal
   string `me`, and neither handler at `backend/app/api/users.py:L19` or `:L32` ever runs.
@@ -949,8 +949,8 @@ None of the three pairs can meet, and the reason differs per row.
 | Client event | Emitted payload | Nearest server counterpart | Why the pair cannot meet |
 | -------------- | ----------------- | ---------------------------- | -------------------------- |
 | `join_document` | the bare `documentId` string, at `frontend/src/services/collaboration.ts:L63` | `CollaborationService.connect` at `backend/app/services/collaboration_service.py:L44` | `connect` declares a `WebSocket`, a `document_id` and a `user_id`. The emit carries one string, no socket object and no user identity, and no route delivers it |
-| `leave_document` | the bare `currentDocumentId` string, at `:L76` | `CollaborationService.disconnect` at `backend/app/services/collaboration_service.py:L103` | `disconnect` declares `document_id` and `user_id`. The emit carries the identifier alone, and `:L155` clears it straight afterwards with nothing confirming the emit |
-| `document_changes` | the envelope `{ documentId, changes }`, at `:L96-L99` | `CollaborationService.broadcast_change` at `backend/app/services/collaboration_service.py:L133` | `broadcast_change` declares `document_id` and a `change` dictionary and publishes `json.dumps(change)` at `:L152`. The client nests the change inside an envelope, so the shapes differ even with a route in place |
+| `leave_document` | the bare `currentDocumentId` string, at `:L76` | `CollaborationService.disconnect` at `backend/app/services/collaboration_service.py:L107` | `disconnect` declares `document_id` and `user_id`. The emit carries the identifier alone, and `:L159` clears it straight afterwards with nothing confirming the emit |
+| `document_changes` | the envelope `{ documentId, changes }`, at `:L96-L99` | `CollaborationService.broadcast_change` at `backend/app/services/collaboration_service.py:L137` | `broadcast_change` declares `document_id` and a `change` dictionary and publishes `json.dumps(change)` at `:L156`. The client nests the change inside an envelope, so the shapes differ even with a route in place |
 
 Four further facts complete the picture:
 
@@ -963,7 +963,7 @@ Four further facts complete the picture:
   default-exported at `:L107`, and no module in `frontend/src/` imports the file.
 - **The payload shapes differ.** The client emits `{ documentId, changes }` at `:L96-L99`. The
   server publishes a JSON-encoded change dictionary at
-  `backend/app/services/collaboration_service.py:L152`, keyed by whatever the caller passed as
+  `backend/app/services/collaboration_service.py:L156`, keyed by whatever the caller passed as
   `change`. No shared artifact reconciles the two.
 
 [../frontend/src/services/README.md](../frontend/src/services/README.md) carries the client detail,
