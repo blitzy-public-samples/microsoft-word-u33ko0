@@ -7,7 +7,7 @@ branch head, which includes the comment blocks this pass added.
 ## Purpose
 
 `backend/app/db` holds the two low-level persistence entry points, and no abstraction unifies them. `firestore.py:L20` constructs one Firestore
-client, and the four helpers at `firestore.py:L22`, `L45`, `L64` and `L79` cover create, read, update and delete work against a collection the
+client, and the four helpers at `firestore.py:L22`, `L45`, `L64` and `L81` cover create, read, update and delete work against a collection the
 caller names. `sql.py:L16` opens a SQLAlchemy engine, `sql.py:L17` binds a session factory, and `sql.py:L19` declares a base class for models. Three
 modules import the Firestore client name and then call it directly. The four helpers and the entire SQLAlchemy path are dead: no module imports a
 helper, no class subclasses `Base`, and `get_db` at `sql.py:L21` has no consumer.
@@ -19,8 +19,8 @@ helper, no class subclasses `Base`, and `get_db` at `sql.py:L21` has no consumer
 | `db` | Firestore `Client` instance | `firestore.py:L20` | The single client the backend uses. Built at import time from `settings.GOOGLE_CLOUD_PROJECT`. Imported by `main.py:L21`, `services/document_service.py:L16` and `tasks/background_tasks.py:L17`. |
 | `get_document` | Function, synchronous | `firestore.py:L22` | Reads one document from a named collection. Returns the stored fields at L42 and `None` at L43. No module imports it. |
 | `create_document` | Function, synchronous | `firestore.py:L45` | Adds a document to a collection at L61 and returns the generated identifier at L62. No module imports it. |
-| `update_document` | Function, synchronous | `firestore.py:L64` | Merges the supplied fields into an existing document at L77. Returns `None`. No module imports it. |
-| `delete_document` | Function, synchronous | `firestore.py:L79` | Deletes one document at L91. Returns `None`. No module imports it. |
+| `update_document` | Function, synchronous | `firestore.py:L64` | Merges the supplied fields into an existing document at L79. Returns `None`. No module imports it. |
+| `delete_document` | Function, synchronous | `firestore.py:L81` | Deletes one document at L93. Returns `None`. No module imports it. |
 | `engine` | SQLAlchemy `Engine` | `sql.py:L16` | Built at import time from `settings.DATABASE_URL`. Bound to `SessionLocal` at L17 and referenced nowhere else. |
 | `SessionLocal` | Session factory | `sql.py:L17` | Configured with `autocommit=False` and `autoflush=False`, so a caller must commit explicitly. Called only at `sql.py:L32`. |
 | `Base` | Declarative base class | `sql.py:L19` | The parent class for Object-Relational Mapping (ORM) models. No class in the repository subclasses it. |
@@ -56,7 +56,7 @@ arrive transitively.
 
 | Imported name | Import site | Resolves | Evidence |
 | --- | --- | --- | --- |
-| `settings` from `app.core.config` | `firestore.py:L16` | No | `core/config.py` declares the `Settings` class at L20 and a `get_settings` factory at L61, and creates no module-level instance. |
+| `settings` from `app.core.config` | `firestore.py:L16` | No | `core/config.py` declares the `Settings` class at L20 and a `get_settings` factory at L63, and creates no module-level instance. |
 | `settings` from `app.core.config` | `sql.py:L14` | No | The same absent name. Importing either module raises `ImportError: cannot import name 'settings' from 'app.core.config'`. |
 | `db` from `app.db.firestore` | `main.py:L21`, `services/document_service.py:L16`, `tasks/background_tasks.py:L17` | Yes | `firestore.py:L20` defines the name. Each consumer then calls the client directly rather than through a helper. |
 | `init_db` from `app.db.sql` | `main.py:L22` | No | `sql.py` declares `engine`, `SessionLocal`, `Base` and `get_db`, and declares no `init_db`. `main.py:L42` awaits the absent name. |
@@ -88,7 +88,7 @@ backend reads.
 | `DATABASE_URL` | DECLARED | `core/config.py:L47`, typed `str` | `sql.py:L16`, at import time |
 
 `Optional[str]` carries an implicit `None` under Pydantic 1.x, so a `Settings` instance can leave `GOOGLE_CLOUD_PROJECT` unset and `firestore.py:L20`
-can then build the client with `project=None`. The inner `Config` class at `core/config.py:L50` sets `env_file` to `.env` at `core/config.py:L58`,
+can then build the client with `project=None`. The inner `Config` class at `core/config.py:L50` sets `env_file` to `.env` at `core/config.py:L60`,
 and the repository commits no `.env` file.
 
 ## Data Flows
@@ -108,7 +108,7 @@ graph LR
     DSVC["document_service.py:L16<br/>self.db at L40"]
     TASKS["background_tasks.py:L17"]
     MAIN["main.py:L21<br/>imports db"]
-    HELPERS["firestore.py:L22, L45,<br/>L64, L79<br/>the four helpers"]
+    HELPERS["firestore.py:L22, L45,<br/>L64, L81<br/>the four helpers"]
     SQLBOOT["sql.py:L16 engine<br/>sql.py:L17 SessionLocal"]
     BASE["sql.py:L19 Base"]
     TEST["test_api.py:L5<br/>get_db from app.database"]
@@ -152,7 +152,7 @@ graph LR
 | D8 | `background_tasks.py` to `document_permissions` | `:L112` queries the collection and calls `.delete()` on the result | Unreachable, and `.get()` returns a list, which has no `.delete()` |
 | D9 | `background_tasks.py` to `document_metadata` | `:L113` deletes one metadata document | Unreachable. The task raises earlier |
 | D10 | engine to `get_db` | `sql.py:L32` calls `SessionLocal()` inside `get_db` | `sql.py:L16` builds the engine from `settings.DATABASE_URL` at import time, and that import raises first |
-| D11 | the four helpers to no caller | `firestore.py:L22`, `:L45`, `:L64` and `:L79` define `get_document`, `create_document`, `update_document` and `delete_document` | No module in the repository imports any of the four |
+| D11 | the four helpers to no caller | `firestore.py:L22`, `:L45`, `:L64` and `:L81` define `get_document`, `create_document`, `update_document` and `delete_document` | No module in the repository imports any of the four |
 | D12 | `get_db` to no caller | `sql.py:L21` declares the dependency and yields at `:L34` | No handler takes it as a dependency |
 | D13 | `Base` to no caller | `sql.py:L19` calls `declarative_base()` | Nothing subclasses it, so the repository declares zero ORM models |
 | D14 | the test suite to `get_db` | `backend/tests/test_api.py:L5` runs `from app.database import get_db` | `app.database` does not exist. The real module is `app.db.sql`, and the test never calls the fixture either |
@@ -161,7 +161,7 @@ graph LR
 
 Four patterns appear across the two modules, and one expected pattern does not. `firestore.py:L20` builds a module-level singleton, so one client
 exists per process and every importer shares it. The four helpers wrap that client thinly and synchronously, each resolving a document reference at
-`firestore.py:L39`, `L61`, `L76` or `L90` and then making one client call. `sql.py:L21` follows the per-request session generator pattern, closing the
+`firestore.py:L39`, `L61`, `L78` or `L92` and then making one client call. `sql.py:L21` follows the per-request session generator pattern, closing the
 session in a `finally` block at L35-L36 so the connection returns to the pool on every path including an exception. `sql.py:L19` declares an
 Object-Relational Mapping base class for models that nobody wrote.
 
@@ -195,7 +195,7 @@ construction. Every defect below comes from reading the two modules and their ca
 [../../../docs/integration-guide.md](../../../docs/integration-guide.md) records what each store can reach and what blocks it.
 
 - **Neither module imports.** `firestore.py:L16` and `sql.py:L14` both request a `settings` singleton from `app.core.config`. That module declares
-  the `Settings` class at `core/config.py:L20` and a `get_settings` factory at `core/config.py:L61`, and creates no instance, so importing either
+  the `Settings` class at `core/config.py:L20` and a `get_settings` factory at `core/config.py:L63`, and creates no instance, so importing either
   module raises `ImportError`.
 - **Import-time credential discovery serves nothing.** `firestore.py:L19` runs Application Default Credentials (ADC) discovery and binds
   `credentials` and `project`. No line in the repository reads either name, because `firestore.py:L20` takes the project from
@@ -206,7 +206,7 @@ construction. Every defect below comes from reading the two modules and their ca
 - **`get_document` contradicts its own annotation.** `firestore.py:L22` declares `-> dict`, and `firestore.py:L43` returns `None` when the snapshot
   does not exist. A caller that trusts the annotation and subscripts the result raises `TypeError` for a missing document.
 - **None of the four helpers handles failure.** No transaction, no retry policy, no timeout and no `except` clause appears anywhere in
-  `firestore.py:L22-L91`. A transport error or a permission error reaches the caller unchanged.
+  `firestore.py:L22-L93`. A transport error or a permission error reaches the caller unchanged.
 - **`create_document` binds a tuple to the name `doc_ref`.** `firestore.py:L61` assigns the result of `add(data)`, and Firestore returns that call as
   a `(timestamp, reference)` tuple. `firestore.py:L62` indexes position one to reach `.id`.
 - **`get_db` returns a generator rather than a `Session`.** `sql.py:L21` annotates `-> Session`, and `sql.py:L34` yields, so a direct call produces a

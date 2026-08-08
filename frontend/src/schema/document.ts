@@ -2,9 +2,9 @@
  * Declare the client-side document and version schemas.
  *
  * This module exports no inferred type, unlike its two siblings, which each export
- * one. That single omission is the root cause of six TS2305 and TS2614 failures:
- * `store/documentSlice.ts`, `services/api.ts` and `services/collaboration.ts` each
- * import a `Document` type from here.
+ * one. That single omission is the root cause of five TS2305 errors. `services/api.ts`
+ * imports `Document`, `DocumentCreate` and `DocumentUpdate`, and both
+ * `services/collaboration.ts` and `store/documentSlice.ts` import `Document`.
  *
  * `zod` is imported and `frontend/package.json` does not declare it.
  *

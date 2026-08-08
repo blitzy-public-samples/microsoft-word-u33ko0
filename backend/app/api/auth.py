@@ -1,12 +1,13 @@
 """Build the authentication router and the bearer-token dependency.
 
-Two public routes issue and accept a JSON Web Token (JWT): `POST /token` and
-`POST /register`. `get_current_user` resolves a token to a `User` and is the
-dependency the document, user and template routers declare.
+Two public routes accept credentials: `POST /token` issues a JSON Web Token
+(JWT), while `POST /register` creates an account. `get_current_user` resolves a
+token to a `User` and is the dependency the document, user and template routers
+declare.
 
-`app.services.user_service` does not exist, so every route body here fails
-at import, and `settings` is imported from `app.core.config`, which never
-creates it.
+The absent `user_service` and `settings` imports prevent the module from
+loading. `app.services.user_service` does not exist, and `app.core.config`
+never creates the `settings` name this module imports from it.
 
 See ./README.md for the route table, the second `get_current_user` in
 `app/core/security.py` and the packages this module needs.
@@ -121,16 +122,10 @@ async def register_user(user: UserCreate):
             when an account exists for the submitted address. The route is
             public, so the two different responses report to any caller
             whether an address holds an account.
-        ValueError: From the hash call below, which reaches bcrypt through
-            passlib's `CryptContext` rather than directly, so the resolved pair
-            of distributions decides when it raises and no manifest pins
-            either. With passlib 1.7.4 and bcrypt 5.0.0 every call raises,
-            whatever the password length. Passlib probes its backend with a
-            255-byte secret, and bcrypt 5.0.0 rejects any input over 72 bytes.
-            With a bcrypt release passlib can drive, only a password over 72
-            bytes raises, and only from 5.0.0 onward. Either way this public
-            route answers an unhandled 500 to any caller, and registration
-            cannot succeed at all on the first pairing.
+        ValueError: If the resolved password-hashing backend rejects the
+            password. The repository pins neither passlib nor bcrypt; see
+            `docs/troubleshooting.md` for version-specific evidence. The
+            handler does not catch it, so this public route answers 500.
     """
     existing_user = await UserService.get_user_by_email(user.email)
     if existing_user:

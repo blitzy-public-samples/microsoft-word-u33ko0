@@ -14,7 +14,6 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { Document } from '../schema/document';
 
-/** The slice state: the open document, the recent list, and request status. */
 interface DocumentState {
   currentDocument: Document | null;
   recentDocuments: Document[];
@@ -22,7 +21,6 @@ interface DocumentState {
   error: string | null;
 }
 
-/** Opening state: no document, an empty recent list, idle and no error. */
 const initialState: DocumentState = {
   currentDocument: null,
   recentDocuments: [],
@@ -40,7 +38,13 @@ const documentSlice = createSlice({
   name: 'document',
   initialState,
   reducers: {
-    /** Replace the open document with the one in the payload. */
+    /**
+     * Replace the open document with the one in the payload.
+     *
+     * @param state - The Immer draft of the document slice state.
+     * @param action - Carries the `Document` to open.
+     * @returns Nothing.
+     */
     setCurrentDocument: (state, action: PayloadAction<Document>) => {
       state.currentDocument = action.payload;
     },
@@ -50,23 +54,49 @@ const documentSlice = createSlice({
      * The slice of the previous list takes four items, so the new head plus four
      * tail entries caps the list at five. The reducer does not deduplicate, so
      * adding the same document twice leaves it in the list twice.
+     *
+     * @param state - The Immer draft of the document slice state.
+     * @param action - Carries the `Document` to place at the head.
+     * @returns Nothing.
      */
     addRecentDocument: (state, action: PayloadAction<Document>) => {
       state.recentDocuments = [action.payload, ...state.recentDocuments.slice(0, 4)];
     },
-    /** Set the in-flight flag for a document request. */
+    /**
+     * Set the in-flight flag for a document request.
+     *
+     * @param state - The Immer draft of the document slice state.
+     * @param action - Carries the new flag value.
+     * @returns Nothing.
+     */
     setLoading: (state, action: PayloadAction<boolean>) => {
       state.isLoading = action.payload;
     },
-    /** Set or clear the last document error message. */
+    /**
+     * Set or clear the last document error message.
+     *
+     * @param state - The Immer draft of the document slice state.
+     * @param action - Carries the message, or `null` to clear it.
+     * @returns Nothing.
+     */
     setError: (state, action: PayloadAction<string | null>) => {
       state.error = action.payload;
     },
-    /** Close the open document, leaving the recent list alone. */
+    /**
+     * Close the open document, leaving the recent list alone.
+     *
+     * @param state - The Immer draft of the document slice state.
+     * @returns Nothing.
+     */
     clearCurrentDocument: (state) => {
       state.currentDocument = null;
     },
-    /** Empty the recent list, leaving the open document alone. */
+    /**
+     * Empty the recent list, leaving the open document alone.
+     *
+     * @param state - The Immer draft of the document slice state.
+     * @returns Nothing.
+     */
     clearRecentDocuments: (state) => {
       state.recentDocuments = [];
     },
@@ -79,7 +109,10 @@ const documentSlice = createSlice({
  * @example
  * dispatch(setCurrentDocument(doc));
  * dispatch(addRecentDocument(doc));
+ * dispatch(setLoading(true));
+ * dispatch(setError('Save failed'));
  * dispatch(clearCurrentDocument());
+ * dispatch(clearRecentDocuments());
  */
 export const {
   setCurrentDocument,
@@ -90,6 +123,7 @@ export const {
   clearRecentDocuments,
 } = documentSlice.actions;
 
+/** The reducer for the document slice. */
 export default documentSlice.reducer;
 
 // HUMAN ASSISTANCE NEEDED

@@ -131,10 +131,10 @@ carries one on the client only.
 
 | Family | Pydantic artifact | Zod artifact | Firestore collection | State |
 | -------- | ------------------- | -------------- | ---------------------- | ------- |
-| Document | `DocumentBase`, `DocumentCreate`, `DocumentUpdate`, `Document` at `backend/app/schema/document.py:L16-L64` | `DocumentSchema` at `frontend/src/schema/document.ts:L23-L31` | `documents` | The only family the handlers and services are written against, and no traffic reaches it while the backend cannot import. The client schema is never applied to a response |
+| Document | `DocumentBase`, `DocumentCreate`, `DocumentUpdate`, `Document` at `backend/app/schema/document.py:L16-L65` | `DocumentSchema` at `frontend/src/schema/document.ts:L23-L31` | `documents` | The only family the handlers and services are written against, and no traffic reaches it while the backend cannot import. The client schema is never applied to a response |
 | User | `UserBase`, `UserCreate`, `UserUpdate`, `User` at `backend/app/schema/user.py:L17-L81` | `UserSchema` and `type User` at `frontend/src/schema/user.ts:L19-L30` | none | Contracts only. No handler writes a user record, because `app.services.user_service` does not exist |
 | Template | **none** | `TemplateSchema` and `type Template` at `frontend/src/schema/template.ts:L21-L31` | none | No server contract exists, and the client holds two incompatible shapes |
-| Version | `DocumentVersion` at `backend/app/schema/document.py:L66-L84` | `DocumentVersionSchema` at `frontend/src/schema/document.ts:L39-L45` | none | Declared in both languages and constructed by neither |
+| Version | `DocumentVersion` at `backend/app/schema/document.py:L67-L85` | `DocumentVersionSchema` at `frontend/src/schema/document.ts:L39-L45` | none | Declared in both languages and constructed by neither |
 
 The template family has no server contract at all. No `backend/app/schema/template.py` is committed,
 so `backend/app/api/templates.py:L17` imports `Template`, `TemplateCreate` and `TemplateUpdate` from
@@ -230,7 +230,7 @@ the server applies none.
 
 Format validators across the two contracts therefore count one and zero. A value the client would
 reject reaches the server unchallenged whenever a caller bypasses the browser, and `POST /register`
-at `backend/app/api/auth.py:L102` accepts any string.
+at `backend/app/api/auth.py:L103` accepts any string.
 
 The Zod check also never runs today. Two modules import from that file,
 `frontend/src/services/auth.ts:L18` and `frontend/src/store/userSlice.ts:L13`, and both take the
@@ -244,7 +244,7 @@ Nine model classes sit across two files, and both files import `List` without us
 
 The document family is the only one with a service behind it. `backend/app/api/documents.py`
 declares a full create, read, update and delete (CRUD) surface across five handlers at `:L24`,
-`:L49`, `:L68`, `:L96` and `:L126`. `DocumentService` implements four methods against those five
+`:L49`, `:L68`, `:L98` and `:L131`. `DocumentService` implements four methods against those five
 handlers: `create_document` at `backend/app/services/document_service.py:L42`, `get_document` at
 `:L78`, `update_document` at `:L116` and `delete_document` at `:L159`.
 
@@ -286,7 +286,7 @@ Three properties of this file shape the drift downstream.
 contract pins the backend to Pydantic 1.x. The setting lets a model read attributes off an object
 instead of a dictionary, and no ORM model exists anywhere in the backend for it to read.
 
-`User` declares no field for the password hash. `backend/app/api/auth.py:L139` computes one with
+`User` declares no field for the password hash. `backend/app/api/auth.py:L134` computes one with
 `pwd_context.hash(user.password)` during registration, and the response contract at
 `backend/app/schema/user.py:L56` has nowhere to carry it. `UserCreate` declares `password` at
 `backend/app/schema/user.py:L38`, so the plaintext field crosses the boundary inbound and the hash
@@ -334,7 +334,7 @@ much work the repair is.
 `Document` is the cheap fix and the other two are not, because `document.ts` declares only the full
 record shape at `L23-L31` and the version shape at `L39-L45`. Neither corresponds to a create or an
 update body. The Pydantic side does model both, at `backend/app/schema/document.py:L30`
-(`DocumentCreate`) and `:L39` (`DocumentUpdate`), so the two client names have server counterparts to
+(`DocumentCreate`) and `:L40` (`DocumentUpdate`), so the two client names have server counterparts to
 mirror and no client declaration to point at.
 
 Both sibling modules do export an inferred type, at `frontend/src/schema/user.ts:L30` and
@@ -367,17 +367,17 @@ rather than committed behaviour.
 
 | Concept | Pydantic position | Zod position | Declared intent | Consequence |
 |---------|-------------------|--------------|-----------------|-------------|
-| Ownership field | `owner_id` at `document.py:L28`, `user_id` at `:L84` | `owner_id` at `document.ts:L27`, `user_id` at `:L44` | `owner_id` at `documentation/Technical Specifications.md:L333`, `:L375` and `:L383` | Four positions disagree. See [the ownership field](#the-ownership-field-four-positions-none-canonical) |
-| Modification timestamp | `updated_at` at `document.py:L64` | `updated_at` at `document.ts:L29` | `last_modified` at `documentation/Technical Specifications.md:L335` and `:L377` | The two contracts agree with each other and differ from declared intent |
+| Ownership field | `owner_id` at `document.py:L28`, `user_id` at `:L85` | `owner_id` at `document.ts:L27`, `user_id` at `:L44` | `owner_id` at `documentation/Technical Specifications.md:L333`, `:L375` and `:L383` | Four positions disagree. See [the ownership field](#the-ownership-field-four-positions-none-canonical) |
+| Modification timestamp | `updated_at` at `document.py:L65` | `updated_at` at `document.ts:L29` | `last_modified` at `documentation/Technical Specifications.md:L335` and `:L377` | The two contracts agree with each other and differ from declared intent |
 | Timestamp type | `datetime`, which the server serializes to text | `z.date()` at `document.ts:L28`, `:L29`, `:L43` | `timestamp` at `documentation/Technical Specifications.md:L334-L335` | `z.date()` rejects an ISO 8601 string, so validation would fail on correct server data |
 | Collaborator list | no model declares one | `collaborators: z.array(z.string())` at `document.ts:L30` | a `Collaborators` node in the Firestore diagram at `documentation/Technical Specifications.md:L325`, with no field enumerated | A client-only array. No handler returns one, so a response never carries the field |
 | User modification timestamp | `updated_at` required at `user.py:L70` | absent from `UserSchema` at `user.ts:L19-L27` | `created_at` only, at `documentation/Technical Specifications.md:L354` | The client type cannot carry a field the server contract requires |
-| Password | required on `UserCreate` at `user.py:L38`, absent from `User` at `:L56` | modelled in neither schema | not enumerated in either collection listing | The hash computed at `backend/app/api/auth.py:L139` has no modelled home outbound |
-| Display name | `username` at `user.py:L27`, `full_name` at `:L28` | `username` at `user.ts:L22`, `full_name` at `:L23` | `display_name` at `documentation/Technical Specifications.md:L353` | Three names for one concept, and the client reads a fourth at `Header.tsx:L53`, `Home.tsx:L35` and `Settings.tsx:L36` |
-| Avatar | no model declares one | no schema declares one | not enumerated | `Header.tsx:L52` sets an image source from `currentUser.avatar`, which no contract declares |
+| Password | required on `UserCreate` at `user.py:L38`, absent from `User` at `:L56` | modelled in neither schema | not enumerated in either collection listing | The hash computed at `backend/app/api/auth.py:L134` has no modelled home outbound |
+| Display name | `username` at `user.py:L27`, `full_name` at `:L28` | `username` at `user.ts:L22`, `full_name` at `:L23` | `display_name` at `documentation/Technical Specifications.md:L353` | Three names for one concept, and the client reads a fourth at `Header.tsx:L52`, `Home.tsx:L35` and `Settings.tsx:L36` |
+| Avatar | no model declares one | no schema declares one | not enumerated | `Header.tsx:L51` sets an image source from `currentUser.avatar`, which no contract declares |
 | Page count | no model declares `pages` | no schema declares `pages` | not enumerated | `background_tasks.py:L139` evaluates `len(document.pages)` against a contract without the field |
 | Template shape | no contract at all | `TemplateSchema` at `template.ts:L21-L28` | `template_id`, `name`, `owner_id`, `created_at` at `documentation/Technical Specifications.md:L380-L385` | Two client shapes share two fields. See the comparison below |
-| Version shape | a full snapshot, `content` at `document.py:L82` | a full snapshot, `content` at `document.ts:L42` | a delta, `changes` as an array of operations, at `documentation/Technical Specifications.md:L341` | Both contracts store whole content where declared intent stores operations |
+| Version shape | a full snapshot, `content` at `document.py:L83` | a full snapshot, `content` at `document.ts:L42` | a delta, `changes` as an array of operations, at `documentation/Technical Specifications.md:L341` | Both contracts store whole content where declared intent stores operations |
 
 ### Two incompatible template shapes
 
@@ -409,7 +409,7 @@ code disagree about its name under two spellings, `owner_id` and `user_id`.
 | # | Position | Location | Field |
 | --- | ---------- | ---------- | ------- |
 | 1 | Pydantic document contract | `backend/app/schema/document.py:L28`, on `DocumentBase` and inherited by `Document` | `owner_id: Optional[str] = None` |
-| 2 | Pydantic version contract | `backend/app/schema/document.py:L84`, on `DocumentVersion` | `user_id: str` |
+| 2 | Pydantic version contract | `backend/app/schema/document.py:L85`, on `DocumentVersion` | `user_id: str` |
 | 3 | Service write and comparison | `backend/app/services/document_service.py:L71` writes it, and `:L108`, `:L148` and `:L184` compare it | `user_id` |
 | 4 | Declared intent | `documentation/Technical Specifications.md:L333`, `:L375` and `:L383`, under the SYSTEM DESIGN heading at `L300` | `owner_id` |
 
@@ -426,7 +426,7 @@ The first sits in the contract. `owner_id` at `backend/app/schema/document.py:L2
 defaults to `None`, so a document can validate without the field that authorization depends on. The
 contract never requires the value the ownership check reads.
 
-The second sits in the routers. `backend/app/api/documents.py:L92`, `:L121` and `:L147` read
+The second sits in the routers. `backend/app/api/documents.py:L94`, `:L126` and `:L154` read
 `document.user_id` off values annotated as `Document`, and `Document` declares `owner_id` rather than
 `user_id`. Each router follows the service convention instead of the contract its own annotation
 names, so the attribute access fails on a model that validates.
@@ -447,7 +447,7 @@ every step behind them is unreachable. Each transformation below names its own f
 **The end-to-end path is unreachable as committed, so no step below has been observed running.** Two
 independent blocks stop it. On the client, the serializer raises at step 1 outbound and the
 deserializer raises at step 7 inbound, so neither function returns. On the server, no handler is
-ever served, because importing `app.main` fails at `backend/app/api/auth.py:L19`, and the Firestore
+ever served, because importing `app.main` fails at `backend/app/api/auth.py:L20`, and the Firestore
 adapter fails separately at `backend/app/db/firestore.py:L16`.
 
 Read each table as the transformation sequence the code declares. Read the "What changes" column as
@@ -485,7 +485,7 @@ code would perform once the caller is repaired.
 | 2 | `convertToRaw` | `frontend/src/utils/documentUtils.ts:L30` | `EditorState` would become a raw content object of `blocks` and `entityMap`. Unreached from the one caller |
 | 3 | `JSON.stringify` | `:L31` | The raw object becomes one string. Unreached |
 | 4 | `DocumentSchema.isValid` | `:L34` | Nothing. Given a correct argument the call raises in its own right, so the serializer would still never return its string |
-| 5 | Request body | `frontend/src/services/api.ts:L82` for a create, `:L95` for an update | A `content` string travels here, and it does not come from step 4. `frontend/src/pages/Editor.tsx:L84` sends the page's own `content` state, which no canvas edit updates |
+| 5 | Request body | `frontend/src/services/api.ts:L83` for a create, `:L96` for an update | A `content` string travels here, and it does not come from step 4. `frontend/src/pages/Editor.tsx:L84` sends the page's own `content` state, which no canvas edit updates |
 | 6 | Pydantic validation | `DocumentCreate` at `backend/app/schema/document.py:L30` | The body becomes a typed model, and `owner_id` is accepted from the caller |
 | 7 | `document.dict()` | `backend/app/services/document_service.py:L70` | The model becomes a plain dictionary |
 | 8 | Key additions | `:L71` and `:L72` | The service adds `user_id` and then `id`, so one record carries both ownership names |
@@ -507,7 +507,7 @@ and never restarts.
 | 1 | Firestore read | `backend/app/services/document_service.py:L102` | A snapshot arrives from `documents` |
 | 2 | `doc.to_dict()` | `:L108` for the ownership check, `:L112` for the model | The snapshot becomes a dictionary, read twice |
 | 3 | `Document(**...)` | `:L112` | The dictionary becomes a typed model, and raises on the two required timestamps nothing wrote |
-| 4 | Response body | `backend/app/api/documents.py:L94` returns the model | Pydantic serializes `datetime` to an ISO 8601 string |
+| 4 | Response body | `backend/app/api/documents.py:L96` returns the model | Pydantic serializes `datetime` to an ISO 8601 string |
 | 5 | Zod validation | nowhere | No response is parsed by any Zod schema in the repository |
 | 6 | `JSON.parse` | `frontend/src/utils/documentUtils.ts:L53` | The stored string becomes a raw content object |
 | 7 | `DocumentSchema.isValid` | `:L59` | **Broken.** The call raises, so the deserializer never returns and steps 8 and 9 do not run |
@@ -557,8 +557,8 @@ graph TD
     subgraph PATHB["Path B, editor page to REST. Fires once, five seconds after mount."]
         PSTATE["page content state<br/>Editor.tsx:L31, set by handleContentChange at :L101"]
         SAVE["autoSave closure<br/>Editor.tsx:L82, timer at :L91"]
-        BODY["PUT request body<br/>Editor.tsx:L84 calls updateDocument, api.put at api.ts:L95"]
-        PYD["Pydantic DocumentUpdate<br/>bound at documents.py:L97, declared at document.py:L39"]
+        BODY["PUT request body<br/>Editor.tsx:L84 calls updateDocument, api.put at api.ts:L96"]
+        PYD["Pydantic DocumentUpdate<br/>bound at documents.py:L99, declared at document.py:L40"]
         DICT["plain dictionary<br/>dict(exclude_unset=True), document_service.py:L152"]
         WRITE["doc_ref.update<br/>document_service.py:L153"]
     end
@@ -568,7 +568,7 @@ graph TD
     subgraph IN["Inbound: Firestore to editor state"]
         READ["snapshot fetched<br/>doc_ref.get, document_service.py:L102"]
         MODEL["typed model<br/>Document(**doc.to_dict()), document_service.py:L112"]
-        RESP["response body<br/>documents.py:L94"]
+        RESP["response body<br/>documents.py:L96"]
         GUARD2["Zod validation<br/>of the response"]
         PARSE["raw content object<br/>JSON.parse<br/>documentUtils.ts:L53"]
         GUARD3["DocumentSchema<br/>.isValid<br/>documentUtils.ts:L59"]
@@ -590,7 +590,7 @@ graph TD
     BODY --> PYD --> DICT --> WRITE --> STORE
 
     STORE --> READ --> MODEL
-    MODEL -.->|"raises: created_at and updated_at are required at document.py:L63-L64 and no path writes either"| RESP
+    MODEL -.->|"raises: created_at and updated_at are required at document.py:L64-L65 and no path writes either"| RESP
     RESP --> GUARD2
     GUARD2 -.->|"skipped: no response is parsed<br/>anywhere, so z.date() never meets<br/>the ISO 8601 string it rejects"| PARSE
     PARSE --> GUARD3
@@ -612,7 +612,7 @@ declares no props, so `handleContentChange` at `:L101` is never called. The `con
 therefore keeps the empty string it was initialised with.
 
 Path B follows the update contract, because the editor calls `updateDocument`, and the create
-contract is a separate path with the same destination. `frontend/src/services/api.ts:L81` posts to
+contract is a separate path with the same destination. `frontend/src/services/api.ts:L82` posts to
 `/documents`, `backend/app/api/documents.py:L24` binds `DocumentCreate` from
 `backend/app/schema/document.py:L30`, and `backend/app/services/document_service.py:L70-L73`
 serializes the model, adds `user_id` and `id`, and calls `set`. That assembled dictionary carries

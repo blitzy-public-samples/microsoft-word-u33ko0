@@ -597,8 +597,8 @@ telling the developer to start the backend with `python manage.py runserver`, wh
 marker at `scripts/setup_dev_environment.sh:L41` and a TODO at `:L42` sit above the environment
 step.
 
-The `.env` file that `:L40` would create is the file `backend/app/core/config.py:L58` names as its
-settings source, and repairing the copy would still not connect the two. `:L58` names `.env` as a
+The `.env` file that `:L40` would create is the file `backend/app/core/config.py:L60` names as its
+settings source, and repairing the copy would still not connect the two. `:L60` names `.env` as a
 relative path, and a relative `env_file` resolves against the working directory of the process that
 constructs `Settings`, not against the directory holding the module. The script changes no
 directory, so its copy lands at the repository root that `../README.md:L29-L30` establishes, while

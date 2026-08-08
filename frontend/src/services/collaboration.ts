@@ -43,6 +43,8 @@ class CollaborationService {
    *
    * The body is empty apart from the marker below, so no inbound event is handled
    * and a remote edit changes nothing on this client.
+   *
+   * @returns Nothing.
    */
   private setupEventListeners(): void {
     // HUMAN ASSISTANCE NEEDED

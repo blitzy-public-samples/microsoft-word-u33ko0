@@ -46,12 +46,12 @@ class CollaborationService:
 
         The socket is stored under the document and user identifiers. A second
         socket for the same pair replaces the first at L66 without closing it,
-        and the evicted editor stops receiving anything. Both
-        connections resolve to one subscription name at L70, so the second
-        `create_subscription` at L73 returns `AlreadyExists`, which L76
-        prints before L77 returns, leaving that socket registered with no
-        feed. A blocking `future.result()` then holds the coroutine open.
-        See the HUMAN ASSISTANCE NEEDED marker above.
+        and the evicted editor stops receiving anything. Both connections
+        resolve to one subscription name at L70, so the second
+        `create_subscription` at L73 raises `AlreadyExists`. The broad handler
+        catches it, prints at L76 and returns at L77, leaving that socket
+        registered with no feed. A blocking `future.result()` then holds the
+        coroutine open. See the HUMAN ASSISTANCE NEEDED marker above.
 
         Args:
             websocket: The connected client socket, a FastAPI `WebSocket`.

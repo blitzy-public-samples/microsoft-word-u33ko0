@@ -99,8 +99,8 @@ so `test_api.py:L3` raises `ModuleNotFoundError: No module named 'app'` during c
 
 Add `backend/` to the path and the next failure appears. `test_api.py:L8` builds one module-level client over the real application imported at `L3`, so importing the module
 runs the whole application import chain before pytest collects a single test. That chain enters `backend/app/main.py:L16`, which imports `auth_router` from `app.api.auth`,
-and stops at `backend/app/api/auth.py:L19`, which imports `settings` from `app.core.config`. That configuration module binds only `Settings` at `L20` and `get_settings` at
-`L61`, so the name does not exist and the import raises `ImportError`. A second import-time cost sits at `backend/app/db/firestore.py:L20`, which constructs a Firestore
+and stops at `backend/app/api/auth.py:L20`, which imports `settings` from `app.core.config`. That configuration module binds only `Settings` at `L21` and `get_settings` at
+`L62`, so the name does not exist and the import raises `ImportError`. A second import-time cost sits at `backend/app/db/firestore.py:L20`, which constructs a Firestore
 client and so triggers Google Cloud credential discovery.
 
 The two `unittest` modules never reach the application, because both fail on absent imports first. `test_db.py` replaces `google.cloud.firestore.Client` and
@@ -151,12 +151,12 @@ committed endpoint, and column five names the first mismatch a reader would hit 
 
 | Site | Request | Body and headers | Asserted | Closest committed endpoint | First mismatch |
 | --- | --- | --- | --- | --- | --- |
-| `L26` | `POST /auth/login` | JavaScript Object Notation (JSON) `username` and `password`, no header | 200 with `access_token` | `POST /token`, `backend/app/api/auth.py:L65` | Path. No registered route carries two segments. Correct the path and the encoding still fails: `auth.py:L66` binds `OAuth2PasswordRequestForm`, which reads form fields, so request validation answers 422 before the 200 branch |
-| `L31` | `POST /auth/login` | JSON with a wrong password, no header | 401 | `POST /token`, `auth.py:L65` | The same path miss, then the same 422 before the 401 branch at `auth.py:L92` |
-| `L36` | `POST /documents/` | JSON `title` and `content`, bearer header from `get_token()` | 201 with `title` | `POST /`, `documents.py:L24` | Path. `main.py:L84-L87` mounts every router with no prefix, so the create route is `/`. The decorator sets no `status_code`, so a success answers 200 rather than 201 |
+| `L26` | `POST /auth/login` | JavaScript Object Notation (JSON) `username` and `password`, no header | 200 with `access_token` | `POST /token`, `backend/app/api/auth.py:L66` | Path. No registered route carries two segments. Correct the path and the encoding still fails: `auth.py:L67` binds `OAuth2PasswordRequestForm`, which reads form fields, so request validation answers 422 before the 200 branch |
+| `L32` | `POST /auth/login` | JSON with a wrong password, no header | 401 | `POST /token`, `auth.py:L66` | The same path miss, then the same 422 before the 401 branch at `auth.py:L93` |
+| `L37` | `POST /documents/` | JSON `title` and `content`, bearer header from `get_token()` | 201 with `title` | `POST /`, `documents.py:L24` | Path. `main.py:L84-L87` mounts every router with no prefix, so the create route is `/`. The decorator sets no `status_code`, so a success answers 200 rather than 201 |
 | `L46` | `GET /documents/{id}` | Bearer header only | 200 with `title` | `GET /{document_id}`, `documents.py:L68` | Path. The `documents` segment is not mounted, and `/{document_id}` collides with the template router's `/{template_id}` at `templates.py:L59` |
-| `L52` | `POST /users/` | JSON `username`, `email` and `password`, no header | 201 with `username` | None. `users.py` registers `GET /me` at `L19` and `PUT /me` at `L32` only | No user-creation route exists on that router. Registration lives at `POST /register`, `auth.py:L102`, which answers 200 and takes `UserCreate` |
-| `L57` | `GET /users/{id}` | Bearer header only | 200 with `username` | `GET /me`, `users.py:L19` | Contract shape. The server identifies the user from the token dependency, not from a path parameter, so no per-identifier user route exists |
+| `L52` | `POST /users/` | JSON `username`, `email` and `password`, no header | 201 with `username` | None. `users.py` registers `GET /me` at `L19` and `PUT /me` at `L32` only | No user-creation route exists on that router. Registration lives at `POST /register`, `auth.py:L103`, which answers 200 and takes `UserCreate` |
+| `L58` | `GET /users/{id}` | Bearer header only | 200 with `username` | `GET /me`, `users.py:L19` | Contract shape. The server identifies the user from the token dependency, not from a path parameter, so no per-identifier user route exists |
 | `L63` | `POST /templates/` | JSON `name` and `content`, bearer header | 201 with `name` | `POST /`, `templates.py:L24` | Path, as at `L36`, plus the same 200-versus-201 gap. The template router also fails to import, at `templates.py:L17-L18` |
 | `L20` | `GET /templates/{id}` | Bearer header only | 200 with `name` | `GET /{template_id}`, `templates.py:L59` | Path, plus the collision with `documents.py:L68` over the identical mounted pattern |
 
@@ -188,8 +188,8 @@ between them, 15 in `test_api.py`, 7 in `test_db.py` and 15 in `test_services.py
 
 | Group | Tests | What the assertions prove | What they leave unproven |
 | --- | --- | --- | --- |
-| Authentication | `test_api.py:L25`, `:L30` | A response carries a key named `access_token` (`L28`), and a wrong password answers 401 (`L32`) | That the token decodes, carries a subject or expiry, or comes with `token_type`. Neither test sends the form encoding the `OAuth2PasswordRequestForm` dependency at `auth.py:L66` requires |
-| Document routes | `test_api.py:L35`, `:L40` | `title` round-trips through create and read (`L38`, `L48`) | Ownership, the three router 403 branches at `documents.py:L93`, `:L122` and `:L148`, the service 404 paths, and the list, update and delete routes entirely |
+| Authentication | `test_api.py:L25`, `:L30` | A response carries a key named `access_token` (`L28`), and a wrong password answers 401 (`L32`) | That the token decodes, carries a subject or expiry, or comes with `token_type`. Neither test sends the form encoding the `OAuth2PasswordRequestForm` dependency at `auth.py:L67` requires |
+| Document routes | `test_api.py:L35`, `:L40` | `title` round-trips through create and read (`L38`, `L48`) | Ownership, the three router 403 branches at `documents.py:L95`, `:L127` and `:L155`, the service 404 paths, and the list, update and delete routes entirely |
 | User and template routes | `test_api.py:L51`, `:L56`, `:L62`, `:L67` | `username` appears in each user response (`L54`, `L59`) and `name` round-trips for templates (`L65`, `L75`) | The token dependency, the profile update route at `users.py:L32-L33`, every validation failure, the list, update and delete routes, and the template router's own import failure |
 | Firestore and relational | `test_db.py:L20`, `:L30`, `:L39`, `:L47` | `add` receives the payload (`L27`), a stored dictionary comes back (`L37`), and `execute` and `commit` are each called once (`L44`, `L45`, `L53`) | Which collection or document was addressed: the mock chains at `L22` and `L32` answer identically for any identifier, so `'test_collection'` and `'doc_id'` are never checked. Also the statement text, bound parameters, table name, rollback, and update and delete paths. `L37` and `L54` assert the values configured at `L33` and `L49` |
 | Document service | `test_services.py:L13`, `:L20`, `:L26`, `:L32` | Little. `L35` accepts any truthy value, and the attribute assertions target an object the calls never return | Every Firestore interaction, the ownership comparison, and the 403 and 404 paths |
@@ -233,7 +233,7 @@ python -m pytest backend/tests/test_db.py -q
 
 Neither command reaches an assertion. The first fails during collection at `test_api.py:L3`, which imports `app.main` while `sys.path` carries the repository root and no
 `app` package sits there, so the error is `ModuleNotFoundError: No module named 'app'`. Put `backend/` on the path and the same line fails one level deeper: the import chain
-reaches `backend/app/api/auth.py:L19` and requests a `settings` name that `backend/app/core/config.py` never binds. The second command fails at `test_db.py:L6`, which imports
+reaches `backend/app/api/auth.py:L20` and requests a `settings` name that `backend/app/core/config.py` never binds. The second command fails at `test_db.py:L6`, which imports
 `backend.db.firestore_operations`. That root resolves as far as `backend`, and `backend/db/` does not exist.
 
 Comparing a declared signature against its call site shows the contract the suite assumes:

@@ -44,8 +44,6 @@ const Templates: React.FC = () => {
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const currentUser = useAppSelector(selectCurrentUser);
 
-  // Mount effect. The dependency array is empty, so the fetch below runs once and
-  // never re-runs. Nothing refreshes the list afterwards.
   useEffect(() => {
     /**
      * Fetch the template list and store it in page state.

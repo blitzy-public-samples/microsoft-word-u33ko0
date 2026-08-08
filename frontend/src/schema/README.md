@@ -129,10 +129,10 @@ therefore a line of `documentation/Technical Specifications.md` rather than of t
 | Concept | This directory | `backend/app/schema/` | `documentation/Technical Specifications.md` |
 | --- | --- | --- | --- |
 | document owner | `owner_id` required, `document.ts:L27` | `owner_id: Optional[str] = None`, `document.py:L28` | `owner_id`, L333 and L375 |
-| version actor | `user_id`, `document.ts:L44` | `user_id`, `document.py:L84` | Versions subcollection L338-L341 declares no author field |
-| modification timestamp | `updated_at`, `document.ts:L29` | `updated_at`, `document.py:L64` | `last_modified`, L335 |
+| version actor | `user_id`, `document.ts:L44` | `user_id`, `document.py:L85` | Versions subcollection L338-L341 declares no author field |
+| modification timestamp | `updated_at`, `document.ts:L29` | `updated_at`, `document.py:L65` | `last_modified`, L335 |
 | collaborators | inline `z.array(z.string())`, `document.ts:L30` | absent from all five models | a child of Documents in the diagram, L325 |
-| document write payloads | absent | `DocumentCreate`, `document.py:L30-L37`; `DocumentUpdate`, `document.py:L39-L49` | not specified as payloads |
+| document write payloads | absent | `DocumentCreate`, `document.py:L30-L38`; `DocumentUpdate`, `document.py:L40-L50` | not specified as payloads |
 | server-only user fields | absent | `updated_at`, `user.py:L70`; `UserCreate.password`, `user.py:L38` | not applicable |
 | optional full name | `full_name` optional, `user.ts:L23` | `full_name` optional, `user.py:L28` | `display_name`, L353 |
 | template contract | `TemplateSchema`, `template.ts:L21-L28` | no `template.py` exists at all | not specified |
@@ -145,15 +145,15 @@ One row agrees across both code contracts: `full_name` is optional at `user.ts:L
   declares `owner_id` as optional with a default of `None`, while `backend/app/services/document_service.py:L71` writes and later
   compares `user_id`. Because the server contract makes `owner_id` optional, a document validates with no owner recorded while
   ownership decides access, and the [data model reference](../../../docs/data-model.md) consolidates all four positions.
-- **The modification timestamp carries three names.** `updated_at` at `document.ts:L29` and `document.py:L64`, and
+- **The modification timestamp carries three names.** `updated_at` at `document.ts:L29` and `document.py:L65`, and
   `last_modified` at `documentation/Technical Specifications.md:L335` and `:L377`.
 - **`collaborators` exists only on the client.** `document.ts:L30` declares it, and no model in
   `backend/app/schema/document.py` declares the field. The specification's `## DATABASE DESIGN` diagram places Collaborators
   as a child of Documents at `documentation/Technical Specifications.md:L325`.
 - **Two server fields have no client counterpart.** `user.py:L70` declares `updated_at` on `User`, and `user.py:L38`
   declares `password` on `UserCreate`. `UserSchema` at `user.ts:L19-L27` models neither.
-- **No user contract declares `name` or `avatar`, and four sites read one of them.** `components/Header.tsx:L52` reads
-  `currentUser.avatar` and `currentUser.name`, `Header.tsx:L53` reads `currentUser.name`, `pages/Home.tsx:L35` reads
+- **No user contract declares `name` or `avatar`, and four sites read one of them.** `components/Header.tsx:L51` reads
+  `currentUser.avatar` and `currentUser.name`, `Header.tsx:L52` reads `currentUser.name`, `pages/Home.tsx:L35` reads
   `currentUser.name`, and `pages/Settings.tsx:L36` reads `currentUser?.name`. The specification names the field
   `display_name` at `documentation/Technical Specifications.md:L353`, a third name, and the [components](../components/README.md) and [pages](../pages/README.md) READMEs cite their own sites.
 - **Two incompatible `Template` shapes exist, and the server half is absent.** `TemplateSchema` at `template.ts:L21-L28` and
@@ -165,7 +165,7 @@ One row agrees across both code contracts: `full_name` is optional at `user.ts:L
 - **`zod` is imported and undeclared.** `document.ts:L13`, `user.ts:L9` and `template.ts:L13` import the package, and
   `frontend/package.json:L6-L14` omits it. No code in this directory runs until the package is installed.
 - **The directory carries no assistance marker and no unfinished-work comment of its own.** The nearest ones sit in the consumers, at
-  `utils/documentUtils.ts:L17-L19`, `:L33`, `:L58` and `store/documentSlice.ts:L95`.
+  `utils/documentUtils.ts:L17-L19`, `:L33`, `:L58` and `store/documentSlice.ts:L129`.
 
 The [troubleshooting register](../../../docs/troubleshooting.md) carries every defect above with file and line evidence.
 

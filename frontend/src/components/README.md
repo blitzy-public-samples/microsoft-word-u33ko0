@@ -16,7 +16,7 @@ reference point.
 
 | Component | Type | Location | Description |
 | --- | --- | --- | --- |
-| `Header` | React component, default export | `Header.tsx:L30` | Top navigation bar: branding, three links, and either a profile block or a login link. Propless. |
+| `Header` | React component, default export | `Header.tsx:L29` | Top navigation bar: branding, three links, and either a profile block or a login link. Propless. |
 | `Footer` | React component, default export | `Footer.tsx:L21` | Status bar with five literal values and two zoom buttons. Propless, and the only component here that typechecks. |
 | `Sidebar` | React component, default export | `Sidebar.tsx:L22` | Panel shell that renders three child panels unconditionally. Propless. |
 | `Toolbar` | React component, default export | `Toolbar.tsx:L34` | Three button groups: inline styles, block styles, and two insert buttons. Propless, and holds no editor state. |
@@ -24,12 +24,12 @@ reference point.
 | `handleKeyCommand` | Internal handler | `TextEditor.tsx:L41` | Maps a Draft.js key command to one of the two formatting helpers, passing both declared arguments. |
 | `DocumentCanvas` | React component, default export | `DocumentCanvas.tsx:L34` | Draft.js editor bound to the document in the Redux store. Declared propless, while its one caller passes two props. |
 | `handleEditorChange` | Internal handler | `DocumentCanvas.tsx:L57` | Stores the new editor state at `:L58`, then calls the serializer at `:L59` with the wrong type and raises. The dispatch at `:L60` never runs. |
-| `TableEditor` | React component, default export | `TableEditor.tsx:L28` | Table insert logic. Takes props. Renders an empty element. |
-| `handleInsertTable` | Internal handler | `TableEditor.tsx:L42` | Builds a table and pushes it into the editor state. Defined and never called. |
-| `ImageEditor` | React component, default export | `ImageEditor.tsx:L29` | Image insert logic. Takes props. Renders an empty element. |
-| `handleInsertImage` | Internal handler | `ImageEditor.tsx:L41` | Creates an `IMAGE` entity and inserts an atomic block. Defined and never called. |
-| `TableEditorProps` | Props interface, not exported | `TableEditor.tsx:L15-L17` | Declares one required member, `editorState: EditorState`. |
-| `ImageEditorProps` | Props interface, not exported | `ImageEditor.tsx:L15-L17` | Declares one required member, `editorState: EditorState`. |
+| `TableEditor` | React component, default export | `TableEditor.tsx:L27` | Table insert logic. Takes props. Renders an empty element. |
+| `handleInsertTable` | Internal handler | `TableEditor.tsx:L41` | Builds a table and pushes it into the editor state. Defined and never called. |
+| `ImageEditor` | React component, default export | `ImageEditor.tsx:L28` | Image insert logic. Takes props. Renders an empty element. |
+| `handleInsertImage` | Internal handler | `ImageEditor.tsx:L40` | Creates an `IMAGE` entity and inserts an atomic block. Defined and never called. |
+| `TableEditorProps` | Props interface, not exported | `TableEditor.tsx:L14-L16` | Declares one required member, `editorState: EditorState`. |
+| `ImageEditorProps` | Props interface, not exported | `ImageEditor.tsx:L14-L16` | Declares one required member, `editorState: EditorState`. |
 
 Only `TableEditor` and `ImageEditor` declare a props interface, and the other six are propless. `DocumentCanvas` is the one
 whose propless declaration contradicts its caller, which Known Limitations reads against
@@ -43,7 +43,7 @@ These components sit below the routed pages and above the Redux store and the sh
 `App.tsx:L38` and `Footer` at `App.tsx:L47`.
 
 The container and presentational split is partial, because three of the eight reach the store themselves rather than taking
-data from the page that renders them. `Header.tsx:L31` selects the current user, `Toolbar.tsx:L35` takes a dispatcher, and
+data from the page that renders them. `Header.tsx:L30` selects the current user, `Toolbar.tsx:L35` takes a dispatcher, and
 `DocumentCanvas.tsx:L35-L36` takes both. See [the architecture overview](../../../docs/architecture-overview.md) for the
 wider system and [the frontend source README](../README.md) for the routing above it.
 
@@ -87,9 +87,9 @@ Specifications.md:L487-L491` declares `onBoldClick`, `onItalicClick` and `onUnde
 
 The five absent symbols are absent by inspection of the modules that would export them. `frontend/src/store/index.ts` exports
 exactly three names, and neither hook is among them: `RootState` at `store/index.ts:L32`, `AppDispatch` at `:L34`, and
-`store` as a default at `:L36`. `frontend/src/store/documentSlice.ts:L84` destructures exactly `setCurrentDocument`,
+`store` as a default at `:L36`. `frontend/src/store/documentSlice.ts:L117` destructures exactly `setCurrentDocument`,
 `addRecentDocument`, `setLoading`, `setError`, `clearCurrentDocument` and `clearRecentDocuments`, so it publishes no
-`updateDocument` action and no `selectCurrentDocument` selector. `frontend/src/store/userSlice.ts:L75` destructures exactly
+`updateDocument` action and no `selectCurrentDocument` selector. `frontend/src/store/userSlice.ts:L97` destructures exactly
 `setUser`, `clearUser`, `setLoading` and `setError`, so it publishes no `selectCurrentUser`. See [the store
 README](../store/README.md) and [the utils README](../utils/README.md) for those two directories.
 
@@ -177,7 +177,7 @@ graph TD
     TE ==>|"TextEditor.tsx:L48<br/>and :L55 pass<br/>both arguments"| FMT["utils/formatting.ts<br/>:L24 and :L45 declare<br/>two parameters each"]
     TB -.->|"Toolbar.tsx:L45<br/>and :L56 pass<br/>one argument"| FMT
     SB -.->|"Sidebar.tsx:L10, :L11<br/>and :L12, all three<br/>modules absent"| SP["StylePanel,<br/>CommentPanel,<br/>RevisionPanel"]
-    ORPH["TableEditor.tsx:L28 and ImageEditor.tsx:L29<br/>no module imports either, and<br/>TableEditor.tsx:L12 and ImageEditor.tsx:L12<br/>import utils/tableUtils and utils/imageUtils,<br/>which are absent modules"]
+    ORPH["TableEditor.tsx:L27 and ImageEditor.tsx:L28<br/>no module imports either, and<br/>TableEditor.tsx:L12 and ImageEditor.tsx:L12<br/>import utils/tableUtils and utils/imageUtils,<br/>which are absent modules"]
 
 %% Dashed edges mark a relationship that cannot resolve or a type that does not match.
 %% The thick edge marks the one helper call supplying both declared arguments.
@@ -186,7 +186,7 @@ graph TD
 ## Design Patterns
 
 **Container and presentational split, with store access through hooks and selectors.** `DocumentCanvas` and `Toolbar` reach
-the Redux store directly, at `DocumentCanvas.tsx:L35-L36` and `Toolbar.tsx:L35`, and `Header` reads it at `Header.tsx:L31`.
+the Redux store directly, at `DocumentCanvas.tsx:L35-L36` and `Toolbar.tsx:L35`, and `Header` reads it at `Header.tsx:L30`.
 Each of the three calls a typed hook at module scope and passes a named selector to it rather than receiving data as props.
 `Footer`, `TextEditor`, `TableEditor` and `ImageEditor` hold no store connection, and `Footer.tsx` imports nothing beyond
 React.
@@ -195,8 +195,8 @@ React.
 `EditorState.createEmpty()` and pass that state to the Draft.js `Editor` with an `onChange` callback. The editor holds no
 state of its own, so every keystroke returns through the component.
 
-**Atomic block insertion.** `ImageEditor.tsx:L43-L52` creates an immutable `IMAGE` entity on the content state, reads the
-generated entity key at `:L48`, and calls `AtomicBlockUtils.insertAtomicBlock` at `:L52` to place the block. Draft.js renders
+**Atomic block insertion.** `ImageEditor.tsx:L42-L51` creates an immutable `IMAGE` entity on the content state, reads the
+generated entity key at `:L47`, and calls `AtomicBlockUtils.insertAtomicBlock` at `:L51` to place the block. Draft.js renders
 an atomic block through a block renderer the editor supplies.
 
 ## Known Limitations
@@ -250,12 +250,12 @@ No JavaScript Object Notation (JSON) string is built, and the dispatch at `:L60`
 
 ### Per-component limitations
 
-**`Header.tsx`, 66 lines.** `Header.tsx:L37` renders `/microsoft-word-logo.png`, and that asset does not exist, because
-`frontend/public/` holds only `index.html`. Two of the four links reach a declared route: `Header.tsx:L43` targets `/` and
-`:L45` targets `/templates`, declared at `App.tsx:L41` and `:L43`. The other two reach nothing, because `Header.tsx:L44`
-targets `/documents` and `:L56` targets `/login`, and `App.tsx` declares neither.
+**`Header.tsx`, 66 lines.** `Header.tsx:L36` renders `/microsoft-word-logo.png`, and that asset does not exist, because
+`frontend/public/` holds only `index.html`. Two of the four links reach a declared route: `Header.tsx:L42` targets `/` and
+`:L44` targets `/templates`, declared at `App.tsx:L41` and `:L43`. The other two reach nothing, because `Header.tsx:L43`
+targets `/documents` and `:L55` targets `/login`, and `App.tsx` declares neither.
 
-`Header.tsx:L52` reads `currentUser.avatar` and `currentUser.name`, and `:L53` reads `currentUser.name` again. `UserSchema`
+`Header.tsx:L51` reads `currentUser.avatar` and `currentUser.name`, and `:L52` reads `currentUser.name` again. `UserSchema`
 declares neither field, and models `username` at `frontend/src/schema/user.ts:L22` and optional `full_name` at
 `schema/user.ts:L23`. `Header.tsx:L12` and `:L13` import the absent `useAppSelector` and `selectCurrentUser`.
 
@@ -268,7 +268,7 @@ and `:L12` import `@/components/StylePanel`, `@/components/CommentPanel` and `@/
 and `:L27` render all three behind no guard.
 
 **`TableEditor.tsx`, 75 lines.** `TableEditor.tsx:L12` imports `insertTable`, `deleteTable` and `modifyTable` from the absent
-`@/utils/tableUtils`, and `deleteTable` and `modifyTable` are never referenced. `handleInsertTable` at `:L42` is defined and
+`@/utils/tableUtils`, and `deleteTable` and `modifyTable` are never referenced. `handleInsertTable` at `:L41` is defined and
 never called.
 
 `:L50-L54` passes the value `insertTable(rows, columns)` returns at `:L47` as the third argument to `Modifier.replaceText`,
@@ -276,8 +276,8 @@ which requires a string. `:L68-L72` returns an empty element holding only a Java
 assistance marker sits at `:L29`.
 
 **`ImageEditor.tsx`, 67 lines.** `ImageEditor.tsx:L12` imports `resizeImage` and `cropImage` from the absent
-`@/utils/imageUtils`, and neither is referenced. `handleInsertImage` at `:L41` is defined and never called. `:L43-L47`
-creates an `IMAGE` entity and `:L52` calls `AtomicBlockUtils.insertAtomicBlock`, and no `blockRendererFn` exists anywhere in
+`@/utils/imageUtils`, and neither is referenced. `handleInsertImage` at `:L40` is defined and never called. `:L42-L46`
+creates an `IMAGE` entity and `:L51` calls `AtomicBlockUtils.insertAtomicBlock`, and no `blockRendererFn` exists anywhere in
 the tree, so an atomic image block would not render.
 
 No upload route exists anywhere in the repository to receive image bytes, and `:L61-L63` returns an empty element. Two
@@ -295,13 +295,13 @@ specifier does not resolve at all, so the checker reports `TS2307` rather than `
 ### Accessibility
 
 Every item below is read from the committed markup rather than from a running page, because the client does not bundle. Three
-positives hold: `Header.tsx:L34` uses a semantic `header` element and `:L41` a `nav`, `Footer.tsx:L23` uses a semantic
-`footer`, and the logo image at `Header.tsx:L37` carries meaningful `alt` text. Every interactive control here is a native
+positives hold: `Header.tsx:L33` uses a semantic `header` element and `:L40` a `nav`, `Footer.tsx:L23` uses a semantic
+`footer`, and the logo image at `Header.tsx:L36` carries meaningful `alt` text. Every interactive control here is a native
 `button`, a React Router `Link` rendering an anchor, or a Draft.js `Editor`, so each is keyboard reachable. The defects:
 
 - **`Header` renders twice per route, so every route exposes two unnamed navigation landmarks.** `App.tsx:L38` renders one
-`Header`, and each page renders its own at `pages/Home.tsx:L32`, `pages/Editor.tsx:L107`, `pages/Templates.tsx:L89` and
-`pages/Settings.tsx:L61`. Both copies present the same `nav` at `Header.tsx:L41` with no `aria-label`, so assistive
+`Header`, and each page renders its own at `pages/Home.tsx:L32`, `pages/Editor.tsx:L107`, `pages/Templates.tsx:L87` and
+`pages/Settings.tsx:L61`. Both copies present the same `nav` at `Header.tsx:L40` with no `aria-label`, so assistive
 technology announces two identical navigation regions and a reader cannot tell them apart. Distinct accessible names on each
 `nav` are required, and the duplicate render is the defect to remove first. `Footer.tsx:L23` duplicates the `contentinfo`
 landmark the same way on three of the four routes.
@@ -334,8 +334,8 @@ no authored styling would apply under either convention once the build blockers 
 ### Markers and outstanding work
 
 Six assistance markers and one outstanding-work comment sit in this directory, and each is the authors' own record of
-unfinished work. The markers sit at `Toolbar.tsx:L19`, `TextEditor.tsx:L26`, `DocumentCanvas.tsx:L20`, `TableEditor.tsx:L29`,
-`ImageEditor.tsx:L30` and `ImageEditor.tsx:L59`. The last of those sits inside the return statement opened at `:L58`, which
+unfinished work. The markers sit at `Toolbar.tsx:L19`, `TextEditor.tsx:L26`, `DocumentCanvas.tsx:L20`, `TableEditor.tsx:L28`,
+`ImageEditor.tsx:L29` and `ImageEditor.tsx:L58`. The last of those sits inside the return statement opened at `:L57`, which
 is why a reader scanning the top of that file misses it. The outstanding-work comment is at `Toolbar.tsx:L67`, inside the
 `handleInsert` handler both insert buttons call, and `Header.tsx`, `Footer.tsx` and `Sidebar.tsx` carry neither.
 
@@ -346,12 +346,12 @@ this directory. The locator below matches the register.
 
 | # | Absent control | Evidence in this directory | What the absence permits |
 | --- | --- | --- | --- |
-| 18 | An allow-list on remote image sources | `Header.tsx:L52` renders `currentUser.avatar` as the `src` of an unconstrained `img`, with no `referrerPolicy` attribute, and no Content Security Policy is committed anywhere in the repository | A stored URL causes the browser to contact an arbitrary host, disclosing the viewer address and referrer to it |
+| 18 | An allow-list on remote image sources | `Header.tsx:L51` renders `currentUser.avatar` as the `src` of an unconstrained `img`, with no `referrerPolicy` attribute, and no Content Security Policy is committed anywhere in the repository | A stored URL causes the browser to contact an arbitrary host, disclosing the viewer address and referrer to it |
 
 Two things bound that entry today. `UserSchema` declares no `avatar` field, which the field-drift note above records, so the read
 yields `undefined` and the browser requests nothing. Neither `frontend/public/index.html` nor any server response header sets a
 `Content-Security-Policy`, so no `img-src` directive would constrain the request once a repaired user contract supplies a value.
-Entry 18 also fires from `../pages/Templates.tsx:L100`, which the [pages README](../pages/README.md) records.
+Entry 18 also fires from `../pages/Templates.tsx:L98`, which the [pages README](../pages/README.md) records.
 
 See [the troubleshooting register](../../../docs/troubleshooting.md) for the whole repository.
 

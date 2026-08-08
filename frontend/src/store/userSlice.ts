@@ -12,7 +12,6 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { User } from '../schema/user';
 
-/** The slice state: the signed-in user, the auth flag, and request status. */
 interface UserState {
   currentUser: User | null;
   isAuthenticated: boolean;
@@ -20,7 +19,6 @@ interface UserState {
   error: string | null;
 }
 
-/** Opening state: nobody signed in, unauthenticated, idle and no error. */
 const initialState: UserState = {
   currentUser: null,
   isAuthenticated: false,
@@ -38,25 +36,48 @@ const userSlice = createSlice({
   name: 'user',
   initialState,
   reducers: {
-    /** Sign a user in: store the profile, set authenticated, clear status. */
+    /**
+     * Sign a user in: store the profile, set authenticated, clear status.
+     *
+     * @param state - The Immer draft of the user slice state.
+     * @param action - Carries the signed-in `User` profile.
+     * @returns Nothing.
+     */
     setUser: (state, action: PayloadAction<User>) => {
       state.currentUser = action.payload;
       state.isAuthenticated = true;
       state.isLoading = false;
       state.error = null;
     },
-    /** Sign the user out and reset every field to its opening value. */
+    /**
+     * Sign the user out and reset every field to its opening value.
+     *
+     * @param state - The Immer draft of the user slice state.
+     * @returns Nothing.
+     */
     clearUser: (state) => {
       state.currentUser = null;
       state.isAuthenticated = false;
       state.isLoading = false;
       state.error = null;
     },
-    /** Set the in-flight flag for an authentication request. */
+    /**
+     * Set the in-flight flag for an authentication request.
+     *
+     * @param state - The Immer draft of the user slice state.
+     * @param action - Carries the new flag value.
+     * @returns Nothing.
+     */
     setLoading: (state, action: PayloadAction<boolean>) => {
       state.isLoading = action.payload;
     },
-    /** Record an authentication error and clear the in-flight flag. */
+    /**
+     * Record an authentication error and clear the in-flight flag.
+     *
+     * @param state - The Immer draft of the user slice state.
+     * @param action - Carries the error message.
+     * @returns Nothing.
+     */
     setError: (state, action: PayloadAction<string>) => {
       state.error = action.payload;
       state.isLoading = false;
@@ -69,10 +90,13 @@ const userSlice = createSlice({
  *
  * @example
  * dispatch(setUser(profile));
+ * dispatch(setLoading(true));
  * dispatch(setError('Login failed'));
  * dispatch(clearUser());
  */
 export const { setUser, clearUser, setLoading, setError } = userSlice.actions;
+
+/** The reducer for the user slice. */
 export default userSlice.reducer;
 
 // HUMAN ASSISTANCE NEEDED

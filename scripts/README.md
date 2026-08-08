@@ -91,7 +91,7 @@ prerequisite and `setup_dev_environment.sh:L10` omits it, and the same line omit
 | --- | --- | --- |
 | `GOOGLE_APPLICATION_CREDENTIALS` | Guarded at `deploy.sh:L4` | DECLARED, AND NOT SUFFICIENT. `backend/app/core/config.py:L46` declares it as `Optional[str]`. The variable configures Application Default Credentials for client libraries, not the `gcloud` CLI, and the script runs no `gcloud auth activate-service-account` |
 | `DATABASE_URL` | Set by neither script | READ ELSEWHERE, NEVER SET HERE. `backend/app/core/config.py:L47` requires it |
-| `.env` | Written at `setup_dev_environment.sh:L40` | ASSUMED ONLY, AND NOT NECESSARILY THE FILE THE BACKEND READS. Copied from an absent source. `backend/app/core/config.py:L58` names `.env` as a relative path, so it resolves against the working directory of the process that builds `Settings`, not against the directory this script wrote into |
+| `.env` | Written at `setup_dev_environment.sh:L40` | ASSUMED ONLY, AND NOT NECESSARILY THE FILE THE BACKEND READS. Copied from an absent source. `backend/app/core/config.py:L60` names `.env` as a relative path, so it resolves against the working directory of the process that builds `Settings`, not against the directory this script wrote into |
 | `my-word-app-bucket`, `my-word-app-db`, `my-word-app-backend` | `deploy.sh:L23`, `:L31`, `:L35` | HARD-CODED. `infrastructure/terraform/main.tf:L51` declares a different bucket, `word-documents-${var.project_id}` |
 | `--user=root` | `deploy.sh:L31` | HARD-CODED, AND UNPROVISIONED. Neither provisioning path creates a `root` role: `setup_dev_environment.sh:L32` creates `msword_user` and `infrastructure/docker/docker-compose.yml:L34` creates `postgres` |
 | Database `msword_clone` and role `msword_user` | `setup_dev_environment.sh:L31-L36` | HARD-CODED. Compose names `wordapp` under `postgres` at `infrastructure/docker/docker-compose.yml:L33-L34` |
@@ -134,9 +134,9 @@ flowchart TD
     C -.->|"outcome unestablished: names no --global or<br/>--region scope, and the backend service<br/>is not provisioned here"| P["Post-deployment checks<br/>deploy.sh:L37-L44"]
     P -.->|"no check runs: L40-L44 are comments"| S["echo Deployment completed successfully!<br/>deploy.sh:L47"]
 %% A dashed edge leaves a stage that fails against the committed repository, performs
-%% no work, or has an outcome this repository cannot establish. The one solid edge
-%% leaves the archive, which succeeds wherever zip is installed. The run continues
-%% across every failure because nothing checks an exit status.
+%% no work, or has an outcome this repository cannot establish. Solid edges leave the
+%% successful credentials guard and the conditional archive; all other stage edges are
+%% dashed. The run continues across every failure because nothing checks an exit status.
 ```
 
 A setup run moves in one direction, from host packages at `setup_dev_environment.sh:L5` to the printed instructions at `:L56`. The run fails at `:L26`, succeeds
@@ -187,9 +187,9 @@ Every entry below cites the line that establishes it.
   installed frontend packages, no `.env` and no migrations.
 - `setup_dev_environment.sh:L26` runs `pip install -r requirements.txt` and fails, because no Python manifest is tracked. No `requirements.txt`,
   `pyproject.toml`, `setup.py`, `setup.cfg`, `Pipfile` or `tox.ini` exists anywhere in the repository.
-- `setup_dev_environment.sh:L40` runs `cp .env.example .env` and fails, because `.env.example` does not exist. `backend/app/core/config.py:L50-L59` points
+- `setup_dev_environment.sh:L40` runs `cp .env.example .env` and fails, because `.env.example` does not exist. `backend/app/core/config.py:L50-L61` points
   `env_file` at that absent `.env`, and repairing the copy would not connect the two. The script changes no directory, so the copy lands where the operator
-  invoked it, the repository root that `README.md:L29-L30` establishes. `config.py:L58` names `.env` relatively, so a relative `env_file` resolves against
+  invoked it, the repository root that `README.md:L29-L30` establishes. `config.py:L60` names `.env` relatively, so a relative `env_file` resolves against
   the working directory of the process that builds `Settings`, not the directory holding the module.
 
 - The documented start at `README.md:L54-L55` runs `cd backend` first, so that process reads `backend/.env`, a different file from the root copy. Supplying
@@ -201,7 +201,7 @@ Every entry below cites the line that establishes it.
 - `setup_dev_environment.sh:L55` prints `python manage.py runserver`, naming Django's server in a FastAPI project. The front-door alternative does not work
   either. `README.md:L54-L55` gives `cd backend` then `uvicorn main:app --reload`, and `backend/` holds no `main.py`: the application object lives at
   `backend/app/main.py`, so the target would have to be `app.main:app`. Correcting it still starts no server, because `import app.main` raises at
-  `backend/app/api/auth.py:L19` with `cannot import name 'settings' from 'app.core.config'`. Both printed instructions are non-working.
+  `backend/app/api/auth.py:L20` with `cannot import name 'settings' from 'app.core.config'`. Both printed instructions are non-working.
 - `setup_dev_environment.sh:L32` embeds the literal password `password` in the script.
 - `setup_dev_environment.sh:L5` and `:L6` mutate the host with `sudo apt-get update` and `upgrade -y`, which restricts the script to Debian-family Linux.
 - `setup_dev_environment.sh` holds no idempotency guard. A second run repeats the `CREATE DATABASE` at `:L31` and the `CREATE USER` at `:L32`, and PostgreSQL

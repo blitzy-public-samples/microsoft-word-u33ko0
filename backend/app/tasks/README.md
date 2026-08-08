@@ -16,7 +16,7 @@ deleting documents past their retention date, and recounting a document's words 
 `cleanup_expired_documents` carries a second one at `:L72`.
 
 The module does not import. `background_tasks.py:L16` requests `settings` from `app.core.config`, which declares the `Settings` class
-at `core/config.py:L20` and a `get_settings` factory at `:L61` and no module-level instance, so `import app.tasks.background_tasks`
+at `core/config.py:L20` and a `get_settings` factory at `:L63` and no module-level instance, so `import app.tasks.background_tasks`
 raises `ImportError`. `:L22` then reads `settings.REDIS_URL` while the module body runs.
 
 Nothing enqueues these tasks. The repository holds no `.delay(` call, no `.apply_async` call and no `send_task` call, and no module
@@ -70,7 +70,7 @@ in [../../../docs/deployment-guide.md](../../../docs/deployment-guide.md).
 
 | Imported or called name | Site | Resolves | Evidence |
 | --- | --- | --- | --- |
-| `settings` from `app.core.config` | `background_tasks.py:L16` | No | `core/config.py` declares the `Settings` class at `:L20` and `get_settings` at `:L61`, and no module-level instance. `:L22` dereferences the name while the module body runs. |
+| `settings` from `app.core.config` | `background_tasks.py:L16` | No | `core/config.py` declares the `Settings` class at `:L20` and `get_settings` at `:L63`, and no module-level instance. `:L22` dereferences the name while the module body runs. |
 | `db` from `app.db.firestore` | `background_tasks.py:L17` | Yes | `db/firestore.py:L20` builds the Firestore client at import time. |
 | `DocumentService` from `app.services.document_service` | `background_tasks.py:L18` | Yes | Declared at `services/document_service.py:L19`. Both call sites are wrong: `background_tasks.py:L56` never awaits the coroutine, and `:L135` passes one argument against two. |
 | `ExportService` from `app.services.export_service` | `background_tasks.py:L19` | Yes | Declared at `services/export_service.py:L18`. The method `:L59` calls is not one of its two. |
@@ -107,7 +107,7 @@ release in the 4 or 5 series provides it.
 `Settings` at `core/config.py:L20` declares nine fields at `:L40-L48`, and neither bucket name is among them. Each undeclared read
 raises `AttributeError` on a `Settings` instance, so the export task cannot name its bucket at `background_tasks.py:L62` and the
 retention sweep cannot name its bucket at `:L107`. No committed file supplies a value for either, and `Config.env_file` at
-`core/config.py:L58` names a `.env` file the repository does not commit.
+`core/config.py:L60` names a `.env` file the repository does not commit.
 
 ## Data Flows
 
@@ -233,11 +233,11 @@ exposed, and none exists today.
 | Authenticated and authorized producers | Absent. The publisher asserts identity through `user_id`, and `:L56` calls `get_document(document_id, user_id)` on an `async def` without awaiting it, so the ownership comparison at `services/document_service.py:L108` never runs. Awaiting it would check only the pair the message supplied, so knowledge of any document identifier and its owner would authorize the export. | `:L25`, `:L56` |
 | Broker transport security and access control | Unestablished. `:L22` reads `settings.REDIS_URL`, a bare string at `core/config.py:L48` with no scheme, credential or peer requirement. No committed file provisions the instance, so no password, no access control list and no `rediss://` transport exists to review. | `:L22`, `core/config.py:L48` |
 | Message schema and size validation | Absent. Celery binds the three declared arguments, and no body line validates the type, the length or the content of any of them. | `:L25` |
-| `export_format` allow-listing | Absent. `:L59` hands the value to a conversion call and `:L63` interpolates it into the object key extension, so a publisher chooses the extension the stored object carries. | `:L59`, `:L63` |
-| Object key confinement | Absent as committed, because the unawaited call at `:L56` leaves `user_id` unchecked before `:L63` builds `exports/{user_id}/{document_id}.{export_format}`. Awaiting the call would tie the prefix to the stored owner and would leave the extension segment publisher-controlled. | `:L63`, `:L64` |
-| Idempotency | Absent. The three decorators pass no arguments, so no `acks_late`, `time_limit` or retry policy applies. A redelivered message repeats the whole body, including the overwrite at `:L64` and the four deletes at `:L103`, `:L109`, `:L112` and `:L113`. | `:L24`, `:L71`, `:L115` |
-| Least-privilege workers | Absent. `:L17` binds the module-level Firestore client, and `:L53` and `:L106` construct Cloud Storage clients. The sweep deletes documents, stored files, permission records and metadata, so a publisher who can enqueue reaches delete authority across the project. | `:L17`, `:L103`, `:L109`, `:L112`, `:L113` |
-| Result confidentiality | `:L69` returns a signed URL, which is a bearer credential, and `:L22` configures no result backend, so no reviewed store and no retention rule covers the returned value. | `:L22`, `:L67`, `:L69` |
+| `export_format` allow-listing | Absent. `:L61` hands the value to a conversion call and `:L65` interpolates it into the object key extension, so a publisher chooses the extension the stored object carries. | `:L61`, `:L65` |
+| Object key confinement | Absent as committed, because the unawaited call at `:L58` leaves `user_id` unchecked before `:L65` builds `exports/{user_id}/{document_id}.{export_format}`. Awaiting the call would tie the prefix to the stored owner and would leave the extension segment publisher-controlled. | `:L65`, `:L66` |
+| Idempotency | Absent. The three decorators pass no arguments, so no `acks_late`, `time_limit` or retry policy applies. A redelivered message repeats the whole body, including the overwrite at `:L66` and the four deletes at `:L103`, `:L109`, `:L112` and `:L113`. | `:L24`, `:L73`, `:L115` |
+| Least-privilege workers | Absent. `:L17` binds the module-level Firestore client, and `:L55` and `:L106` construct Cloud Storage clients. The sweep deletes documents, stored files, permission records and metadata, so a publisher who can enqueue reaches delete authority across the project. | `:L17`, `:L103`, `:L109`, `:L112`, `:L113` |
+| Result confidentiality | `:L71` returns a signed URL, which is a bearer credential, and `:L22` configures no result backend, so no reviewed store and no retention rule covers the returned value. | `:L22`, `:L69`, `:L71` |
 
 Two of those rows belong to a broker deployment rather than to this code: producer authentication and transport security are Redis
 configuration, and no committed file provisions Redis. The other six are code changes in this module.
@@ -280,8 +280,8 @@ The remaining defects, each latent behind a failure above:
 - **`background_tasks.py:L112` calls `.delete()` on a list.**
   `db.collection('document_permissions').where('document_id', '==', doc_id).get()` returns a list of snapshots, and a list carries no
   `delete` method.
-- **`background_tasks.py:L139` reads `document.pages`, which no contract declares.** `Document` at `schema/document.py:L51` declares
-  `id` at `:L62`, `created_at` at `:L63` and `updated_at` at `:L64`. The model inherits `title` at `schema/document.py:L26`,
+- **`background_tasks.py:L139` reads `document.pages`, which no contract declares.** `Document` at `schema/document.py:L52` declares
+  `id` at `:L63`, `created_at` at `:L64` and `updated_at` at `:L65`. The model inherits `title` at `schema/document.py:L26`,
   `content` at `:L27` and `owner_id` at `:L28` from `DocumentBase` at `:L16`. Six fields, and no `pages`.
 - **`background_tasks.py:L146` reads the undefined `datetime`,** as does `:L96`. `:L20` imports `timedelta` alone.
 - **`background_tasks.py:L67` generates a signed URL with no `version` argument,** so the call defaults to version 2.
@@ -348,7 +348,7 @@ python -c "import app.tasks.background_tasks"
 The command prints the chain that stops every task in this module:
 
 ```text
-File "app/tasks/background_tasks.py", line 92, in <module>
+File "app/tasks/background_tasks.py", line 16, in <module>
     from app.core.config import settings
 ImportError: cannot import name 'settings' from 'app.core.config'
 ```

@@ -70,8 +70,10 @@ def update_document(collection: str, document_id: str, data: dict) -> None:
         data: Field values to merge.
 
     Returns:
-        None. The write reaches Firestore directly, and the call raises
-        `NotFound` when no such document exists.
+        None. The write reaches Firestore directly.
+
+    Raises:
+        NotFound: When the target document does not exist.
     """
     doc_ref = db.collection(collection).document(document_id)
     doc_ref.update(data)

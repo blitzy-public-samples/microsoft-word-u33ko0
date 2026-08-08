@@ -1,7 +1,7 @@
 /**
  * Sign in, sign out and read the current user over HTTP.
  *
- * All three calls use the bare `axios` global rather than the configured instance in
+ * All three calls use the default `axios` export rather than the configured instance in
  * `./api.ts`, so none of them carries the base URL or the bearer interceptor.
  * `RootState` is imported and never used.
  *
@@ -27,7 +27,8 @@ import { User } from '../schema/user';
  * @param email - The submitted address. The server's token route expects a form
  * body with `username`, not a JSON body with `email`.
  * @param password - The submitted password.
- * @returns A promise for the token string.
+ * @returns The declared type is `Promise<string>`, and the mismatched response field
+ * would yield `undefined` if the call were reached.
  * @throws Error with the message `Login failed`, which replaces the server's own
  * status and detail.
  */
@@ -46,8 +47,8 @@ export const login = async (email: string, password: string): Promise<string> =>
  * Sign out and clear the stored token.
  *
  * @returns A promise that resolves once the request settles. A failure is logged
- * and swallowed, and the stored token is then left in place, so the caller keeps a
- * usable credential after an apparently completed sign-out.
+ * and swallowed, and the stored value under `accessToken` is left unchanged, so an
+ * apparently completed sign-out clears nothing.
  */
 export const logout = async (): Promise<void> => {
   try {

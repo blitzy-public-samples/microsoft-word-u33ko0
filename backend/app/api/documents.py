@@ -82,10 +82,12 @@ async def get_document(document_id: str, current_user: User = Depends(get_curren
         The matching `Document`, as the return annotation declares.
 
     Raises:
+        TypeError: When the handler calls `get_document(document_id)` without
+            `user_id`, which the service declares. The call below raises
+            before any response is built.
         HTTPException: 404 from the service when no record exists, 403 here
-            when the stored owner does not match the caller.
-        TypeError: The service declares `(document_id, user_id)` and is
-            called with one argument.
+            when the stored owner does not match the caller. Both branches
+            are unreachable while the call above raises.
     """
     document_service = DocumentService()
     document = await document_service.get_document(document_id)
@@ -111,10 +113,13 @@ async def update_document(document_id: str, document: DocumentUpdate, current_us
         The updated `Document`, as the return annotation declares.
 
     Raises:
+        TypeError: When the handler calls `get_document(document_id)` without
+            `user_id`. The `update_document(document_id, document)` call below
+            omits `user_id` too, so it raises next once the first call is
+            repaired.
         HTTPException: 404 from the service when no record exists, 403 here
-            when the stored owner does not match the caller.
-        TypeError: Both service calls omit an argument the service
-            declares.
+            when the stored owner does not match the caller. Both branches
+            are unreachable while the calls above raise.
     """
     document_service = DocumentService()
     existing_document = await document_service.get_document(document_id)
@@ -137,10 +142,12 @@ async def delete_document(document_id: str, current_user: User = Depends(get_cur
         successfully"`, whatever the delete did.
 
     Raises:
+        TypeError: When the handler calls `get_document(document_id)` without
+            `user_id`. The `delete_document(document_id)` call below omits
+            `user_id` too, so it raises next once the first call is repaired.
         HTTPException: 404 from the service when no record exists, 403 here
-            when the stored owner does not match the caller.
-        TypeError: Both service calls omit an argument the service
-            declares.
+            when the stored owner does not match the caller. Both branches
+            are unreachable while the calls above raise.
     """
     document_service = DocumentService()
     existing_document = await document_service.get_document(document_id)

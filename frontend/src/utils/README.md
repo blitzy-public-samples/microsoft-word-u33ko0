@@ -109,10 +109,10 @@ rather than as defect-free today. The other two modules carry faults in their ow
 - **`SelectionState` is imported and never used.** `formatting.ts:L14` names `SelectionState` in its `draft-js` import, and nothing in the file
   references the symbol.
 - **The two-argument contract has one compliant caller and one violating caller.** `applyInlineStyle` at `formatting.ts:L24` and `applyBlockStyle`
-  at `:L45` each declare two parameters. `frontend/src/components/TextEditor.tsx:L47` and `:L54` pass both. `Toolbar.tsx:L45` and `:L56` pass one,
+  at `:L45` each declare two parameters. `frontend/src/components/TextEditor.tsx:L48` and `:L55` pass both. `Toolbar.tsx:L45` and `:L56` pass one,
   so the style name binds to `editorState` and the second parameter stays `undefined`.
 - **The violating caller's style names do not match Draft.js.** `Toolbar.tsx:L74-L76` and `:L79-L81` pass lowercase names such as `'bold'` and
-  `'heading1'` that Draft.js does not define. `TextEditor.tsx:L49-L53` passes accepted block types such as `header-one`.
+  `'heading1'` that Draft.js does not define. `TextEditor.tsx:L50-L54` passes accepted block types such as `header-one`.
 - **Both credential checks discard their own messages.** `validation.ts:L23` and `:L42` return `.success` only, so the strings configured at `:L38`
   and `:L40` never reach a caller.
 - **No module calls either credential check.** A search across `frontend/src` finds `validateEmail` and `validatePassword` only at their
@@ -160,7 +160,7 @@ const bolded = applyInlineStyle(editorState, 'BOLD');
 const headed = applyBlockStyle(editorState, 'header-one');
 ```
 
-`frontend/src/components/TextEditor.tsx:L47` and `:L54` supply both arguments in this order, though they forward the
+`frontend/src/components/TextEditor.tsx:L48` and `:L55` supply both arguments in this order, though they forward the
 lowercase key command rather than an upper-case inline style. Cannot run: the undeclared `draft-js` import at `formatting.ts:L14` stops the module from resolving.
 
 **Credential checks.** Each function takes one string and returns one boolean, per `validation.ts:L21` and `:L36`.

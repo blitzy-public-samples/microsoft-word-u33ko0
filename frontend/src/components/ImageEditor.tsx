@@ -11,7 +11,6 @@ import React from 'react';
 import { EditorState, AtomicBlockUtils } from 'draft-js';
 import { resizeImage, cropImage } from '@/utils/imageUtils';
 
-/** The props this component declares: the editor state to insert into. */
 interface ImageEditorProps {
   editorState: EditorState;
 }

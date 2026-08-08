@@ -784,11 +784,11 @@ Drafted, in the `connect` cell:
 > closing it, and the shared name at L70 makes the second `create_subscription` answer
 > `AlreadyExists`, which L76 prints before L77 returns.
 
-Now two sentences of 20 and 18 words at the same locator:
+Now two sentences of 20 and 25 words at the same locator:
 
 > L66 keys by user, so a second socket for the same document and user replaces the first without
-> closing it. The shared name at L70 then makes the second `create_subscription` answer
-> `AlreadyExists`, which L76 prints before L77 returns.
+> closing it. The shared name at L70 then makes the second `create_subscription` raise
+> `AlreadyExists`, which the broad handler catches and prints at L76 before returning at L77.
 
 The drafted sentence chained two independent failures, and splitting them lets a reader count two
 problems rather than one long one.
@@ -836,18 +836,18 @@ Drafted, as one list item holding both charges:
 > because it calls `get_document(document_id)` with one argument against the two the signature at
 > `../../../backend/app/services/document_service.py:L78` requires, so that caller receives 500.
 > Either way no document comes back, and no `Document[]` the caller declared either. `POST /documents`
-> at `api.ts:L82` matches the same single-segment shape […]
+> at `api.ts:L83` matches the same single-segment shape […]
 
 Now two list items. The first runs 4 sentences at `:L137`, with the 32-word sentence split into 15
 and 15:
 
-> An authenticated caller whose user record resolves reaches `:L91`, which raises `TypeError` and
+> An authenticated caller whose user record resolves reaches `:L93`, which raises `TypeError` and
 > answers 500. The call there passes `get_document(document_id)` one argument against the two the
 > signature at `../../../backend/app/services/document_service.py:L78` requires.
 
 The second runs 3 sentences at `:L138`, opening at the division:
 
-> `POST /documents` at `api.ts:L82` matches the same single-segment shape for which no router declares
+> `POST /documents` at `api.ts:L83` matches the same single-segment shape for which no router declares
 > `POST`, so Starlette answers 405 rather than 404, before any dependency runs.
 
 The credentialed outcomes and the routing outcomes were one bullet, and they answer different
@@ -987,7 +987,7 @@ Now two sentences of 14 and 23 words at the same locator:
 
 > The subscription name at `:L70` identifies a document and user rather than a connection. A second
 > session for one user would therefore answer `AlreadyExists` at `:L73`, and either session closing
-> would delete the shared subscription at `:L126`
+> would delete the shared subscription at `:L130`
 
 The naming fact holds on its own, and the two consequences that follow from it now sit in their own
 sentence.
@@ -1016,7 +1016,7 @@ Drafted, in the client-call cell:
 > path segment, so `document_id` binds to the string `documents`. No body follows. That route is
 > protected at `:L69`, so its dependency resolves before the body and the outcome turns on
 > credentials. Without a valid token the response is **401**. For an authenticated caller whose user
-> record resolves, `:L91` passes one argument to the two-parameter `get_document` signature at
+> record resolves, `:L93` passes one argument to the two-parameter `get_document` signature at
 > `backend/app/services/document_service.py:L78`, so a `TypeError` propagates out of the handler and
 > the response is a **500**.
 
@@ -1026,7 +1026,7 @@ Now 5 sentences at the same locator, with two pairs merged and the 33-word sente
 > Matches `GET /{document_id}` at `backend/app/api/documents.py:L68`, because `/documents` is a single
 > path segment, so `document_id` binds to the string `documents` and no body follows. That route is
 > protected at `:L69`, so its dependency resolves before the body, and without a valid token the
-> response is **401**. For an authenticated caller whose user record resolves, `:L91` passes one
+> response is **401**. For an authenticated caller whose user record resolves, `:L93` passes one
 > argument to the two-parameter `get_document` signature at
 > `backend/app/services/document_service.py:L78`. A `TypeError` then propagates out of the handler and
 > the response is a **500**.
@@ -1195,7 +1195,7 @@ one list of four reads faster than two lists of two.
 Drafted, in the object-authorization cell, at the six sentences that changed:
 
 > Of the fourteen handlers, twelve require a bearer token and two are public, at
-> `backend/app/api/auth.py:L65` and `:L102`. The twelve split four ways. […] Two are self-scoped by
+> `backend/app/api/auth.py:L66` and `:L103`. The twelve split four ways. […] Two are self-scoped by
 > the token, at `backend/app/api/users.py:L20` and `:L33`. One is the create path at
 > `backend/app/api/documents.py:L46`, which fails before it persists. Six leave object scope
 > unestablished. The paragraph below takes each group in turn
@@ -1203,7 +1203,7 @@ Drafted, in the object-authorization cell, at the six sentences that changed:
 Now 4 sentences at `:L1561`, with three pairs merged into 23, 23 and 14 words:
 
 > Of the fourteen handlers, twelve require a bearer token and two are public, at
-> `backend/app/api/auth.py:L65` and `:L102`, and the twelve split four ways.
+> `backend/app/api/auth.py:L66` and `:L103`, and the twelve split four ways.
 
 > Two are self-scoped by the token, at `backend/app/api/users.py:L20` and `:L33`, and one is the
 > create path at `backend/app/api/documents.py:L46`, which fails before it persists.
@@ -1343,13 +1343,13 @@ Drafted, in the `register_user` docstring's `ValueError` entry:
 > With passlib 1.7.4 and bcrypt 5.0.0 every call raises, whatever the password length, because passlib
 > probes its backend with a 255-byte secret and bcrypt 5.0.0 rejects any input over 72 bytes.
 
-Now two sentences of 14 and 18 words at `../backend/app/api/auth.py:L127-L129`:
+The final comments pass superseded this split, at `../backend/app/api/auth.py:L125-L128`:
 
-> With passlib 1.7.4 and bcrypt 5.0.0 every call raises, whatever the password length. Passlib probes
-> its backend with a 255-byte secret, and bcrypt 5.0.0 rejects any input over 72 bytes.
+> ValueError: If the resolved password-hashing backend rejects the password. The repository pins
+> neither passlib nor bcrypt; see `docs/troubleshooting.md` for version-specific evidence. The
+> handler does not catch it, so this public route answers 500.
 
-The behaviour and the mechanism behind it are separate facts, and a reader who only needs to know that
-every call raises stops at the first sentence.
+The version-specific detail moved to `troubleshooting.md`, and the contract now stands alone.
 
 ### Entry 32. `../backend/app/services/collaboration_service.py`, V3 and A2, 33 words
 
@@ -1406,7 +1406,7 @@ are `1803114` and locators on the right are current.
 | 43 | `../scripts/README.md:L122` | The diagram description read "Seven of the eight fail against the committed repository" | `:L126` reads "Four fail deterministically, at L11, L15, L27 and L31. One succeeds where zip is installed" | The prose above the diagram named four deterministic failures, one conditional success, one no-op and two unestablished stages, so the description contradicted the section it labels |
 | 44 | `../scripts/README.md:L113` | The stage taxonomy read "One succeeds, the archive at `:L19`", and the diagram edge read "archives node_modules, venv, .env" | `:L117` reads "The archive runs only where `zip` is installed", and `:L126` and `:L130` read "succeeds where zip is installed" | `setup_dev_environment.sh:L10` never installs `zip` and a minimal Debian image ships without it, which the same README states two sections earlier |
 | 45 | `../infrastructure/terraform/README.md:L324` | The static-check section opened "One command here is safe", and `:L386` reported only that the command "exits non-zero" | `:L325` reads "The check **exits 3**", `:L330` shows `terraform fmt -check -diff`, and `:L338` adds an exit-code table for all three commands | A reader running the command as the only safe one met a nonzero exit with no explanation, and the whole difference is two whitespace-only lines at `main.tf:L53` and `:L55` |
-| 46 | `../backend/app/core/README.md:L268` | The marker note cited "a four-line `HUMAN ASSISTANCE NEEDED` block at `security.py:L88-L91`" | `:L268` cites `security.py:L115-L118` | The block sat at `L86-L89` when the claim was written, so the locator was wrong by two lines before the inline pass moved it at all |
+| 46 | `../backend/app/core/README.md:L268` | The marker note cited "a four-line `HUMAN ASSISTANCE NEEDED` block at `security.py:L88-L91`" | `:L268` cites `security.py:L106-L109` | The block sat at `L84-L87` when the claim was written, so the locator was wrong by two lines before the inline pass moved it at all |
 | 47 | `onboarding.md:L3-L4` | "Two commands succeed on a clean machine, a third runs to completion and exits nonzero by design" | `:L3` reads "Four commands complete on a clean machine: two succeed and two run to completion and report failure by design" | The guide's own results table carries four rows, so the opening undercounted the commands a reader is about to run |
 | 48 | `onboarding.md:L104` | "Four tools carry a declared version, and each version comes from a committed file" | `:L100` reads "Three of the four tools below carry a declared version", and names the Google Cloud SDK as the fourth | `../README.md:L24` names the SDK with no version, so the fourth row's Version column could not come from a committed pin |
 | 49 | `onboarding.md:L148` and `:L158` | Both version-manager steps read `checkout <tag>`, with `:L176` calling the placeholder deliberate | `:L150` reads `checkout v0.40.6` and `:L160` reads `checkout v2.8.3`, each with its release date in the comment | A setup sequence a reader cannot run without leaving it is not a setup sequence, and both releases were verified against each project's own release feed |

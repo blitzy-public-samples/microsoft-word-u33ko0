@@ -7,7 +7,7 @@ from the environment or from a `.env` file the repository does not commit.
 
 The module creates no module-level `settings` instance, and eight modules
 import one by name, which is what stops the backend importing.
-`core/security.py:L20` imports the `get_settings` factory instead.
+`core/security.py:L22` imports the `get_settings` factory instead.
 
 Six further settings are read elsewhere and declared nowhere:
 `ALLOWED_ORIGINS`, `PROJECT_ID`, `STORAGE_BUCKET_NAME`,
@@ -48,8 +48,10 @@ class Settings(BaseSettings):
     REDIS_URL: str
 
     class Config:
-        """Point Pydantic at a `.env` file for values absent from the
-        environment.
+        """Load missing settings from the `.env` file.
+
+        Pydantic reads this file for any value the environment does not
+        supply.
 
         Attributes:
             env_file: `.env`, which the repository does not commit.

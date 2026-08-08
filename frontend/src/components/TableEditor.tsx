@@ -11,7 +11,6 @@ import React from 'react';
 import { EditorState, Modifier } from 'draft-js';
 import { insertTable, deleteTable, modifyTable } from '@/utils/tableUtils';
 
-/** The props this component declares: the editor state to insert into. */
 interface TableEditorProps {
   editorState: EditorState;
 }

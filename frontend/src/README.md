@@ -25,7 +25,7 @@ to name the four routes that tree serves. Nothing here runs today, for the reaso
 
 `frontend/public/index.html` has no README of its own and is documented here. `index.html:L6` sets the title, `:L7` links a
 favicon and `:L8` links a web app manifest. Neither linked asset is committed, because `frontend/public/` holds only
-`index.html`, and the same absence explains the `/microsoft-word-logo.png` reference at `components/Header.tsx:L37`.
+`index.html`, and the same absence explains the `/microsoft-word-logo.png` reference at `components/Header.tsx:L36`.
 
 ## Architecture Fit
 
@@ -143,7 +143,7 @@ record.
 | F2 | `App` to `store/index.ts` | `App.tsx:L20` names `{ store }`, while `store/index.ts:L36` exports a default only |
 | F3 | `BrowserRouter` to `Switch` | `App.tsx:L12` imports `Switch` from `react-router-dom`, and `frontend/package.json:L11` declares `^6.11.1`, which removed the element |
 | F4 | `Switch` to the four routes | Two boundaries at once. Each page arrives through the `@/` prefix at `App.tsx:L16-L19`, and `:L41-L44` pass the `component` prop that version 6 removed, with `exact` alongside it at `:L41` |
-| F5 | `Home`, `Templates` and `Settings` to `Header` | Doubled shell: banner and contentinfo twice, neither copy named. Each page renders its own `Header` and `Footer` inside the pair `App.tsx:L38` and `:L47` already provides, at `Home.tsx:L32` and `:L48`, `Templates.tsx:L89` and `:L110`, and `Settings.tsx:L61` and `:L88` |
+| F5 | `Home`, `Templates` and `Settings` to `Header` | Doubled shell: banner and contentinfo twice, neither copy named. Each page renders its own `Header` and `Footer` inside the pair `App.tsx:L38` and `:L47` already provides, at `Home.tsx:L32` and `:L48`, `Templates.tsx:L87` and `:L108`, and `Settings.tsx:L61` and `:L88` |
 | F6 | `Editor` to `Header` | Doubled banner only, neither copy named. `Editor.tsx:L107` renders a second `Header` and no `Footer` |
 
 The second `Provider` at `App.tsx:L35` is redundant rather than broken, so the node states it instead of drawing an edge back
@@ -161,7 +161,7 @@ state, and a consumer changes that state by dispatching an action.
 
 Container and presentational split, applied partially. `pages/` holds the routed containers that read state and call
 services, and `components/` holds the parts they compose. Three of the eight components break the split by reaching the store
-themselves instead of taking data through props. `components/Header.tsx:L31` selects the current user,
+themselves instead of taking data through props. `components/Header.tsx:L30` selects the current user,
 `components/Toolbar.tsx:L35` takes a dispatcher, and `components/DocumentCanvas.tsx:L35-L36` takes both. The split therefore
 holds for five components.
 
@@ -198,15 +198,15 @@ packages.
 `frontend/package.json:L9`.
 - **The store is provided twice and the shell renders twice.** `App.tsx:L35` repeats the `Provider` already set at
 `index.tsx:L35`. `App.tsx:L38` and `:L47` render `Header` and `Footer` around every route, while `pages/Home.tsx` (`:L32`,
-`:L48`), `pages/Templates.tsx` (`:L89`, `:L110`) and `pages/Settings.tsx` (`:L61`, `:L88`) each render their own pair.
+`:L48`), `pages/Templates.tsx` (`:L87`, `:L108`) and `pages/Settings.tsx` (`:L61`, `:L88`) each render their own pair.
 `pages/Editor.tsx:L107` renders a second `Header` and no `Footer`, so the banner duplicates on four routes and the footer on
 three.
 - **The doubled shell puts two unnamed navigation landmarks on every route.** Both `Header` copies render the same `nav` at
-`components/Header.tsx:L41` with no `aria-label`, so assistive technology announces two identical navigation regions and a
+`components/Header.tsx:L40` with no `aria-label`, so assistive technology announces two identical navigation regions and a
 reader cannot tell them apart. The `contentinfo` landmark duplicates the same way through `components/Footer.tsx:L23` on
 three routes. Each surviving landmark needs a distinct accessible name, and removing the duplicate render comes first. [The
 components README](components/README.md) records the same defect against the markup.
-- **Five links target paths the route table never declares.** `components/Header.tsx:L44` links `/documents` and `:L56` links
+- **Five links target paths the route table never declares.** `components/Header.tsx:L43` links `/documents` and `:L55` links
 `/login`. `pages/Home.tsx:L37`, `:L40` and `:L43` link `/new-document`, `/open-document` and `/recent-documents`.
 `App.tsx:L41-L44` declares `/`, `/editor`, `/templates` and `/settings`, and matches none of the five.
 - **Two styling conventions coexist and no authored rule backs either one.** Tailwind utility classes appear in exactly two
@@ -219,7 +219,7 @@ component library and no design system, which makes the split a styling inconsis
 - **No frontend test file exists anywhere under `frontend/`,** so the `test` script at `frontend/package.json:L34` and the
 three Testing Library development dependencies at `:L16-L18` have nothing to run.
 - **Three referenced public assets are absent:** the favicon at `frontend/public/index.html:L7`, the manifest at `:L8` and
-the logo at `components/Header.tsx:L37`.
+the logo at `components/Header.tsx:L36`.
 - **The two modules here carry no assistance marker and no outstanding-work comment.** Every such note in the tree sits in
 the six subdirectories, and each sibling README cites its own by file and line.
 

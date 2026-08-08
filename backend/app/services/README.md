@@ -24,7 +24,7 @@ Three classes and thirteen `def` statements, located against the committed files
 | `delete_document` | Async method | `document_service.py:L159` | Declares `(document_id: str, user_id: str)`. Deletes at L188 and returns the literal `True` at L191 whatever the delete did. |
 | `CollaborationService` | Class | `collaboration_service.py:L20` | Socket registry plus Pub/Sub publish and subscribe. No application module imports this class. |
 | `CollaborationService.__init__` | Constructor | `collaboration_service.py:L32` | Builds a `PublisherClient` at L38 and a `SubscriberClient` at L39, then sets `active_connections = {}` at L40. Both clients are built eagerly. |
-| `connect` | Async method | `collaboration_service.py:L44` | Registers the socket at L66, derives the topic at L69 and the subscription at L70, creates the subscription at L73, subscribes at L99, then blocks on `future.result()` at L102. L66 keys by user, so a second socket for the same document and user replaces the first without closing it. The shared name at L70 then makes the second `create_subscription` answer `AlreadyExists`, which L76 prints before L77 returns. |
+| `connect` | Async method | `collaboration_service.py:L44` | Registers the socket at L66, derives the topic at L69 and the subscription at L70, creates the subscription at L73, subscribes at L99, then blocks on `future.result()` at L102. L66 keys by user, so a second socket for the same document and user replaces the first without closing it. The shared name at L70 then makes the second `create_subscription` raise `AlreadyExists`, which the broad handler catches and prints at L76 before returning at L77. |
 | `callback` | Nested function | `collaboration_service.py:L80` | Closure passed to `subscribe` at L99. Calls `message.ack()` at L96, then `asyncio.run(websocket.send_json(...))` at L97. |
 | `disconnect` | Async method | `collaboration_service.py:L107` | Removes the socket from the registry at L118 to L121 and deletes the subscription at L126. L124 rebuilds the name from the document and user alone, so L126 deletes the subscription every socket for that pair shares. |
 | `broadcast_change` | Async method | `collaboration_service.py:L137` | Publishes a JavaScript Object Notation (JSON) encoded change to the document topic at L152 and waits on the publish future at L153. |
@@ -38,7 +38,7 @@ Three classes and thirteen `def` statements, located against the committed files
 The specification places these three classes in the service tier below the application programming
 interface (API) gateway, and the committed code matches that placement for all three. Each class
 owns its own cloud call, and the three differ in who reaches them. `DocumentService` is the only one
-a router constructs, at `../api/documents.py:L45`, `:L64`, `:L90`, `:L119` and `:L145`.
+a router constructs, at `../api/documents.py:L45`, `:L64`, `:L92`, `:L124` and `:L152`.
 
 `ExportService` is constructed once, by the task module at `../tasks/background_tasks.py:L52`, and
 no handler calls either of its methods. `CollaborationService` is constructed nowhere: no route,
@@ -53,13 +53,13 @@ names twelve backend components. Three of them exist as code, and all three live
 Six of the nine absent components sit directly beneath the three that exist. The specification draws
 `DocumentRepository` and `VersionControl` under `DocumentService`, and `DocumentService` instead calls
 `self.db.collection('documents')` inline at L69, L101, L141 and L177. No repository layer stands between the service
-and Firestore, and the four module-level helpers at `../db/firestore.py:L22`, `:L45`, `:L64` and `:L79`, described in
+and Firestore, and the four module-level helpers at `../db/firestore.py:L22`, `:L45`, `:L64` and `:L81`, described in
 [../db/README.md](../db/README.md), go unused. The specification draws `WebSocketManager` and `ConflictResolver` under
 `CollaborationService`, and neither exists, so nothing merges two concurrent edits. The specification draws
 `PDFGenerator` and `DOCXGenerator` under `ExportService`, and neither exists, so L63 and L95 upload literal strings.
 
 Reachability differs sharply across the three. Every `DocumentService` method has a caller in `../api/documents.py`,
-at L46, L65, L91, L120, L123, L146 and L149. `ExportService` has exactly one application importer,
+at L46, L65, L93, L125, L128, L153 and L156. `ExportService` has exactly one application importer,
 `../tasks/background_tasks.py:L19`, so the only path to an export runs through a Celery task. `CollaborationService`
 has none: no application module imports the class, and no WebSocket route exists under `backend/`.
 
@@ -75,7 +75,7 @@ described in [../../../docs/integration-guide.md](../../../docs/integration-guid
 | Imported or expected name | Site | Resolves | Evidence |
 | --- | --- | --- | --- |
 | `db` from `app.db.firestore` | `document_service.py:L16` | Yes | `../db/firestore.py:L20` builds the client at import time. `DocumentService` binds it at L45. |
-| `Document`, `DocumentCreate`, `DocumentUpdate` from `app.schema.document` | `document_service.py:L15` | Yes | Declared at `../schema/document.py:L51`, `:L30` and `:L39`. |
+| `Document`, `DocumentCreate`, `DocumentUpdate` from `app.schema.document` | `document_service.py:L15` | Yes | Declared at `../schema/document.py:L52`, `:L30` and `:L40`. |
 | `Document` from `app.schema.document` | `collaboration_service.py:L17` | Yes, and unused | No code line and no type annotation in the module uses the name. |
 | `Document` from `app.schema.document` | `export_service.py:L15` | Yes | Both methods read `document.id` at L61 and L93. |
 | `settings` from `app.core.config` | `document_service.py:L17`, `collaboration_service.py:L18`, `export_service.py:L16` | No | `../core/config.py` declares the `Settings` class at L20 and no module-level instance. All three modules fail at import. |
@@ -85,7 +85,7 @@ described in [../../../docs/integration-guide.md](../../../docs/integration-guid
 | `json` | Used at `collaboration_service.py:L156` | No | No import statement for `json` exists. The name raises `NameError` on the first `broadcast_change` call, not at import. |
 | `DocumentService.get_documents` | Called at `../api/documents.py:L65` | No | The class declares four methods at L42, L78, L116 and L159, and no `get_documents`. |
 | `ExportService.convert_document` | Called at `../tasks/background_tasks.py:L59` | No | The class declares `export_to_pdf` at L40 and `export_to_docx` at L74, and no `convert_document`. |
-| `app.services.user_service` | Imported at `../api/auth.py:L21` and `../api/users.py:L14` | No | No `user_service.py` exists in this folder. |
+| `app.services.user_service` | Imported at `../api/auth.py:L22` and `../api/users.py:L14` | No | No `user_service.py` exists in this folder. |
 | `app.services.template_service` | Imported at `../api/templates.py:L18` | No | No `template_service.py` exists in this folder. |
 
 Five modules are imported from the `app.services.*` namespace and three exist. The two absent names
@@ -238,7 +238,7 @@ L95, under the correct content types.
 
 Three patterns a reader might expect are absent. No service inherits a common base class, no service is registered in a
 dependency container, and FastAPI's `Depends` never yields one. Every handler constructs its own instance per request,
-at `../api/documents.py:L45`, `:L64`, `:L90`, `:L119` and `:L145`.
+at `../api/documents.py:L45`, `:L64`, `:L92`, `:L124` and `:L152`.
 
 The order of the two checks decides which status code a caller receives. `create_document` writes the compared value: L71
 sets `doc_data['user_id'] = user_id` from the caller's argument and L73 persists that dictionary, so every later
@@ -278,11 +278,11 @@ sites and another three. None is repaired here.
 | --- | --- |
 | `../api/documents.py:L46` | Passes `current_user`, a `User` object, where `create_document` declares `user_id: str` at L42. The specification's own example at `documentation/Technical Specifications.md:L443` passes `current_user.id`, a string, so the specification contradicts the committed call. |
 | `../api/documents.py:L65` | Calls `get_documents`, which `DocumentService` does not define. |
-| `../api/documents.py:L91`, `:L120`, `:L146` and `../tasks/background_tasks.py:L135` | Four sites call `get_document(document_id)` with one argument against the two-argument signature at L78. |
+| `../api/documents.py:L93`, `:L125`, `:L153` and `../tasks/background_tasks.py:L135` | Four sites call `get_document(document_id)` with one argument against the two-argument signature at L78. |
 | `../tasks/background_tasks.py:L56` | Correct arity, and not awaited on an `async def`, so the name binds a coroutine object that L59 passes onward. |
-| `../api/documents.py:L123` | Supplies two of the three arguments `update_document` declares at L116, omitting `user_id`. |
-| `../api/documents.py:L149` | Supplies one of the two arguments `delete_document` declares at L159, omitting `user_id`. |
-| `../api/documents.py:L92`, `:L121`, `:L147` | Read `.user_id` off a `Document` that declares `owner_id` at `../schema/document.py:L28`. |
+| `../api/documents.py:L128` | Supplies two of the three arguments `update_document` declares at L116, omitting `user_id`. |
+| `../api/documents.py:L156` | Supplies one of the two arguments `delete_document` declares at L159, omitting `user_id`. |
+| `../api/documents.py:L94`, `:L126`, `:L154` | Read `.user_id` off a `Document` that declares `owner_id` at `../schema/document.py:L28`. |
 | `../tasks/background_tasks.py:L59` | Calls `convert_document`, which `ExportService` does not define. |
 
 Beyond the call sites:
@@ -297,11 +297,11 @@ Beyond the call sites:
   completes today: `settings.STORAGE_BUCKET_NAME` at `:L60` is undeclared, and entry 26 below carries the signing
   credential the signature needs.
 - **Three sites fail Pydantic validation on missing timestamps.** `../schema/document.py` declares
-  `created_at` at L63 and `updated_at` at L64 as required, and `create_document` assembles
+  `created_at` at L64 and `updated_at` at L65 as required, and `create_document` assembles
   `doc_data` at `document_service.py:L70` to `:L72` without either, so `Document(**doc_data)` at
   `:L76` raises. Nothing writes them to Firestore, so `:L112` and `:L157` raise for the same reason.
 - **Two sibling service modules are imported and absent.** `app.services.user_service` at
-  `../api/auth.py:L21` and `../api/users.py:L14`; `app.services.template_service` at `../api/templates.py:L18`.
+  `../api/auth.py:L22` and `../api/users.py:L14`; `app.services.template_service` at `../api/templates.py:L18`.
 - **Two undefined names raise at first call, not at import.** `asyncio` at `collaboration_service.py:L97` and `json` at
   `:L152`, neither imported. `:L154` catches the second and `:L156` prints it, so a publish failure never reaches the
   caller. A failed subscription is silent too, which entry 22a below traces.
@@ -358,11 +358,11 @@ asyncio.run(main())
 ```
 
 Both second arguments are strings, matching the declared `user_id: str`. The committed router passes the whole `User`
-object at `../api/documents.py:L46`, and calls `get_document` with one argument at `:L91`, `:L120` and `:L146`.
+object at `../api/documents.py:L46`, and calls `get_document` with one argument at `:L93`, `:L125` and `:L153`.
 
 The import fails before `main` runs, and the first failure is one level down rather than in this module. `L16` imports
 `app.db.firestore`, and `../db/firestore.py:L16` requests a `settings` name that `app.core.config` never defines. This
-module then requests the same name directly at `L17`. Given that name, `Document(**doc_data)` at L76 raises on the two
+module then requests the same name directly at `L17`. Given that name, `Document(**doc_data)` at L78 raises on the two
 missing timestamp fields, and `Document(**doc.to_dict())` at L112 raises for the same reason.
 
 `CollaborationService` has no usage example. No route constructs the class and no WebSocket endpoint exists under
@@ -373,7 +373,7 @@ it.
 
 Exporting to Portable Document Format (PDF), per the signature at `export_service.py:L40`. The method
 takes a `Document`, so the example builds one first, supplying the two timestamp fields
-`../schema/document.py:L63` and `:L64` declare as required:
+`../schema/document.py:L64` and `:L65` declare as required:
 
 ```python
 from datetime import datetime
@@ -387,7 +387,7 @@ document = Document(id="doc-123", title="Quarterly report",
 signed_url = ExportService().export_to_pdf(document)
 ```
 
-`Document` at `../schema/document.py:L51` requires `id`, `created_at` and `updated_at`, so the example supplies all
+`Document` at `../schema/document.py:L52` requires `id`, `created_at` and `updated_at`, so the example supplies all
 three. The method is a plain `def`, so no `await` belongs here. The import fails at `export_service.py:L16` on the
 same absent `settings` name. Given that name, `settings.STORAGE_BUCKET_NAME` at L60 raises `AttributeError`, and
 given that field, the upload at L63 stores the literal string `"PDF_CONTENT"` rather than a PDF.

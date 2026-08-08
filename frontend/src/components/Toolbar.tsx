@@ -6,8 +6,8 @@
  * and neither exists in the store folder. See the HUMAN ASSISTANCE NEEDED marker
  * below.
  *
- * `components/TextEditor.tsx` calls the same two helpers correctly, and reading the
- * two side by side shows the contract.
+ * `components/TextEditor.tsx` passes both arguments the helpers require, so it serves as
+ * the argument-count reference only: its inline commands are lowercase here as well.
  *
  * @see ./README.md
  */

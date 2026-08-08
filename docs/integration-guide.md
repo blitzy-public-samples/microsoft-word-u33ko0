@@ -58,7 +58,7 @@ Four integrations, four labels, and no overlap between them. No integration earn
 
 | Integration | Client library | Reachability | Entry point | Configuration it reads |
 | ------------- | ---------------- | -------------- | ------------- | ------------------------ |
-| Google Cloud Firestore | `google-cloud-firestore` | **WIRED, BLOCKED AT IMPORT** | `DocumentService`, constructed by all five document handlers at `backend/app/api/documents.py:L45`, `:L64`, `:L90`, `:L119` and `:L145` | `GOOGLE_CLOUD_PROJECT`, declared at `backend/app/core/config.py:L45` |
+| Google Cloud Firestore | `google-cloud-firestore` | **WIRED, BLOCKED AT IMPORT** | `DocumentService`, constructed by all five document handlers at `backend/app/api/documents.py:L45`, `:L64`, `:L92`, `:L124` and `:L152` | `GOOGLE_CLOUD_PROJECT`, declared at `backend/app/core/config.py:L45` |
 | Google Cloud Storage | `google-cloud-storage` | **NOT REACHABLE** | `ExportService.export_to_pdf` at `backend/app/services/export_service.py:L40` and `export_to_docx` at `:L74`, plus the export task at `backend/app/tasks/background_tasks.py:L62-L67`. No handler calls either method, and no producer enqueues the task | `STORAGE_BUCKET_NAME`, `SIGNED_URL_EXPIRATION`, `EXPORT_BUCKET_NAME` and `DOCUMENT_BUCKET_NAME`, none of them declared |
 | Google Cloud Pub/Sub | `google-cloud-pubsub` | **SCAFFOLDED ONLY** | `CollaborationService.connect` at `backend/app/services/collaboration_service.py:L44` and `broadcast_change` at `:L137`, and no route constructs that class | `PROJECT_ID`, not declared |
 | Redis, as the Celery broker | `celery` | **ABSENT** | `celery_app` at `backend/app/tasks/background_tasks.py:L22`, carrying three tasks | `REDIS_URL`, declared at `backend/app/core/config.py:L48` |
@@ -95,8 +95,8 @@ through the shared client it binds at `:L45`, so it issues external calls withou
 connection.
 
 Three further modules import `settings` and reach no external system: `backend/app/main.py:L20`,
-`backend/app/api/auth.py:L19` and, through the factory rather than the instance,
-`backend/app/core/security.py:L20`. Everything below describes the call the code declares.
+`backend/app/api/auth.py:L20` and, through the factory rather than the instance,
+`backend/app/core/security.py:L22`. Everything below describes the call the code declares.
 
 - Firestore is the one external system an HTTP handler calls. Five document handlers construct
   `DocumentService`, and each of its four methods issues a Firestore call. No request reaches a
@@ -109,7 +109,7 @@ Three further modules import `settings` and reach no external system: `backend/a
 
 No edge in the map below carries traffic today, and the diagram is a map of the calls the committed
 code writes rather than a map of live request flow. Two blockers sit in front of every edge.
-`backend/app/main.py:L16` reaches `backend/app/api/auth.py:L19`, which asks `app.core.config` for a
+`backend/app/main.py:L16` reaches `backend/app/api/auth.py:L20`, which asks `app.core.config` for a
 `settings` name that module never binds, so importing the application raises `ImportError` and no
 route is ever registered. Six of the fifteen settings the code reads are declared nowhere, and no
 committed file supplies a value for any of them.
@@ -167,9 +167,9 @@ absence of a call rather than a call. No route anywhere constructs `Collaboratio
 | S3 | Application to the four routers | `backend/app/main.py:L84-L87` would register four routers | `:L16-L19` import `auth_router`, `documents_router`, `users_router` and `templates_router`, and all four modules export the bare name `router` |
 | S4 | socket.io-client to CollaborationService | a Socket.IO connection from the browser | No route joins Socket.IO to the FastAPI WebSocket signature the service declares |
 | S5 | CollaborationService to Pub/Sub | subscribe at `backend/app/services/collaboration_service.py:L99`, publish at `:L156` | Neither runs, because nothing constructs the class. `settings.PROJECT_ID` is undeclared at `:L69`, `:L70`, `:L128` and `:L153`. The subscription name at `:L70` identifies a document and user rather than a connection. A second session for one user would therefore answer `AlreadyExists` at `:L73`, and either session closing would delete the shared subscription at `:L130` |
-| S6 | Routers to DocumentService | constructed at `backend/app/api/documents.py:L45`, `:L64`, `:L90`, `:L119` and `:L145` | Every call breaks its signature. `:L46` hands a `User` where `user_id: str` is declared, so `set` at `backend/app/services/document_service.py:L73` raises while it builds the write and nothing is stored. `:L91`, `:L120` and `:L146` pass one argument to a two-parameter `get_document`, and `:L65` calls `get_documents`, which the class never defines. All five handlers sit behind the token dependency, so a caller without valid credentials receives 401 and reaches none of these faults |
+| S6 | Routers to DocumentService | constructed at `backend/app/api/documents.py:L45`, `:L64`, `:L92`, `:L124` and `:L152` | Every call breaks its signature. `:L46` hands a `User` where `user_id: str` is declared, so `set` at `backend/app/services/document_service.py:L73` raises while it builds the write and nothing is stored. `:L91`, `:L120` and `:L146` pass one argument to a two-parameter `get_document`, and `:L65` calls `get_documents`, which the class never defines. All five handlers sit behind the token dependency, so a caller without valid credentials receives 401 and reaches none of these faults |
 | S7 | Routers to the Celery tasks | nothing | No producer. Zero `.delay()` and zero `.apply_async()` call sites exist anywhere |
-| S8 | DocumentService to Firestore | set at `backend/app/services/document_service.py:L73`, get at `:L102`, update at `:L153`, delete at `:L188`, all written in full | Each read then builds `Document(**...)` against `created_at` and `updated_at`, required at `backend/app/schema/document.py:L63-L64` and written by nothing |
+| S8 | DocumentService to Firestore | set at `backend/app/services/document_service.py:L73`, get at `:L102`, update at `:L153`, delete at `:L188`, all written in full | Each read then builds `Document(**...)` against `created_at` and `updated_at`, required at `backend/app/schema/document.py:L64-L65` and written by nothing |
 | S9 | Celery tasks to Firestore | read at `backend/app/tasks/background_tasks.py:L96`, delete at `:L103`, update at `:L142` | No producer runs them |
 | S10 | Celery tasks to ExportService | constructed at `backend/app/tasks/background_tasks.py:L52`, then calls `convert_document` at `:L59` | `ExportService` never defines `convert_document` |
 | S11 | Celery tasks to the Redis broker | broker URL read at `backend/app/tasks/background_tasks.py:L22` | The URL resolves to no service. No committed infrastructure provisions a broker |
@@ -180,7 +180,7 @@ absence of a call rather than a call. No route anywhere constructs `Collaboratio
 
 **WIRED, BLOCKED AT IMPORT.** Firestore is the only external system a committed HTTP handler calls,
 and no call runs today, because the module holding those calls cannot import. Five document handlers construct
-`DocumentService` at `backend/app/api/documents.py:L45`, `:L64`, `:L90`, `:L119` and `:L145`, and
+`DocumentService` at `backend/app/api/documents.py:L45`, `:L64`, `:L92`, `:L124` and `:L152`, and
 each of that class's four methods issues a Firestore call. Firestore also holds every record the
 code writes, because the SQLAlchemy path stays declared and unused.
 [data-model.md](data-model.md) covers the split.
@@ -189,7 +189,7 @@ Two independent access paths exist, and only one of them has a caller.
 
 | Access path | Location | Callers |
 | ------------- | ---------- | --------- |
-| The adapter's four helpers | `backend/app/db/firestore.py:L22`, `:L45`, `:L64`, `:L79` | None. No module imports any of the four |
+| The adapter's four helpers | `backend/app/db/firestore.py:L22`, `:L45`, `:L64`, `:L81` | None. No module imports any of the four |
 | `DocumentService`, calling the client directly | `backend/app/services/document_service.py:L19` | Five document handlers, plus the task module. That module constructs the class three times, at `backend/app/tasks/background_tasks.py:L51`, `:L93` and `:L132`. The module calls a method on only two of the three, at `:L56` and `:L135`. The instance built at `:L93` is never used |
 
 ### The adapter, and why nothing uses it
@@ -199,7 +199,7 @@ The adapter builds one client at module scope and exposes four synchronous helpe
 `google.auth.default()`, and `:L20` constructs the client with
 `Client(project=settings.GOOGLE_CLOUD_PROJECT)`. Both statements run at import time. The four
 helpers follow: `get_document` at `:L22`, `create_document` at `:L45`, `update_document` at `:L64`
-and `delete_document` at `:L79`.
+and `delete_document` at `:L81`.
 
 No module imports any of the four. Three modules import the `db` client instead and call the
 Firestore software development kit (SDK) directly: `backend/app/main.py:L21`,
@@ -329,7 +329,7 @@ satisfy that:
 - **A service-account private key.** A key file referenced through `GOOGLE_APPLICATION_CREDENTIALS`.
   `backend/app/core/config.py:L46` declares that field as `Optional[str]` with no explicit default,
   which Pydantic 1.x treats as optional with a `None` default, so the contract never requires it.
-  No committed `.env` file supplies it. `Config.env_file` at `:L58`
+  No committed `.env` file supplies it. `Config.env_file` at `:L60`
   names the file the repository does not commit.
 - **An IAM `signBlob` grant.** Credentials with no private key can sign only by delegating to the
   IAM Credentials application programming interface (API). A metadata-server token on a Compute
@@ -597,8 +597,8 @@ route that authenticated the socket and authorized the pair before calling would
 
 | # | Control | Committed state |
 |---|---------|-----------------|
-| 1 | Authenticate the connection | `connect` at `:L44` takes `websocket`, `document_id` and `user_id`. The method accepts no token, reads no header and calls no dependency, so nothing establishes who is connecting. Every other protected surface in the backend goes through `get_current_user` at `backend/app/api/auth.py:L27`, and this path does not |
-| 2 | Authorize the identity against the document | Nothing compares `user_id` against the document's stored owner. `:L64-L66` registers the socket straight from the two string arguments. The document handlers at least attempt an owner check, at `backend/app/api/documents.py:L92`, `:L121` and `:L147` |
+| 1 | Authenticate the connection | `connect` at `:L44` takes `websocket`, `document_id` and `user_id`. The method accepts no token, reads no header and calls no dependency, so nothing establishes who is connecting. Every other protected surface in the backend goes through `get_current_user` at `backend/app/api/auth.py:L28`, and this path does not |
+| 2 | Authorize the identity against the document | Nothing compares `user_id` against the document's stored owner. `:L64-L66` registers the socket straight from the two string arguments. The document handlers at least attempt an owner check, at `backend/app/api/documents.py:L94`, `:L126` and `:L154` |
 | 3 | Validate `document_id` before it names a resource | `:L69`, `:L70` and `:L149` interpolate `document_id` directly into Pub/Sub topic and subscription paths, with no allow-list, no format check and no membership check. Whichever string the method receives selects the topic it publishes to and the subscription it creates, so a caller that forwarded a client-supplied value would let the client choose both |
 | 4 | Authorize a disconnect | `disconnect` at `:L103` takes the same two strings, removes the entry at `:L119` and `:L121`, then deletes the subscription at `:L126`. The method verifies neither argument, so a caller that did not check them would let one user's identifiers drop another user's connection |
 | 5 | Validate the event payload | `broadcast_change` at `:L133` declares `change: dict` and publishes it unchanged at `:L152`. No schema constrains the keys, no field is bounded, and no type is checked |
@@ -681,7 +681,7 @@ Four surfaces supply credentials, and they do not agree on a single source.
 | Surface | What it supplies | Locator |
 | --------- | ------------------ | --------- |
 | `Settings` | `GOOGLE_CLOUD_PROJECT` and `GOOGLE_APPLICATION_CREDENTIALS`, both `Optional[str]` | `backend/app/core/config.py:L45-L46` |
-| The nested `Config` class | An `.env` file as the fallback source, with UTF-8 encoding | `backend/app/core/config.py:L50-L59`, naming `.env` at `:L58` |
+| The nested `Config` class | An `.env` file as the fallback source, with UTF-8 encoding | `backend/app/core/config.py:L50-L61`, naming `.env` at `:L60` |
 | `scripts/deploy.sh` | A guard that exits 1 when `GOOGLE_APPLICATION_CREDENTIALS` is empty, and nothing more. See the note below | `scripts/deploy.sh:L4-L7` |
 | `.github/workflows/cd.yml` | A project identifier and a service-account key, both from repository secrets named `GCP_PROJECT_ID` and `GCP_SA_KEY`, passed to `google-github-actions/setup-gcloud`, which does authenticate the CLI | `.github/workflows/cd.yml:L13-L16` |
 
@@ -700,13 +700,13 @@ one path that does authenticate a CLI, because the `setup-gcloud` action consume
 than an environment variable alone. [../scripts/README.md](../scripts/README.md) carries the
 per-stage detail.
 
-No `.env` file is committed, so the fallback source named at `backend/app/core/config.py:L58`
+No `.env` file is committed, so the fallback source named at `backend/app/core/config.py:L60`
 resolves to nothing on a clean checkout. The environment must therefore supply all seven required
 fields directly. `Settings` construction raises `ValidationError` when any one of them is missing.
 [onboarding.md](onboarding.md) covers what a developer can run without them.
 
 One earlier failure hides all of the above. `backend/app/core/config.py` defines the `Settings`
-class at `:L20` and the `get_settings()` factory at `:L61`, and creates no module-level `settings`
+class at `:L20` and the `get_settings()` factory at `:L63`, and creates no module-level `settings`
 instance. Eight modules import that name directly, and nine module-import failures trace back to it,
 because `app.main` fails both on its own import at `:L20` and earlier through `app.api.auth`.
 `import app.main` therefore raises `ImportError` before any credential call runs. [troubleshooting.md](troubleshooting.md) records the chain under
@@ -714,11 +714,11 @@ because `app.main` fails both on its own import at `:L20` and earlier through `a
 
 Two counts describe the reach of that single omission. Mixing them overstates the direct damage.
 **Eight modules import the `settings` name directly**, at `backend/app/main.py:L20`,
-`backend/app/api/auth.py:L19`, `backend/app/db/firestore.py:L16`, `backend/app/db/sql.py:L14`,
+`backend/app/api/auth.py:L20`, `backend/app/db/firestore.py:L16`, `backend/app/db/sql.py:L14`,
 `backend/app/services/collaboration_service.py:L18`, `backend/app/services/document_service.py:L17`,
 `backend/app/services/export_service.py:L16` and `backend/app/tasks/background_tasks.py:L16`. A
-ninth module is affected without importing the name. `backend/app/core/security.py:L20` imports
-`get_settings`, which does exist, and calls it at `:L150`, so that module fails later and for a
+ninth module is affected without importing the name. `backend/app/core/security.py:L22` imports
+`get_settings`, which does exist, and calls it at `:L142`, so that module fails later and for a
 different reason.
 
 The wider count is different again. Modules affected through the import chain reach twelve of the
@@ -739,7 +739,7 @@ Field-level drift belongs to [data-model.md](data-model.md).
 
 One mismatch applies to three of the four workflows, so read it once here.
 `backend/app/main.py:L84-L87` mounts all four routers with no prefix. The client prefixes its
-document calls with `/documents` at `frontend/src/services/api.ts:L70`, `:L82` and `:L95`, and no
+document calls with `/documents` at `frontend/src/services/api.ts:L70`, `:L83` and `:L96`, and no
 server route carries that segment.
 
 The three prefixed calls do not all fail the same way, and the difference matters when reading a
@@ -748,9 +748,9 @@ dispatch actually happens:
 
 | Client call | Locator | What the server does with it |
 |-------------|---------|------------------------------|
-| `GET /documents` | `frontend/src/services/api.ts:L70` | Matches `GET /{document_id}` at `backend/app/api/documents.py:L68`, because `/documents` is a single path segment, so `document_id` binds to the string `documents` and no body follows. That route is protected at `:L69`, so its dependency resolves before the body, and without a valid token the response is **401**. For an authenticated caller whose user record resolves, `:L91` passes one argument to the two-parameter `get_document` signature at `backend/app/services/document_service.py:L78`. A `TypeError` then propagates out of the handler and the response is a **500**. The declared `Document[]` never meets a document object on either path |
-| `POST /documents` | `frontend/src/services/api.ts:L82` | The single-segment shape matches `GET`, `PUT` and `DELETE` at `backend/app/api/documents.py:L68`, `:L96` and `:L126`, and no router declares `POST /{document_id}`. Starlette answers **405 Method Not Allowed** rather than 404. Routing settles that before any dependency runs, so no credential affects it |
-| `PUT /documents/${documentId}` | `frontend/src/services/api.ts:L95` | Two path segments, and no two-segment route is registered anywhere in the four routers. The response is **404**, again settled by routing before any dependency runs, so no credential affects it either |
+| `GET /documents` | `frontend/src/services/api.ts:L70` | Matches `GET /{document_id}` at `backend/app/api/documents.py:L68`, because `/documents` is a single path segment, so `document_id` binds to the string `documents` and no body follows. That route is protected at `:L69`, so its dependency resolves before the body, and without a valid token the response is **401**. For an authenticated caller whose user record resolves, `:L93` passes one argument to the two-parameter `get_document` signature at `backend/app/services/document_service.py:L78`. A `TypeError` then propagates out of the handler and the response is a **500**. The declared `Document[]` never meets a document object on either path |
+| `POST /documents` | `frontend/src/services/api.ts:L83` | The single-segment shape matches `GET`, `PUT` and `DELETE` at `backend/app/api/documents.py:L68`, `:L98` and `:L131`, and no router declares `POST /{document_id}`. Starlette answers **405 Method Not Allowed** rather than 404. Routing settles that before any dependency runs, so no credential affects it |
+| `PUT /documents/${documentId}` | `frontend/src/services/api.ts:L96` | Two path segments, and no two-segment route is registered anywhere in the four routers. The response is **404**, again settled by routing before any dependency runs, so no credential affects it either |
 
 Every one of the three sits behind earlier blockers, so none is observable today.
 [troubleshooting.md](troubleshooting.md#the-client-calls-six-routes-and-no-server-route-matches-any-of-them) carries the
@@ -764,12 +764,12 @@ sets the two sides against each other dimension by dimension, and
 [../frontend/src/services/README.md](../frontend/src/services/README.md) carries the same comparison
 for all six client call sites.
 
-| Dimension | Client, `login` at `frontend/src/services/auth.ts:L34` | Server, `POST /token` at `backend/app/api/auth.py:L65` |
+| Dimension | Client, `login` at `frontend/src/services/auth.ts:L35` | Server, `POST /token` at `backend/app/api/auth.py:L66` |
 | --- | --- | --- |
 | Method | `POST` | `POST` |
 | Path | `/auth/login` | `/token`, since `backend/app/main.py:L84` mounts the router with no prefix |
-| Origin | Page origin. `auth.ts:L16` imports the bare `axios` global, which carries no `baseURL` | Wherever the service is served |
-| Encoding | JSON. Axios serializes the object literal at `:L36` | `application/x-www-form-urlencoded`, because `:L66` declares `OAuth2PasswordRequestForm` |
+| Origin | Page origin. `auth.ts:L16` imports the default `axios` export, which carries no `baseURL` | Wherever the service is served |
+| Encoding | JSON. Axios serializes the object literal at `:L37` | `application/x-www-form-urlencoded`, because `:L67` declares `OAuth2PasswordRequestForm` |
 | Credential fields | `email` and `password` | `username` and `password` |
 | Request headers | No `Authorization` header. `auth.ts` never reaches the interceptor at `api.ts:L38-L44` | The route is public and reads none |
 | Response fields | Reads `response.data.accessToken` at `:L37` | Returns `{"access_token": ..., "token_type": "bearer"}` at `:L72` |
@@ -779,12 +779,12 @@ The other two calls in the same module have no working counterpart either.
 
 | Side | What runs | Locator |
 | ------ | ----------- | --------- |
-| Client | `login` posts to `/auth/login` | `frontend/src/services/auth.ts:L36` |
-| Client | Reads `response.data.accessToken` | `:L37` |
-| Client | Stores the value under `accessToken` in `localStorage` | `:L38` |
-| Client | `logout` posts to `/auth/logout` | `:L54` |
-| Client | `getCurrentUser` gets `/auth/me`, then casts with `as User` and no check | `:L71`, `:L72` |
-| Server | `POST /register` creates the user, taking a JSON `UserCreate` body | `backend/app/api/auth.py:L103`, decorator at `:L102` |
+| Client | `login` posts to `/auth/login` | `frontend/src/services/auth.ts:L37` |
+| Client | Reads `response.data.accessToken` | `:L38` |
+| Client | Stores the value under `accessToken` in `localStorage` | `:L39` |
+| Client | `logout` posts to `/auth/logout` | `:L55` |
+| Client | `getCurrentUser` gets `/auth/me`, then casts with `as User` and no check | `:L72`, `:L73` |
+| Server | `POST /register` creates the user, taking a JSON `UserCreate` body | `backend/app/api/auth.py:L104`, decorator at `:L103` |
 | Server | `GET /me` returns the caller, behind `get_current_user` | `backend/app/api/users.py:L20`, decorator at `:L19` |
 
 Five mismatches, each of which breaks the workflow on its own:
@@ -794,26 +794,26 @@ Five mismatches, each of which breaks the workflow on its own:
   `backend/app/api/users.py:L19`. None of the three client paths matches a registered route, so each
   returns 404 if it is forwarded to FastAPI. Nothing forwards it today.
 
-  `auth.ts:L16` imports the bare `axios` global, which carries no `baseURL`, so each request targets
+  `auth.ts:L16` imports the default `axios` export, which carries no `baseURL`, so each request targets
   the page origin. The 404 comes from whatever serves that origin until a proxy routes `/auth/*` to
   the API. `GET /me` is itself shadowed, which the profile workflow below records.
-- **Request encoding.** `frontend/src/services/auth.ts:L36` calls `axios.post` with a plain object,
+- **Request encoding.** `frontend/src/services/auth.ts:L37` calls `axios.post` with a plain object,
   and Axios serializes a plain object as JSON with `Content-Type: application/json`. The server
-  declares `form_data: OAuth2PasswordRequestForm = Depends()` at `backend/app/api/auth.py:L66`, and
+  declares `form_data: OAuth2PasswordRequestForm = Depends()` at `backend/app/api/auth.py:L67`, and
   that dependency reads an `application/x-www-form-urlencoded` body. A JSON body therefore fails
   request validation with 422 before the handler body runs, even if the path were corrected.
 - **Credential field name.** The client sends `email` and `password` at
-  `frontend/src/services/auth.ts:L36`. `OAuth2PasswordRequestForm` supplies `username` and
-  `password`, and `backend/app/api/auth.py:L90` reads `form_data.username`. No `email` field reaches
+  `frontend/src/services/auth.ts:L37`. `OAuth2PasswordRequestForm` supplies `username` and
+  `password`, and `backend/app/api/auth.py:L91` reads `form_data.username`. No `email` field reaches
   the handler, so the two ends disagree on the identifier as well as on the encoding.
-- **Token field name.** The server returns `access_token` at `backend/app/api/auth.py:L100`, and the
-  client reads `accessToken` at `frontend/src/services/auth.ts:L37`, so the read yields `undefined`.
-  `localStorage.setItem` coerces its value to a string, so `:L38` stores the nine-character string
+- **Token field name.** The server returns `access_token` at `backend/app/api/auth.py:L101`, and the
+  client reads `accessToken` at `frontend/src/services/auth.ts:L38`, so the read yields `undefined`.
+  `localStorage.setItem` coerces its value to a string, so `:L39` stores the nine-character string
   `"undefined"` rather than the value `undefined`, and any later truthiness test on the stored value
   passes.
-- **HTTP client.** `frontend/src/services/auth.ts:L16` imports the bare `axios` global and calls it
-  directly at `:L36`, `:L54` and `:L71`. The configured instance lives in
-  `frontend/src/services/api.ts:L61`, and its request interceptor at `:L38-L44` is the only code
+- **HTTP client.** `frontend/src/services/auth.ts:L16` imports the default `axios` export and calls it
+  directly at `:L37`, `:L55` and `:L72`. The configured instance lives in
+  `frontend/src/services/api.ts:L60`, and its request interceptor at `:L38-L44` is the only code
   that attaches an `Authorization` header. Every call in `auth.ts` bypasses that interceptor, so
   `GET /auth/me` carries no bearer token even after a successful login.
 
@@ -831,18 +831,18 @@ form, so a user cannot reach either server route through the interface.
 | Client | Calls `updateDocument(currentDocument.id, { content })` | `:L75` |
 | Client | Arms a five-second timer and clears it on cleanup | `:L82`, `:L83` |
 | Server | `GET /{document_id}` reads the document | `backend/app/api/documents.py:L69`, decorator at `:L68` |
-| Server | `PUT /{document_id}` updates it | `:L97`, decorator at `:L96` |
+| Server | `PUT /{document_id}` updates it | `:L99`, decorator at `:L98` |
 
 Four mismatches:
 
 - **`getDocument` does not exist.** `frontend/src/services/api.ts` exports exactly three functions,
-  `getDocuments` at `:L69`, `createDocument` at `:L81` and `updateDocument` at `:L94`. The plural
+  `getDocuments` at `:L69`, `createDocument` at `:L82` and `updateDocument` at `:L95`. The plural
   `getDocuments` is not the singular the editor imports at `Editor.tsx:L16`.
-- **Route prefix.** `updateDocument` calls `/documents/${documentId}` at `api.ts:L95`, and the
+- **Route prefix.** `updateDocument` calls `/documents/${documentId}` at `api.ts:L96`, and the
   document router mounts at the root, so the live path is `/{document_id}`.
-- **Ownership field.** The handler reads `document.user_id` at `backend/app/api/documents.py:L92`,
-  `:L121` and `:L147`. The Pydantic contract declares `owner_id: Optional[str] = None` on
-  `DocumentBase` at `backend/app/schema/document.py:L28`, which `Document` inherits at `:L51`.
+- **Ownership field.** The handler reads `document.user_id` at `backend/app/api/documents.py:L94`,
+  `:L126` and `:L154`. The Pydantic contract declares `owner_id: Optional[str] = None` on
+  `DocumentBase` at `backend/app/schema/document.py:L28`, which `Document` inherits at `:L52`.
   [data-model.md](data-model.md#the-ownership-field-four-positions-none-canonical) names all four
   positions the field takes and names none of them canonical.
 - **Auto-save interval.** The code waits five seconds, at `Editor.tsx:L91`.
@@ -855,11 +855,11 @@ The auto-save effect carries no null guard and no empty-content guard. `:L75` de
 runs on mount, so the timer fires five seconds after the page appears.
 
 **That first firing sends no request.** `currentDocument` comes from the selector at `:L30`, and
-`frontend/src/store/documentSlice.ts:L27` initialises `currentDocument` to `null`. Dereferencing
-`currentDocument.id` at `:L75` therefore raises `TypeError` inside the client, on the argument
+`frontend/src/store/documentSlice.ts:L25` initialises `currentDocument` to `null`. Dereferencing
+`currentDocument.id` at `:L105` therefore raises `TypeError` inside the client, on the argument
 expression, before `updateDocument` is called and before any network activity begins. The `catch` at
-`:L76` receives that `TypeError`, `console.error` at `:L77` writes it, and the outstanding-work
-comment at `:L78` records the gap.
+`:L106` receives that `TypeError`, `console.error` at `:L107` writes it, and the outstanding-work
+comment at `:L108` records the gap.
 
 No HTTP request reaches the server, so no server-side effect and no partial write is possible from
 this path. The reader of the page sees nothing either way.
@@ -870,14 +870,14 @@ this path. The reader of the page sees nothing either way.
 | Side | What runs | Locator |
 | ------ | ----------- | --------- |
 | Client | Imports `getTemplates` from the API module | `frontend/src/pages/Templates.tsx:L14` |
-| Client | Calls it inside a load effect | `:L51` |
+| Client | Calls it inside a load effect | `:L49` |
 | Client | Declares a local `Template` interface | `:L25-L30` |
 | Server | Five template handlers | `backend/app/api/templates.py:L25`, `:L43`, `:L60`, `:L87`, `:L113` |
 
 Four mismatches:
 
 - **`getTemplates` does not exist.** `frontend/src/services/api.ts` exports the same three functions
-  listed under the previous workflow, at `:L69`, `:L81` and `:L94`, and none of them is
+  listed under the previous workflow, at `:L69`, `:L82` and `:L95`, and none of them is
   `getTemplates`.
 - **Two incompatible template shapes.** The local interface at `Templates.tsx:L25-L30` declares
   `id`, `name`, `description` and `thumbnail`. The Zod schema at
@@ -912,11 +912,11 @@ Four mismatches:
 Four mismatches:
 
 - **`updateUserSettings` does not exist.** `frontend/src/services/api.ts` exports the same three
-  functions at `:L69`, `:L81` and `:L94`, and none of them is `updateUserSettings`.
+  functions at `:L69`, `:L82` and `:L95`, and none of them is `updateUserSettings`.
 - **Both profile routes are shadowed.** `/me` is a literal path and still a single segment, so it
   falls inside the pattern the document router already claimed. `backend/app/main.py:L85` registers
   documents ahead of `:L86` profiles, so `GET /{document_id}` at
-  `backend/app/api/documents.py:L68` answers `GET /me` and `PUT /{document_id}` at `:L96` answers
+  `backend/app/api/documents.py:L68` answers `GET /me` and `PUT /{document_id}` at `:L98` answers
   `PUT /me`. A profile fetch reaches the single-document read with `document_id` bound to the literal
   string `me`, and neither handler at `backend/app/api/users.py:L19` or `:L32` ever runs.
 - **No contract declares `name`.** The page reads `currentUser?.name` at `Settings.tsx:L36` and
@@ -948,7 +948,7 @@ None of the three pairs can meet, and the reason differs per row.
 
 | Client event | Emitted payload | Nearest server counterpart | Why the pair cannot meet |
 | -------------- | ----------------- | ---------------------------- | -------------------------- |
-| `join_document` | the bare `documentId` string, at `frontend/src/services/collaboration.ts:L63` | `CollaborationService.connect` at `backend/app/services/collaboration_service.py:L44` | `connect` declares a `WebSocket`, a `document_id` and a `user_id`. The emit carries one string, no socket object and no user identity, and no route delivers it |
+| `join_document` | the bare `documentId` string, at `frontend/src/services/collaboration.ts:L65` | `CollaborationService.connect` at `backend/app/services/collaboration_service.py:L44` | `connect` declares a `WebSocket`, a `document_id` and a `user_id`. The emit carries one string, no socket object and no user identity, and no route delivers it |
 | `leave_document` | the bare `currentDocumentId` string, at `:L76` | `CollaborationService.disconnect` at `backend/app/services/collaboration_service.py:L107` | `disconnect` declares `document_id` and `user_id`. The emit carries the identifier alone, and `:L159` clears it straight afterwards with nothing confirming the emit |
 | `document_changes` | the envelope `{ documentId, changes }`, at `:L96-L99` | `CollaborationService.broadcast_change` at `backend/app/services/collaboration_service.py:L137` | `broadcast_change` declares `document_id` and a `change` dictionary and publishes `json.dumps(change)` at `:L156`. The client nests the change inside an envelope, so the shapes differ even with a route in place |
 
@@ -956,12 +956,12 @@ Four further facts complete the picture:
 
 - **`io()` receives no URL** at `frontend/src/services/collaboration.ts:L37`, so the client would
   attempt a Socket.IO handshake against the page origin rather than the API host.
-- **No inbound event is handled.** `setupEventListeners` at `:L47` runs from the constructor at
-  `:L38`, and its body registers no listener. The marker at `:L48-L51` records the gap.
+- **No inbound event is handled.** `setupEventListeners` at `:L49` runs from the constructor at
+  `:L38`, and its body registers no listener. The marker at `:L50-L53` records the gap.
   Collaboration therefore runs one way as written: the client emits and never receives.
 - **The client class is never instantiated.** `CollaborationService` is declared at `:L26` and
-  default-exported at `:L107`, and no module in `frontend/src/` imports the file.
-- **The payload shapes differ.** The client emits `{ documentId, changes }` at `:L96-L99`. The
+  default-exported at `:L109`, and no module in `frontend/src/` imports the file.
+- **The payload shapes differ.** The client emits `{ documentId, changes }` at `:L98-L101`. The
   server publishes a JSON-encoded change dictionary at
   `backend/app/services/collaboration_service.py:L156`, keyed by whatever the caller passed as
   `change`. No shared artifact reconciles the two.

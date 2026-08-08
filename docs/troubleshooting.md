@@ -124,15 +124,15 @@ section that carries the detail.
 | `tsc --noEmit` reports 76 errors, so the build fails | Starting or building the frontend | [G1](#g1-absent-modules-referenced-by-committed-code), [G2](#g2-absent-symbols-inside-modules-that-do-exist), [G4](#g4-undeclared-third-party-dependencies) | Distribution in [the type-check profile](#the-verified-type-check-profile) |
 | The interface renders with no styling at all | Viewing the running frontend | [G8 Tailwind](#tailwind-never-compiles) | No `tailwind.config.js`, no `postcss.config.js` and no committed stylesheet |
 | `uvicorn main:app --reload` cannot find the application | Starting the backend from `backend/` per the README | [README](#documentation-inaccuracies-in-the-root-readme) | The application object sits at `backend/app/main.py:L24` (`app = FastAPI()`), one directory deeper |
-| `ImportError: cannot import name 'settings' from 'app.core.config'` | Importing `app.main` from `backend/` | [G2 settings singleton](#the-absent-settings-singleton) | `backend/app/main.py:L16` reaches `backend/app/api/auth.py:L19`, which requests a name `backend/app/core/config.py` never defines |
+| `ImportError: cannot import name 'settings' from 'app.core.config'` | Importing `app.main` from `backend/` | [G2 settings singleton](#the-absent-settings-singleton) | `backend/app/main.py:L16` reaches `backend/app/api/auth.py:L20`, which requests a name `backend/app/core/config.py` never defines |
 | `ModuleNotFoundError: No module named 'app.schema.template'` | Importing `app.api.templates` | [G1](#g1-absent-modules-referenced-by-committed-code) | `backend/app/api/templates.py:L17` |
-| `ModuleNotFoundError: No module named 'app.services.user_service'` | Importing `app.api.users` or `app.api.auth` | [G1](#g1-absent-modules-referenced-by-committed-code) | `backend/app/api/users.py:L14` and `backend/app/api/auth.py:L21` |
-| `NameError: name 'Optional' is not defined` | Importing `app.core.security` | [G3](#g3-undefined-names-that-raise-at-execution) | `backend/app/core/security.py:L25` uses `Optional` with no import behind it |
+| `ModuleNotFoundError: No module named 'app.services.user_service'` | Importing `app.api.users` or `app.api.auth` | [G1](#g1-absent-modules-referenced-by-committed-code) | `backend/app/api/users.py:L14` and `backend/app/api/auth.py:L22` |
+| `NameError: name 'Optional' is not defined` | Importing `app.core.security` | [G3](#g3-undefined-names-that-raise-at-execution) | `backend/app/core/security.py:L27` uses `Optional` with no import behind it |
 | Template endpoints return document responses | Calling any `/{id}` route | [G7 shadowed routes](#document-routes-shadow-the-template-and-profile-routes) | `backend/app/main.py:L84-L87` mounts every router with no prefix |
 | `GET /me` answers 401 without valid credentials, and with them returns a document read or a 404 for a document called `me` | Fetching the signed-in profile | [G7 shadowed routes](#document-routes-shadow-the-template-and-profile-routes) | `backend/app/api/documents.py:L68` claims every single-segment path ahead of `backend/app/api/users.py:L19`, and both routes are protected, so the token resolves before the substitution is observable |
-| `POST /documents` answers 405 while `PUT /documents/{id}` answers 404 | Calling the document API from the client | [G7 client routes](#the-client-calls-six-routes-and-no-server-route-matches-any-of-them) | `frontend/src/services/api.ts:L82` and `:L95` prefix a segment no route declares. Routing settles both before any dependency runs, so neither depends on credentials |
+| `POST /documents` answers 405 while `PUT /documents/{id}` answers 404 | Calling the document API from the client | [G7 client routes](#the-client-calls-six-routes-and-no-server-route-matches-any-of-them) | `frontend/src/services/api.ts:L83` and `:L96` prefix a segment no route declares. Routing settles both before any dependency runs, so neither depends on credentials |
 | `GET /documents` answers 401 without valid credentials and 500 with them | Listing documents from the client | [G7 client routes](#the-client-calls-six-routes-and-no-server-route-matches-any-of-them) | `frontend/src/services/api.ts:L70` sends one segment, which the protected `GET /{document_id}` at `backend/app/api/documents.py:L68` claims |
-| Login answers 422 rather than 401 once the path is corrected | Signing in | [G7 client routes](#the-client-calls-six-routes-and-no-server-route-matches-any-of-them) | `frontend/src/services/auth.ts:L36` sends JSON `email`, and `backend/app/api/auth.py:L66` reads a form `username` |
+| Login answers 422 rather than 401 once the path is corrected | Signing in | [G7 client routes](#the-client-calls-six-routes-and-no-server-route-matches-any-of-them) | `frontend/src/services/auth.ts:L37` sends JSON `email`, and `backend/app/api/auth.py:L67` reads a form `username` |
 | `npm ci` fails in continuous integration, reporting `ENOENT` on npm 6 or `EUSAGE` on npm 7 and newer | Running the CI workflow | [G8 npm ci](#npm-ci-cannot-run-anywhere) | `.github/workflows/ci.yml:L19` runs at the repository root, where no manifest and no lockfile exist. `ci.yml:L17` pins Node 14, which ships npm 6 |
 | `docker compose build` cannot find a Dockerfile | Building the containers | [G8 Compose contexts](#compose-points-at-dockerfiles-that-are-not-there) | `infrastructure/docker/docker-compose.yml:L6-L7` and `:L19-L20` |
 | `terraform init` reports `Unreadable module directory` | Initialising the infrastructure | [G8 absent modules](#three-terraform-module-sources-do-not-exist) | `infrastructure/terraform/main.tf:L67`, `:L76`, `:L85`. No `modules/` directory exists |
@@ -153,13 +153,13 @@ exist, and only the import root and a later missing symbol stop them.
 
 | Absent module | Requested at | Symbols requested | Effect |
 | --------------- | -------------- | ------------------- | -------- |
-| `app.services.user_service` | `backend/app/api/auth.py:L21`, `backend/app/api/users.py:L14` | `UserService` | Both routers fail to import. `backend/app/core/security.py:L159` also constructs `UserService()` with no import at all, covered in [G3](#g3-undefined-names-that-raise-at-execution) |
+| `app.services.user_service` | `backend/app/api/auth.py:L22`, `backend/app/api/users.py:L14` | `UserService` | Both routers fail to import. `backend/app/core/security.py:L151` also constructs `UserService()` with no import at all, covered in [G3](#g3-undefined-names-that-raise-at-execution) |
 | `app.schema.template` | `backend/app/api/templates.py:L17` | `Template`, `TemplateCreate`, `TemplateUpdate` | The template router fails to import. No Pydantic contract for a template exists anywhere in the backend |
 | `app.services.template_service` | `backend/app/api/templates.py:L18` | `TemplateService` | The template router has no service tier behind its five handlers |
 | `@/components/StylePanel` | `frontend/src/components/Sidebar.tsx:L10` | `StylePanel` | Rendered unconditionally at `Sidebar.tsx:L25` |
 | `@/components/CommentPanel` | `frontend/src/components/Sidebar.tsx:L11` | `CommentPanel` | Rendered unconditionally at `Sidebar.tsx:L26` |
 | `@/components/RevisionPanel` | `frontend/src/components/Sidebar.tsx:L12` | `RevisionPanel` | Rendered unconditionally at `Sidebar.tsx:L27` |
-| `@/utils/tableUtils` | `frontend/src/components/TableEditor.tsx:L12` | `insertTable`, `deleteTable`, `modifyTable` | `handleInsertTable` at `TableEditor.tsx:L42` calls `insertTable`, and no module defines it |
+| `@/utils/tableUtils` | `frontend/src/components/TableEditor.tsx:L12` | `insertTable`, `deleteTable`, `modifyTable` | `handleInsertTable` at `TableEditor.tsx:L41` calls `insertTable`, and no module defines it |
 | `@/utils/imageUtils` | `frontend/src/components/ImageEditor.tsx:L12` | `resizeImage`, `cropImage` | Neither import is used in the component body |
 | `init_db` from `app.db.sql` | `backend/app/main.py:L22` | `init_db` | `backend/app/db/sql.py` defines `engine`, `SessionLocal`, `Base` and `get_db`, and defines no `init_db`. The startup handler awaits the missing name at `main.py:L42` |
 | The `app` package itself | Every `from app.*` import across 12 modules | the `app`, `app.api`, `app.core`, `app.db`, `app.schema`, `app.services` and `app.tasks` namespaces | No `__init__.py` file exists anywhere under `backend/`, so all seven are implicit namespace packages. They resolve only while `backend/` sits on the import path, and `infrastructure/docker/backend.Dockerfile:L14` copies `./app` to `/app`, which flattens the package and leaves the `app.` prefix unresolvable inside the image |
@@ -230,13 +230,13 @@ accounts for nine module import failures on its own.
 ### The absent `settings` singleton
 
 `backend/app/core/config.py` defines a `Settings` class at `L20` and a `get_settings()` factory at
-`L61`, and it never creates a module-level `settings` instance. The file contains no `settings =`
+`L63`, and it never creates a module-level `settings` instance. The file contains no `settings =`
 assignment at any line. Eight modules import that name:
 
 | Importing module | Line |
 | ------------------ | ------ |
 | `backend/app/main.py` | `L20` |
-| `backend/app/api/auth.py` | `L19` |
+| `backend/app/api/auth.py` | `L20` |
 | `backend/app/db/firestore.py` | `L16` |
 | `backend/app/db/sql.py` | `L14` |
 | `backend/app/services/collaboration_service.py` | `L18` |
@@ -245,7 +245,7 @@ assignment at any line. Eight modules import that name:
 | `backend/app/tasks/background_tasks.py` | `L16` |
 
 Each import raises `ImportError: cannot import name 'settings' from 'app.core.config'`.
-`backend/app/core/security.py:L20` imports `get_settings` instead, which exists, so that module's
+`backend/app/core/security.py:L22` imports `get_settings` instead, which exists, so that module's
 configuration import resolves. [G3](#g3-undefined-names-that-raise-at-execution) records why
 `app.core.security` still fails.
 
@@ -269,7 +269,7 @@ them:
 | An absent module, per [G1](#g1-absent-modules-referenced-by-committed-code) | 2 | `app.api.templates` (`app.schema.template`), `app.api.users` (`app.services.user_service`) |
 | An undefined name, per [G3](#g3-undefined-names-that-raise-at-execution) | 1 | `app.core.security` (`Optional`) |
 
-`app.main` surfaces its failure at `backend/app/api/auth.py:L19`, reached through
+`app.main` surfaces its failure at `backend/app/api/auth.py:L20`, reached through
 `backend/app/main.py:L16`. Two modules fail indirectly through the Firestore adapter:
 `app.api.documents` and `app.services.document_service` both surface at
 `backend/app/db/firestore.py:L16`. See [../backend/app/README.md](../backend/app/README.md), which
@@ -310,7 +310,7 @@ whole frontend, because the compiler reports one error per requested name per im
 | ---------------- | -------------- | ----------- | ------------------------ |
 | `Document` | `frontend/src/services/api.ts:L19`, `frontend/src/services/collaboration.ts:L17`, `frontend/src/store/documentSlice.ts:L15` | 3 | One line. `DocumentSchema` already exists at `frontend/src/schema/document.ts:L23`, so a `z.infer` export beside it closes all three positions at once |
 | `DocumentCreate` | `frontend/src/services/api.ts:L19` | 1 | A schema first. No Zod object in the module models a creation payload, so nothing exists to infer from. `backend/app/schema/document.py:L30` declares the server-side equivalent |
-| `DocumentUpdate` | `frontend/src/services/api.ts:L19` | 1 | A schema first. `backend/app/schema/document.py:L39` declares the server-side equivalent and inherits nothing, so neither side holds a field list to mirror |
+| `DocumentUpdate` | `frontend/src/services/api.ts:L19` | 1 | A schema first. `backend/app/schema/document.py:L40` declares the server-side equivalent and inherits nothing, so neither side holds a field list to mirror |
 
 | Requested symbol | Requested at |
 | ------------------ | -------------- |
@@ -324,16 +324,16 @@ two named exports its consumers expect:
 | Absent symbol | Expected from | Requested at |
 | --------------- | --------------- | -------------- |
 | `useAppSelector`, `useAppDispatch` | `frontend/src/store/index.ts` | seven modules across the four pages and three components |
-| `documentReducer` | `frontend/src/store/documentSlice.ts` | `frontend/src/store/index.ts:L15`. The slice exports its reducer as the module default at `frontend/src/store/documentSlice.ts:L93` |
-| `userReducer` | `frontend/src/store/userSlice.ts` | `frontend/src/store/index.ts:L16`. The slice exports its reducer as the module default at `frontend/src/store/userSlice.ts:L76` |
-| `updateDocument`, `selectCurrentDocument` | `frontend/src/store/documentSlice.ts` | `frontend/src/components/DocumentCanvas.tsx:L17`, `frontend/src/components/Toolbar.tsx:L17`. The slice exports exactly six actions at `frontend/src/store/documentSlice.ts:L84-L91`, and `updateDocument` is not among them |
-| `updateUser`, `selectCurrentUser` | `frontend/src/store/userSlice.ts` | `frontend/src/pages/Settings.tsx:L16`, plus `selectCurrentUser` at `frontend/src/components/Header.tsx:L10`, `frontend/src/pages/Home.tsx:L15` and `frontend/src/pages/Templates.tsx:L16`. The slice exports `setUser`, `clearUser`, `setLoading` and `setError` at `frontend/src/store/userSlice.ts:L75` |
-| `getDocument`, `updateUserSettings` | `frontend/src/services/api.ts` | `frontend/src/pages/Editor.tsx:L16` and `frontend/src/pages/Settings.tsx:L14`. The module exports only `getDocuments` (`frontend/src/services/api.ts:L69`), `createDocument` (`:L81`) and `updateDocument` (`:L94`) |
+| `documentReducer` | `frontend/src/store/documentSlice.ts` | `frontend/src/store/index.ts:L15`. The slice exports its reducer as the module default at `frontend/src/store/documentSlice.ts:L127` |
+| `userReducer` | `frontend/src/store/userSlice.ts` | `frontend/src/store/index.ts:L16`. The slice exports its reducer as the module default at `frontend/src/store/userSlice.ts:L100` |
+| `updateDocument`, `selectCurrentDocument` | `frontend/src/store/documentSlice.ts` | `frontend/src/components/DocumentCanvas.tsx:L17`, `frontend/src/components/Toolbar.tsx:L17`. The slice exports exactly six actions at `frontend/src/store/documentSlice.ts:L117-L124`, and `updateDocument` is not among them |
+| `updateUser`, `selectCurrentUser` | `frontend/src/store/userSlice.ts` | `frontend/src/pages/Settings.tsx:L16`, plus `selectCurrentUser` at `frontend/src/components/Header.tsx:L10`, `frontend/src/pages/Home.tsx:L15` and `frontend/src/pages/Templates.tsx:L16`. The slice exports `setUser`, `clearUser`, `setLoading` and `setError` at `frontend/src/store/userSlice.ts:L97` |
+| `getDocument`, `updateUserSettings` | `frontend/src/services/api.ts` | `frontend/src/pages/Editor.tsx:L16` and `frontend/src/pages/Settings.tsx:L14`. The module exports only `getDocuments` (`frontend/src/services/api.ts:L69`), `createDocument` (`:L82`) and `updateDocument` (`:L95`) |
 | `getTemplates` | `frontend/src/services/api.ts` | `frontend/src/pages/Templates.tsx`. No template request function exists in the client |
 | `Switch` | `react-router-dom` | `frontend/src/App.tsx:L12`. Version 6 removed `Switch`, and `frontend/package.json:L11` pins `^6.11.1` |
 
 `createApiClient` at `frontend/src/services/api.ts:L31` carries no `export` keyword, so the
-factory is module-private and only the local `api` instance at `L61` consumes it.
+factory is module-private and only the local `api` instance at `L60` consumes it.
 
 See [../frontend/src/schema/README.md](../frontend/src/schema/README.md),
 [../frontend/src/store/README.md](../frontend/src/store/README.md) and
@@ -347,9 +347,9 @@ diagnose. The name looks ordinary at the point of use, and the failure arrives l
 
 | Name | Referenced at | Raises when |
 | ------ | --------------- | ------------- |
-| `Optional` | `backend/app/core/security.py:L25`, in the `create_access_token` signature | the module body executes, so at import |
-| `User` | `backend/app/core/security.py:L119`, as the `get_current_user` return annotation | the module body executes, so at import |
-| `UserService` | `backend/app/core/security.py:L159`, inside `get_current_user` | `get_current_user` first runs |
+| `Optional` | `backend/app/core/security.py:L27`, in the `create_access_token` signature | the module body executes, so at import |
+| `User` | `backend/app/core/security.py:L110`, as the `get_current_user` return annotation | the module body executes, so at import |
+| `UserService` | `backend/app/core/security.py:L151`, inside `get_current_user` | `get_current_user` first runs |
 | `asyncio` | `backend/app/services/collaboration_service.py:L97`, inside the Pub/Sub `callback` | a published message first arrives |
 | `json` | `backend/app/services/collaboration_service.py:L156`, inside `broadcast_change` | `broadcast_change` first runs |
 | `datetime` | `backend/app/tasks/background_tasks.py:L96`, inside `cleanup_expired_documents` | the retention sweep first runs |
@@ -362,9 +362,9 @@ both `L67` and `L72` while `datetime` resolves nowhere.
 
 Python evaluates a function's annotations when the `def` statement runs, so an undefined name in a
 signature fails as the module loads rather than when the function is called. `Optional` at
-`backend/app/core/security.py:L25` therefore raises
+`backend/app/core/security.py:L27` therefore raises
 `NameError: name 'Optional' is not defined` during import of `app.core.security`, and the module
-cannot import at all. `User` at `L90` would raise the same way, and `L25` raises first, so
+cannot import at all. `User` at `L110` would raise the same way, and `L27` raises first, so
 execution never reaches it.
 
 The remaining five references sit inside function bodies and raise only when that function runs.
@@ -376,13 +376,13 @@ failure appears in an import traceback, and a body failure appears only under ex
 Diagnosing `backend/app/core/security.py` goes wrong in two predictable ways, so this register
 records both explicitly.
 
-- **`backend/app/core/security.py:L20` imports `get_settings`, not `settings`.** That name exists,
-  at `backend/app/core/config.py:L61`. The configuration import in this one module resolves
+- **`backend/app/core/security.py:L22` imports `get_settings`, not `settings`.** That name exists,
+  at `backend/app/core/config.py:L63`. The configuration import in this one module resolves
   correctly, unlike the eight listed in
   [G2 settings singleton](#the-absent-settings-singleton). The real defects in this file are the three undefined names
   above.
-- **`except jwt.JWTError` at `backend/app/core/security.py:L156` resolves correctly and is not a
-  defect.** `L16` imports `jwt` from `jose`, and the installed `python-jose` distribution exposes
+- **`except jwt.JWTError` at `backend/app/core/security.py:L148` resolves correctly and is not a
+  defect.** `L18` imports `jwt` from `jose`, and the installed `python-jose` distribution exposes
   `JWTError` on that module. Recording the line as broken would send a reader after a working
   import.
 
@@ -438,7 +438,7 @@ appear across `backend/app/`:
 | `fastapi` | `fastapi`, 0.89.0 or newer | Response models come from return annotations, and no handler passes `response_model=` |
 | `pydantic` | `pydantic`, 1.x only | `backend/app/core/config.py:L17` imports `BaseSettings` from the main package, and `backend/app/schema/user.py:L81` sets `orm_mode`. Pydantic 2 moved `BaseSettings` to `pydantic-settings` and renamed `orm_mode` |
 | `sqlalchemy` | `SQLAlchemy`, 1.4 or newer | `backend/app/db/sql.py:L13` imports `declarative_base` from `sqlalchemy.orm`, where 1.4 moved it |
-| `jose` | `python-jose` | `backend/app/api/auth.py` and `backend/app/core/security.py:L16`. The import name and the distribution name differ |
+| `jose` | `python-jose` | `backend/app/api/auth.py` and `backend/app/core/security.py:L18`. The import name and the distribution name differ |
 | `passlib` | `passlib` | `CryptContext` in the same two modules |
 | `celery` | `celery` | `backend/app/tasks/background_tasks.py:L22` |
 | `google` | `google-cloud-firestore`, `google-cloud-pubsub`, `google-cloud-storage` and `google-auth` | one namespace splits across four distributions: `google.cloud.firestore`, `google.cloud.pubsub_v1`, `google.cloud.storage` and `google.auth` |
@@ -464,11 +464,11 @@ properties of this repository cause that pattern:
 - **One namespace maps to four distributions.** `from google.cloud... import` gives no hint that
   Firestore, Pub/Sub, Cloud Storage and authentication ship separately.
 - **Two runtime needs are declared by nothing, and one of them is not fixed by installing it.**
-  `passlib` performs bcrypt hashing at `backend/app/api/auth.py:L24` and does not depend on
+  `passlib` performs bcrypt hashing at `backend/app/api/auth.py:L25` and does not depend on
   `bcrypt`, so password hashing fails until a developer adds `bcrypt` by hand. Adding the current
   release does not clear it, because passlib 1.7.4 cannot drive bcrypt 5.0.0, and
   [the pairing subsection](#the-passlib-and-bcrypt-pairing-decides-whether-any-password-can-be-hashed)
-  sets out why. FastAPI parses the form body at `backend/app/api/auth.py:L66` through
+  sets out why. FastAPI parses the form body at `backend/app/api/auth.py:L67` through
   `python-multipart` and does not require it, so a login post fails the same way.
 - **Two version ceilings are invisible without reading the code.** Installing the current
   `pydantic` breaks `backend/app/core/config.py:L17` immediately, because the 1.x constraint lives
@@ -481,7 +481,7 @@ exercised, and `redis` once a Celery worker attaches. `cryptography` arrives onc
 where the backend process starts.
 
 The last of the four hides itself twice over. Pydantic 1.x requires a separate install to read the
-`Config.env_file` value at `backend/app/core/config.py:L58`. That read happens only when the
+`Config.env_file` value at `backend/app/core/config.py:L60`. That read happens only when the
 named file is found, so an absent `.env` conceals the absent distribution until the file is created.
 [onboarding.md](onboarding.md#setting-up-the-backend) states the condition for each.
 
@@ -515,7 +515,7 @@ verdict for every row, and decision row 21 in
 
 **Risk table.** Thirteen rows, all PyPI. Eleven carry a published advisory that reaches a release this
 code could load. The remaining two, `bcrypt` and `passlib`, carry no advisory and appear for a
-different reason. The pair decides what registration does at `../backend/app/api/auth.py:L139`, and
+different reason. The pair decides what registration does at `../backend/app/api/auth.py:L134`, and
 neither current release works with the other.
 
 The four npm distributions that carry an advisory sit below the inventory, because these columns ask a
@@ -523,19 +523,19 @@ Python question.
 
 | Distribution | What the code requires | Advisories reaching a loadable release | Highest release installable on Python 3.9 | Fixed release reachable on 3.9 |
 | --- | --- | --- | --- | --- |
-| `python-jose` | Any release exposing `jwt` and `JWTError`, imported at `../backend/app/core/security.py:L16` | [CVE-2024-33663](https://github.com/advisories/GHSA-6c5p-j8vq-pqhj) algorithm confusion with OpenSSH ECDSA and other key formats, and [CVE-2024-33664](https://github.com/advisories/GHSA-cjwg-qfpm-7377) resource exhaustion decoding a compressed JWE token. Both fixed in 3.4.0. [CVE-2016-7036](https://github.com/advisories/GHSA-w799-prg3-cx77) non-constant-time HMAC comparison, fixed in 1.3.2 | 3.5.0, whose metadata requires Python 3.9 or newer | Yes. 3.4.0 and 3.5.0 both install |
+| `python-jose` | Any release exposing `jwt` and `JWTError`, imported at `../backend/app/core/security.py:L18` | [CVE-2024-33663](https://github.com/advisories/GHSA-6c5p-j8vq-pqhj) algorithm confusion with OpenSSH ECDSA and other key formats, and [CVE-2024-33664](https://github.com/advisories/GHSA-cjwg-qfpm-7377) resource exhaustion decoding a compressed JWE token. Both fixed in 3.4.0. [CVE-2016-7036](https://github.com/advisories/GHSA-w799-prg3-cx77) non-constant-time HMAC comparison, fixed in 1.3.2 | 3.5.0, whose metadata requires Python 3.9 or newer | Yes. 3.4.0 and 3.5.0 both install |
 | `pydantic` | 1.x only. `../backend/app/core/config.py:L17` imports `BaseSettings` from the main package and `../backend/app/schema/user.py:L81` sets `orm_mode`, both of which Pydantic 2 moved or renamed | [CVE-2024-3772](https://github.com/advisories/GHSA-mr82-8j83-vxmv) regular-expression denial of service, fixed in 1.10.13 on the 1.x line. [CVE-2021-29510](https://github.com/advisories/GHSA-5jqp-qgf6-3pvh) infinite loop on an `infinity` date input, fixed in 1.8.2 | The 1.10 series, whose metadata requires Python 3.7 or newer | Yes. `>=1.10.13,<2` satisfies both advisories and keeps 1.x |
-| `python-multipart` | Any release FastAPI can use to parse the form body at `../backend/app/api/auth.py:L66` | Nine advisories, fixed across 0.0.7, 0.0.18, 0.0.22, 0.0.26, 0.0.27, 0.0.30 for three of them, and 0.0.31 | 0.0.20. Every release from 0.0.21 onward requires Python 3.10 or newer | **No.** 0.0.20 carries the two earliest fixes and none of the seven from 0.0.22 onward |
+| `python-multipart` | Any release FastAPI can use to parse the form body at `../backend/app/api/auth.py:L67` | Nine advisories, fixed across 0.0.7, 0.0.18, 0.0.22, 0.0.26, 0.0.27, 0.0.30 for three of them, and 0.0.31 | 0.0.20. Every release from 0.0.21 onward requires Python 3.10 or newer | **No.** 0.0.20 carries the two earliest fixes and none of the seven from 0.0.22 onward |
 | `celery` | Any release exposing `Celery`, imported at `../backend/app/tasks/background_tasks.py:L14` | Two advisories. [CVE-2021-23727](https://github.com/advisories/GHSA-q4xr-rc97-m4xx) command injection through a stored result, fixed in 5.2.2. [CVE-2011-4356](https://github.com/advisories/GHSA-rpc6-h455-3rx5) local privilege escalation, fixed in 2.2.8, 2.3.4 and 2.4.4 | 5.6.3, whose metadata requires Python 3.9 or newer | Yes. Every release from 5.2.2 onward carries both fixes and installs |
-| `bcrypt` | A release `passlib` can actually drive as its bcrypt backend, configured at `../backend/app/core/security.py:L22`. Current 5.0.0 is not such a release, so this row states a compatibility requirement rather than a version floor | None recorded against the distribution. Two separate behaviour facts decide the contract. bcrypt reads at most 72 bytes, and 5.0.0 raises where earlier releases truncated. Passlib 1.7.4 cannot initialise a 5.0.0 backend at all, which [the pairing subsection](#the-passlib-and-bcrypt-pairing-decides-whether-any-password-can-be-hashed) sets out. The docstrings record both, at `../backend/app/core/security.py:L91-L97` and `:L106-L111` | 5.0.0, whose metadata requires Python 3.8 or newer | Not applicable |
-| `starlette` | Any release `fastapi` depends on. Arrives transitively and is named by no committed line | Ten advisories, the largest set on any backend row. Five are fixed at or below 0.49.3: [CVE-2023-30798](https://github.com/advisories/GHSA-74m5-2c7w-9w3x) in 0.25.0, [CVE-2023-29159](https://github.com/advisories/GHSA-v5gw-mw7f-84px) in 0.27.0, [CVE-2024-47874](https://github.com/advisories/GHSA-f96h-pmfr-66vw) in 0.40.0, [CVE-2025-54121](https://github.com/advisories/GHSA-2c2j-9gv5-cj73) in 0.47.2 and [CVE-2025-62727](https://github.com/advisories/GHSA-7f5h-v6xp-fcq8) in 0.49.1. Five are fixed only above it: [CVE-2026-48710](https://github.com/advisories/GHSA-86qp-5c8j-p5mr) in 1.0.1, [CVE-2026-48817](https://github.com/advisories/GHSA-x746-7m8f-x49c) and [CVE-2026-48818](https://github.com/advisories/GHSA-wqp7-x3pw-xc5r) in 1.1.0, [CVE-2026-54282](https://github.com/advisories/GHSA-jp82-jpqv-5vv3) in 1.3.0 and [CVE-2026-54283](https://github.com/advisories/GHSA-82w8-qh3p-5jfq) in 1.3.1. The 1.0.1 fix stops an unvalidated `Host` header poisoning `request.url.path` past a path-based check, and the 1.3.1 fix, rated 7.5, stops `request.form()` ignoring its own body limits. That last precondition is met by committed code: `../backend/app/api/auth.py:L66` parses exactly that body type through `OAuth2PasswordRequestForm`, on a public route | 0.49.3, because 1.0.1 and every later release require Python 3.10 or newer | **No, for five of the ten.** Every fix from 1.0.1 onward is unreachable on Python 3.9 |
+| `bcrypt` | A release `passlib` can actually drive as its bcrypt backend, configured at `../backend/app/core/security.py:L24`. Current 5.0.0 is not such a release, so this row states a compatibility requirement rather than a version floor | None recorded against the distribution. Two separate behaviour facts decide the contract. bcrypt reads at most 72 bytes, and 5.0.0 raises where earlier releases truncated. Passlib 1.7.4 cannot initialise a 5.0.0 backend at all, which [the pairing subsection](#the-passlib-and-bcrypt-pairing-decides-whether-any-password-can-be-hashed) sets out. The docstrings state the contract and point here for the releases, at `../backend/app/core/security.py:L89-L92` and `:L100-L102` | 5.0.0, whose metadata requires Python 3.8 or newer | Not applicable |
+| `starlette` | Any release `fastapi` depends on. Arrives transitively and is named by no committed line | Ten advisories, the largest set on any backend row. Five are fixed at or below 0.49.3: [CVE-2023-30798](https://github.com/advisories/GHSA-74m5-2c7w-9w3x) in 0.25.0, [CVE-2023-29159](https://github.com/advisories/GHSA-v5gw-mw7f-84px) in 0.27.0, [CVE-2024-47874](https://github.com/advisories/GHSA-f96h-pmfr-66vw) in 0.40.0, [CVE-2025-54121](https://github.com/advisories/GHSA-2c2j-9gv5-cj73) in 0.47.2 and [CVE-2025-62727](https://github.com/advisories/GHSA-7f5h-v6xp-fcq8) in 0.49.1. Five are fixed only above it: [CVE-2026-48710](https://github.com/advisories/GHSA-86qp-5c8j-p5mr) in 1.0.1, [CVE-2026-48817](https://github.com/advisories/GHSA-x746-7m8f-x49c) and [CVE-2026-48818](https://github.com/advisories/GHSA-wqp7-x3pw-xc5r) in 1.1.0, [CVE-2026-54282](https://github.com/advisories/GHSA-jp82-jpqv-5vv3) in 1.3.0 and [CVE-2026-54283](https://github.com/advisories/GHSA-82w8-qh3p-5jfq) in 1.3.1. The 1.0.1 fix stops an unvalidated `Host` header poisoning `request.url.path` past a path-based check, and the 1.3.1 fix, rated 7.5, stops `request.form()` ignoring its own body limits. That last precondition is met by committed code: `../backend/app/api/auth.py:L67` parses exactly that body type through `OAuth2PasswordRequestForm`, on a public route | 0.49.3, because 1.0.1 and every later release require Python 3.10 or newer | **No, for five of the ten.** Every fix from 1.0.1 onward is unreachable on Python 3.9 |
 | `ecdsa` | Any release `python-jose` depends on. Arrives transitively and is named by no committed line | Four advisories. Three are fixed at or below 0.19.2: [CVE-2019-14853](https://github.com/advisories/GHSA-pwfw-mgfj-7g3g) and [CVE-2019-14859](https://github.com/advisories/GHSA-8qxj-f9rh-9fg2) in 0.13.3, and [CVE-2026-33936](https://github.com/advisories/GHSA-9f5j-8jwj-x28g) in 0.19.2. That third one is where `remove_octet_string()` accepts a DER length longer than the buffer, so `SigningKey.from_der()` raises `IndexError` instead of rejecting the input. No committed line calls `from_der`, so that third precondition rests on `python-jose` rather than on this repository. The fourth is [CVE-2024-23342](https://github.com/advisories/GHSA-wj6h-64fc-37mp), the Minerva timing attack on the P-256 curve, which reaches signing, key generation and key exchange, leaves signature verification unaffected, and has no planned fix | 0.19.2 | **Mixed.** All three fixed advisories are reachable at 0.19.2. Minerva has no fix anywhere. Its precondition is an elliptic-curve `ALGORITHM` value. `backend/app/core/config.py:L44` declares `ALGORITHM: str` with no committed value, no default, no validator and no allowed-value list, so the algorithm a deployment would select is unestablished rather than excluded |
 | `pyasn1` | Any release `python-jose` depends on, by way of `rsa`. Arrives transitively and is named by no committed line | Five advisories, each rated 7.5 and each a denial of service in the BER, CER and DER codecs. [CVE-2026-23490](https://github.com/advisories/GHSA-63vm-454h-vhhq) memory exhaustion from a malformed RELATIVE-OID, fixed in 0.6.2. [CVE-2026-30922](https://github.com/advisories/GHSA-jr27-m4p2-rc6r) unbounded recursion, fixed in 0.6.3. Then three published together on 21 July 2026, all fixed in 0.6.4. They are [CVE-2026-59884](https://github.com/advisories/GHSA-m4p7-r5rc-7g4j) unbounded long-form tag identifiers, [CVE-2026-59885](https://github.com/advisories/GHSA-8ppf-4f7h-5ppj) quadratic OBJECT IDENTIFIER and RELATIVE-OID processing, and [CVE-2026-59886](https://github.com/advisories/GHSA-hm4w-wwcw-mr6r) uncontrolled consumption converting a decoded REAL value | 0.6.4 | **Yes.** 0.6.4 carries all five fixes and installs on Python 3.9 |
-| `passlib` | Any release exposing `CryptContext`, imported at `../backend/app/core/security.py:L17` | None recorded against the distribution. The distribution's last release is 1.7.4, dated 8 October 2020, and its bcrypt backend cannot drive bcrypt 5.0.0. [The pairing subsection](#the-passlib-and-bcrypt-pairing-decides-whether-any-password-can-be-hashed) carries the mechanism and the two ways out | 1.7.4, which declares no Python floor | Not applicable |
+| `passlib` | Any release exposing `CryptContext`, imported at `../backend/app/core/security.py:L19` | None recorded against the distribution. The distribution's last release is 1.7.4, dated 8 October 2020, and its bcrypt backend cannot drive bcrypt 5.0.0. [The pairing subsection](#the-passlib-and-bcrypt-pairing-decides-whether-any-password-can-be-hashed) carries the mechanism and the two ways out | 1.7.4, which declares no Python floor | Not applicable |
 | `rsa` | Any release `python-jose` depends on for RSA key handling. Arrives transitively and is named by no committed line | Three advisories: [CVE-2016-1494](https://github.com/advisories/GHSA-8rjr-6qq5-pj9p) signature spoofing, fixed in 3.3; [CVE-2020-13757](https://github.com/advisories/GHSA-537h-rv9q-vvph) denial of service decrypting a crafted ciphertext, fixed in 4.1; and [CVE-2020-25658](https://github.com/advisories/GHSA-xrx6-fmxq-rjj2) a Bleichenbacher timing attack, fixed in 4.7 | 4.9.1 | **Yes.** 4.9.1 carries all three fixes. The precondition for the timing attack is an RSA `ALGORITHM` value, which no committed file selects |
 | `redis` | Any release a Celery worker could use against the `REDIS_URL` declared at `../backend/app/core/config.py:L47`. No committed line imports it | Two advisories, both a race condition where a cancelled command leaks its response to the next caller on the same connection. [CVE-2023-28858](https://github.com/advisories/GHSA-24wv-mv5m-xv4h) is fixed in 4.3.6, 4.4.3 and 4.5.3. [CVE-2023-28859](https://github.com/advisories/GHSA-8fww-64cx-x8p5), the follow-up for an incomplete first fix, is fixed in 4.4.4 and 4.5.4 | 7.0.1 | **Yes.** 7.0.1 carries both fixes. The precondition needs `asyncio` cancellation against a live broker, and Compose declares no Redis service while Terraform declares no Memorystore instance |
 | `cryptography` | Any release `python-jose` can use once `settings.ALGORITHM` names an RSA or ECDSA algorithm. No committed line imports it | Twenty-four advisories, the longest history in this register, spanning 2018 to 2026. Every fix lands at or below 50.0.0. The three most recent were published together on 3 August 2026: [CVE-2026-69247](https://github.com/advisories/GHSA-g6cj-pr64-35w5), fixed in 50.0.0, and [CVE-2026-69248](https://github.com/advisories/GHSA-m2h6-j472-rp4c) with [CVE-2026-69249](https://github.com/advisories/GHSA-jwv3-5hgf-82ww), both fixed in 49.0.0 | Depends on the patch level. 50.0.0 declares `!=3.9.0,!=3.9.1,>=3.9`, so a 3.9.2 interpreter reaches it while a 3.9.0 or 3.9.1 interpreter is capped at 43.0.3 | **Yes on Python 3.9.2 or newer.** On 3.9.0 or 3.9.1 the 43.0.3 ceiling misses ten fixes, including all three from August 2026 |
-| `python-dotenv` | Any release Pydantic 1.x can use to read the `Config.env_file` value at `../backend/app/core/config.py:L58`. Loaded only when that file exists | [CVE-2026-28684](https://github.com/advisories/GHSA-mf9w-mj56-hr94), symlink following in `set_key` that overwrites an arbitrary file through a cross-device rename fallback, fixed in 1.2.2 | 1.2.1, because 1.2.2 requires Python 3.10 or newer | **No.** The fix is unreachable on Python 3.9. The precondition is a call to `set_key`, and no committed line writes a `.env` file: this repository only ever reads one |
+| `python-dotenv` | Any release Pydantic 1.x can use to read the `Config.env_file` value at `../backend/app/core/config.py:L60`. Loaded only when that file exists | [CVE-2026-28684](https://github.com/advisories/GHSA-mf9w-mj56-hr94), symlink following in `set_key` that overwrites an arbitrary file through a cross-device rename fallback, fixed in 1.2.2 | 1.2.1, because 1.2.2 requires Python 3.10 or newer | **No.** The fix is unreachable on Python 3.9. The precondition is a call to `set_key`, and no committed line writes a `.env` file: this repository only ever reads one |
 
 Three rows carry a fix that Python 3.9 cannot reach, and together they hold the register's sharpest
 finding. `python-multipart` is capped at 0.0.20 while seven of its nine advisories are fixed only from
@@ -555,7 +555,7 @@ grows, so a reader repairing this repository should re-query rather than trust t
 #### The passlib and bcrypt pairing decides whether any password can be hashed
 
 Two rows above carry no advisory and still decide the outcome of registration and login.
-`../backend/app/core/security.py:L22` and `../backend/app/api/auth.py:L24` each build a passlib
+`../backend/app/core/security.py:L24` and `../backend/app/api/auth.py:L25` each build a passlib
 `CryptContext` with the bcrypt scheme, so every hash and every verify reaches bcrypt through passlib.
 No manifest pins either distribution, which leaves the pair to whatever `pip install passlib bcrypt`
 resolves on the day.
@@ -657,7 +657,7 @@ install` resolves 1,532 packages in total. An advisory inside a transitive depen
 | 34 | `pyasn1` | PyPI, required, transitive with `rsa` | Whatever `rsa` resolves | Risk table | 0.6.4 on Python 3.9, and all five fixes are reachable there |
 | 35 | `passlib` | PyPI, required | Any release exposing `CryptContext` | None recorded | 1.7.4, dated 8 October 2020 and the last release, which declares no Python floor. Does not depend on `bcrypt`, which is why row 36 has to be installed by hand |
 | 36 | `bcrypt` | PyPI, required, declared by nothing | A release `passlib` can actually drive, which excludes current 5.0.0 | None recorded | 5.0.0 on Python 3.9. Two facts combine. Release 5.0.0 raises `ValueError` above 72 bytes where earlier releases truncate, and passlib 1.7.4 cannot initialise a 5.0.0 backend at all, so every hash and verify raises. [The pairing subsection](#the-passlib-and-bcrypt-pairing-decides-whether-any-password-can-be-hashed) carries the mechanism, and entry 4 in G9.1 records what it means for registration |
-| 37 | `python-multipart` | PyPI, required, declared by nothing | Any release FastAPI can use to parse the form body at `../backend/app/api/auth.py:L66` | Risk table | 0.0.20 on Python 3.9, and seven of the nine fixes land only from 0.0.22, which needs Python 3.10 |
+| 37 | `python-multipart` | PyPI, required, declared by nothing | Any release FastAPI can use to parse the form body at `../backend/app/api/auth.py:L67` | Risk table | 0.0.20 on Python 3.9, and seven of the nine fixes land only from 0.0.22, which needs Python 3.10 |
 | 38 | `google-cloud-firestore` | PyPI, required | Any release exposing `Client`, imported at `../backend/app/db/firestore.py` | None recorded | 2.27.0 on Python 3.9 |
 | 39 | `google-cloud-storage` | PyPI, required | Any release exposing `Client`, used by the export path | None recorded | 3.9.0 on Python 3.9 |
 | 40 | `google-cloud-pubsub` | PyPI, required | Any release exposing `PublisherClient` and `SubscriberClient` | None recorded | 2.38.0 on Python 3.9. No route constructs the collaboration service, so nothing loads it today |
@@ -667,7 +667,7 @@ install` resolves 1,532 packages in total. An advisory inside a transitive depen
 | 44 | `psycopg2-binary` | PyPI, conditional | Needed once the Cloud SQL path is exercised through `DATABASE_URL` | None recorded | 2.9.12 on Python 3.9 |
 | 45 | `redis` | PyPI, conditional | Needed once a Celery worker attaches to `REDIS_URL` | Risk table | 7.0.1 on Python 3.9, which carries both fixes. Compose declares no Redis service and Terraform declares no Memorystore instance |
 | 46 | `cryptography` | PyPI, conditional | Needed once `settings.ALGORITHM` names an RSA or ECDSA algorithm | Risk table | 50.0.0 on Python 3.9.2 or newer, because 50.0.0 declares `!=3.9.0,!=3.9.1,>=3.9`. A 3.9.0 or 3.9.1 interpreter is capped at 43.0.3 and misses ten fixes |
-| 47 | `python-dotenv` | PyPI, conditional | Needed by Pydantic 1.x to read the `Config.env_file` value at `../backend/app/core/config.py:L58` | Risk table | 1.2.1 on Python 3.9, and the fix in 1.2.2 needs Python 3.10, so it is unreachable. The read happens only when the named file is found, so an absent `.env` hides the absent distribution. No committed line calls `set_key` |
+| 47 | `python-dotenv` | PyPI, conditional | Needed by Pydantic 1.x to read the `Config.env_file` value at `../backend/app/core/config.py:L60` | Risk table | 1.2.1 on Python 3.9, and the fix in 1.2.2 needs Python 3.10, so it is unreachable. The read happens only when the named file is found, so an absent `.env` hides the absent distribution. No committed line calls `set_key` |
 
 **The npm advisories.** Four of the 26 npm rows carry an advisory that reaches a release this code
 could load. These columns ask a Node question rather than a Python one, which is why they sit apart
@@ -717,11 +717,11 @@ catches none of them on the Python side, because the modules fail earlier at imp
 | Call site | Call | Target signature | Disagreement |
 | ----------- | ------ | ------------------ | -------------- |
 | `backend/app/api/documents.py:L46` | `create_document(document, current_user)` | `create_document(self, document: DocumentCreate, user_id: str)` at `backend/app/services/document_service.py:L42` | Passes a `User` object where the signature declares `user_id: str` |
-| `backend/app/api/documents.py:L91` | `get_document(document_id)` | `get_document(self, document_id: str, user_id: str)` at `backend/app/services/document_service.py:L78` | One argument against two parameters, so the ownership check cannot run |
-| `backend/app/api/documents.py:L120` | `get_document(document_id)` | the same two-parameter signature | One argument against two |
-| `backend/app/api/documents.py:L146` | `get_document(document_id)` | the same two-parameter signature | One argument against two |
-| `backend/app/api/documents.py:L123` | `update_document(document_id, document)` | `update_document(self, document_id: str, document: DocumentUpdate, user_id: str)` at `backend/app/services/document_service.py:L116` | Two arguments against three parameters |
-| `backend/app/api/documents.py:L149` | `delete_document(document_id)` | `delete_document(self, document_id: str, user_id: str)` at `backend/app/services/document_service.py:L159` | One argument against two |
+| `backend/app/api/documents.py:L93` | `get_document(document_id)` | `get_document(self, document_id: str, user_id: str)` at `backend/app/services/document_service.py:L78` | One argument against two parameters, so the ownership check cannot run |
+| `backend/app/api/documents.py:L125` | `get_document(document_id)` | the same two-parameter signature | One argument against two |
+| `backend/app/api/documents.py:L153` | `get_document(document_id)` | the same two-parameter signature | One argument against two |
+| `backend/app/api/documents.py:L128` | `update_document(document_id, document)` | `update_document(self, document_id: str, document: DocumentUpdate, user_id: str)` at `backend/app/services/document_service.py:L116` | Two arguments against three parameters |
+| `backend/app/api/documents.py:L156` | `delete_document(document_id)` | `delete_document(self, document_id: str, user_id: str)` at `backend/app/services/document_service.py:L159` | One argument against two |
 | `backend/app/tasks/background_tasks.py:L135` | `get_document(document_id)` | the same two-parameter signature | One argument against two |
 | `frontend/src/components/Toolbar.tsx:L45` | `applyInlineStyle(style)` | `applyInlineStyle(editorState: EditorState, inlineStyle: string)` at `frontend/src/utils/formatting.ts:L24` | One argument against two, and the missing argument is the editor state the helper transforms |
 | `frontend/src/components/Toolbar.tsx:L56` | `applyBlockStyle(style)` | `applyBlockStyle(editorState: EditorState, blockType: string)` at `frontend/src/utils/formatting.ts:L45` | One argument against two |
@@ -852,7 +852,7 @@ and prefers none. The full treatment sits in [data-model.md](data-model.md), and
 | Position | Locator | Field |
 | ---------- | --------- | ------- |
 | The Pydantic document contract | `backend/app/schema/document.py:L28`, on `DocumentBase` and inherited by `Document` | `owner_id: Optional[str] = None` |
-| The Pydantic version contract | `backend/app/schema/document.py:L84`, on `DocumentVersion` | `user_id: str` |
+| The Pydantic version contract | `backend/app/schema/document.py:L85`, on `DocumentVersion` | `user_id: str` |
 | The document service | `backend/app/services/document_service.py:L71` writes it, and `:L108`, `:L148` and `:L184` compare it | `user_id` |
 | The in-repository specification, declared intent | `documentation/Technical Specifications.md:L333`, `:L375`, `:L383`, under the SYSTEM DESIGN heading at `L300` | `owner_id` |
 
@@ -863,7 +863,7 @@ a `Document` validates successfully without the field that authorization depends
 never requires the value the ownership check reads.
 
 The second: the document router reads `.user_id` off objects typed as `Document` at
-`backend/app/api/documents.py:L92`, `:L121` and `:L147`. The router follows the service convention
+`backend/app/api/documents.py:L94`, `:L126` and `:L154`. The router follows the service convention
 rather than the contract its own type annotation names. The client repeats the same split, with
 `owner_id` at `frontend/src/schema/document.ts:L27` and `user_id` at `:L44`.
 
@@ -871,23 +871,23 @@ rather than the contract its own type annotation names. The client repeats the s
 
 | Divergence | Client or consumer | Server or contract |
 | ------------ | -------------------- | -------------------- |
-| Access token field | `frontend/src/services/auth.ts:L37` reads `response.data.accessToken` and stores it at `:L38` | The token handler at `backend/app/api/auth.py:L65-L66` follows the OAuth2 convention and returns `access_token` |
+| Access token field | `frontend/src/services/auth.ts:L38` reads `response.data.accessToken` and stores it at `:L39` | The token handler at `backend/app/api/auth.py:L66-L67` follows the OAuth2 convention and returns `access_token` |
 | Base URL variable | `frontend/src/services/api.ts:L21` reads `process.env.REACT_APP_API_BASE_URL` | `infrastructure/docker/docker-compose.yml:L11` injects `REACT_APP_API_URL`. The names never meet, so the client resolves an undefined base URL |
-| User display name | `frontend/src/components/Header.tsx:L52-L53`, `frontend/src/pages/Home.tsx:L35` and `frontend/src/pages/Settings.tsx:L36` read `currentUser.name` | `backend/app/schema/user.py:L27-L28` models `username` and `full_name`. No contract declares `name` |
-| User avatar | `frontend/src/components/Header.tsx:L52` reads `currentUser.avatar` | No contract in either language declares `avatar` |
+| User display name | `frontend/src/components/Header.tsx:L51-L52`, `frontend/src/pages/Home.tsx:L35` and `frontend/src/pages/Settings.tsx:L36` read `currentUser.name` | `backend/app/schema/user.py:L27-L28` models `username` and `full_name`. No contract declares `name` |
+| User avatar | `frontend/src/components/Header.tsx:L51` reads `currentUser.avatar` | No contract in either language declares `avatar` |
 | Page count | `backend/app/tasks/background_tasks.py:L139` reads `len(document.pages)` | `backend/app/schema/document.py` declares no `pages` field on any of its five models |
 | User update timestamp | `frontend/src/schema/user.ts` omits `updated_at` | `backend/app/schema/user.py:L70` declares `updated_at: datetime` as required |
 | Template shape | `frontend/src/pages/Templates.tsx` declares a local `Template` interface incompatible with the Zod schema at `frontend/src/schema/template.ts:L31` | The backend declares no template contract at all, per [G1](#g1-absent-modules-referenced-by-committed-code) |
 | Timestamp type | `frontend/src/schema/document.ts:L28-L29` and `:L43` use `z.date()`, which rejects a string | Every timestamp crossing the boundary arrives as a JavaScript Object Notation (JSON) string, so validation fails on well-formed server data |
 | Collaborator list | `frontend/src/schema/document.ts:L30` declares `collaborators: z.array(z.string())` | No Pydantic model declares a collaborator field, and no handler returns one |
-| Password storage | `backend/app/api/auth.py:L139` computes a bcrypt hash during registration | The `User` contract at `backend/app/schema/user.py:L56` declares no password field, so the response model has nowhere to carry the hash. `UserCreate` declares `password` at `:L38` |
+| Password storage | `backend/app/api/auth.py:L134` computes a bcrypt hash during registration | The `User` contract at `backend/app/schema/user.py:L56` declares no password field, so the response model has nowhere to carry the hash. `UserCreate` declares `password` at `:L38` |
 
-Required fields that no code path writes compound the drift. `backend/app/schema/document.py:L63`
-and `:L64` declare `created_at` and `updated_at` as required on `Document`, and no service method
+Required fields that no code path writes compound the drift. `backend/app/schema/document.py:L64`
+and `:L65` declare `created_at` and `updated_at` as required on `Document`, and no service method
 sets either. `backend/app/schema/user.py:L71-L72` declare `is_active` and `is_superuser`, and no
 code path reads either.
 
-`backend/app/schema/document.py:L39` declares `DocumentUpdate` without inheriting `DocumentBase`,
+`backend/app/schema/document.py:L40` declares `DocumentUpdate` without inheriting `DocumentBase`,
 so the update contract shares no field definitions with the model it updates. Both schema modules
 import `List` and never use it, at `backend/app/schema/document.py:L13` and
 `backend/app/schema/user.py:L14`.
@@ -905,20 +905,20 @@ protocol at each end.
 
 | Client call | Locator | Server route | Locator |
 | ------------- | --------- | -------------- | --------- |
-| `POST /auth/login` | `frontend/src/services/auth.ts:L36` | `POST /token` | `backend/app/api/auth.py:L65` |
-| `POST /auth/logout` | `frontend/src/services/auth.ts:L54` | none. No handler implements logout | n/a |
-| `GET /auth/me` | `frontend/src/services/auth.ts:L71` | `GET /me` | `backend/app/api/users.py:L19` |
+| `POST /auth/login` | `frontend/src/services/auth.ts:L37` | `POST /token` | `backend/app/api/auth.py:L66` |
+| `POST /auth/logout` | `frontend/src/services/auth.ts:L55` | none. No handler implements logout | n/a |
+| `GET /auth/me` | `frontend/src/services/auth.ts:L72` | `GET /me` | `backend/app/api/users.py:L19` |
 | `GET /documents` | `frontend/src/services/api.ts:L70` | `GET /` | `backend/app/api/documents.py:L49` |
-| `POST /documents` | `frontend/src/services/api.ts:L82` | `POST /` | `backend/app/api/documents.py:L24` |
-| `PUT /documents/{id}` | `frontend/src/services/api.ts:L95` | `PUT /{document_id}` | `backend/app/api/documents.py:L96` |
+| `POST /documents` | `frontend/src/services/api.ts:L83` | `POST /` | `backend/app/api/documents.py:L24` |
+| `PUT /documents/{id}` | `frontend/src/services/api.ts:L96` | `PUT /{document_id}` | `backend/app/api/documents.py:L98` |
 
 The login call carries two further mismatches that survive a path correction. First, encoding:
-`frontend/src/services/auth.ts:L36` passes a plain object to `axios.post`, and Axios serializes a
+`frontend/src/services/auth.ts:L37` passes a plain object to `axios.post`, and Axios serializes a
 plain object as JSON under `Content-Type: application/json`, while
-`form_data: OAuth2PasswordRequestForm = Depends()` at `backend/app/api/auth.py:L66` reads an
+`form_data: OAuth2PasswordRequestForm = Depends()` at `backend/app/api/auth.py:L67` reads an
 `application/x-www-form-urlencoded` body. FastAPI answers **422** before the handler body runs. Second,
 field name: the client sends `email` and `password`, and `OAuth2PasswordRequestForm` supplies
-`username` and `password`, which `backend/app/api/auth.py:L90` reads as `form_data.username`. No
+`username` and `password`, which `backend/app/api/auth.py:L91` reads as `form_data.username`. No
 submitted field carries the identifier the handler reads.
 
 The document prefix mismatch has a single cause. `backend/app/main.py:L84-L87` calls
@@ -932,16 +932,16 @@ are repaired, so dispatch actually happens.
 
 | Client call | Locator | Dispatch outcome |
 |-------------|---------|------------------|
-| `GET /documents` | `frontend/src/services/api.ts:L70` | `/documents` is one path segment, so it matches `GET /{document_id}` at `backend/app/api/documents.py:L68`, `document_id` binds to the literal string `documents`, and no body follows. The matched route is protected at `backend/app/api/documents.py:L69`, so the dependency resolves before the body runs, and without a valid token the response is **401** and the handler never executes. For an authenticated caller whose user record resolves, `:L91` passes one argument to the two-parameter `get_document` signature at `backend/app/services/document_service.py:L78`, so a `TypeError` propagates and the response is a **500**. The declared `Document[]` never meets a document object on either path |
-| `POST /documents` | `frontend/src/services/api.ts:L82` | The single-segment shape matches `GET`, `PUT` and `DELETE` at `backend/app/api/documents.py:L68`, `:L96` and `:L126`, and no router declares `POST /{document_id}`. Starlette answers **405 Method Not Allowed**, not 404. Routing settles that before any dependency runs, so the outcome does not depend on credentials |
-| `PUT /documents/{id}` | `frontend/src/services/api.ts:L95` | Two path segments, and no two-segment route exists in any of the four routers. The response is **404**, again settled by routing before any dependency runs, so it too is independent of credentials |
+| `GET /documents` | `frontend/src/services/api.ts:L70` | `/documents` is one path segment, so it matches `GET /{document_id}` at `backend/app/api/documents.py:L68`, `document_id` binds to the literal string `documents`, and no body follows. The matched route is protected at `backend/app/api/documents.py:L69`, so the dependency resolves before the body runs, and without a valid token the response is **401** and the handler never executes. For an authenticated caller whose user record resolves, `:L93` passes one argument to the two-parameter `get_document` signature at `backend/app/services/document_service.py:L78`, so a `TypeError` propagates and the response is a **500**. The declared `Document[]` never meets a document object on either path |
+| `POST /documents` | `frontend/src/services/api.ts:L83` | The single-segment shape matches `GET`, `PUT` and `DELETE` at `backend/app/api/documents.py:L68`, `:L98` and `:L131`, and no router declares `POST /{document_id}`. Starlette answers **405 Method Not Allowed**, not 404. Routing settles that before any dependency runs, so the outcome does not depend on credentials |
+| `PUT /documents/{id}` | `frontend/src/services/api.ts:L96` | Two path segments, and no two-segment route exists in any of the four routers. The response is **404**, again settled by routing before any dependency runs, so it too is independent of credentials |
 
 Four distinct symptoms come from one root cause, and only the first depends on who is calling. `GET`
 answers 401 or 500 according to the credentials presented, while the 405 and the 404 are fixed by
 routing alone. A developer who repairs only the call that returns 404 leaves the other three in place.
 
-`frontend/src/services/auth.ts:L16` imports the bare `axios` global and uses it at `L36`, `:L54`
-and `:L71`, bypassing the configured instance created at `frontend/src/services/api.ts:L61`.
+`frontend/src/services/auth.ts:L16` imports the default `axios` export and uses it at `L37`, `:L55`
+and `:L72`, bypassing the configured instance created at `frontend/src/services/api.ts:L60`.
 Requests from the authentication module therefore carry neither the base URL nor the bearer
 interceptor.
 
@@ -958,8 +958,8 @@ compile to the same single-segment pattern.
 | `POST /` | `backend/app/api/documents.py:L24` | `backend/app/api/templates.py:L24` |
 | `GET /` | `backend/app/api/documents.py:L49` | `backend/app/api/templates.py:L42` |
 | `GET /{id}` | `backend/app/api/documents.py:L68` | `backend/app/api/templates.py:L59` |
-| `PUT /{id}` | `backend/app/api/documents.py:L96` | `backend/app/api/templates.py:L86` |
-| `DELETE /{id}` | `backend/app/api/documents.py:L126` | `backend/app/api/templates.py:L112` |
+| `PUT /{id}` | `backend/app/api/documents.py:L98` | `backend/app/api/templates.py:L86` |
+| `DELETE /{id}` | `backend/app/api/documents.py:L131` | `backend/app/api/templates.py:L112` |
 
 The profile router declares two literal single-segment paths, and a literal path is still a single
 segment. Both fall inside the pattern the document router already claimed.
@@ -967,7 +967,7 @@ segment. Both fall inside the pattern the document router already claimed.
 | Method and path | Profile handler | Shadowing document handler |
 |-----------------|-----------------|----------------------------|
 | `GET /me` | `backend/app/api/users.py:L19` | `GET /{document_id}` at `backend/app/api/documents.py:L68` |
-| `PUT /me` | `backend/app/api/users.py:L32` | `PUT /{document_id}` at `backend/app/api/documents.py:L96` |
+| `PUT /me` | `backend/app/api/users.py:L32` | `PUT /{document_id}` at `backend/app/api/documents.py:L98` |
 
 `backend/app/main.py:L85` registers the document router first, then `:L86` the profile router and
 `:L87` the template router. Starlette matches routes in registration order and returns the first
@@ -991,16 +991,16 @@ None of the three pairs can meet.
 
 | Client event | Emitted payload | Nearest server counterpart | Why the pair cannot meet |
 | -------------- | ----------------- | ---------------------------- | -------------------------- |
-| `join_document` | the bare `documentId` string, at `frontend/src/services/collaboration.ts:L63` | `CollaborationService.connect` at `backend/app/services/collaboration_service.py:L44` | `connect` declares a `WebSocket`, a `document_id` and a `user_id`. The emit carries one string, no socket object and no user identity |
+| `join_document` | the bare `documentId` string, at `frontend/src/services/collaboration.ts:L65` | `CollaborationService.connect` at `backend/app/services/collaboration_service.py:L44` | `connect` declares a `WebSocket`, a `document_id` and a `user_id`. The emit carries one string, no socket object and no user identity |
 | `leave_document` | the bare `currentDocumentId` string, at `:L76` | `CollaborationService.disconnect` at `backend/app/services/collaboration_service.py:L107` | `disconnect` declares `document_id` and `user_id`. The emit carries the identifier alone, and `:L159` clears it immediately with nothing confirming delivery |
 | `document_changes` | the envelope `{ documentId, changes }`, at `:L96-L99` | `CollaborationService.broadcast_change` at `backend/app/services/collaboration_service.py:L137` | `broadcast_change` declares `document_id` and a `change` dictionary and publishes `json.dumps(change)` at `:L156`. The client nests the change inside an envelope, so the shapes differ even with a route in place |
 
 Socket.IO is a protocol layered over WebSocket rather than a WebSocket client, so the two ends could
 not complete a handshake even with a route between them. No route exists: no module constructs
 `CollaborationService`, and no `@app.websocket` declaration appears anywhere in the backend.
-`frontend/src/services/collaboration.ts:L107` exports the client class, and no module imports it.
+`frontend/src/services/collaboration.ts:L109` exports the client class, and no module imports it.
 
-`setupEventListeners` at `frontend/src/services/collaboration.ts:L47-L52` has a body consisting
+`setupEventListeners` at `frontend/src/services/collaboration.ts:L49-L54` has a body consisting
 only of a marker and comments, so the client registers no inbound handler and would ignore every
 message it received.
 
@@ -1064,15 +1064,15 @@ Three more faults in the same path deserve their own statement:
 ### Route registration and protection
 
 Fourteen handlers exist across the four routers, and twelve sit behind the `get_current_user`
-dependency. The two public handlers are `POST /token` at `backend/app/api/auth.py:L65` and
-`POST /register` at `:L102`. The full route table lives in
+dependency. The two public handlers are `POST /token` at `backend/app/api/auth.py:L66` and
+`POST /register` at `:L103`. The full route table lives in
 [../backend/app/api/README.md](../backend/app/api/README.md).
 
 Two `get_current_user` implementations exist and disagree on status codes. The routers all import
-the one at `backend/app/api/auth.py:L27`, for example at
-`backend/app/api/documents.py:L19`, which raises **404** at `backend/app/api/auth.py:L62` when the
-user is absent. The unused implementation at `backend/app/core/security.py:L119` raises **401** for
-the same condition at `:L162`. A missing user is an authentication failure rather than a missing
+the one at `backend/app/api/auth.py:L28`, for example at
+`backend/app/api/documents.py:L19`, which raises **404** at `backend/app/api/auth.py:L63` when the
+user is absent. The unused implementation at `backend/app/core/security.py:L110` raises **401** for
+the same condition at `:L154`. A missing user is an authentication failure rather than a missing
 resource, and the reachable handler reports the latter.
 
 See [../backend/app/api/README.md](../backend/app/api/README.md),
@@ -1251,7 +1251,7 @@ version 4 signature is computed locally, so the credentials must be able to sign
 do that. The first is a service-account private key, referenced through
 `GOOGLE_APPLICATION_CREDENTIALS`, which `backend/app/core/config.py:L46` declares as `Optional[str]`
 so the field defaults to `None`. No committed `.env` supplies a value, and `Config.env_file` at
-`:L58` names the uncommitted file that Pydantic would read.
+`:L60` names the uncommitted file that Pydantic would read.
 
 The second is an IAM `signBlob` grant, which credentials with no private key must use by delegating
 to the IAM Credentials application programming interface (API). That path needs
@@ -1463,7 +1463,7 @@ the body of `frontend/src/pages/Templates.tsx` across seven. Bespoke semantic cl
 backing stylesheet appear in eight modules: `Footer.tsx`, `Sidebar.tsx`, `Toolbar.tsx`,
 `DocumentCanvas.tsx`, `Home.tsx`, `Editor.tsx`, `Settings.tsx` and the wrapper of `Templates.tsx`. That
 last file therefore uses both conventions at once. The only responsive breakpoint strings anywhere are
-`md:grid-cols-2` and `lg:grid-cols-3`, both at `frontend/src/pages/Templates.tsx:L92`.
+`md:grid-cols-2` and `lg:grid-cols-3`, both at `frontend/src/pages/Templates.tsx:L90`.
 
 ### Frontend framework version mismatches
 
@@ -1479,8 +1479,8 @@ declares `/`, `/editor`, `/templates` and `/settings`.
 
 | Link | Locator |
 | ------ | --------- |
-| `/documents` | `frontend/src/components/Header.tsx:L44` |
-| `/login` | `frontend/src/components/Header.tsx:L56` |
+| `/documents` | `frontend/src/components/Header.tsx:L43` |
+| `/login` | `frontend/src/components/Header.tsx:L55` |
 | `/new-document` | `frontend/src/pages/Home.tsx:L37` |
 | `/open-document` | `frontend/src/pages/Home.tsx:L40` |
 | `/recent-documents` | `frontend/src/pages/Home.tsx:L43` |
@@ -1528,7 +1528,7 @@ asking what is not there.
 
 **Absence and current unreachability are separate facts, and this register states both.** No route
 in `backend/app/` serves a request today, because `import app.main` fails at
-`backend/app/api/auth.py:L19`. A missing check on an unreachable path exposes nothing while the path
+`backend/app/api/auth.py:L20`. A missing check on an unreachable path exposes nothing while the path
 stays unreachable. The moment the import failures at
 [G2](#g2-absent-symbols-inside-modules-that-do-exist) are repaired, every gap below becomes live at
 once. None of them is mentioned in the repair steps that would make them live.
@@ -1547,18 +1547,18 @@ a challenge, and entry 12 records three handlers that attempt an owner compariso
 
 | # | Absent control | Evidence | What the absence permits once routes serve traffic |
 |---|----------------|----------|-----------------------------------------------------|
-| 1 | Rate limiting or throttling on any route, including the two public ones | `backend/app/main.py:L75` adds one middleware, and it is CORS. No limiter, no dependency and no proxy configuration is committed anywhere. The public routes are `backend/app/api/auth.py:L65` (`POST /token`) and `:L102` (`POST /register`) | Unmetered credential guessing against `/token` and unmetered account creation against `/register` |
+| 1 | Rate limiting or throttling on any route, including the two public ones | `backend/app/main.py:L75` adds one middleware, and it is CORS. No limiter, no dependency and no proxy configuration is committed anywhere. The public routes are `backend/app/api/auth.py:L66` (`POST /token`) and `:L103` (`POST /register`) | Unmetered credential guessing against `/token` and unmetered account creation against `/register` |
 | 2 | A request body size limit | No handler, no middleware and no server flag bounds a body. `backend/app/schema/document.py:L27` declares `content` as a bare `str` | A single request can carry an unbounded document body into a Firestore write |
 | 3 | Field length or format bounds on any model field | Neither `backend/app/schema/document.py` nor `backend/app/schema/user.py` contains a single `Field(` call, so no `max_length`, no `min_length` and no pattern applies to any field. `backend/app/schema/user.py:L26` declares `email: str` rather than an email type | Oversized and malformed values validate successfully and reach storage |
-| 4 | A server-side password policy | `backend/app/schema/user.py:L38` declares `password: str` with no constraint, and `backend/app/api/auth.py:L139` hashes whatever arrives through a passlib `CryptContext`. The only policy in the repository is client-side, at `frontend/src/utils/validation.ts:L36-L42`, and a client-side check is not a control | No length or complexity rule applies at the schema, so an empty password validates and reaches the hash. Acceptance and hashing are separate steps, and the hash step's behaviour is decided by the resolved passlib and bcrypt pair, which no committed manifest pins. With passlib 1.7.4 and bcrypt 5.0.0 every call raises `ValueError` whatever the length, which surfaces as an unhandled 500 on the public register route. With a bcrypt release passlib can drive, a password over 72 bytes is truncated, so two longer passwords sharing that prefix authenticate interchangeably. [The pairing subsection](#the-passlib-and-bcrypt-pairing-decides-whether-any-password-can-be-hashed) carries the evidence |
-| 5 | Uniform responses that do not distinguish known accounts | Registration answers a known address with 400 `Email already registered` at `backend/app/api/auth.py:L136-L137`. Login answers a bad credential with 401 `Incorrect username or password` at `:L91-L92`, which is correctly uniform. The registration route is the enumeration oracle | An attacker learns which email addresses hold accounts by submitting registrations |
-| 6 | Any check on `is_active` before a token is honoured | `backend/app/schema/user.py:L71` declares `is_active`, and no code path in the repository reads it. `backend/app/api/auth.py:L63` returns the user immediately after lookup, and `backend/app/core/security.py:L159-L162` does the same in the duplicate dependency | A deactivated account keeps full access for the life of its token |
-| 7 | A `WWW-Authenticate: Bearer` header on every 401 | Two sources answer 401, and only one carries a challenge. `OAuth2PasswordBearer`, constructed at `backend/app/api/auth.py:L23` and `backend/app/core/security.py:L23`, leaves `auto_error` at its default `True`, and FastAPI's OAuth2 base raises `HTTPException(401, headers={"WWW-Authenticate": "Bearer"})` for a missing or non-bearer `Authorization` header, so that path is conformant. The six explicit raises are not, at `backend/app/api/auth.py:L55-L56`, `:L58`, `:L91-L92`, and `backend/app/core/security.py:L155`, `:L157`, `:L162`. None of the six sets a `headers` argument | A client that presents a malformed or expired token, or a valid token for an absent user, receives a 401 with no challenge. The client cannot distinguish that case from an authorization failure by header alone |
-| 8 | Any constraint on the JWT secret, algorithm or lifetime | `backend/app/core/config.py:L42` declares `SECRET_KEY: str`, `:L44` declares `ALGORITHM: str` and `:L43` declares `ACCESS_TOKEN_EXPIRE_MINUTES`, none with a validator, a minimum or an allowed-value list. `backend/app/core/security.py:L54` passes the algorithm value straight to `jwt.encode`, and the two verifying calls pass it to `jwt.decode`, at `backend/app/core/security.py:L152` and `backend/app/api/auth.py:L53` | A weak secret or an indefinite lifetime passes configuration unchallenged. Algorithm choice is set by configuration rather than by an allow-list. Both decode calls restrict verification to the single value `ALGORITHM` names, so an attacker-supplied algorithm is not accepted by these call sites as written |
-| 9 | Issuer, audience and token identifier claims, and any revocation path | `backend/app/api/auth.py:L95-L99` encodes exactly two claims, `sub` and `exp`. The decode at `:L53` reads `sub` only, and `backend/app/core/security.py:L152` does the same | A token cannot be scoped to one service or one audience, and no issued token can be withdrawn before it expires |
-| 10 | A declared, reviewed CORS origin list | `backend/app/main.py:L77` reads `settings.ALLOWED_ORIGINS`, and `backend/app/core/config.py:L40-L48` never declares that field, so the value comes from outside every declared contract. `:L74` sets `allow_credentials=True` while `:L75` and `:L50` allow every method and every header | Credentialed cross-origin access is configured against an origin source no committed file declares or supplies. Which origins a deployment would permit is therefore unreviewable here, and so is whether the list is safe |
+| 4 | A server-side password policy | `backend/app/schema/user.py:L38` declares `password: str` with no constraint, and `backend/app/api/auth.py:L134` hashes whatever arrives through a passlib `CryptContext`. The only policy in the repository is client-side, at `frontend/src/utils/validation.ts:L36-L42`, and a client-side check is not a control | No length or complexity rule applies at the schema, so an empty password validates and reaches the hash. Acceptance and hashing are separate steps, and the hash step's behaviour is decided by the resolved passlib and bcrypt pair, which no committed manifest pins. With passlib 1.7.4 and bcrypt 5.0.0 every call raises `ValueError` whatever the length, which surfaces as an unhandled 500 on the public register route. With a bcrypt release passlib can drive, a password over 72 bytes is truncated, so two longer passwords sharing that prefix authenticate interchangeably. [The pairing subsection](#the-passlib-and-bcrypt-pairing-decides-whether-any-password-can-be-hashed) carries the evidence |
+| 5 | Uniform responses that do not distinguish known accounts | Registration answers a known address with 400 `Email already registered` at `backend/app/api/auth.py:L131-L132`. Login answers a bad credential with 401 `Incorrect username or password` at `:L92-L93`, which is correctly uniform. The registration route is the enumeration oracle | An attacker learns which email addresses hold accounts by submitting registrations |
+| 6 | Any check on `is_active` before a token is honoured | `backend/app/schema/user.py:L71` declares `is_active`, and no code path in the repository reads it. `backend/app/api/auth.py:L64` returns the user immediately after lookup, and `backend/app/core/security.py:L151-L154` does the same in the duplicate dependency | A deactivated account keeps full access for the life of its token |
+| 7 | A `WWW-Authenticate: Bearer` header on every 401 | Two sources answer 401, and only one carries a challenge. `OAuth2PasswordBearer`, constructed at `backend/app/api/auth.py:L24` and `backend/app/core/security.py:L25`, leaves `auto_error` at its default `True`, and FastAPI's OAuth2 base raises `HTTPException(401, headers={"WWW-Authenticate": "Bearer"})` for a missing or non-bearer `Authorization` header, so that path is conformant. The six explicit raises are not, at `backend/app/api/auth.py:L56-L57`, `:L59`, `:L92-L93`, and `backend/app/core/security.py:L147`, `:L149`, `:L154`. None of the six sets a `headers` argument | A client that presents a malformed or expired token, or a valid token for an absent user, receives a 401 with no challenge. The client cannot distinguish that case from an authorization failure by header alone |
+| 8 | Any constraint on the JWT secret, algorithm or lifetime | `backend/app/core/config.py:L42` declares `SECRET_KEY: str`, `:L44` declares `ALGORITHM: str` and `:L43` declares `ACCESS_TOKEN_EXPIRE_MINUTES`, none with a validator, a minimum or an allowed-value list. `backend/app/core/security.py:L56` passes the algorithm value straight to `jwt.encode`, and the two verifying calls pass it to `jwt.decode`, at `backend/app/core/security.py:L144` and `backend/app/api/auth.py:L54` | A weak secret or an indefinite lifetime passes configuration unchallenged. Algorithm choice is set by configuration rather than by an allow-list. Both decode calls restrict verification to the single value `ALGORITHM` names, so an attacker-supplied algorithm is not accepted by these call sites as written |
+| 9 | Issuer, audience and token identifier claims, and any revocation path | `backend/app/api/auth.py:L96-L100` encodes exactly two claims, `sub` and `exp`. The decode at `:L54` reads `sub` only, and `backend/app/core/security.py:L144` does the same | A token cannot be scoped to one service or one audience, and no issued token can be withdrawn before it expires |
+| 10 | A declared, reviewed CORS origin list | `backend/app/main.py:L77` reads `settings.ALLOWED_ORIGINS`, and `backend/app/core/config.py:L40-L48` never declares that field, so the value comes from outside every declared contract. `backend/app/main.py:L78` sets `allow_credentials=True` while `:L79` and `:L80` allow every method and every header | Credentialed cross-origin access is configured against an origin source no committed file declares or supplies. Which origins a deployment would permit is therefore unreviewable here, and so is whether the list is safe |
 | 11 | Object-level authorization on any template route | `backend/app/api/templates.py:L81`, `:L107` and `:L131` delegate to a `TemplateService`, and no file exists at `backend/app/services/template_service.py`. The 404 detail at `:L83` reads `Template not found`, while `:L109` and `:L133` read `Template not found or user not authorized`, so two of the three messages promise a check that no committed code performs | Unestablished. No router line performs a check, and the delegate that would is absent, so what a template request authorizes cannot be read from this repository. Two of the three messages advertise a check, which is enough to make a reader assume one runs |
-| 12 | Enforced object-level authorization on any of the twelve protected handlers | Of the fourteen handlers, twelve require a bearer token and two are public, at `backend/app/api/auth.py:L65` and `:L102`, and the twelve split four ways. Three attempt an owner comparison, at `backend/app/api/documents.py:L92`, `:L121` and `:L147`, each raising 403 at `:L93`, `:L122` and `:L148`, and none of the three reaches its comparison. Two are self-scoped by the token, at `backend/app/api/users.py:L20` and `:L33`, and one is the create path at `backend/app/api/documents.py:L46`, which fails before it persists. Six leave object scope unestablished, and the paragraph below takes each group in turn | Bearer authentication alone decides access on the document list handler and the five template handlers, and none of the six can be shown to scope its result to the caller. No object check is enforced anywhere today |
+| 12 | Enforced object-level authorization on any of the twelve protected handlers | Of the fourteen handlers, twelve require a bearer token and two are public, at `backend/app/api/auth.py:L66` and `:L103`, and the twelve split four ways. Three attempt an owner comparison, at `backend/app/api/documents.py:L94`, `:L126` and `:L154`, each raising 403 at `:L95`, `:L127` and `:L155`, and none of the three reaches its comparison. Two are self-scoped by the token, at `backend/app/api/users.py:L20` and `:L33`, and one is the create path at `backend/app/api/documents.py:L46`, which fails before it persists. Six leave object scope unestablished, and the paragraph below takes each group in turn | Bearer authentication alone decides access on the document list handler and the five template handlers, and none of the six can be shown to scope its result to the caller. No object check is enforced anywhere today |
 
 The twelve protected handlers do not all mean the same thing, and entry 12 counts only the ones where
 the absence matters. Four groups divide them.
@@ -1595,12 +1595,12 @@ are absent from its source regardless.
 
 | # | Absent control | Evidence | What the absence permits |
 |---|----------------|----------|--------------------------|
-| 13 | Storage of the bearer token outside script-readable persistence | `frontend/src/services/auth.ts:L38` writes the login response value to `localStorage`, which persists past the tab and is readable by any script on the origin. Nothing reads it back. `frontend/src/services/api.ts:L40` reads `auth.token` from the Redux store instead, a key `frontend/src/store/index.ts` never registers, so the request interceptor throws and no request carries an `Authorization` header. The two stores are disconnected, and the write itself stores the string `"undefined"` today, because `frontend/src/services/auth.ts:L37` reads `accessToken` from a response that returns `access_token` | Any injected or third-party script on the origin reads whatever the write persists, and it survives the session. Reconciling the field name and the store turns that value into a live bearer token in the same place |
-| 14 | Redaction before an error is logged | `frontend/src/services/auth.ts:L57`, `frontend/src/pages/Editor.tsx:L53` and `:L86`, `frontend/src/pages/Templates.tsx:L65` and `frontend/src/pages/Settings.tsx:L54` each pass a whole error object to `console.error`. An Axios error carries the request configuration, which includes the `Authorization` header, the full URL and the request body | Nothing leaks today, because the client cannot build and no request carries a token. Once the blockers clear, any failed request whose configuration holds a bearer token or a document body puts both in the browser console and in anything that collects from it |
+| 13 | Storage of the bearer token outside script-readable persistence | `frontend/src/services/auth.ts:L39` writes the login response value to `localStorage`, which persists past the tab and is readable by any script on the origin. Nothing reads it back. `frontend/src/services/api.ts:L40` reads `auth.token` from the Redux store instead, a key `frontend/src/store/index.ts` never registers, so the request interceptor throws and no request carries an `Authorization` header. The two stores are disconnected, and the write itself stores the string `"undefined"` today, because `frontend/src/services/auth.ts:L38` reads `accessToken` from a response that returns `access_token` | Any injected or third-party script on the origin reads whatever the write persists, and it survives the session. Reconciling the field name and the store turns that value into a live bearer token in the same place |
+| 14 | Redaction before an error is logged | `frontend/src/services/auth.ts:L58`, `frontend/src/pages/Editor.tsx:L53` and `:L86`, `frontend/src/pages/Templates.tsx:L63` and `frontend/src/pages/Settings.tsx:L54` each pass a whole error object to `console.error`. An Axios error carries the request configuration, which includes the `Authorization` header, the full URL and the request body | Nothing leaks today, because the client cannot build and no request carries a token. Once the blockers clear, any failed request whose configuration holds a bearer token or a document body puts both in the browser console and in anything that collects from it |
 | 15 | A request timeout or a cancellation path | `frontend/src/services/api.ts:L32-L34` creates the Axios instance with a `baseURL` and no `timeout`, and no call site passes an `AbortSignal` | A request hangs indefinitely, and no in-flight request can be withdrawn |
 | 16 | Ordering protection on the auto-save path | `frontend/src/pages/Editor.tsx:L91` schedules a save five seconds after the last edit, and nothing tracks whether an earlier save is still in flight | A slower earlier save can land after a later one and overwrite newer content |
-| 17 | Any applied response validation | Four Zod object schemas exist across the three modules under `frontend/src/schema/`, and no module passes a server response through any of them. `frontend/src/services/auth.ts:L72` asserts `as User` instead, which is a compile-time claim that checks nothing at runtime | Server responses are trusted unvalidated, and a schema that exists gives no protection |
-| 18 | An allow-list on remote image sources | `frontend/src/components/Header.tsx:L52` renders `currentUser.avatar` and `frontend/src/pages/Templates.tsx:L100` renders `template.thumbnail`, both as an unconstrained `src`. Neither carries a `referrerPolicy`, and no Content Security Policy is committed | A stored URL causes the browser to contact an arbitrary host, disclosing the viewer address and referrer to it |
+| 17 | Any applied response validation | Four Zod object schemas exist across the three modules under `frontend/src/schema/`, and no module passes a server response through any of them. `frontend/src/services/auth.ts:L73` asserts `as User` instead, which is a compile-time claim that checks nothing at runtime | Server responses are trusted unvalidated, and a schema that exists gives no protection |
+| 18 | An allow-list on remote image sources | `frontend/src/components/Header.tsx:L51` renders `currentUser.avatar` and `frontend/src/pages/Templates.tsx:L98` renders `template.thumbnail`, both as an unconstrained `src`. Neither carries a `referrerPolicy`, and no Content Security Policy is committed | A stored URL causes the browser to contact an arbitrary host, disclosing the viewer address and referrer to it |
 
 One frontend absence is easy to misread. `frontend/src/utils/validation.ts` expresses its email and
 password rules correctly, and it is still not a control. The module cannot resolve its `zod` import,
@@ -1679,7 +1679,7 @@ Limitations numbering, so match them on the locator rather than on the entry num
 - [../backend/app/core/README.md](../backend/app/core/README.md) owns entries 8 through 10
 - [../frontend/src/services/README.md](../frontend/src/services/README.md) owns entries 13 through 15 and 17
 - [../frontend/src/pages/README.md](../frontend/src/pages/README.md) owns entries 14, 16 and 18
-- [../frontend/src/components/README.md](../frontend/src/components/README.md) owns entry 18, for the `Header.tsx:L52` call site
+- [../frontend/src/components/README.md](../frontend/src/components/README.md) owns entry 18, for the `Header.tsx:L51` call site
 - [../backend/app/services/README.md](../backend/app/services/README.md) owns entries 19 through 22, 22a, 25 and 26
 - [../backend/app/tasks/README.md](../backend/app/tasks/README.md) owns entries 23 and 24
 - [../.github/workflows/README.md](../.github/workflows/README.md) owns entries 27 through 32
@@ -1756,7 +1756,7 @@ measures a preservation obligation, not the coverage denominators used here.
 | `backend/app/main.py:L49` | TODO | Database migration logic is unimplemented, inside the startup handler that awaits the absent `init_db` | [G1](#g1-absent-modules-referenced-by-committed-code) |
 | `backend/app/main.py:L72` | TODO | Shutdown cleanup tasks are unimplemented | none |
 | `backend/app/api/users.py:L54` | marker | The code assumes a `UserService` class with an `update_user` method, and asks for verification | [G1](#g1-absent-modules-referenced-by-committed-code) |
-| `backend/app/core/security.py:L115` | marker | `get_current_user` needs review for its integration with the `User` model and `UserService`, neither of which this module imports | [G3](#g3-undefined-names-that-raise-at-execution) |
+| `backend/app/core/security.py:L106` | marker | `get_current_user` needs review for its integration with the `User` model and `UserService`, neither of which this module imports | [G3](#g3-undefined-names-that-raise-at-execution) |
 | `backend/app/services/document_service.py:L114` | marker | Asks for error handling and validation on `update_document`, the method the router calls with two arguments against three parameters | [G5 argument count](#argument-count-and-type) |
 | `backend/app/services/collaboration_service.py:L42` | marker | `connect` carries a stated confidence of 0.6 and is not production ready | [G7 collaboration path](#the-collaboration-path-has-no-route-and-two-protocols) |
 | `backend/app/services/collaboration_service.py:L135` | marker | `broadcast_change` carries a stated confidence of 0.7 and is not production ready | [G3](#g3-undefined-names-that-raise-at-execution) |
@@ -1773,10 +1773,10 @@ measures a preservation obligation, not the coverage denominators used here.
 | Location | Kind | What it flags | Class |
 | ---------- | ------ | --------------- | ------- |
 | `frontend/src/components/DocumentCanvas.tsx:L20` | marker | Component confidence below 0.8, on the component carrying the two inverse type errors | [G5 canvas type inversion](#type-inversions-in-the-editor-canvas) |
-| `frontend/src/components/ImageEditor.tsx:L30` | marker | `handleInsertImage` needs review for production readiness | [G1](#g1-absent-modules-referenced-by-committed-code) |
-| `frontend/src/components/ImageEditor.tsx:L59` | marker | The component's rendered structure is unimplemented | [G1](#g1-absent-modules-referenced-by-committed-code) |
-| `frontend/src/components/TableEditor.tsx:L29` | marker | `handleInsertTable` carries a stated confidence of 0.6 | [G1](#g1-absent-modules-referenced-by-committed-code) |
-| `frontend/src/components/TextEditor.tsx:L26` | marker | `handleKeyCommand` needs review for production readiness | none. The module calls both formatting helpers correctly |
+| `frontend/src/components/ImageEditor.tsx:L29` | marker | `handleInsertImage` needs review for production readiness | [G1](#g1-absent-modules-referenced-by-committed-code) |
+| `frontend/src/components/ImageEditor.tsx:L58` | marker | The component's rendered structure is unimplemented | [G1](#g1-absent-modules-referenced-by-committed-code) |
+| `frontend/src/components/TableEditor.tsx:L28` | marker | `handleInsertTable` carries a stated confidence of 0.6 | [G1](#g1-absent-modules-referenced-by-committed-code) |
+| `frontend/src/components/TextEditor.tsx:L26` | marker | `handleKeyCommand` needs review for production readiness | [G5 lowercase inline commands](#argument-count-and-type) |
 | `frontend/src/components/Toolbar.tsx:L19` | marker | The component needs refinement and error handling | [G5 argument count](#argument-count-and-type) |
 | `frontend/src/components/Toolbar.tsx:L67` | TODO | Insert functionality is unimplemented, so the button at `:L84` does nothing | none |
 | `frontend/src/pages/Editor.tsx:L20` | marker | The page needs review for production readiness | [G5 argument count](#argument-count-and-type) |
@@ -1785,15 +1785,15 @@ measures a preservation obligation, not the coverage denominators used here.
 | `frontend/src/pages/Settings.tsx:L18` | marker | The page needs refinement for production readiness | [G2 absent frontend exports](#absent-frontend-exports) |
 | `frontend/src/pages/Settings.tsx:L52` | TODO | No success message follows a settings save | none |
 | `frontend/src/pages/Settings.tsx:L55` | TODO | Save errors produce no user feedback | none |
-| `frontend/src/pages/Templates.tsx:L66` | marker | Carries no body text of its own and sits directly above the TODO at `:L67`, on the template fetch path | [G2 absent frontend exports](#absent-frontend-exports) |
-| `frontend/src/pages/Templates.tsx:L67` | TODO | Template fetch errors have no handling or user feedback | none |
-| `frontend/src/pages/Templates.tsx:L83` | marker | Carries no body text of its own and sits directly above the TODO at `:L84`, on template selection | [G6 divergence table](#field-and-shape-divergences) |
-| `frontend/src/pages/Templates.tsx:L84` | TODO | Selecting a template navigates nowhere, so the card click is terminal | none |
-| `frontend/src/services/collaboration.ts:L48` | marker | Inbound collaboration event listeners are unimplemented, inside the otherwise empty `setupEventListeners` body | [G7 collaboration path](#the-collaboration-path-has-no-route-and-two-protocols) |
-| `frontend/src/services/collaboration.ts:L54` | marker | `joinDocument` emits an event no server route receives | [G7 collaboration path](#the-collaboration-path-has-no-route-and-two-protocols) |
-| `frontend/src/services/collaboration.ts:L81` | marker | `sendChanges` emits a payload shape the server does not expect | [G7 collaboration path](#the-collaboration-path-has-no-route-and-two-protocols) |
-| `frontend/src/store/documentSlice.ts:L95` | marker | The slice lacks asynchronous actions and error handling for document fetch and save | [G2 absent frontend exports](#absent-frontend-exports) |
-| `frontend/src/store/userSlice.ts:L78` | marker | Names three gaps directly, including an `updateUser` action and selectors for state access, both of which four modules already import | [G2 absent frontend exports](#absent-frontend-exports) |
+| `frontend/src/pages/Templates.tsx:L64` | marker | Carries no body text of its own and sits directly above the TODO at `:L65`, on the template fetch path | [G2 absent frontend exports](#absent-frontend-exports) |
+| `frontend/src/pages/Templates.tsx:L65` | TODO | Template fetch errors have no handling or user feedback | none |
+| `frontend/src/pages/Templates.tsx:L81` | marker | Carries no body text of its own and sits directly above the TODO at `:L82`, on template selection | [G6 divergence table](#field-and-shape-divergences) |
+| `frontend/src/pages/Templates.tsx:L82` | TODO | Selecting a template navigates nowhere, so the card click is terminal | none |
+| `frontend/src/services/collaboration.ts:L50` | marker | Inbound collaboration event listeners are unimplemented, inside the otherwise empty `setupEventListeners` body | [G7 collaboration path](#the-collaboration-path-has-no-route-and-two-protocols) |
+| `frontend/src/services/collaboration.ts:L56` | marker | `joinDocument` emits an event no server route receives | [G7 collaboration path](#the-collaboration-path-has-no-route-and-two-protocols) |
+| `frontend/src/services/collaboration.ts:L83` | marker | `sendChanges` emits a payload shape the server does not expect | [G7 collaboration path](#the-collaboration-path-has-no-route-and-two-protocols) |
+| `frontend/src/store/documentSlice.ts:L129` | marker | The slice lacks asynchronous actions and error handling for document fetch and save | [G2 absent frontend exports](#absent-frontend-exports) |
+| `frontend/src/store/userSlice.ts:L102` | marker | Names three gaps directly, including an `updateUser` action and selectors for state access, both of which four modules already import | [G2 absent frontend exports](#absent-frontend-exports) |
 | `frontend/src/utils/documentUtils.ts:L17` | marker | Both functions need error handling, and states that the `DocumentSchema` validation needs to be implemented correctly | [G5 other violations](#other-contract-violations) |
 | `frontend/src/utils/documentUtils.ts:L33` | TODO | `DocumentSchema` validation in `serializeDocument` is unimplemented | [G5 other violations](#other-contract-violations) |
 | `frontend/src/utils/documentUtils.ts:L58` | TODO | `DocumentSchema` validation in `deserializeDocument` is unimplemented | [G5 other violations](#other-contract-violations) |

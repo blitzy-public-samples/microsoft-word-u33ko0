@@ -2,12 +2,12 @@
 
 `GET /me` returns the authenticated user and `PUT /me` updates it. Both are
 declared with a plain `def` rather than `async def`, unlike every other
-handler in this package, and the update call below is not awaited.
+handler in this package.
 
-`app.services.user_service` does not exist, so `PUT /me` fails at import.
-Both routes read the caller's own identity from the dependency and take no
-user identifier from the request. See ./README.md for the path collision
-with the document routes.
+`app.services.user_service` does not exist, and this module imports it at
+module level, so neither route is registered. Both routes read the caller's
+own identity from the dependency and take no user identifier from the
+request. See ./README.md for the path collision with the document routes.
 """
 from fastapi import APIRouter, Depends, HTTPException
 from app.schema.user import User, UserUpdate
@@ -34,9 +34,9 @@ def update_user(user_update: UserUpdate, current_user: User = Depends(get_curren
     """Update the authenticated caller's own profile.
 
     The update is scoped to `current_user.id`, so the route takes no user
-    identifier from the request. The call below is not awaited, so the
-    truth test that follows runs against a coroutine object rather than a
-    result. See the HUMAN ASSISTANCE NEEDED marker below.
+    identifier from the request. The absent service makes its sync/async
+    contract unknowable, and this plain handler calls it synchronously. See
+    the HUMAN ASSISTANCE NEEDED marker below.
 
     Args:
         user_update: Validated request body, declared `UserUpdate`, whose

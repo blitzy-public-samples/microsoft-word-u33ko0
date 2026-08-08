@@ -2,8 +2,8 @@
  * Compose the Redux store from the document and user slices.
  *
  * Both reducers are imported by name and both slice modules export their reducer as
- * a default, so each import resolves to `undefined`. The store therefore registers
- * two undefined reducers under `document` and `user`.
+ * a default, so the compiler reports TS2614 for each import and suggests the default
+ * form. Module linkage does not complete, so neither reducer is registered.
  *
  * Seven modules import `useAppSelector` or `useAppDispatch` from here, and this
  * module declares neither. `services/api.ts` reads `state.auth.token`, and no
@@ -18,8 +18,8 @@ import { userReducer } from './userSlice';
 /**
  * The application store, exported as this module's default at the end of the file.
  *
- * @remarks `App.tsx` imports it by name, which does not resolve. `index.tsx`
- * imports the default, which does.
+ * @remarks `App.tsx` imports it by name through the unmapped `@/` alias, so that
+ * import fails at module resolution. `index.tsx` imports the default and resolves.
  */
 const store = configureStore({
   reducer: {

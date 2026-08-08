@@ -1,10 +1,10 @@
 /**
  * Render the document editor page and save edits five seconds after the last one.
  *
- * Four components are imported by name and each is a default export, so all four
- * resolve to `undefined`. `getDocument` is imported from `@/services/api`, which
- * does not export it, and `useAppSelector` and `useAppDispatch` do not exist in the
- * store folder. See the HUMAN ASSISTANCE NEEDED marker below.
+ * Every `@/` import here fails first as TS2307, because no `paths` mapping declares that
+ * prefix. Repairing the alias leaves more: four components are imported by name and each
+ * is a default export, `@/services/api` exports no `getDocument`, and the store declares
+ * no `useAppSelector` or `useAppDispatch`. See the HUMAN ASSISTANCE NEEDED marker below.
  *
  * @see ./README.md
  */

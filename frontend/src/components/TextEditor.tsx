@@ -1,10 +1,10 @@
 /**
  * Render a standalone Draft.js editor with keyboard formatting commands.
  *
- * This file is the correct-usage reference for the two formatting helpers: both
- * calls below pass the editor state and the style, and both use Draft.js command
- * names. `components/Toolbar.tsx` calls the same helpers with one argument and
- * lowercase names.
+ * This file is the argument-count reference only: both calls below pass the editor
+ * state and the style, where `components/Toolbar.tsx` passes the style alone. Its block
+ * names match Draft.js block types, and its lowercase inline commands do not match the
+ * default inline styles, which Draft.js names in upper case.
  *
  * No page or component renders this file, so the working path is unreachable from
  * the application. The `@/` prefix on the helper import raises TS2307.
@@ -28,10 +28,10 @@ const TextEditor: React.FC = () => {
   /**
    * Route a Draft.js key command to the inline or block helper.
    *
-   * The command name doubles as the style argument, which works because the cases
-   * listed are Draft.js names on both sides. Any other command returns
-   * `not-handled` so that Draft.js applies its own default. See the HUMAN
-   * ASSISTANCE NEEDED marker above.
+   * The command name doubles as the style argument, which holds for the block cases
+   * and not for the inline ones, because Draft.js names its default inline styles in
+   * upper case. Any other command returns `not-handled` so that Draft.js applies its
+   * own default. See the HUMAN ASSISTANCE NEEDED marker above.
    *
    * @param command - The Draft.js command name, such as `bold` or `header-one`.
    * @param editorState - The editor state the command applies to. The parameter

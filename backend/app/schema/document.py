@@ -31,8 +31,9 @@ class DocumentCreate(DocumentBase):
     """Model the create request body.
 
     Inherits every field from `DocumentBase` and adds none, so a create
-    request may carry a client-supplied `owner_id`. The service overwrites
-    the stored owner with its own `user_id` key.
+    request may carry a client-supplied `owner_id`. The service adds a
+    separate `user_id` key and leaves any client-supplied `owner_id`
+    unchanged, so both ownership fields can be stored.
     """
     pass
 

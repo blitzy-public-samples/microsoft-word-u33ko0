@@ -11,7 +11,7 @@ publish the application programming interface (API) over the hypertext transfer 
 
 `main.py` builds the application object at `main.py:L24` and mounts all four routers at `main.py:L84-L87`. The package does not
 run as committed. `import app.main` raises `ImportError: cannot import name 'settings' from 'app.core.config'` through
-`main.py:L16` then `api/auth.py:L19`, and only 3 of the 15 modules import successfully.
+`main.py:L16` then `api/auth.py:L20`, and only 3 of the 15 modules import successfully.
 
 ## Key Components
 
@@ -23,8 +23,8 @@ run as committed. `import app.main` raises `ImportError: cannot import name 'set
 | Cross-origin resource sharing (CORS) | Middleware call | `main.py:L75-L81` | Registers the CORS middleware. Reads `settings.ALLOWED_ORIGINS` at L77 and allows all methods and headers. |
 | Router mounts | Four `include_router` calls | `main.py:L84-L87` | All four routers mount with no prefix, in the order auth, documents, users, templates. |
 | Title and version | Attribute assignment | `main.py:L90-L91` | Set after the middleware and routers are already installed. |
-| `api/` | Sub-package, 4 modules | `api/auth.py:L25`, `api/documents.py:L22`, `api/users.py:L17`, `api/templates.py:L22` | 14 HTTP handlers across four `APIRouter` objects, each exported as the bare name `router`. See [api/README.md](api/README.md). |
-| `core/` | Sub-package, 2 modules | `core/config.py:L20`, `core/security.py:L25` | The `Settings` model plus the JSON Web Token (JWT) and password-hashing primitives. See [core/README.md](core/README.md). |
+| `api/` | Sub-package, 4 modules | `api/auth.py:L26`, `api/documents.py:L22`, `api/users.py:L17`, `api/templates.py:L22` | 14 HTTP handlers across four `APIRouter` objects, each exported as the bare name `router`. See [api/README.md](api/README.md). |
+| `core/` | Sub-package, 2 modules | `core/config.py:L20`, `core/security.py:L27` | The `Settings` model plus the JSON Web Token (JWT) and password-hashing primitives. See [core/README.md](core/README.md). |
 | `db/` | Sub-package, 2 modules | `db/firestore.py:L20`, `db/sql.py:L16` | Two persistence adapters. Both construct their client or engine at import time. See [db/README.md](db/README.md). |
 | `schema/` | Sub-package, 2 modules | `schema/document.py:L16`, `schema/user.py:L17` | Nine Pydantic models covering documents, versions and users. See [schema/README.md](schema/README.md). |
 | `services/` | Sub-package, 3 modules | `services/document_service.py:L19`, `services/collaboration_service.py:L20`, `services/export_service.py:L18` | `DocumentService`, `CollaborationService` and `ExportService`. See [services/README.md](services/README.md). |
@@ -67,14 +67,14 @@ Ten of the import statements below do not resolve. Contract shapes are covered i
 
 | Imported name | Import site | Resolves | Evidence |
 | --- | --- | --- | --- |
-| `auth_router` from `app.api.auth` | `main.py:L16` | No | The module exports the bare name `router` at `api/auth.py:L25`. |
+| `auth_router` from `app.api.auth` | `main.py:L16` | No | The module exports the bare name `router` at `api/auth.py:L26`. |
 | `documents_router` from `app.api.documents` | `main.py:L17` | No | The module exports `router` at `api/documents.py:L22`. |
 | `users_router` from `app.api.users` | `main.py:L18` | No | The module exports `router` at `api/users.py:L17`. |
 | `templates_router` from `app.api.templates` | `main.py:L19` | No | The module exports `router` at `api/templates.py:L22`. |
-| `settings` from `app.core.config` | `main.py:L20` | No | `core/config.py` defines the `Settings` class at L20 and a `get_settings` factory at L61, and no module-level instance. |
+| `settings` from `app.core.config` | `main.py:L20` | No | `core/config.py` defines the `Settings` class at L20 and a `get_settings` factory at L63, and no module-level instance. |
 | `db` from `app.db.firestore` | `main.py:L21` | Yes | `db/firestore.py:L20` builds the client at import time. |
 | `init_db` from `app.db.sql` | `main.py:L22` | No | `db/sql.py` declares `engine`, `SessionLocal`, `Base` and `get_db`, and no `init_db`. |
-| `UserService` from `app.services.user_service` | `api/auth.py:L21`, `api/users.py:L14` | No | No file exists at `backend/app/services/user_service.py`. |
+| `UserService` from `app.services.user_service` | `api/auth.py:L22`, `api/users.py:L14` | No | No file exists at `backend/app/services/user_service.py`. |
 | `Template`, `TemplateCreate`, `TemplateUpdate` from `app.schema.template` | `api/templates.py:L17` | No | No file exists at `backend/app/schema/template.py`. |
 | `TemplateService` from `app.services.template_service` | `api/templates.py:L18` | No | No file exists at `backend/app/services/template_service.py`. |
 | `app.schema.document`, `app.schema.user` | `api/documents.py:L17`, `api/users.py:L13` | Yes | Both schema modules import cleanly and are 2 of the 3 modules that do. |
@@ -93,8 +93,8 @@ in this documentation set that carries an advisory identifier or a version floor
 concerns the two verifying call sites this package owns. `python-jose` releases through 3.3.0 carry
 [CVE-2024-33663](https://github.com/advisories/GHSA-6c5p-j8vq-pqhj), an algorithm confusion weakness with OpenSSH ECDSA and
 other key formats, fixed in 3.4.0. The advisory concerns verification rather than signing, so the exposed calls would be
-`jwt.decode` at `core/security.py:L152` and `api/auth.py:L53`, not the `jwt.encode` calls at `core/security.py:L54` and
-`api/auth.py:L95-L99`.
+`jwt.decode` at `core/security.py:L144` and `api/auth.py:L54`, not the `jwt.encode` calls at `core/security.py:L56` and
+`api/auth.py:L96-L100`.
 
 **Whether this repository is exposed cannot be established here, and three preconditions decide it.** The installed release
 would have to be 3.3.0 or earlier, and no committed file pins one. The verification key would have to be in a format the
@@ -112,7 +112,7 @@ seven runtime companions that no import names. Thirteen of the seventeen need na
 `ecdsa`, `rsa` and `pyasn1` arrive transitively.
 
 Four more sit outside it, selected by configuration rather than code. Those are a PostgreSQL driver, a Redis client,
-`cryptography`, and `python-dotenv`, which `Config.env_file` at `core/config.py:L58` selects and which is needed only once that
+`cryptography`, and `python-dotenv`, which `Config.env_file` at `core/config.py:L60` selects and which is needed only once that
 file exists ([Pydantic 1.10](https://docs.pydantic.dev/1.10/usage/settings/)). An install command names seventeen: the thirteen
 plus these four. Every dependency count in this set refers to this model.
 
@@ -124,8 +124,8 @@ it by name. The ten a direct import names:
 | fastapi | 0.89.0 or newer | Response models come from return annotations. No `response_model=` argument appears on any of the 14 handlers. |
 | pydantic | 1.x only | `BaseSettings` is imported from the main package at `core/config.py:L17`, `orm_mode = True` appears at `schema/user.py:L81`, and `.dict(exclude_unset=True)` at `services/document_service.py:L152` is the version 1 API. |
 | sqlalchemy | 1.4 or newer | `declarative_base` is imported from `sqlalchemy.orm` at `db/sql.py:L13` and called at L19. Version 1.3 exposed that name from `sqlalchemy.ext.declarative` instead. |
-| python-jose | Unestablished | `from jose import jwt` at `core/security.py:L16` and `api/auth.py:L16`, with `except jwt.JWTError` at `core/security.py:L156`. |
-| passlib with a bcrypt backend | Unestablished | `from passlib.context import CryptContext` at `core/security.py:L17` and `api/auth.py:L17`, used with `schemes=['bcrypt']` at `core/security.py:L22`. |
+| python-jose | Unestablished | `from jose import jwt` at `core/security.py:L18` and `api/auth.py:L17`, with `except jwt.JWTError` at `core/security.py:L148`. |
+| passlib with a bcrypt backend | Unestablished | `from passlib.context import CryptContext` at `core/security.py:L19` and `api/auth.py:L18`, used with `schemes=['bcrypt']` at `core/security.py:L24`. |
 | google-cloud-firestore | Unestablished | `from google.cloud.firestore import Client` at `db/firestore.py:L14` and `services/document_service.py:L14`. |
 | google-auth | Unestablished | `from google.auth import default` at `db/firestore.py:L15`. |
 | google-cloud-pubsub | Unestablished | `from google.cloud.pubsub_v1 import PublisherClient, SubscriberClient` at `services/collaboration_service.py:L16`. |
@@ -139,8 +139,8 @@ first environment build fail repeatedly rather than once.
 | --- | --- | --- |
 | uvicorn | Unestablished | Serves the application. `infrastructure/docker/backend.Dockerfile:L20` runs it and root `README.md:L55` names it, and no module imports it. |
 | starlette | Whatever fastapi resolves | `services/collaboration_service.py:L15` imports `WebSocket` and `WebSocketDisconnect`, which FastAPI re-exports from Starlette. |
-| python-multipart | Unestablished | Blocks a route rather than a build. `OAuth2PasswordRequestForm`, imported at `api/auth.py:L15` and used at `:L66`, parses a form body through it, and FastAPI does not install it by default. |
-| bcrypt | Unestablished | `core/security.py:L22` and `api/auth.py:L24` build a `CryptContext` with the bcrypt scheme, and passlib does not depend on bcrypt. |
+| python-multipart | Unestablished | Blocks a route rather than a build. `OAuth2PasswordRequestForm`, imported at `api/auth.py:L16` and used at `:L67`, parses a form body through it, and FastAPI does not install it by default. |
+| bcrypt | Unestablished | `core/security.py:L24` and `api/auth.py:L25` build a `CryptContext` with the bcrypt scheme, and passlib does not depend on bcrypt. |
 | ecdsa, rsa, pyasn1 | Unestablished | Transitive closure of `python-jose`, pulled in for its signing backends. |
 
 Nothing pins either set. Setup steps belong in [../../docs/onboarding.md](../../docs/onboarding.md).
@@ -152,13 +152,13 @@ Every setting arrives through the `Settings` model at `core/config.py:L20`. Nine
 default.
 
 The two `Optional[str]` fields at L45 and L46 take an implicit `None` under Pydantic 1.x, so exactly seven of the nine are
-required at instantiation. `Config.env_file` at `core/config.py:L58` points at a `.env` file that is not committed, and names it
+required at instantiation. `Config.env_file` at `core/config.py:L60` points at a `.env` file that is not committed, and names it
 relatively. The path therefore resolves against the working directory of the process rather than this package.
 [core/README.md](core/README.md) classifies all fifteen.
 
 | Setting | Status | Location | Read by |
 | --- | --- | --- | --- |
-| `SECRET_KEY`, `ALGORITHM`, `ACCESS_TOKEN_EXPIRE_MINUTES` | DECLARED | `core/config.py:L42-L44` | `api/auth.py:L53`, `L94-L98`; `core/security.py:L52-L54`, `L152` |
+| `SECRET_KEY`, `ALGORITHM`, `ACCESS_TOKEN_EXPIRE_MINUTES` | DECLARED | `core/config.py:L42-L44` | `api/auth.py:L54`, `L95-L99`; `core/security.py:L54-L56`, `L144` |
 | `DATABASE_URL` | DECLARED | `core/config.py:L47` | `db/sql.py:L16`, at import time |
 | `GOOGLE_CLOUD_PROJECT` | DECLARED | `core/config.py:L45` | `db/firestore.py:L20`, at import time |
 | `REDIS_URL` | DECLARED | `core/config.py:L48` | `tasks/background_tasks.py:L22`, at import time |
@@ -176,7 +176,7 @@ A request would enter through one of the four routers, the router would call a s
 Firestore through the module-level client at `db/firestore.py:L20`. That is the declared design, and **none of it executes as
 committed**.
 
-The first import blocker decides everything downstream. `main.py:L16` reaches `api/auth.py`, whose `:L19` requests a `settings`
+The first import blocker decides everything downstream. `main.py:L16` reaches `api/auth.py`, whose `:L20` requests a `settings`
 singleton that `core/config.py` never creates, so package import raises `ImportError` before any router registers. Client
 construction is therefore **conditional** on that one repair: `db/firestore.py:L20` builds the Firestore client and
 `db/sql.py:L16` opens the SQLAlchemy engine only once the settings import resolves. Neither line runs today. Every business-flow
@@ -188,13 +188,13 @@ committed, and every label names the reason.
 ```mermaid
 graph LR
     accTitle: The composition root, the four routers, the services and the adapters
-    accDescr: Every edge is dashed because the package import fails at api/auth.py:L19, so no route registers and no client is constructed. Each node names its file and line, and every edge carries a key resolved in the table below the diagram.
-    MAIN["main.py<br/>:L24"]
+    accDescr: Every edge is dashed because the package import fails at api/auth.py:L20, so no route registers and no client is constructed. Each node names its file and line, and every edge carries a key resolved in the table below the diagram.
+    MAIN["main.py<br/>:L25"]
     NOPROD["no<br/>producer"]
     NOROUTE["no<br/>route"]
 
-    AUTH["auth.py:L25"]
-    DOCS["documents.py<br/>:L22"]
+    AUTH["auth.py:L26"]
+    DOCS["documents.py<br/>:L23"]
     USERS["users.py:L17"]
     TMPL["templates.py<br/>:L22"]
     CFG["config.py:L20"]
@@ -230,7 +230,7 @@ graph LR
     NOPROD -.->|"A18"| TASKS
     NOROUTE -.->|"A19"| CSVC
 
-%% Every edge above is dashed: package import fails at api/auth.py:L19, so no route
+%% Every edge above is dashed: package import fails at api/auth.py:L20, so no route
 %% registers, no client is ever constructed, and nothing downstream executes.
 ```
 
@@ -239,14 +239,14 @@ registers anything, and each one is the line that fails.
 
 | Key | Edge | What the code does | Why it does not resolve |
 | --- | --- | --- | --- |
-| A1 | `main.py` to `api/auth.py` | `main.py:L16` runs `from app.api.auth import auth_router` | `auth.py:L25` exports the bare name `router`, not `auth_router` |
+| A1 | `main.py` to `api/auth.py` | `main.py:L16` runs `from app.api.auth import auth_router` | `auth.py:L26` exports the bare name `router`, not `auth_router` |
 | A2 | `main.py` to `api/documents.py` | `main.py:L17` requests `documents_router` | `documents.py:L22` exports `router` |
 | A3 | `main.py` to `api/users.py` | `main.py:L18` requests `users_router` | `users.py:L17` exports `router` |
 | A4 | `main.py` to `api/templates.py` | `main.py:L19` requests `templates_router` | `templates.py:L22` exports `router` |
 | A5 | `main.py` to `core/config.py` | `main.py:L20` runs `from app.core.config import settings` | `config.py:L20` declares the `Settings` class and creates no module-level instance |
 | A6 | `main.py` to `db/sql.py` | `main.py:L22` runs `from app.db.sql import init_db` | `sql.py` defines no `init_db` |
 | A7 | `main.py` to `db/firestore.py` | `main.py:L21` runs `from app.db.firestore import db` | The module body raises first at `firestore.py:L16`, which imports the same absent `settings` |
-| A8 | `api/auth.py` to the absent modules | `auth.py:L21` runs `from app.services.user_service import UserService` | `app/services/user_service.py` does not exist, and this is the import that fails first and stops the whole package |
+| A8 | `api/auth.py` to the absent modules | `auth.py:L22` runs `from app.services.user_service import UserService` | `app/services/user_service.py` does not exist, and this is the import that fails first and stops the whole package |
 | A9 | `api/users.py` to the absent modules | `users.py:L14` requests the same `UserService` | Same absent module |
 | A10 | `api/templates.py` to the absent modules | `templates.py:L17` imports from `app.schema.template` and `:L18` from `app.services.template_service` | Neither module exists |
 | A11 | `api/documents.py` to `DocumentService` | `documents.py` constructs the service and calls it per handler | No route ever registers, because the package import fails at A8 |
@@ -278,13 +278,13 @@ L108, L148 and L184, then raises rather than returning a filtered result. The la
 `core/` and `schema/` available to every tier.
 
 No repository abstraction sits over the two persistence adapters. `services/document_service.py:L16` imports the Firestore
-client directly and calls `db.collection` inline, and the four adapter helpers at `db/firestore.py:L22`, `L45`, `L64` and `L79`
+client directly and calls `db.collection` inline, and the four adapter helpers at `db/firestore.py:L22`, `L45`, `L64` and `L81`
 have no caller. A service needing the SQLAlchemy path would import `db/sql.py` itself, and none does.
 
 ## Known Limitations
 
 One absent line accounts for nine of the twelve import failures. `core/config.py` declares the `Settings` class at L20 and a
-`get_settings` factory at L61, and never creates the module-level `settings` instance that eight modules import by name. The
+`get_settings` factory at L63, and never creates the module-level `settings` instance that eight modules import by name. The
 items below are the package-level defects with their evidence. Repository-wide defect evidence sits in
 [../../docs/troubleshooting.md](../../docs/troubleshooting.md).
 
@@ -293,29 +293,29 @@ misconfiguration. Each is unexploitable while import fails, and each becomes liv
 
 | Package-wide gap | Evidence |
 | --- | --- |
-| The two public routes carry no abuse controls, and no route carries a rate limit. Their unauthenticated status is intended, so the gap is throttling, anti-automation and anti-enumeration rather than authentication. `main.py:L75` adds one middleware and it is CORS | `api/auth.py:L65` and `:L102` are public by design; no limiter, lockout, captcha or proxy configuration is committed |
-| Object authorization is attempted on three handlers only. Of the fourteen routes, twelve declare the token dependency and two are public. The twelve split four ways. Three attempt an ownership comparison, two are self-scoped by the token and need none, one is the create path that fails before it persists, and six leave object scope unestablished | Attempted at `api/documents.py:L92`, `:L121`, `:L147`. Self-scoped: `api/users.py` GET and PUT `/me`. Create fails at Firestore encoding before the write at `services/document_service.py:L73`. Unestablished: GET `/documents` plus the five template routes. `api/auth.py:L65` and `:L102` are the two public routes |
-| CORS origins come from a field no settings class declares, alongside credentialed access and full wildcards | `main.py:L77` reads `settings.ALLOWED_ORIGINS`, absent from `core/config.py:L40-L48`; `:L74` sets `allow_credentials=True`, `:L75-L76` allow every method and header |
-| The JWT secret, algorithm and lifetime are unconstrained, and tokens carry no issuer, audience or identifier | `core/config.py:L42`, `:L44`, `:L43` declare bare types with no validator; `api/auth.py:L95-L99` encodes only `sub` and `exp` |
-| No explicitly raised 401 carries a `WWW-Authenticate: Bearer` challenge | Six explicit raises set no `headers`: `api/auth.py:L55-L56`, `:L58`, `:L91-L92`, `core/security.py:L155`, `:L157`, `:L162`. The scheme itself is the exception. `OAuth2PasswordBearer` at `api/auth.py:L23` and `core/security.py:L23` leaves `auto_error` at its default. A missing or non-bearer `Authorization` header is therefore answered by FastAPI with its own 401 carrying the challenge, before any handler runs |
+| The two public routes carry no abuse controls, and no route carries a rate limit. Their unauthenticated status is intended, so the gap is throttling, anti-automation and anti-enumeration rather than authentication. `main.py:L75` adds one middleware and it is CORS | `api/auth.py:L66` and `:L103` are public by design; no limiter, lockout, captcha or proxy configuration is committed |
+| Object authorization is attempted on three handlers only. Of the fourteen routes, twelve declare the token dependency and two are public. The twelve split four ways. Three attempt an ownership comparison, two are self-scoped by the token and need none, one is the create path that fails before it persists, and six leave object scope unestablished | Attempted at `api/documents.py:L94`, `:L126`, `:L154`. Self-scoped: `api/users.py` GET and PUT `/me`. Create fails at Firestore encoding before the write at `services/document_service.py:L73`. Unestablished: GET `/documents` plus the five template routes. `api/auth.py:L66` and `:L103` are the two public routes |
+| CORS origins come from a field no settings class declares, alongside credentialed access and full wildcards | `main.py:L77` reads `settings.ALLOWED_ORIGINS`, absent from `core/config.py:L40-L48`; `main.py:L78` sets `allow_credentials=True`, `:L79-L80` allow every method and header |
+| The JWT secret, algorithm and lifetime are unconstrained, and tokens carry no issuer, audience or identifier | `core/config.py:L42`, `:L44`, `:L43` declare bare types with no validator; `api/auth.py:L96-L100` encodes only `sub` and `exp` |
+| No explicitly raised 401 carries a `WWW-Authenticate: Bearer` challenge | Six explicit raises set no `headers`: `api/auth.py:L56-L57`, `:L59`, `:L92-L93`, `core/security.py:L147`, `:L149`, `:L154`. The scheme itself is the exception. `OAuth2PasswordBearer` at `api/auth.py:L24` and `core/security.py:L25` leaves `auto_error` at its default. A missing or non-bearer `Authorization` header is therefore answered by FastAPI with its own 401 carrying the challenge, before any handler runs |
 | No request body bound and no field length bound anywhere | Neither `schema/document.py` nor `schema/user.py` contains a single `Field(` call, and no middleware limits a body |
 
 [core/README.md](core/README.md) carries the token contract in full and [api/README.md](api/README.md) carries the per-handler
 table.
 
-- **`import app.main` raises `ImportError`.** The chain runs `main.py:L16` to `api/auth.py:L19`, reporting `cannot import name
+- **`import app.main` raises `ImportError`.** The chain runs `main.py:L16` to `api/auth.py:L20`, reporting `cannot import name
 'settings' from 'app.core.config'`. Exactly three modules import: `app.core.config`, `app.schema.document` and
 `app.schema.user`. The other twelve fail. Byte compilation is unaffected, and `python -m compileall backend/app` exits 0.
-- **Eight modules import the absent singleton:** `main.py:L20`, `api/auth.py:L19`, `db/firestore.py:L16`, `db/sql.py:L14`,
+- **Eight modules import the absent singleton:** `main.py:L20`, `api/auth.py:L20`, `db/firestore.py:L16`, `db/sql.py:L14`,
 `services/collaboration_service.py:L18`, `services/document_service.py:L17`, `services/export_service.py:L16` and
 `tasks/background_tasks.py:L16`. Seven dereference it; `services/document_service.py:L17` imports it and never uses it.
-`core/security.py:L20` imports the `get_settings` factory instead, which exists and runs at L49 and L123.
+`core/security.py:L22` imports the `get_settings` factory instead, which exists and runs at L49 and L142.
 - **Five more names are imported and never defined.** `main.py:L16-L19` requests `auth_router`, `documents_router`,
-`users_router` and `templates_router`, while the modules export the bare name `router` at `api/auth.py:L25`,
+`users_router` and `templates_router`, while the modules export the bare name `router` at `api/auth.py:L26`,
 `api/documents.py:L22`, `api/users.py:L17` and `api/templates.py:L22`. `main.py:L22` imports `init_db` and `:L42` awaits it,
 while `db/sql.py` declares `engine`, `SessionLocal`, `Base` and `get_db` and nothing else.
 - **All five template routes are unreachable.** `api/documents.py` registers `/` twice and `/{document_id}` three times, at L24,
-L49, L68, L96 and L126. `api/templates.py` registers the same five shapes with `/{template_id}` at L24, L42, L59, L86 and L112.
+L49, L68, L98 and L131. `api/templates.py` registers the same five shapes with `/{template_id}` at L24, L42, L59, L86 and L112.
 Starlette path parameters are positional, so both identifier paths compile to one pattern. `main.py:L85` mounts documents before
 `:L87` mounts templates, neither with a prefix, and the first wins every match.
 - **The `app` package boundary exists only by convention.** No `__init__.py` file exists anywhere under `backend/`, so `app` and
@@ -335,14 +335,14 @@ fields are never read: `PROJECT_NAME`, `API_V1_STR` and `GOOGLE_APPLICATION_CRED
 - **Three code paths have no caller.** The Celery queue at `tasks/background_tasks.py:L22` has no producer, because no `.delay`
 or `.apply_async` call exists anywhere. `CollaborationService` at `services/collaboration_service.py:L20` has no route, because
 no WebSocket endpoint is registered in `main.py` or under `api/` and no package module imports the class. The four adapter
-helpers at `db/firestore.py:L22`, `L45`, `L64` and `L79` have no caller, because services use the raw client instead.
+helpers at `db/firestore.py:L22`, `L45`, `L64` and `L81` have no caller, because services use the raw client instead.
 - **Undefined names raise in two different places, and the difference decides how each is diagnosed.** A name in a signature is
-evaluated when Python executes the `def`. `Optional` at `core/security.py:L25` and `User` at `:L119` each raise `NameError` while
-`app.core.security` is still loading, and `L25` raises first. A name in a function body raises only under exercise:
-`UserService` at `core/security.py:L159`, and `datetime` at `tasks/background_tasks.py:L96` and `:L146` against the
+evaluated when Python executes the `def`. `Optional` at `core/security.py:L27` and `User` at `:L110` each raise `NameError` while
+`app.core.security` is still loading, and `L27` raises first. A name in a function body raises only under exercise:
+`UserService` at `core/security.py:L151`, and `datetime` at `tasks/background_tasks.py:L96` and `:L146` against the
 `timedelta`-only import at `:L20`.
 - **Nine `HUMAN ASSISTANCE NEEDED` markers and six `TODO` markers stand in the package.** Markers sit at `main.py:L38`,
-`api/users.py:L54`, `core/security.py:L115`, `services/collaboration_service.py:L42` and `L135`,
+`api/users.py:L54`, `core/security.py:L106`, `services/collaboration_service.py:L42` and `L135`,
 `services/document_service.py:L114`, `services/export_service.py:L38`, and `tasks/background_tasks.py:L49` and `L91`. The `TODO`
 markers sit at `main.py:L49` and `L72`, and `services/export_service.py:L57`, `L62`, `L89` and `L94`.
 - **Two instructions in the root `README.md` do not work against this package.** `L42` directs a reader to `pip install -r
@@ -351,15 +351,15 @@ at `backend/app/main.py`. The root README is reference material here and receive
 
 ## Usage Examples
 
-`main.py` declares the surface below. The module cannot be imported, because `main.py:L16` fails through `api/auth.py:L19`, so
+`main.py` declares the surface below. The module cannot be imported, because `main.py:L16` fails through `api/auth.py:L20`, so
 nothing here is reachable today.
 
 ```python
 app = FastAPI()
 async def startup_event(): ...            # L27: awaits init_db, checks Firestore
 async def shutdown_event(): ...           # L55: awaits db.close
-app.add_middleware(CORSMiddleware, ...)   # L71-L77: allow_origins from settings
-app.include_router(auth_router)           # L80: mounted with no prefix
+app.add_middleware(CORSMiddleware, ...)   # L75-L81: allow_origins from settings
+app.include_router(auth_router)           # L84: mounted with no prefix
 app.include_router(documents_router)
 app.include_router(users_router)
 app.include_router(templates_router)
@@ -371,7 +371,7 @@ Reproduce the import failure from `backend`, the root that makes the `app.*` pre
 ```text
 File "app/main.py", line 16, in <module>
     from app.api.auth import auth_router
-File "app/api/auth.py", line 81, in <module>
+File "app/api/auth.py", line 20, in <module>
     from app.core.config import settings
 ImportError: cannot import name 'settings' from 'app.core.config'
 ```

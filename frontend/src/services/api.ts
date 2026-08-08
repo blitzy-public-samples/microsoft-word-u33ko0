@@ -57,14 +57,14 @@ const createApiClient = (): AxiosInstance => {
   return instance;
 };
 
-/** The shared client every call below uses, created once at module load. */
 const api = createApiClient();
 
 /**
  * Fetch every document the caller can see.
  *
- * @returns A promise for the document array. `/documents` is one segment, matching the protected
- * `GET /{document_id}`. No intended route is reached: 401 without a token, 500 once authenticated.
+ * @returns A promise for the document array. The module does not compile, and the request
+ * interceptor reads an undefined `store`, so no request is issued. Any backend route match
+ * for the one-segment `/documents` path is therefore conditional on repairing both faults.
  */
 export const getDocuments = async (): Promise<Document[]> => {
   const response = await api.get<Document[]>('/documents');
@@ -74,9 +74,10 @@ export const getDocuments = async (): Promise<Document[]> => {
 /**
  * Create a document.
  *
- * @param documentData - Title, content and optional owner for the new document.
- * @returns A promise for the created document. No route declares `POST` on a single segment, so
- * Starlette answers 405 before any dependency runs.
+ * @param documentData - The unresolved `DocumentCreate` argument; its fields are not
+ * declared in this frontend tree.
+ * @returns A promise for the created document. The same two faults block the call, so no
+ * status is observed; a `POST` on the one-segment path would match no declared route.
  */
 export const createDocument = async (documentData: DocumentCreate): Promise<Document> => {
   const response = await api.post<Document>('/documents', documentData);
@@ -88,8 +89,8 @@ export const createDocument = async (documentData: DocumentCreate): Promise<Docu
  *
  * @param documentId - Identifier of the document to change.
  * @param documentData - The fields to change.
- * @returns A promise for the updated document. The two-segment path `/documents/{id}` matches no
- * declared route, so Starlette answers 404 before any dependency runs.
+ * @returns A promise for the updated document. The same two faults block the call, so no
+ * status is observed; the two-segment path would match no declared route either.
  */
 export const updateDocument = async (documentId: string, documentData: DocumentUpdate): Promise<Document> => {
   const response = await api.put<Document>(`/documents/${documentId}`, documentData);

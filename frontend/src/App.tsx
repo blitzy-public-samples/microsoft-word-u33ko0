@@ -1,10 +1,10 @@
 /**
  * Compose the routed application shell: providers, chrome and four routes.
  *
- * `store` is imported as a named export and `store/index.ts` exports it as a
- * default, so the import resolves to `undefined`. `Switch` is the react-router-dom
- * version 5 API, and version 6.8.1 is the declared dependency, which replaced it
- * with `Routes`.
+ * Every `@/` import here fails first as TS2307, because no `paths` mapping declares
+ * that prefix. Repairing the alias leaves a second failure: `store` is imported by
+ * name and `store/index.ts` exports it as a default. `Switch` is the
+ * react-router-dom version 5 API, and the declared 6.8.1 replaced it with `Routes`.
  *
  * @see ./README.md
  */

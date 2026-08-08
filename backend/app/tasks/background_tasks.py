@@ -116,11 +116,11 @@ def cleanup_expired_documents():
 def update_document_statistics(document_id: str):
     """Recount a document's words and pages and store the result.
 
-    The word count splits `document.content` on whitespace. The page count
-    reads `document.pages`, which no schema declares, so the task raises
-    `AttributeError` there. The read above is not awaited on an `async`
-    method and omits the `user_id` the service declares, and `datetime` is
-    never imported, so the timestamp below raises as well.
+    The read at L135 omits the `user_id` the service declares, so the call
+    raises `TypeError` before anything else runs. Supplying it would return a
+    coroutine that is never awaited, so `document.content` at L138 would raise
+    `AttributeError` next, then `document.pages` at L139, which no schema
+    declares. `datetime` is never imported, so L146 would raise last.
 
     Args:
         document_id: Document to recount.

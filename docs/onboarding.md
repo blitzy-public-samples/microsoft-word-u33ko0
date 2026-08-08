@@ -147,17 +147,17 @@ sudo apt-get install -y git curl wget zip make build-essential llvm xz-utils tk-
 # 2. nvm, the Node Version Manager. Clone it, then check out a release tag rather
 # than tracking the default branch. https://github.com/nvm-sh/nvm
 git clone https://github.com/nvm-sh/nvm.git "$HOME/.nvm"
-git -C "$HOME/.nvm" checkout v0.40.6     # nvm's current release, 15 July 2026
+git -C "$HOME/.nvm" checkout v0.40.6     # nvm v0.40.6, released 15 July 2026
 . "$HOME/.nvm/nvm.sh"                    # add this line to your shell profile
 
 # 3. Node 14, the version this repository declares.
 nvm install 14
 nvm use 14
 
-# 4. pyenv, under the same rule: clone, then check out a release tag.
+# 4. Clone pyenv and pin the release shown below.
 # https://github.com/pyenv/pyenv
 git clone https://github.com/pyenv/pyenv.git "$HOME/.pyenv"
-git -C "$HOME/.pyenv" checkout v2.8.3    # pyenv's current release, 5 August 2026
+git -C "$HOME/.pyenv" checkout v2.8.3    # pyenv v2.8.3, released 5 August 2026
 export PYENV_ROOT="$HOME/.pyenv"         # add these three lines to your
 export PATH="$PYENV_ROOT/bin:$PATH"      # shell profile as well
 eval "$(pyenv init -)"
@@ -188,11 +188,11 @@ explains why the version does not matter here.
 macOS runs a different sequence rather than a substitution, because two steps behave differently:
 
 ```bash
-# 1. Packages Homebrew carries. PostgreSQL is deliberately absent; see below.
+# 1. Packages Homebrew carries. PostgreSQL setup appears after this block.
 brew install git curl zip
 
-# 2. nvm, following Homebrew's own caveat rather than the git-clone lines above.
-# Homebrew states that upstream does not support managing nvm this way.
+# 2. Install Homebrew's nvm formula; Homebrew notes that upstream does not
+# support this method.
 brew install nvm
 mkdir -p "$HOME/.nvm"
 export NVM_DIR="$HOME/.nvm"                    # add these two lines to
@@ -481,15 +481,15 @@ that arrive transitively.
 Four further distributions are chosen by a configuration value rather than by an import or by a
 committed command. The inventory therefore does not count them, and a running environment still needs
 them. No code fact fixes the first three choices, because the value that selects each one is absent
-from the repository. The fourth differs: `Config.env_file` at `backend/app/core/config.py:L58` is
+from the repository. The fourth differs: `Config.env_file` at `backend/app/core/config.py:L60` is
 committed, so that selection is already fixed, and only the file it names is missing.
 
 | Distribution | The value that selects it | When it is needed |
 | --- | --- | --- |
 | A PostgreSQL driver, for example `psycopg2-binary` | The `postgresql://` scheme in `settings.DATABASE_URL`, supplied by `infrastructure/docker/docker-compose.yml:L24` and declared at `backend/app/core/config.py:L47` | `backend/app/db/sql.py:L16` builds an engine at import time, and SQLAlchemy resolves a driver from the scheme in the URL |
 | A Redis client | The `redis://` scheme in `settings.REDIS_URL`, declared at `backend/app/core/config.py:L48` | `backend/app/tasks/background_tasks.py:L22` hands Celery that broker URL, and a worker needs the client to attach. [../backend/app/tasks/README.md](../backend/app/tasks/README.md) records that no dependency manifest declares it |
-| `cryptography` | An RSA or ECDSA name in `settings.ALGORITHM`, declared as a bare `str` at `backend/app/core/config.py:L44` with no allowed-value check | `backend/app/core/security.py:L54` passes the value straight to `jwt.encode`. A symmetric algorithm such as HS256 needs nothing extra |
-| `python-dotenv` | `Config.env_file` at `backend/app/core/config.py:L58`, the one selecting value the repository does commit | Pydantic 1.x reads an `env_file` through `python-dotenv` and requires it as a separate install, either directly or as the `pydantic[dotenv]` extra ([Pydantic 1.10 settings documentation](https://docs.pydantic.dev/1.10/usage/settings/)). That read runs only when the named file is found, so the absent `.env` hides the absent distribution |
+| `cryptography` | An RSA or ECDSA name in `settings.ALGORITHM`, declared as a bare `str` at `backend/app/core/config.py:L44` with no allowed-value check | `backend/app/core/security.py:L56` passes the value straight to `jwt.encode`. A symmetric algorithm such as HS256 needs nothing extra |
+| `python-dotenv` | `Config.env_file` at `backend/app/core/config.py:L60`, the one selecting value the repository does commit | Pydantic 1.x reads an `env_file` through `python-dotenv` and requires it as a separate install, either directly or as the `pydantic[dotenv]` extra ([Pydantic 1.10 settings documentation](https://docs.pydantic.dev/1.10/usage/settings/)). That read runs only when the named file is found, so the absent `.env` hides the absent distribution |
 
 **Installing every one of them still leaves the backend unable to import.** Dependencies are
 third-party, and all four blockers here are first-party. Those four are the absent `settings`
@@ -547,7 +547,7 @@ no manifest and in no inventory this documentation set keeps. The
 states what it does and does not buy.
 
 Configuration needs a `.env` file the repository does not commit.
-`backend/app/core/config.py:L50-L59` points `Settings` at `.env`, and neither `.env` nor
+`backend/app/core/config.py:L50-L61` points `Settings` at `.env`, and neither `.env` nor
 `.env.example` exists. None of the nine fields at `backend/app/core/config.py:L40-L48` carries an
 explicit default. Pydantic 1.x treats the two `Optional[str]` fields as defaulting to `None`, which
 leaves seven values mandatory: `PROJECT_NAME`, `API_V1_STR`, `SECRET_KEY`,
@@ -557,7 +557,7 @@ leaves seven values mandatory: `PROJECT_NAME`, `API_V1_STR`, `SECRET_KEY`,
 A file is not the only way to supply them, and the missing `.env` is therefore not a hard stop.
 `Settings` extends Pydantic's `BaseSettings`, imported at `backend/app/core/config.py:L17` and
 subclassed at `:L20`, which reads each declared field from the process environment and falls back to
-the `env_file` named at `:L58`. That name is relative, so it resolves against the directory the
+the `env_file` named at `:L60`. That name is relative, so it resolves against the directory the
 process starts in rather than the directory holding the module.
 
 Starting the backend the way `../README.md:L54-L55` directs, with `cd backend` first, means the file
@@ -704,7 +704,7 @@ it.
 ```mermaid
 graph LR
     accTitle: What runs today and where each run stops
-    accDescr: A decision node fans out to nine tasks. Four run to completion and two of those succeed. Five stop, and each failure node names the file and line that stops it. The test path stops until pytest is installed, then completes and reports three collection errors.
+    accDescr: A decision node fans out to nine tasks. Four run to completion and two of those succeed. Five stop, and each failure node cites a file and line where one exists or names the missing artifact or path. The test path stops until pytest is installed, then completes and reports three collection errors.
     START{"What do you<br/>want to do?"}
 
     START --> A["Install client<br/>dependencies"]
@@ -722,7 +722,7 @@ graph LR
     C -->|"runs"| COK["Succeeds, exit 0<br/>all 18 modules parse"]
 
     D -.->|"stops"| DNO["frontend/tsconfig.json:L10-L16<br/>declares no '@/*' alias, and<br/>webpack ignores the paths block"]
-    E -.->|"stops"| ENO["backend/app/api/auth.py:L19,<br/>reached from main.py:L16<br/>ImportError: cannot import<br/>name 'settings'"]
+    E -.->|"stops"| ENO["backend/app/api/auth.py:L20,<br/>reached from main.py:L16<br/>ImportError: cannot import<br/>name 'settings'"]
     F -.->|"stops"| ENO
     G -.->|"stops"| GNO1["infrastructure/docker/<br/>frontend.Dockerfile:L11<br/>npm ci with no lockfile"]
     G -.->|"stops"| GNO2["infrastructure/docker/<br/>backend.Dockerfile:L8<br/>COPY of an absent requirements.txt"]
@@ -733,9 +733,9 @@ graph LR
     I -.->|"stops"| INO["infrastructure/terraform/main.tf<br/>:L68, :L77, :L86<br/>three module sources absent"]
 
 %% A solid edge marks a path that runs to completion, and its node states whether the run succeeded.
-%% A dashed edge marks a path that stops before completing, and every failure node names the file
-%% and line that stops it. A dashed edge leaving a completion node points at a cause of the failure
-%% that node reports rather than at a further stop.
+%% A dashed edge marks a path that stops before completing. Failure nodes cite a file and line
+%% where one exists, and absence-only nodes name the missing artifact or path. A dashed edge
+%% leaving a completion node points at a cause of the failure that node reports.
 ```
 
 ## Where a run stops, with evidence
@@ -751,12 +751,12 @@ subsections below separate the first hit from what is latent behind it.
 chain has three links:
 
 1. `backend/app/main.py:L16` imports `auth_router` from `app.api.auth`.
-2. `backend/app/api/auth.py:L19` imports `settings` from `app.core.config`.
+2. `backend/app/api/auth.py:L20` imports `settings` from `app.core.config`.
 3. `backend/app/core/config.py` defines the `Settings` class at `L20` and the `get_settings()`
-   factory at `L61`, and creates no module-level `settings` instance. No `settings =` assignment
+   factory at `L63`, and creates no module-level `settings` instance. No `settings =` assignment
    exists at any line in the file.
 
-Eight modules import that absent name: `backend/app/main.py:L20`, `backend/app/api/auth.py:L19`,
+Eight modules import that absent name: `backend/app/main.py:L20`, `backend/app/api/auth.py:L20`,
 `backend/app/db/firestore.py:L16`, `backend/app/db/sql.py:L14`,
 `backend/app/services/collaboration_service.py:L18`,
 `backend/app/services/document_service.py:L17`, `backend/app/services/export_service.py:L16` and
@@ -775,17 +775,17 @@ surfaces only once every row above it is repaired.
 
 | Order | Cause | Locator | What a run reports now |
 | --- | --- | --- | --- |
-| First hit | No module-level `settings` instance | `backend/app/core/config.py`, which defines `Settings` at `L20` and `get_settings()` at `L61` and assigns `settings` at no line | `ImportError: cannot import name 'settings' from 'app.core.config'` |
-| Second | The absent `app.services.user_service` module | `backend/app/api/auth.py:L21` imports `UserService` from it, and `backend/app/api/users.py:L14` imports it too. No file exists at that path | Nothing. `ModuleNotFoundError` surfaces from the same file the row above stops in, before `main.py` evaluates any router name |
+| First hit | No module-level `settings` instance | `backend/app/core/config.py`, which defines `Settings` at `L20` and `get_settings()` at `L63` and assigns `settings` at no line | `ImportError: cannot import name 'settings' from 'app.core.config'` |
+| Second | The absent `app.services.user_service` module | `backend/app/api/auth.py:L22` imports `UserService` from it, and `backend/app/api/users.py:L14` imports it too. No file exists at that path | Nothing. `ModuleNotFoundError` surfaces from the same file the row above stops in, before `main.py` evaluates any router name |
 | Third | Four router names that no module exports | `backend/app/main.py:L16-L19` imports `auth_router`, `documents_router`, `users_router` and `templates_router`, and all four modules export the bare name `router` | Nothing. The four `ImportError`s surface one at a time, because each import line stops `main.py` on its own |
 | Fourth | Two absent template modules | `backend/app/api/templates.py:L17` imports from `app.schema.template` and `:L18` from `app.services.template_service`, and neither file exists | Nothing. Reached when `backend/app/main.py:L19` executes `app.api.templates` |
 | Fifth | The absent `init_db` symbol | `backend/app/main.py:L22` imports `init_db` from `app.db.sql`, which defines `engine`, `SessionLocal`, `Base` and `get_db` and no `init_db` | Nothing. Reached once all four router imports resolve |
-| Latent, at definition time | Undefined names in a signature, which Python evaluates when it executes the `def` | Registered in [troubleshooting.md](troubleshooting.md#the-verified-import-census) | Nothing, and nothing above clears them. `Optional` at `backend/app/core/security.py:L25` and `User` at `:L119` both sit in signature annotations, so each raises `NameError` while the module is still being evaluated |
-| Latent, at execution time | Undefined names in a function body, which Python evaluates only on a call | Registered in [troubleshooting.md](troubleshooting.md#the-verified-import-census) | Nothing, and nothing above clears them. `UserService` at `backend/app/core/security.py:L159`, `asyncio` and `json` in `backend/app/services/collaboration_service.py`, and `datetime` in `backend/app/tasks/background_tasks.py` |
+| Latent, at definition time | Undefined names in a signature, which Python evaluates when it executes the `def` | Registered in [troubleshooting.md](troubleshooting.md#the-verified-import-census) | Nothing, and nothing above clears them. `Optional` at `backend/app/core/security.py:L27` and `User` at `:L110` both sit in signature annotations, so each raises `NameError` while the module is still being evaluated |
+| Latent, at execution time | Undefined names in a function body, which Python evaluates only on a call | Registered in [troubleshooting.md](troubleshooting.md#the-verified-import-census) | Nothing, and nothing above clears them. `UserService` at `backend/app/core/security.py:L151`, `asyncio` and `json` in `backend/app/services/collaboration_service.py`, and `datetime` in `backend/app/tasks/background_tasks.py` |
 
 A future contributor cannot stop after two repairs. Adding the `settings` instance clears nine of
 the twelve failing modules, and the next error comes from the same file rather than from
-`main.py`. `backend/app/api/auth.py:L21` asks for a module nobody wrote. Only once that module
+`main.py`. `backend/app/api/auth.py:L22` asks for a module nobody wrote. Only once that module
 exists do the four router names become the blocker, and two more repairs sit behind them. Plan the
 work as the table's order, not as a pair of changes.
 
@@ -865,7 +865,7 @@ the packages above. The remaining seven have to be named, and each surfaces as e
 - A PostgreSQL driver when the engine at `backend/app/db/sql.py:L16` connects.
 - A Redis client when Celery attaches to the broker at `backend/app/tasks/background_tasks.py:L22`.
 - `cryptography` when `settings.ALGORITHM` names an asymmetric signing algorithm.
-- `python-dotenv` when Pydantic reads the `env_file` named at `backend/app/core/config.py:L58`, which
+- `python-dotenv` when Pydantic reads the `env_file` named at `backend/app/core/config.py:L60`, which
   happens only once a `.env` file exists.
 
 The first three belong to [the authoritative inventory](../backend/app/README.md), which counts them
@@ -929,7 +929,7 @@ merely disabled in it.
 1. **Make the backend package import.** Five repairs stand between the committed tree and a package
    that imports, and they surface in a fixed order. Add a module-level `settings` instance to
    `backend/app/core/config.py`, which clears nine of the twelve failing modules. Write
-   `app.services.user_service`, which `backend/app/api/auth.py:L21` and
+   `app.services.user_service`, which `backend/app/api/auth.py:L22` and
    `backend/app/api/users.py:L14` both import and which fails next, from the same file the first
    error came from.
 
@@ -981,7 +981,7 @@ afterwards, two of them while the module is being evaluated and the rest on a ca
      with `Routes`. The usage at `:L40` and `:L45` moves with the import.
    - **Correct the two reducer imports.** `frontend/src/store/index.ts:L15-L16` imports
      `documentReducer` and `userReducer` by name while both slice modules export their reducer as a
-     default. Each import resolves to `undefined`, so the store registers no reducer.
+     default. Each import reports `TS2614`, so the store registers no reducer.
    - **Add the two store hooks.** `useAppSelector` and `useAppDispatch` are absent from
      `frontend/src/store/index.ts`, and seven modules import them. The pair accounts for ten of the
      errors the probe surfaced, six as `TS2614` and four as `TS2724`.
@@ -998,7 +998,7 @@ afterwards, two of them while the module is being evaluated and the rest on a ca
      from somewhere the store holds it.
    - **Export the three missing API functions.** `getDocument`, `getTemplates` and
      `updateUserSettings` are imported by three pages and defined nowhere.
-     `frontend/src/services/api.ts:L69`, `:L81` and `:L94` export only `getDocuments`,
+     `frontend/src/services/api.ts:L69`, `:L82` and `:L95` export only `getDocuments`,
      `createDocument` and `updateDocument`.
    - **Annotate the five implicitly typed parameters.** Each of the five `TS7006` errors names a
      parameter that declares no type.
@@ -1018,8 +1018,8 @@ afterwards, two of them while the module is being evaluated and the rest on a ca
    fields, because neither `backend/app/schema/document.py` nor `backend/app/schema/user.py`
    contains a single `Field(` call.
 
-   Add a limiter to the two public routes, `POST /token` at `backend/app/api/auth.py:L65` and `POST
-   /register` at `:L102`, because `backend/app/main.py:L75` adds one middleware and it is CORS.
+   Add a limiter to the two public routes, `POST /token` at `backend/app/api/auth.py:L66` and `POST
+   /register` at `:L103`, because `backend/app/main.py:L75` adds one middleware and it is CORS.
    Constrain the three token settings that `backend/app/core/config.py:L42-L44` declares as bare
    values, giving `SECRET_KEY` a minimum length, `ALGORITHM` an allowed-value list and
    `ACCESS_TOKEN_EXPIRE_MINUTES` a ceiling.
