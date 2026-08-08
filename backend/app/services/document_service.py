@@ -19,7 +19,7 @@ round trip.
 
 - `get_document` at L123, `update_document` at L183 and `delete_document` at L252
   each read the stored `user_id` and compare it against the argument, at L175,
-  L241 and L72, and raise 403 on a mismatch.
+  L241 and L280, and raise 403 on a mismatch.
 - `create_document` at L72 performs no comparison. L116 assigns the supplied
   `user_id` onto the record, so the caller names the owner outright.
 
@@ -31,7 +31,7 @@ client-controlled `owner_id` alongside the `user_id` that every later comparison
 reads, and nothing reconciles the two.
 
 The ownership field carries two names across four positions, and no evidence in
-the repository makes either name canonical. L116, L175, L241 and L72 in this module
+the repository makes either name canonical. L116, L175, L241 and L280 in this module
 write and read `user_id`. `app/schema/document.py:L66` declares `owner_id` on
 `DocumentBase`, while `:L135` declares `user_id` on `DocumentVersion`. The
 specification names the field `owner_id` at
@@ -254,20 +254,20 @@ class DocumentService:
 
         Args:
             document_id: Firestore document identifier.
-            user_id: Identifier of the requesting user, compared against the stored
-                owner.
+            user_id: Requesting user, compared against the stored owner.
 
         Returns:
-            True. The method has no falsy return path, so the value carries no
-            information beyond the absence of an exception.
+            True always, because the method has no falsy return path.
 
         Raises:
-            HTTPException: 404 when no document matches, 403 when the caller is not the
-                owner.
+            HTTPException: 404 at L277 when no document matches, 403 at L281 when
+                the caller is not the owner.
+            KeyError: At L280, when the stored dictionary holds no `user_id` key,
+                as documented on `get_document`. FastAPI answers 500.
 
         Note:
-            Side effect is one hard delete, preceded by one read to authorize. No
-            soft-delete flag is set and no version is retained.
+            Side effect is one hard delete at L284, preceded by one read at L274
+            to authorize. No soft-delete flag is set and no version is retained.
         """
         # Retrieve document
         doc_ref = self.db.collection('documents').document(document_id)

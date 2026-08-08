@@ -43,18 +43,18 @@ string rather than a Portable Document Format (PDF) or Office Open XML (DOCX)
 file. `ExportService` also defines no `convert_document` method, so the call at
 `app/tasks/background_tasks.py:L138` raises `AttributeError`.
 
-Resilience. The class configures none, and every absence below belongs to this
-module rather than to the client library. `Client()` at L83 receives no
+Resilience. This module supplies no explicit resilience settings, so whatever the
+resolved client applies by default is what runs. `Client()` at L83 receives no
 `client_options` and no retry configuration. The `upload_from_string` calls at L157
-and L231 pass no `timeout`, no `retry`, no `checksum` and no `if_generation_match`.
-Each upload therefore runs with no write precondition and no integrity check, and
-a repeated call overwrites whatever the object key already holds. The
-`generate_signed_url` calls at L160 and L234 pass no `timeout` either. Neither
-method holds a `try` block, so no compensating delete removes a half-finished
-object, no fallback returns a degraded result, and every failure propagates to the
-caller unchanged. No backend dependency manifest is committed, so nothing pins
-`google-cloud-storage` and no committed file records which defaults the resolved
-release would apply.
+and L231 pass no `timeout`, no `retry` and no `checksum`, so each takes the client
+default for all three. Neither call passes `if_generation_match`, so no generation
+precondition guards the write and a repeated call overwrites whatever the object key
+already holds. `generate_signed_url` at L160 and L234 accepts no timeout argument,
+so none is missing there. Neither method holds a `try` block, so no compensating
+delete removes a half-finished object, no fallback returns a degraded result, and
+every failure propagates to the caller unchanged. Nothing pins
+`google-cloud-storage`, so no committed file records which defaults the resolved
+release applies.
 """
 from google.cloud.storage import Client
 from app.schema.document import Document
@@ -132,20 +132,20 @@ class ExportService:
 
         Raises:
             AttributeError: At L154, because `Settings` declares no
-                `STORAGE_BUCKET_NAME` field. The read is the method's first
-                statement, so nothing has happened when it raises.
+                `STORAGE_BUCKET_NAME` field. The read is the method's first statement.
             AttributeError: At L162, because `Settings` declares no
-                `SIGNED_URL_EXPIRATION` field. The read runs only once L154
-                resolves, and by then L157 has already uploaded the placeholder
-                object, so the failure leaves that object in the bucket.
+                `SIGNED_URL_EXPIRATION` field. The read runs only once L154 resolves,
+                and by then L157 has uploaded the placeholder, so the object remains.
             ValueError: From `generate_signed_url` at L160, when the expiry read at
                 L162 exceeds the seven-day maximum a version 4 signature allows.
-            Whatever `Blob.upload_from_string` raises at L157 and whatever
-                `Blob.generate_signed_url` raises at L160. Both reach the caller
-                unchanged, because the method holds no `try` block. The upload
-                fails when the Application Default Credentials behind L83 cannot
-                authenticate or the bucket rejects the write, and the signing call
-                fails when those credentials carry no service-account private key.
+
+        Note:
+            The upload at L157 fails when the credentials behind L83 cannot
+            authenticate or the bucket rejects the write, and the signing call at
+            L160 fails when those credentials implement no signing interface. No
+            committed file pins `google-cloud-storage`, so the exception classes
+            those two failures raise are not established here. Both reach the caller
+            unchanged, because the method holds no `try` block.
         """
         # Convert document content to PDF
         # TODO: Implement PDF conversion logic
@@ -208,18 +208,18 @@ class ExportService:
 
         Raises:
             AttributeError: At L228, because `Settings` declares no
-                `STORAGE_BUCKET_NAME` field. The read is the method's first
-                statement, so nothing has happened when it raises.
+                `STORAGE_BUCKET_NAME` field. The read is the method's first statement.
             AttributeError: At L236, because `Settings` declares no
-                `SIGNED_URL_EXPIRATION` field. The read runs only once L228
-                resolves, and by then L231 has already uploaded the placeholder
-                object, so the failure leaves that object in the bucket.
+                `SIGNED_URL_EXPIRATION` field. The read runs only once L228 resolves,
+                and by then L231 has uploaded the placeholder, so the object remains.
             ValueError: From `generate_signed_url` at L234, when the expiry read at
                 L236 exceeds the seven-day maximum a version 4 signature allows.
-            Whatever `Blob.upload_from_string` raises at L231 and whatever
-                `Blob.generate_signed_url` raises at L234, for the credential and
-                bucket reasons recorded on `export_to_pdf`. Both reach the caller
-                unchanged, because the method holds no `try` block.
+
+        Note:
+            The upload at L231 and the signing call at L234 can each fail inside the
+            client library, for the credential and bucket reasons recorded on
+            `export_to_pdf`, and no committed file pins the exception classes they
+            raise. Both reach the caller unchanged, because there is no `try` block.
         """
         # Convert document content to DOCX
         # TODO: Implement DOCX conversion logic

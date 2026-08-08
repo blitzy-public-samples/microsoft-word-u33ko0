@@ -1,8 +1,9 @@
 """Declare the application settings model and the factory that builds it.
 
-Nine modules import a module-level `settings` object from here, and this module defines
-none. Importing any of those modules therefore raises `ImportError`, which is the first
-failure a backend run hits.
+Eight modules import a module-level `settings` object from here, and this module
+defines none, so importing any of the eight raises `ImportError`, the first failure
+a backend run hits. `app/core/security.py:L43` imports the `get_settings` factory
+instead of the singleton, so it is the one importer of this module that resolves.
 
 Dependency limitation. The repository commits no backend dependency manifest.
 No `requirements.txt`, `pyproject.toml`, `setup.py`, `setup.cfg`, `Pipfile`,
@@ -31,16 +32,15 @@ Six further settings are read at runtime and declared by no field below, so each
 raises `AttributeError` at the point of the read even on a fully supplied
 environment. The six are `ALLOWED_ORIGINS` at `app/main.py:L118`, `PROJECT_ID` at
 `app/services/collaboration_service.py:L120`, `:L121`, `:L209` and `:L245`,
-`STORAGE_BUCKET_NAME` at `app/services/export_service.py:L154` and `:L228`,
-`SIGNED_URL_EXPIRATION` at `app/services/export_service.py:L162` and `:L236`,
+`STORAGE_BUCKET_NAME` at `app/services/export_service.py:L161` and `:L235`,
+`SIGNED_URL_EXPIRATION` at `app/services/export_service.py:L169` and `:L243`,
 `EXPORT_BUCKET_NAME` at `app/tasks/background_tasks.py:L141`, and
 `DOCUMENT_BUCKET_NAME` at `app/tasks/background_tasks.py:L278`. Fifteen settings
 are therefore in play: nine declared here and six read but never declared.
 
 `REDIS_URL` has no target in the committed topology even when supplied.
-`infrastructure/docker/docker-compose.yml:L3-L39` defines three services,
-`frontend`, `backend` and `db`, and names no Redis service, while
-`app/tasks/background_tasks.py:L98` builds a Celery broker from that value.
+`infrastructure/docker/docker-compose.yml:L3-L39` defines `frontend`, `backend` and
+`db`, and no Redis service, while `app/tasks/background_tasks.py:L98` builds a broker.
 
 `BaseSettings` lives in the `pydantic` package itself, so this module requires Pydantic
 1.x. Pydantic 2 moved the class to `pydantic-settings`.
@@ -99,8 +99,8 @@ class Settings(BaseSettings):
             the Firestore client.
         GOOGLE_APPLICATION_CREDENTIALS: Path to a service-account key file. Optional.
         DATABASE_URL: SQLAlchemy connection string. Required.
-        REDIS_URL: Celery broker and backend URL. Required, and no Redis service is
-            declared in Compose or in the Terraform.
+        REDIS_URL: Celery broker URL, passed as `broker=` at
+            `app/tasks/background_tasks.py:L98` with no result backend. Required.
 
     Note:
         Seven of the nine fields are required and carry no default, so constructing

@@ -3,9 +3,9 @@
 Exports `create_access_token`, `verify_password`, `get_password_hash`,
 `get_current_user`, plus the `pwd_context` and `oauth2_scheme` singletons.
 
-Three names are used and never imported: `Optional` in the `create_access_token`
-signature, and `User` and `UserService` in `get_current_user`. The first raises
-`NameError` at module evaluation; the other two raise when the function runs.
+Three names are used and never imported: `Optional` at L48, `User` at L117 and
+`UserService` at L186. Signature annotations evaluate at `def` time, so L48 raises
+`NameError` during module evaluation and L117 would follow. Only L186 waits for a call.
 
 `app/api/auth.py` defines a second `get_current_user` with the same purpose and
 different status codes, and every router imports that one rather than this one.
@@ -119,8 +119,8 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
 
     See the review marker in the comment block directly above this signature:
     `UserService` is referenced but no such module exists. L186 raises `NameError`
-    at first call rather than at import, because module-level execution never
-    enters a function body.
+    on the first call, because a function body runs only when called. The `User`
+    return annotation at L117 differs: it raises at this `def`, during import.
 
     L177 calls `get_settings()`, building a second fresh `Settings`. L179 decodes
     the token. L186 instantiates `UserService`, and L187 awaits an instance method

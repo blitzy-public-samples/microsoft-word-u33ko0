@@ -2,7 +2,7 @@
 
 The `microsoft-word-u33ko0` repository implements a browser-based word processor across six
 top-level areas, and neither of its two deployable units runs. The backend cannot import, and the
-observed first failure is a missing name rather than a missing router: `backend/app/main.py:L16`
+observed first failure is a missing name rather than a missing router. `backend/app/main.py:L16`
 imports `app.api.auth`, and `backend/app/api/auth.py:L81` then asks `app.core.config` for a `settings`
 name that module never binds, so `ImportError` ends the import there. Restoring `settings` moves the
 failure down the same file rather than out of it: `backend/app/api/auth.py:L83` imports
@@ -48,17 +48,25 @@ name plus line, because all three files use unnumbered headings only. A numbered
 anywhere in this documentation set refers to the generated Technical Specification, a separate
 document, and the text says so when it does.
 
-Where this engagement made a judgement, [decision-log.md](decision-log.md) will carry the argument.
-That file is planned for a later checkpoint and is not committed yet. No rationale lives in this file.
+Where this engagement made a judgement, [decision-log.md](decision-log.md) carries the argument. No
+rationale lives in this file.
 
 ## System purpose
 
 The system exists to let someone write, format, save and export a document in a browser.
 `../README.md:L4` frames the product as a web-based version of Microsoft Word, built on React for
-the client and Python FastAPI for the server, and deployed on Google Cloud Platform. Committed
-capabilities cover document create, read, update and delete (CRUD), ownership-based authorization,
-rich-text editing on Draft.js, templates, export to PDF and DOCX, and a designed-but-unconnected
-real-time collaboration path.
+the client and Python FastAPI for the server, and deployed on Google Cloud Platform. That framing is
+declared intent, and the committed tree holds code surfaces and scaffolds rather than working
+features. Nothing in the list below works end to end today.
+
+| Committed code surface | State as committed |
+| ---------------------- | ------------------ |
+| Document create, read, update and delete | Five routes and four service methods exist. Every route raises before it reaches Firestore, because the module cannot import and three call sites pass the wrong number of arguments |
+| Ownership-based authorization | Three comparisons are attempted, and each reads a field name the contract does not declare. Zero checks are enforced |
+| Rich-text editing on Draft.js | The editor surface and both formatting helpers exist. The toolbar calls them with one argument where two are declared, and with lowercase constants Draft.js does not accept |
+| Templates | Five routes and a card gallery exist. Both the template schema and the template service are absent files |
+| Export to PDF and DOCX | Both methods upload a literal placeholder string rather than a converted document, and the task tier calls a method the class never defines |
+| Real-time collaboration | Designed and unconnected. No route constructs the service, and the client speaks Socket.IO while the server signature expects a FastAPI WebSocket |
 
 [onboarding.md](onboarding.md) covers what a new developer can run today.
 [troubleshooting.md](troubleshooting.md) registers every blocking defect with its evidence.
@@ -73,7 +81,7 @@ the baseline this documentation measures.
 | `frontend/` | The React and TypeScript single-page application (SPA): 26 modules under `src/`, plus `package.json`, `tsconfig.json` and `public/index.html` | 29 | 943 under `src/` | [frontend/src](../frontend/src/README.md) and its six subfolder READMEs |
 | `backend/` | The FastAPI application: 15 modules under `app/`, plus 3 test modules under `tests/` | 18 | 645 under `app/`, 212 under `tests/` | [backend/app](../backend/app/README.md) and its six subpackage READMEs, plus [backend/tests](../backend/tests/README.md) |
 | `infrastructure/` | 3 Terraform files declaring a virtual private cloud (VPC) network, a subnet, a firewall rule and a storage bucket, plus 3 Docker artifacts | 6 | 235 Terraform, 102 Docker | [terraform](../infrastructure/terraform/README.md), [docker](../infrastructure/docker/README.md) |
-| `documentation/` | 3 specification documents recording intended behaviour | 3 | 2,313 | Described from outside, in this file. The planned index at [docs/README.md](README.md) is not committed yet. Never edited |
+| `documentation/` | 3 specification documents recording intended behaviour | 3 | 2,313 | Described from outside, in this file, and indexed at [docs/README.md](README.md). Never edited |
 | `scripts/` | 2 shell scripts: one deploy, one local environment setup | 2 | 101 | [scripts](../scripts/README.md) |
 | `.github/workflows/` | 2 workflows: continuous integration and continuous delivery | 2 | 41 | [workflows](../.github/workflows/README.md) |
 
@@ -201,7 +209,7 @@ The table below names each break, its evidence, its consequence, and the defect 
 | Composition root to settings, the first failure | `backend/app/main.py:L20` imports `settings` from `app.core.config`, which defines the `Settings` class at `backend/app/core/config.py:L51` and `get_settings()` at `:L126`, and never creates a module-level instance | Eight modules import `settings` directly, and nine module-import failures trace back to the one absent name, because `app.main` fails both on its own import at `:L20` and earlier through `app.api.auth`. `ImportError` ends the import of every one | G2 |
 | Composition root to the four routers, latent behind the row above | `backend/app/main.py:L16-L19` imports `auth_router`, `documents_router`, `users_router` and `templates_router`. All four modules export the bare name `router`, at `backend/app/api/auth.py:L87`, `backend/app/api/documents.py:L51`, `backend/app/api/users.py:L27` and `backend/app/api/templates.py:L75` | No router symbol resolves. A run never reports this, because executing `app.api.auth` at `main.py:L16` raises on the missing `settings` first, and then on the absent `app.services.user_service` module its `:L83` requests. These four names are the third failure, not the second | G2 |
 | Composition root to the SQL adapter | `backend/app/main.py:L22` imports `init_db` from `app.db.sql`, which defines `engine`, `SessionLocal`, `Base` and `get_db` and defines no `init_db`. The startup handler awaits the absent name at `:L60` | `ImportError` ends the import of `app.main` at `:L22`, before the startup handler can run | G1 |
-| Lifecycle handlers to the Firestore client | `backend/app/main.py:L63` calls `db.is_connected()`, which belongs to no release of the Google Cloud Firestore `Client`. `:L110` awaits `db.close()` on the object imported at `:L21`, and `close()` does exist, inherited synchronously from the shared Google Cloud client base class | `:L68-L69` catches the startup `AttributeError` and prints it, so the application would start believing Firestore is reachable. At shutdown the close executes and returns `None`, and `await` then raises `TypeError` on that `None`. The transport session is already shut when the error surfaces. `:L110` sits in no `try` block, so the cleanup `:L113` records as outstanding is skipped | G5 |
+| Lifecycle handlers to the Firestore client | `backend/app/main.py:L63` calls `db.is_connected()`, which belongs to no release of the Google Cloud Firestore `Client`. `:L110` awaits `db.close()` on the object imported at `:L21`, and nothing pins `google-cloud-firestore`, so no committed file settles which `close` surface the resolved release provides | `:L68-L69` catches the startup `AttributeError` and prints it, so the application would start believing Firestore is reachable. At shutdown a synchronous `close()` returns `None`, and `await None` raises `TypeError`; a release exposing no `close` raises `AttributeError` instead. Whether anything inside the client shuts down first is unestablished here. `:L110` sits in no `try` block, so the cleanup `:L113` records as outstanding is skipped | G5 |
 | Every backend module to the `app` package | No `__init__.py` file exists anywhere under `backend/`, so `app` and its six subpackages are implicit namespace packages. `infrastructure/docker/backend.Dockerfile:L14` copies `./app` to `/app`, and `:L20` runs `uvicorn main:app` | The `app.` prefix used by every internal import cannot resolve inside the image as built. [backend/app/README.md](../backend/app/README.md) owns this statement | G1 |
 | Router mounting to resource prefixes | `backend/app/main.py:L125-L128` mounts all four routers with no prefix argument, documents at `:L126` ahead of users at `:L127` and templates at `:L128` | Seven protected handlers become unreachable, not five. The five template routes collide with the five document routes on `/` and `/{id}`, and `GET /me` at `backend/app/api/users.py:L29` plus `PUT /me` at `:L50` are claimed by `GET /{document_id}` at `backend/app/api/documents.py:L145` and `PUT /{document_id}` at `:L188`, because a single-segment path template matches the literal `me` | G7 |
 | Root component to the store | `frontend/src/App.tsx:L23` imports `{ store }` as a named symbol, and `frontend/src/store/index.ts:L65` exports the store as a default only | The named import resolves to nothing, and the compiler reports it | G2 |
@@ -305,7 +313,7 @@ contradict all seven.
 | Assumption | Why it must hold | Where it is contradicted |
 | ------------ | ------------------ | -------------------------- |
 | An `app` package sits on the import path | Twelve modules import by absolute package path, for example `from app.core.config import settings` at `backend/app/main.py:L20` | No `__init__.py` file exists anywhere under `backend/`, so all seven namespaces are implicit. `infrastructure/docker/backend.Dockerfile:L14` copies `./app` to `/app` and `:L20` runs `uvicorn main:app`, which flattens the package and leaves the `app.` prefix unresolvable. [backend/app/README.md](../backend/app/README.md) owns this fact |
-| A `settings` singleton is importable from `app.core.config` | Nine modules read configuration through that name, including the CORS middleware at `backend/app/main.py:L118` | `backend/app/core/config.py:L51-L140` defines the `Settings` class and the `get_settings()` factory, and creates no module-level instance |
+| A `settings` singleton is importable from `app.core.config` | Eight modules read configuration through that name, including the CORS middleware at `backend/app/main.py:L118` | `backend/app/core/config.py:L51-L140` defines the `Settings` class and the `get_settings()` factory, and creates no module-level instance |
 | Routers mount under resource prefixes | The client prefixes its calls with `/documents`, and documents and templates each declare five identical route paths | `backend/app/main.py:L125-L128` mounts all four routers with no prefix, so the two resources collide on `/` and `/{id}` and the two profile routes at `backend/app/api/users.py:L29` and `:L50` are shadowed by the single-segment document routes |
 | Ownership travels on one field name | The document handlers compare a stored owner against the caller at `backend/app/api/documents.py:L184`, `:L232` and `:L279`, and the service repeats the comparison at `backend/app/services/document_service.py:L175`, `:L241` and `:L280` | Four positions carry the field under two different names, and one of them is optional with a default. [data-model.md](data-model.md) names all four and names none canonical |
 | The `@/` alias resolves to `src/` | 44 executable imports across 13 of the 26 modules under `frontend/src/` use that prefix, and `frontend/src/App.tsx` alone carries seven of them | `frontend/tsconfig.json:L10-L16` declares five aliases, and none of them is `@/`. `react-scripts` 5 would not apply those mappings to bundler resolution in any case |
@@ -346,10 +354,10 @@ Infrastructure and automation:
 - [.github/workflows](../.github/workflows/README.md), the CI and CD pipelines
 - [scripts](../scripts/README.md), the deploy and setup scripts
 
-Five repository-level documents sit beside this one: [onboarding.md](onboarding.md),
-[data-model.md](data-model.md), [integration-guide.md](integration-guide.md),
-[deployment-guide.md](deployment-guide.md) and [troubleshooting.md](troubleshooting.md). Two more are
-planned for a later checkpoint and not committed yet, an index at [docs/README.md](README.md) and
-[decision-log.md](decision-log.md). The
+Eight repository-level documents sit beside this one: the index at [docs/README.md](README.md), plus
+[onboarding.md](onboarding.md), [data-model.md](data-model.md),
+[integration-guide.md](integration-guide.md), [deployment-guide.md](deployment-guide.md),
+[troubleshooting.md](troubleshooting.md), [decision-log.md](decision-log.md) and
+[prose-validation.md](prose-validation.md). The
 [root README](../README.md) and `../documentation/Technical Specifications.md` stay as reference,
 unedited by this engagement.

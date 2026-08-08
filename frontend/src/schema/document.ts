@@ -25,7 +25,7 @@
  * currently exports no type at all.
  *
  * The server draws the same three-way distinction. `backend/app/schema/document.py` declares
- * `DocumentCreate` at L72 and `DocumentUpdate` at L86 alongside `Document` at L90, and each
+ * `DocumentCreate` at L68 and `DocumentUpdate` at L82 alongside `Document` at L96, and each
  * carries a different field set. This module declares one schema value covering the full
  * record and none for either write shape, so two of the three contracts have no schema to
  * infer from.

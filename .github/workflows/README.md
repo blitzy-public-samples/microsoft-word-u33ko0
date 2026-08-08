@@ -141,7 +141,7 @@ Each workflow declares a single job. `ci.yml` declares `build` (`ci.yml:L10`) an
 Cloud authentication arrives through injected secrets rather than committed files. The SDK step reads `project_id` and `service_account_key` from repository
 secrets (`cd.yml:L15-L16`).
 
-Every action carries an explicit version reference (`ci.yml:L13`, `:L15`, `cd.yml:L11`, `:L13`), and every one of those references is a mutable tag rather than a
+Every action carries an explicit version reference (`ci.yml:L13`, `:L15`, `cd.yml:L11`, `:L13`). Every one of those references is a mutable tag rather than a
 commit SHA, so none of them pins the code that runs. The runner label carries no version at all, so `ubuntu-latest` floats as well.
 
 The missing pattern is a gate between validation and deployment. Nothing makes `cd.yml` wait for `ci.yml`, so a push to `main` (`cd.yml:L3-L5`) starts both jobs
@@ -150,7 +150,7 @@ at the same time.
 ## Known Limitations
 
 Neither workflow can complete as committed. The `build` job stops at step 3 of 5 (`ci.yml:L19`), and the `deploy` job stops on the first command of step 3 of 3
-(`cd.yml:L19`). Every claim below was checked against the two workflow files and the 61-file tracked set.
+(`cd.yml:L19`). Every claim below was checked against the two workflow files and the tracked tree.
 
 The table separates the blocker a run actually hits from the latent blockers behind it. A latent blocker is real and unfixed but never reached, so clearing the
 first blocker exposes the next one rather than producing a green run.
@@ -164,9 +164,9 @@ first blocker exposes the next one rather than producing a green run.
 | `ci.yml` | LATENT: the `Build` step would fail even once installation is fixed | `npm run build` (`ci.yml:L23`) runs `react-scripts build` (`frontend/package.json:L33`), which type-checks the project and treats a TypeScript error as a build failure. Create React App downgrades those errors to warnings only when `TSC_COMPILE_ON_ERROR=true` is set, and no committed file sets it, because no `.env` file exists. `npx tsc --noEmit` reports 76 errors, so the build step fails on the second attempt at a green run |
 | `ci.yml` | No dedicated lint step and no dedicated type-check step exist, although both tools are already configured | `frontend/package.json:L36` defines a `lint` script, and `frontend/tsconfig.json:L25` sets `"noEmit": true`, which supports a standalone type check. The `Build` step type-checks as a side effect, which reports the errors at the wrong stage and gives no separate signal |
 | `ci.yml` | Two deprecated action pins | `actions/checkout@v2` (`ci.yml:L13`) and `actions/setup-node@v2` (`ci.yml:L15`) |
-| `ci.yml` | Node 14 reached end of life on 30 April 2023 and is unsupported as of 6 August 2026 | `ci.yml:L17`. Three files declare the floor while nothing enforces it: `README.md:L22`, `ci.yml:L17` and `infrastructure/docker/frontend.Dockerfile:L2`. No `engines` field and no `.nvmrc` is committed |
+| `ci.yml` | Node 14 reached end of life on 30 April 2023 and is unsupported as of 6 August 2026, per [Node.js previous releases](https://nodejs.org/en/about/previous-releases) | `ci.yml:L17`. Three files declare the floor while nothing enforces it: `README.md:L22`, `ci.yml:L17` and `infrastructure/docker/frontend.Dockerfile:L2`. No `engines` field and no `.nvmrc` is committed |
 | both | The `build` job runs one configuration with no caching and no explicit token scope | Neither file declares `strategy`, `matrix`, `cache`, `permissions`, `env:`, `if:`, `timeout-minutes`, `continue-on-error`, `concurrency`, `schedule`, `workflow_dispatch`, `defaults`, `container`, `services:` or `outputs:` |
-| `cd.yml` | Both deployment descriptors are absent, so the deploy cannot succeed | `cd.yml:L19` deploys `app.yaml` and `cd.yml:L20` deploys `dispatch.yaml`. Neither filename appears anywhere in the 61-file tracked set |
+| `cd.yml` | Both deployment descriptors are absent, so the deploy cannot succeed | `cd.yml:L19` deploys `app.yaml` and `cd.yml:L20` deploys `dispatch.yaml`. Neither filename appears anywhere in the tracked tree |
 | `cd.yml` | The two commands share one step, and only the first runs | GitHub executes a `run:` block on a Linux runner through `bash -e` by default, so the first non-zero exit ends the step. `cd.yml:L19` is the failure a run reports, and `cd.yml:L20` is LATENT: the missing `dispatch.yaml` never gets a chance to be reported. Supplying `app.yaml` alone therefore moves the failure to `cd.yml:L20` rather than producing a release |
 | `cd.yml` | A deprecated, mutable action pin on the step the service-account key passes through | `google-github-actions/setup-gcloud@v0.2.0` (`cd.yml:L13`). See the Dependencies note above on supply chain exposure |
 | `cd.yml` | No validation gates the deployment | A push to `main` starts `deploy` (`cd.yml:L3-L5`) whatever the `ci.yml` result, and both files contain zero occurrences of `needs:` and `workflow_run`. Because `ci.yml` already fails at `ci.yml:L19`, nothing is validated before a deploy is attempted |
@@ -178,7 +178,7 @@ first blocker exposes the next one rather than producing a green run.
 
 | Concern | Committed state, and the prerequisite for fixing it |
 | --- | --- |
-| Action references are mutable | `actions/checkout@v2` (`ci.yml:L13`, `cd.yml:L11`), `actions/setup-node@v2` (`ci.yml:L15`) and `google-github-actions/setup-gcloud@v0.2.0` (`cd.yml:L13`) name tags, not pins. Anyone with write access to an action repository can move or delete a tag, so a tag names whatever bytes it currently points at rather than a fixed release, and only a full-length commit SHA is an immutable reference. The March 2025 `tj-actions/changed-files` compromise moved every tag in that repository to malicious code, which is the failure mode a tag leaves open. Replacing each tag with a reviewed full commit SHA, and recording the resolved version in a comment beside it, is the prerequisite. |
+| Action references are mutable | `actions/checkout@v2` (`ci.yml:L13`, `cd.yml:L11`), `actions/setup-node@v2` (`ci.yml:L15`) and `google-github-actions/setup-gcloud@v0.2.0` (`cd.yml:L13`) name tags, not pins. Anyone with write access to an action repository can move or delete a tag, so a tag names whatever bytes it currently points at rather than a fixed release, and only a full-length commit SHA is an immutable reference, which is [GitHub's stated position](https://docs.github.com/en/actions/reference/security/secure-use). In the March 2025 `tj-actions/changed-files` compromise, tags v1 through v45.0.7 were repointed at a single malicious commit on 14 and 15 March 2025, and the fix shipped in v46.0.1 ([CVE-2025-30066](https://github.com/advisories/GHSA-mrrh-fwg8-r2c3), [CISA alert](https://www.cisa.gov/news-events/alerts/2025/03/18/supply-chain-compromise-third-party-tj-actionschanged-files-cve-2025-30066-and-reviewdogaction)), which is the failure mode a tag leaves open. Replacing each tag with a reviewed full commit SHA, and recording the resolved version in a comment beside it, is the prerequisite. |
 | No least-privilege token scope | Neither file declares a `permissions:` block at workflow or job level, so both jobs receive the default `GITHUB_TOKEN` scope. `ci.yml` needs `contents: read` alone, and `cd.yml` needs `contents: read` plus `id-token: write` if it moves to federated identity. Declaring the minimum explicitly in both files is the prerequisite. |
 | A long-lived key authenticates the deploy | `cd.yml:L16` passes `secrets.GCP_SA_KEY` to `setup-gcloud`. A user-managed service account key is long-lived, does not expire by default, and grants its permissions to anyone who obtains it, so it is a high-value target that has to be rotated and audited by hand. |
 | No federated identity is configured | Workload Identity Federation is the preferred model: it exchanges the OpenID Connect token GitHub issues for short-lived Google credentials and removes key management entirely. It needs `permissions: id-token: write` on the job, a workload identity pool and provider on the Google side, and an attribute condition restricting that provider to this repository, because an unconditioned provider lets any repository authenticate. None of the three exists today. |
@@ -236,7 +236,7 @@ The command reproduces `ci.yml:L19` and fails the same way, because the root hol
 The two commands below are quoted as workflow reference only. Do not run them against a real project. `gcloud app deploy` publishes to Google App Engine under
 whatever account and project the local `gcloud` configuration happens to hold, `--quiet` suppresses the confirmation prompt, and App Engine deployments cannot
 be undone by re-running the command. If you must execute them to study the failure, use a disposable non-production project, confirm the active identity first
-with `gcloud config list account` and `gcloud config get-value project`, and name the target explicitly with `--project=<disposable-project-id>` rather than
+with `gcloud config list account` and `gcloud config get-value project`. Name the target explicitly with `--project=<disposable-project-id>` rather than
 relying on the ambient default.
 
 ```bash

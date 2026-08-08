@@ -42,8 +42,8 @@ Structured Query Language (SQL) database. Its `### Google Cloud Firestore (NoSQL
 
 The specification places document and user data in both stores. The committed code matches that placement for
 documents only, because `services/document_service.py` reads and writes a Firestore `documents` collection. The
-user contracts here are contract-only: no committed module persists a user, `api/auth.py:L83` imports the
-`UserService` that would, and that module does not exist, so `UserBase`, `UserCreate`, `UserUpdate` and `User`
+user contracts here are contract-only. No committed module persists a user, `api/auth.py:L83` imports the
+`UserService` that would, and that module does not exist. `UserBase`, `UserCreate`, `UserUpdate` and `User`
 shape request and response bodies and nothing else. Templates, document permissions and template permissions have
 no model here, and no object-relational mapping (ORM) model exists either.
 
@@ -132,7 +132,7 @@ The ownership field holds four positions, and this README names none of them can
 
 Because `owner_id` is optional with a default at `document.py:L66`, a document validates without the field that
 authorization depends on. The [data model reference](../../../docs/data-model.md) consolidates all four positions, and
-the planned, not yet committed [decision log](../../../docs/decision-log.md) will record the choice between them.
+the [decision log](../../../docs/decision-log.md) records at D8 why this documentation chooses between none of them.
 
 - **Three router sites read a field the read model never declares.** `Document` inherits `owner_id` and declares no
   `user_id`, yet `app/api/documents.py:L184`, `:L232` and `:L279` each read `.user_id` on a `Document`.

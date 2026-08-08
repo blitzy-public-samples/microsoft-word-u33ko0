@@ -17,15 +17,15 @@
  * - `applyInlineStyle` and `applyBlockStyle` at L43 both exist, at
  *   `frontend/src/utils/formatting.ts:L31` and `:L61`. The `@remarks` block on `handleKeyCommand`
  *   below reads how L109 and L116 call them.
- * - The `@/` prefix at L43 is absent from the `paths` map at `frontend/tsconfig.json:L10-L16`, which
- *   declares `@components/*`, `@utils/*`, `@styles/*`, `@hooks/*` and `@services/*` only. `tsc`
- *   raises TS2307 for that specifier too.
+ * - The `@/` prefix at L43 is absent from the `paths` map at
+ *   `frontend/tsconfig.json:L10-L16`, which declares `@components/*`, `@utils/*`,
+ *   `@styles/*`, `@hooks/*` and `@services/*` only. `tsc` raises TS2307 for it too.
  * - Beyond `draft-js` and the `@/` prefix, the module names no undefined symbol.
  *
  * No module imports `TextEditor`, so no page mounts this component.
- * `frontend/src/pages/Editor.tsx` imports `Header`, `Toolbar`, `DocumentCanvas` and `Sidebar` at
- * `Editor.tsx:L21-L24`, and renders `DocumentCanvas` at `Editor.tsx:L238`. The editor a user reaches
- * is therefore the one in `frontend/src/components/DocumentCanvas.tsx`.
+ * `frontend/src/pages/Editor.tsx` imports `Header`, `Toolbar`, `DocumentCanvas` and
+ * `Sidebar` at `Editor.tsx:L21-L24`, and renders `DocumentCanvas` at `Editor.tsx:L238`.
+ * The editor a user reaches is therefore `frontend/src/components/DocumentCanvas.tsx`.
  *
  * `Toolbar.tsx:L62` and `:L67` call the same two helpers differently. The `@remarks` block on
  * `handleKeyCommand` below reads both call sites against the declared signatures, and ./README.md

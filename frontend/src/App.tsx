@@ -28,13 +28,13 @@ import { store } from '@/store/index';
  * @returns The provider, router and shell element tree wrapping the routed page area.
  * @remarks
  * The component declares the complete routed surface: `/` to `Home`, `/editor` to `Editor`,
- * `/templates` to `Templates`, `/settings` to `Settings`. Five links elsewhere target paths absent
- * from that list.
+ * `/templates` to `Templates`, `/settings` to `Settings`. Five links elsewhere target absent paths.
  *
  * Accessibility: the shell owns the one `<main>` landmark, and `Home`, `Settings` and `Templates`
- * each render a second `<main>` inside it, which nests one main landmark within another. All four
- * pages also repeat the `Header`, and three repeat the `Footer`, so assistive technology reports
- * duplicate banner and contentinfo landmarks on every route.
+ * each render a second inside it, nesting one main within another. All four pages repeat the
+ * `Header`, so `banner` and the unnamed `<nav>` at `components/Header.tsx:L66` both duplicate on
+ * every route, leaving two indistinguishable navigation landmarks that each need a distinct name.
+ * Three pages repeat the `Footer`, so `contentinfo` duplicates on three routes, not on `Editor`.
  *
  * Intended behavior per `documentation/Technical Specifications.md`, "USER INTERFACE DESIGN"
  * heading: `Toolbar`, `DocumentCanvas` and `Sidebar` sit under `App` rather than under `Editor`.

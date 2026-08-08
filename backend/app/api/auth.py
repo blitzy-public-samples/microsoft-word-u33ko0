@@ -194,7 +194,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     L230 calls `UserService.authenticate_user` on the class rather than on an
     instance, against a module that does not exist. The inline JSON Web Token
     (JWT) encoding at L235-L239 duplicates `create_access_token` at
-    `app/core/security.py:L48-L80`. L180 builds the payload
+    `app/core/security.py:L48-L80`. `auth.py:L236` builds the payload
     `{"sub": str(user.id), "exp": datetime.utcnow() + access_token_expires}`,
     and L237 and L238 sign it with `settings.SECRET_KEY` and
     `settings.ALGORITHM`. L234 reads the lifetime from

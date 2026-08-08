@@ -47,9 +47,8 @@ SYSTEM ARCHITECTURE, `L300` SYSTEM DESIGN, `L523` TECHNOLOGY STACK and `L620` SE
 CONSIDERATIONS. A numbered section citation anywhere in this documentation set refers to the
 generated Technical Specification, a separate document, and the text says so when it does.
 
-Where this engagement made a judgement, the argument belongs in
-[decision-log.md](decision-log.md), which this set has not committed yet. No rationale lives in this
-file.
+Where this engagement made a judgement, the argument sits in
+[decision-log.md](decision-log.md). No rationale lives in this file.
 
 ## Persistence overview
 
@@ -88,8 +87,8 @@ Three modules import the adapter, and all three import only the `db` client:
 interface (API) itself at `:L114`, `:L168`, `:L234` and `:L273`.
 
 One annotation contradicts its own body. `backend/app/db/firestore.py:L42` declares
-`get_document(...) -> dict`, and `:L70` returns `None` on the missing-snapshot branch, so a caller
-that trusts the annotation dereferences `None`.
+`get_document(...) -> dict`, and `backend/app/db/firestore.py:L68` returns `None` on the
+missing-snapshot branch, so a caller that trusts the annotation dereferences `None`.
 
 Code touches three collections. `documents` carries every document record, written at
 `backend/app/services/document_service.py:L118` and read at `:L169`. The retention task adds
@@ -170,10 +169,10 @@ the diagram carries the marker rather than repeating the locator.
 ```mermaid
 erDiagram
     accTitle: The four entity families, their links, and the language that declares each field
-    accDescr: Four families. User owns documents through a field named four ways. Documents own versions declared in both languages and constructed by neither. Users own templates that carry a client contract only. Each attribute comment names the language and the line that declares the field.
-    USER ||--o{ DOCUMENT : "owns, via a field named four ways"
-    DOCUMENT ||--o{ VERSION : "declared in both, built by neither"
-    USER ||--o{ TEMPLATE : "client contract only"
+    accDescr: Four families. User owns documents through a field in four positions under two names. Documents own versions declared in both languages and constructed by neither. Users own templates that carry a client contract only, with no server contract. Each attribute comment names the language and the line that declares the field.
+    USER ||--o{ DOCUMENT : "owns, through a field in four positions under two names"
+    DOCUMENT ||--o{ VERSION : "declared in both languages, constructed by neither"
+    USER ||--o{ TEMPLATE : "client contract only, no server contract exists"
 
     USER {
         string id "both languages"
@@ -400,8 +399,8 @@ isolation.
 
 ## The ownership field: four positions, none canonical
 
-Authorization in this repository compares an ownership field, and four positions disagree about its
-name.
+Authorization in this repository compares an ownership field, and four positions in the committed
+code disagree about its name under two spellings, `owner_id` and `user_id`.
 
 | # | Position | Location | Field |
 | --- | ---------- | ---------- | ------- |
@@ -535,32 +534,31 @@ would reject.
 ```mermaid
 graph TD
     accTitle: The transformation points between editor state and the stored record
-    accDescr: Path A carries canvas state into the Redux store and no edit completes it. Path B carries page state to REST and fires once, five seconds after mount. The inbound path carries a stored record back to editor state. A dashed edge marks a broken step and its label names the fault.
-    subgraph PATHA["Path A, canvas to Redux store"]
-        ES["Draft.js EditorState<br/>DocumentCanvas.tsx<br/>:L161"]
-        ARG["passes ContentState<br/>DocumentCanvas.tsx<br/>:L163"]
-        RAW["raw content, blocks<br/>and entityMap<br/>convertToRaw<br/>documentUtils.ts:L40"]
-        STR["serialized string<br/>JSON.stringify<br/>documentUtils.ts:L41"]
-        GUARD1["DocumentSchema<br/>.isValid<br/>documentUtils.ts:L44"]
-        DISP["dispatch to the store<br/>DocumentCanvas.tsx<br/>:L164"]
+    accDescr: Path A carries canvas state into the Redux store, ends there and reaches no request. Path B carries page state to REST and fires once, five seconds after mount. The inbound path carries a stored record back to editor state. A dashed edge marks a broken step and its label names the fault.
+    subgraph PATHA["Path A, canvas to Redux store. Ends at the store and reaches no request."]
+        ES["Draft.js EditorState<br/>handleEditorChange, DocumentCanvas.tsx:L161"]
+        ARG["passes ContentState to serializeDocument<br/>DocumentCanvas.tsx:L163"]
+        RAW["raw content, blocks and entityMap<br/>convertToRaw, documentUtils.ts:L40"]
+        STR["serialized string<br/>JSON.stringify, documentUtils.ts:L41"]
+        GUARD1["DocumentSchema.isValid<br/>documentUtils.ts:L44"]
+        DISP["dispatch updateDocument<br/>DocumentCanvas.tsx:L164"]
+        RDX[("Redux document slice<br/>store/documentSlice.ts")]
     end
 
-    subgraph PATHB["Path B, editor page to REST"]
-        PSTATE["page content state<br/>Editor.tsx:L228 sets it,<br/>nothing calls it"]
-        SAVE["autoSave<br/>Editor.tsx:L205,<br/>timer at :L214"]
-        BODY["request body<br/>api.ts:L246 create,<br/>:L288 update"]
-        PYD["Pydantic model<br/>DocumentCreate<br/>document.py:L68"]
-        DICT["plain dictionary<br/>document.dict<br/>document_service.py<br/>:L115"]
-        KEYS["adds user_id then id<br/>document_service.py<br/>:L116-L117"]
+    subgraph PATHB["Path B, editor page to REST. Fires once, five seconds after mount."]
+        PSTATE["page content state<br/>Editor.tsx:L86, set by handleContentChange at :L228"]
+        SAVE["autoSave closure<br/>Editor.tsx:L205, timer at :L214"]
+        BODY["PUT request body<br/>Editor.tsx:L207 calls updateDocument, api.put at api.ts:L288"]
+        PYD["Pydantic DocumentUpdate<br/>bound at documents.py:L189, declared at document.py:L82"]
+        DICT["plain dictionary<br/>dict(exclude_unset=True), document_service.py:L245"]
+        WRITE["doc_ref.update<br/>document_service.py:L246"]
     end
 
-    ES -.->|"Editor.tsx:L238 passes two props<br/>to a propless component, so no<br/>callback links Path A to Path B"| PSTATE
-
-    STORE[("Firestore collection<br/>documents<br/>set<br/>document_service.py<br/>:L118")]
+    STORE[("Firestore collection documents")]
 
     subgraph IN["Inbound: Firestore to editor state"]
-        READ["snapshot dictionary<br/>to_dict<br/>document_service.py<br/>:L169"]
-        MODEL["typed model<br/>Document(**...)<br/>document_service.py<br/>:L179"]
+        READ["snapshot fetched<br/>doc_ref.get, document_service.py:L169"]
+        MODEL["typed model<br/>Document(**doc.to_dict()), document_service.py:L179"]
         RESP["response body<br/>documents.py:L186"]
         GUARD2["Zod validation<br/>of the response"]
         PARSE["raw content object<br/>JSON.parse<br/>documentUtils.ts:L67"]
@@ -570,12 +568,20 @@ graph TD
         CALLER["setEditorState receives<br/>the EditorState<br/>DocumentCanvas.tsx<br/>:L117"]
     end
 
-    ES -.->|"TERMINAL: a ContentState arrives<br/>where documentUtils.ts:L39 declares<br/>EditorState, so :L40 raises before<br/>convertToRaw is called"| RAW
+    ES --> ARG
+    ARG -.->|"FIRST FAULT on Path A: a ContentState arrives where documentUtils.ts:L39 declares EditorState, so :L40 raises before convertToRaw returns"| RAW
     RAW --> STR --> GUARD1
-    GUARD1 -.->|"would raise once the caller is<br/>repaired: isValid is not a Zod API,<br/>and checks content against a<br/>metadata schema"| BODY
-    BODY --> PYD --> DICT --> KEYS --> STORE
+    GUARD1 -.->|"would raise once the caller is repaired: isValid is not a Zod API, and checks content against a metadata schema"| DISP
+    DISP -.->|"documentSlice exports six actions and no updateDocument, so the dispatch names an action that does not exist"| RDX
+
+    ES -.->|"ABSENT JOIN: Editor.tsx:L238 passes content and onContentChange to a propless component, so nothing calls handleContentChange and no committed line carries Path A into Path B"| PSTATE
+
+    PSTATE --> SAVE
+    SAVE -.->|"FIRST FAULT on Path B: Editor.tsx:L207 dereferences currentDocument.id with no guard, and api.ts:L142 reads a store binding the module never imports"| BODY
+    BODY --> PYD --> DICT --> WRITE --> STORE
+
     STORE --> READ --> MODEL
-    MODEL -.->|"raises: created_at and updated_at<br/>are required at<br/>document.py:L111-L112<br/>and never written"| RESP
+    MODEL -.->|"raises: created_at and updated_at are required at document.py:L111-L112 and no path writes either"| RESP
     RESP --> GUARD2
     GUARD2 -.->|"skipped: no response is parsed<br/>anywhere, so z.date() never meets<br/>the ISO 8601 string it rejects"| PARSE
     PARSE --> GUARD3
@@ -585,13 +591,29 @@ graph TD
 
 %% A dashed edge marks a broken step, and its label names the fault. Every step after the first dashed
 %% edge on a path is unreachable, so a solid edge downstream of one describes intended shape only.
-%% Path A completes no edit. Path B fires once, five seconds after mount.
+%% Path A and Path B are separate in source. The single dashed ES-to-PSTATE edge marks the join the
+%% code does not make, and no edge runs from Path A into the HTTP body.
 ```
+
+Path A and Path B are two separate paths in the committed source, and no line joins them. Path A ends
+at a Redux dispatch, and Path B builds its request body from page state that Path A never reaches.
+The one edge drawn between them is dashed and labelled as the absent join.
+`frontend/src/pages/Editor.tsx:L238` passes `content` and `onContentChange` to a component that
+declares no props, so `handleContentChange` at `:L228` is never called. The `content` state at `:L86`
+therefore keeps the empty string it was initialised with.
+
+Path B follows the update contract, because the editor calls `updateDocument`. The create contract is
+a separate path with the same destination: `frontend/src/services/api.ts:L245` posts to
+`/documents`, `backend/app/api/documents.py:L53` binds `DocumentCreate` from
+`backend/app/schema/document.py:L68`, and `backend/app/services/document_service.py:L115-L118`
+serializes the model, adds `user_id` and `id`, and commits with `set`. That path stores both
+`owner_id` from the payload and `user_id` from the argument, which is the write that creates two owner
+identities in one record.
 
 ## Related documentation
 
-[docs/README.md](README.md) will index every document in this set once that file lands. Until then,
-the list below is the map.
+[docs/README.md](README.md) indexes every document in this set. The list below is the same map, narrowed
+to the documents this reference leans on.
 
 Repository-level documents beside this one:
 
@@ -600,8 +622,8 @@ Repository-level documents beside this one:
 - [integration-guide.md](integration-guide.md), Firestore, Cloud Storage and the absent Redis broker
 - [deployment-guide.md](deployment-guide.md), what the infrastructure assets do today
 - [onboarding.md](onboarding.md), clean-machine setup and a prioritised task list
-- [decision-log.md](decision-log.md), pending and not yet committed: every judgement this engagement
-  made, with its reasoning
+- [decision-log.md](decision-log.md), every judgement this engagement made, with its reasoning
+- [prose-validation.md](prose-validation.md), the writing-clarity verdict for this document set
 
 Module documentation for the directories this reference draws on:
 

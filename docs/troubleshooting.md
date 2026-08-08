@@ -6,17 +6,22 @@ errors. Neither container builds, the Terraform cannot initialise, and both `npm
 fail. Every one of those failures appears below with the file and line that causes it.
 
 Coverage is wider than that opening list. The eight classes below carry every defect this
-documentation pass verified against the committed source, and that includes the ones a headline
-failure hides: the seven protected handlers registration order makes unreachable, the two credential
-prerequisites a version 4 signed URL needs, the Pub/Sub topic nothing creates, the publish error that
-is caught and printed rather than raised, the ownership subscript that answers 500 instead of 403, and
-the retention sweep's partial-deletion states. A defect is listed here only when a committed line
-demonstrates it, so the register grows if someone verifies one this pass did not reach.
+documentation pass verified against the committed source, including the ones a headline failure
+hides. Six of those hidden defects are worth naming up front:
+
+- the seven protected handlers that registration order makes unreachable
+- the two credential prerequisites a version 4 signed URL needs
+- the Pub/Sub topic nothing creates
+- the publish error that is caught and printed rather than raised
+- the ownership subscript that answers 500 instead of 403
+- the retention sweep's partial-deletion states
+
+A defect is listed here only when a committed line demonstrates it, so the register grows if someone
+verifies one this pass did not reach.
 
 This document records defects. Repairing them fell outside the documentation engagement that
 produced this file, so that engagement fixed none of them. Read no entry here as fixed.
-[decision-log.md](decision-log.md) will hold the record of that boundary, and is planned for a later
-checkpoint rather than committed today.
+[decision-log.md](decision-log.md) holds the record of that boundary.
 
 ## How to read this register
 
@@ -88,10 +93,9 @@ Three limits apply, and each one has a home elsewhere.
 
 - **No repair guidance.** Entries state what is broken and where. Ordering the repair work belongs
   to [onboarding.md](onboarding.md), which closes with a prioritised task list.
-- **No design rationale.** Where this engagement made a judgement, for example declining to name
-  any single ownership field canonical, the entry states the judgement and links to
-  [decision-log.md](decision-log.md), which is planned for a later checkpoint and not committed yet.
-  Arguments belong there rather than here.
+- **No design rationale.** Where this engagement made a judgement, the entry states it and links
+  to [decision-log.md](decision-log.md). Declining to name any single ownership field canonical is
+  one such judgement. Arguments belong in the decision log rather than here.
 - **No specification claims presented as behaviour.** The three documents under `documentation/`
   describe intended behaviour rather than committed behaviour. Anything drawn from them carries the
   label **declared intent** and a citation by heading name plus line, because all three files use
@@ -135,7 +139,9 @@ section that carries the detail.
 ## G1 absent modules referenced by committed code
 
 Committed code imports ten application modules that no file provides, and the test suite adds six
-more. Each import below resolves to nothing, so the importing module cannot load.
+more. Each import in the two tables below resolves to nothing, so the importing module cannot load.
+Three further test imports are a different case, and the third table separates them out: those files
+exist, and only the import root and a later missing symbol stop them.
 
 ### Application modules
 
@@ -160,7 +166,7 @@ Creating the five missing files would not clear those five errors on its own.
 repository: one module, two imports, neither target present. The engagement that produced this
 register corrected an earlier attribution of this example to
 `backend/app/services/document_service.py`, which carries no such import.
-[decision-log.md](decision-log.md) will record that correction, and is planned rather than committed.
+[decision-log.md](decision-log.md) records that correction as decision row 12.
 
 Full treatment sits in [../backend/app/api/README.md](../backend/app/api/README.md),
 [../frontend/src/components/README.md](../frontend/src/components/README.md) and
@@ -168,16 +174,39 @@ Full treatment sits in [../backend/app/api/README.md](../backend/app/api/README.
 
 ### Modules referenced only by the test suite
 
-The three modules under `backend/tests/` import five further roots that do not exist, using three
-mutually incompatible import conventions. No test in this repository can collect.
+The three modules under `backend/tests/` name six further module targets that no file provides, using
+three mutually incompatible import conventions. No test in this repository can collect.
 
-| Absent root | Requested at | Import convention |
-| ------------- | -------------- | ------------------- |
+| Absent module | Requested at | Import convention |
+| --------------- | -------------- | ------------------- |
 | `app.models` | `backend/tests/test_api.py:L4` | `app.*`, matching the application source |
 | `app.database` | `backend/tests/test_api.py:L5` | `app.*` |
 | `backend.db.firestore_operations` | `backend/tests/test_db.py:L6` | `backend.*`, a root the application never uses |
 | `backend.db.sql_operations` | `backend/tests/test_db.py:L7` | `backend.*` |
-| bare `services.*` and `models.*` | `backend/tests/test_services.py:L3-L7` | no package root at all |
+| `models.document` | `backend/tests/test_services.py:L6` | bare `models.*`, a root that exists nowhere |
+| `models.user` | `backend/tests/test_services.py:L7` | bare `models.*` |
+
+`backend` and `app` themselves resolve as implicit namespace packages whenever their parent directory
+sits on the import path, so `backend.db` fails with `No module named 'backend.db'` rather than
+`No module named 'backend'`. The bare `models.*` root fails with `No module named 'models'`.
+
+### Three test imports that are path-dependent rather than absent
+
+`backend/tests/test_services.py:L3-L5` imports three `services.*` modules, and those three files do
+exist. Grouping them with the six rows above overstates the problem, so this register keeps them
+apart. Two separate conditions have to hold before one of them loads.
+
+| Import specifier | The file behind it | Discoverable when | What stops it next |
+| ------------------ | -------------------- | ------------------- | -------------------- |
+| `services.document_service` | `backend/app/services/document_service.py` | `backend/app/` sits on the import path, because `services/` holds no `__init__.py` and acts as an implicit namespace package | Execution needs `backend/` on the path too, for the `app.*` imports. `document_service.py:L59` imports `app.db.firestore`, and `backend/app/db/firestore.py:L36` requests the absent `settings` name. The module also requests it directly at `L60` |
+| `services.collaboration_service` | `backend/app/services/collaboration_service.py` | The same condition | `collaboration_service.py:L39` requests `settings` directly |
+| `services.export_service` | `backend/app/services/export_service.py` | The same condition | `export_service.py:L61` requests `settings` directly |
+
+No single import path satisfies every root at once. `backend/app/` makes the three `services.*`
+specifiers discoverable, `backend/` makes `app.*` resolvable, and the repository root makes neither.
+From the repository root, `python -m pytest backend/tests` therefore stops at three different lines:
+`test_api.py:L3` with `No module named 'app'`, `test_db.py:L6` with `No module named 'backend.db'`,
+and `test_services.py:L3` with `No module named 'services'`.
 
 The test modules also call methods no committed class defines, including `set_password` and
 `get_token` at `backend/tests/test_api.py:L19` and `:L36`. The fixture at
@@ -434,10 +463,14 @@ fails progressively rather than once. Four properties of this repository cause t
   `pydantic` breaks `backend/app/core/config.py:L48` immediately, because the 1.x constraint lives
   in an import statement rather than in a manifest.
 
-Three more distributions sit outside the seventeen, because a configuration value rather than a
+Four more distributions sit outside the seventeen, because a configuration value rather than a
 committed line makes each one necessary: `psycopg2-binary` once the Cloud SQL path is exercised,
-`redis` once a Celery worker attaches, and `cryptography` once `settings.ALGORITHM` names an RSA or
-ECDSA algorithm. [onboarding.md](onboarding.md#setting-up-the-backend) states the condition for each.
+`redis` once a Celery worker attaches, `cryptography` once `settings.ALGORITHM` names an RSA or
+ECDSA algorithm, and `python-dotenv` once a `.env` file exists where the backend process starts.
+That last one hides itself twice over. Pydantic 1.x requires a separate install to read the
+`Config.env_file` value at `backend/app/core/config.py:L123`. That read happens only when the
+named file is found, so an absent `.env` conceals the absent distribution until the file is created.
+[onboarding.md](onboarding.md#setting-up-the-backend) states the condition for each.
 
 [onboarding.md](onboarding.md) records the working package set for a first-time environment build.
 
@@ -555,7 +588,7 @@ every row from 4 onward runs after the Firestore document is already gone.
 | 3 | `user_id = doc.get('user_id')` | `background_tasks.py:L271` | Raises for a matched record that carries no `user_id`. `doc.id` at `:L270` always exists, so this is the only read that can fail before the first delete |
 | 4 | `db.collection('documents').document(doc_id).delete()` | `background_tasks.py:L274` | **The first destructive step, and it succeeds.** Everything below can now fail with the document already gone |
 | 5 | `storage_client.bucket(settings.DOCUMENT_BUCKET_NAME)` | `background_tasks.py:L278` | `Settings` declares no `DOCUMENT_BUCKET_NAME`, so this raises `AttributeError` |
-| 6 | `blob.delete()` on the key `{user_id}/{doc_id}` | `background_tasks.py:L279`, `:L280` | No writer uses that layout. Three writers produce export objects, and each uses a different key: `backend/app/services/export_service.py:L155` writes `exports/{document.id}.pdf`, `:L229` writes `exports/{document.id}.docx`, and `background_tasks.py:L142` writes `exports/{user_id}/{document_id}.{export_format}`. The retention key matches none of the three, and it addresses `DOCUMENT_BUCKET_NAME` while the three writers address `STORAGE_BUCKET_NAME` and `EXPORT_BUCKET_NAME`, so the delete raises `NotFound` |
+| 6 | `blob.delete()` on the key `{user_id}/{doc_id}` | `background_tasks.py:L279`, `:L280` | No writer uses that layout. Two writers produce export objects, and their layouts disagree: `backend/app/services/export_service.py:L155` writes `exports/{document.id}.pdf` and `:L229` writes `exports/{document.id}.docx`, while `background_tasks.py:L142` writes `exports/{user_id}/{document_id}.{export_format}`. The retention key matches neither, and it addresses `DOCUMENT_BUCKET_NAME` while those two writers address `STORAGE_BUCKET_NAME` and `EXPORT_BUCKET_NAME`, so the delete addresses an object no writer created and raises `NotFound` |
 | 7 | `db.collection('document_permissions').where(...).get().delete()` | `background_tasks.py:L283` | `.get()` returns a list of snapshots, and a list carries no `delete` method, so this raises `AttributeError` |
 | 8 | `db.collection('document_metadata').document(doc_id).delete()` | `background_tasks.py:L284` | The last statement. Reached only if every step above succeeded |
 
@@ -604,10 +637,10 @@ under `frontend/src/schema/` by hand, and the divergences below follow from that
 ### The ownership field, four positions
 
 Authorization in this repository compares an ownership field, and four positions disagree about its
-name. **No position is canonical.** Selecting one would change an interface, which the documentation
-engagement excluded, so this register lists all four and prefers none. The full treatment sits in
-[data-model.md](data-model.md), and [decision-log.md](decision-log.md) will record the choice once
-that planned file is committed.
+name under two spellings, `owner_id` and `user_id`. **No position is canonical.** Selecting one would
+change an interface, which the documentation engagement excluded, so this register lists all four
+and prefers none. The full treatment sits in [data-model.md](data-model.md), and
+[decision-log.md](decision-log.md) records the choice as decision row 7.
 
 | Position | Locator | Field |
 | ---------- | --------- | ------- |
@@ -696,8 +729,8 @@ are repaired, so dispatch actually happens.
 | `POST /documents` | `frontend/src/services/api.ts:L246` | The single-segment shape matches `GET`, `PUT` and `DELETE` at `backend/app/api/documents.py:L145`, `:L188` and `:L237`, and no router declares `POST /{document_id}`. Starlette answers **405 Method Not Allowed**, not 404 |
 | `PUT /documents/{id}` | `frontend/src/services/api.ts:L288` | Two path segments, and no two-segment route exists in any of the four routers. The response is **404** |
 
-A 500 from a raising handler, a 405 and a 404 are three distinct symptoms from one root cause, so a
-developer who repairs only the call that returns 404 leaves the other two in place.
+A 500 from a raising handler, a 405 and a 404 are three distinct symptoms from one root cause.
+A developer who repairs only the call that returns 404 leaves the other two in place.
 
 `frontend/src/services/auth.ts:L68` imports the bare `axios` global and uses it at `L146`, `:L194`
 and `:L239`, bypassing the configured instance created at `frontend/src/services/api.ts:L162`.
@@ -798,9 +831,9 @@ Three more faults in the same path deserve their own statement:
   message raises `NameError`. Supplying the import exposes the next fault: `message.data` is `bytes`,
   `WebSocket.send_json` serializes with `json.dumps`, and `json.dumps` rejects `bytes`. Nothing decodes
   the payload, while `:L248` encoded it as UTF-8 before publishing, so the round trip is unbalanced. The
-  third fault is event-loop ownership, because `asyncio.run` builds a new loop and closes it while the
-  socket belongs to the server's already-running loop, and `asyncio.run` refuses outright when a loop is
-  already running on the calling thread. The Pub/Sub client invokes the callback on its own thread, so
+  third fault is event-loop ownership. `asyncio.run` builds a new loop and closes it, while the
+  socket belongs to the server's already-running loop. `asyncio.run` also refuses outright when a
+  loop is already running on the calling thread. The Pub/Sub client invokes the callback on its own thread, so
   none of the three reaches `connect`.
 - **Acknowledgement precedes delivery.** `:L162` calls `message.ack()` before `:L163` sends. A send that
   fails after the acknowledgement loses the message, because Pub/Sub has already been told it was
@@ -994,7 +1027,7 @@ prerequisites are missing, and they fail in this order inside `export_to_pdf`.
 | Order | Statement | Locator | What it needs |
 | ------- | ----------- | --------- | --------------- |
 | 1 | `self.storage_client.bucket(settings.STORAGE_BUCKET_NAME)` | `backend/app/services/export_service.py:L154` | A declared `STORAGE_BUCKET_NAME`. `Settings` declares nine fields at `backend/app/core/config.py:L111-L119` and this is not one, so attribute access raises `AttributeError` before any network call |
-| 2 | `blob.upload_from_string(...)` | `backend/app/services/export_service.py:L157` | Credentials that authenticate and can write to the bucket. `backend/app/db/firestore.py:L39` holds the repository's only Application Default Credentials resolution, and no committed file supplies `GOOGLE_APPLICATION_CREDENTIALS` |
+| 2 | `blob.upload_from_string(...)` | `backend/app/services/export_service.py:L157` | Credentials that authenticate and can write to the bucket. `backend/app/services/export_service.py:L83` builds `Client()` with no arguments, so the Cloud Storage client runs its own Application Default Credentials lookup, independent of the Firestore lookup at `backend/app/db/firestore.py:L39`, which is the repository's only explicit `default()` call. ADC consults several sources, among them `GOOGLE_APPLICATION_CREDENTIALS`, a `gcloud` user credential in the well-known configuration file, and the instance metadata server. No committed file supplies any of them |
 | 3 | `blob.generate_signed_url(version="v4", ...)` | `backend/app/services/export_service.py:L160-L164` | Sign-capable credentials, plus an expiry inside the version 4 limit |
 
 Step 3 is the prerequisite most easily missed, because authentication alone does not satisfy it. A
@@ -1230,11 +1263,14 @@ declares `/`, `/editor`, `/templates` and `/settings`.
 
 ### Runtime versions are declared three ways and enforced nowhere
 
+Each End of life cell below cites the upstream project that publishes the date. This table is the source
+every other runtime claim in this documentation set refers back to.
+
 | Runtime | Declarations | Enforcement | End of life |
 | --------- | -------------- | ------------- | ------------- |
-| Python | 3.8 or later at `README.md:L23`; `python:3.9-slim` at `infrastructure/docker/backend.Dockerfile:L2`; unpinned `apt-get` packages at `scripts/setup_dev_environment.sh:L10` | none. No `.python-version` and no manifest | 3.9 ended support on 31 October 2025, with 3.9.25 as its final security release. 3.8 ended earlier still |
-| Node.js | 14 or later at `README.md:L22`; `node-version: '14'` at `.github/workflows/ci.yml:L17`; `node:14-alpine` at `infrastructure/docker/frontend.Dockerfile:L2` | none. `frontend/package.json` declares no `engines` field and no `.nvmrc` exists | 14 ended support on 30 April 2023 |
-| PostgreSQL | `postgres:13` at `infrastructure/docker/docker-compose.yml:L31`; `postgresql`, unpinned, at `scripts/setup_dev_environment.sh:L10`; Cloud SQL named with no version in `infrastructure/terraform/main.tf` | none. No version appears in any application file | 13 ended support on 13 November 2025, with 13.23 as its final release |
+| Python | 3.8 or later at `README.md:L23`; `python:3.9-slim` at `infrastructure/docker/backend.Dockerfile:L2`; unpinned `apt-get` packages at `scripts/setup_dev_environment.sh:L10` | none. No `.python-version` and no manifest | 3.9 ended support on 31 October 2025, with 3.9.25 as its final security release. 3.8 ended earlier still. Source: the [Python release cycle](https://devguide.python.org/versions/) |
+| Node.js | 14 or later at `README.md:L22`; `node-version: '14'` at `.github/workflows/ci.yml:L17`; `node:14-alpine` at `infrastructure/docker/frontend.Dockerfile:L2` | none. `frontend/package.json` declares no `engines` field and no `.nvmrc` exists | 14 ended support on 30 April 2023. Source: [Node.js previous releases](https://nodejs.org/en/about/previous-releases) |
+| PostgreSQL | `postgres:13` at `infrastructure/docker/docker-compose.yml:L31`; `postgresql`, unpinned, at `scripts/setup_dev_environment.sh:L10`; Cloud SQL named with no version in `infrastructure/terraform/main.tf` | none. No version appears in any application file | 13 ended support on 13 November 2025, with 13.23 as its final release. Sources: the [PostgreSQL versioning policy](https://www.postgresql.org/support/versioning/) and the [release announcement](https://www.postgresql.org/about/news/postgresql-181-177-1611-1515-1420-and-1323-released-3171/) that records 13 as end-of-life |
 
 **All three declared runtimes are past end of life.** None receives security patches as of 6 August
 2026, so a machine or an image built to these declarations runs unsupported software at every layer.
@@ -1289,16 +1325,16 @@ The controls below are absent from all of them.
 | 7 | A `WWW-Authenticate: Bearer` header on every 401 | Two sources answer 401, and only one carries a challenge. `OAuth2PasswordBearer`, constructed at `backend/app/api/auth.py:L85` and `backend/app/core/security.py:L46`, leaves `auto_error` at its default `True`, and FastAPI's OAuth2 base raises `HTTPException(401, headers={"WWW-Authenticate": "Bearer"})` for a missing or non-bearer `Authorization` header, so that path is conformant. The six explicit raises are not, at `backend/app/api/auth.py:L157-L158`, `:L160`, `:L231-L232`, and `backend/app/core/security.py:L182`, `:L184`, `:L189`. None of the six sets a `headers` argument | A client that presents a malformed or expired token, or a valid token for an absent user, receives a 401 with no challenge, so it cannot distinguish that case from an authorization failure by header alone |
 | 8 | Any constraint on the JWT secret, algorithm or lifetime | `backend/app/core/config.py:L113` declares `SECRET_KEY: str`, `:L115` declares `ALGORITHM: str` and `:L114` declares `ACCESS_TOKEN_EXPIRE_MINUTES`, none with a validator, a minimum or an allowed-value list. `backend/app/core/security.py:L79` passes the algorithm value straight to `jwt.encode` | A weak secret, an attacker-influenced algorithm choice or an indefinite lifetime all pass configuration unchallenged |
 | 9 | Issuer, audience and token identifier claims, and any revocation path | `backend/app/api/auth.py:L235-L239` encodes exactly two claims, `sub` and `exp`. The decode at `:L155` reads `sub` only, and `backend/app/core/security.py:L179` does the same | A token cannot be scoped to one service or one audience, and no issued token can be withdrawn before it expires |
-| 10 | A declared, reviewed CORS origin list | `backend/app/main.py:L118` reads `settings.ALLOWED_ORIGINS`, and `backend/app/core/config.py:L111-L119` never declares that field, so the value comes from outside every declared contract. `:L119` sets `allow_credentials=True` while `:L120` and `:L121` allow every method and every header | Credentialed cross-origin access is granted on the strength of an undeclared value. Whether any origin is actually permitted cannot be established from this repository, because the field has no declared source |
-| 11 | Object-level authorization on any template route | `backend/app/api/templates.py:L190`, `:L249` and `:L304` delegate to a `TemplateService`, and no file exists at `backend/app/services/template_service.py`. The 404 details at `:L192`, `:L251` and `:L306` read `Template not found or user not authorized`, so the message promises a check that no committed code performs | Any authenticated caller reaches any template once a service is supplied, unless that new service adds the check the message already advertises |
-| 12 | Object-level authorization on eleven of the fourteen handlers | Three handlers attempt an owner comparison, at `backend/app/api/documents.py:L184`, `:L232` and `:L279`, each raising 403 at `:L185`, `:L233` and `:L280`. Document create and list perform none, and neither do the two profile handlers or the five template handlers | Bearer authentication alone decides access on eleven handlers, so holding any valid token is sufficient |
+| 10 | A declared, reviewed CORS origin list | `backend/app/main.py:L118` reads `settings.ALLOWED_ORIGINS`, and `backend/app/core/config.py:L111-L119` never declares that field, so the value comes from outside every declared contract. `:L119` sets `allow_credentials=True` while `:L120` and `:L121` allow every method and every header | Credentialed cross-origin access is configured against an origin source no committed file declares or supplies. Which origins a deployment would permit is therefore unreviewable here, and so is whether the list is safe |
+| 11 | Object-level authorization on any template route | `backend/app/api/templates.py:L190`, `:L249` and `:L304` delegate to a `TemplateService`, and no file exists at `backend/app/services/template_service.py`. The 404 detail at `:L192` reads `Template not found`, while `:L251` and `:L306` read `Template not found or user not authorized`, so two of the three messages promise a check that no committed code performs | Any authenticated caller reaches any template once a service is supplied, unless that new service adds the check two of the messages already advertise |
+| 12 | Object-level authorization on nine of the twelve protected handlers | Of the fourteen handlers, twelve require a bearer token and two are public, at `backend/app/api/auth.py:L167` and `:L242`. Three of the twelve attempt an owner comparison, at `backend/app/api/documents.py:L184`, `:L232` and `:L279`, each raising 403 at `:L185`, `:L233` and `:L280`. Document create and list perform none, and neither do the two profile handlers or the five template handlers | Bearer authentication alone decides access on nine protected handlers, so holding any valid token is sufficient |
 
 Entry 12 carries one further qualification. The three attempted comparisons do not currently run to
 completion either. Each reads `.user_id` from a value the service returns, while
 `backend/app/schema/document.py:L66` declares the field as `owner_id`. The call-site defects at
 [G5](#g5-call-site-contract-violations) also stop the enclosing handlers before the comparison is
-reached. Three attempted checks and eleven absent ones is the accurate count, and zero enforced checks
-is the current state.
+reached. The accurate accounting is fourteen handlers, twelve protected and two public, with three
+attempted object checks and nine protected handlers that have none. Zero object checks are enforced.
 
 ### G9.2 The frontend client
 
@@ -1308,10 +1344,10 @@ are absent from its source regardless.
 | # | Absent control | Evidence | What the absence permits |
 |---|----------------|----------|--------------------------|
 | 13 | Storage of the bearer token outside script-readable persistence | `frontend/src/services/auth.ts:L148` writes the login response value to `localStorage`, which persists past the tab and is readable by any script on the origin. Nothing reads it back. `frontend/src/services/api.ts:L142` reads `auth.token` from the Redux store instead, a key `frontend/src/store/index.ts` never registers, so the request interceptor throws and no request carries an `Authorization` header. The two stores are disconnected, and the write itself stores the string `"undefined"` today, because `frontend/src/services/auth.ts:L147` reads `accessToken` from a response that returns `access_token` | Any injected or third-party script on the origin reads whatever the write persists, and it survives the session. Reconciling the field name and the store turns that value into a live bearer token in the same place |
-| 14 | Redaction before an error is logged | `frontend/src/services/auth.ts:L197`, `frontend/src/pages/Editor.tsx:L112` and `:L209`, `frontend/src/pages/Templates.tsx:L145` and `frontend/src/pages/Settings.tsx:L125` each pass a whole error object to `console.error`. An Axios error carries the request configuration, which includes the `Authorization` header, the full URL and the request body | Bearer tokens and document content reach the browser console and anything that collects from it |
+| 14 | Redaction before an error is logged | `frontend/src/services/auth.ts:L197`, `frontend/src/pages/Editor.tsx:L112` and `:L209`, `frontend/src/pages/Templates.tsx:L145` and `frontend/src/pages/Settings.tsx:L125` each pass a whole error object to `console.error`. An Axios error carries the request configuration, which includes the `Authorization` header, the full URL and the request body | Nothing leaks today, because the client cannot build and no request carries a token. Once the blockers clear, any failed request whose configuration holds a bearer token or a document body puts both in the browser console and in anything that collects from it |
 | 15 | A request timeout or a cancellation path | `frontend/src/services/api.ts:L134-L136` creates the Axios instance with a `baseURL` and no `timeout`, and no call site passes an `AbortSignal` | A request hangs indefinitely, and no in-flight request can be withdrawn |
 | 16 | Ordering protection on the auto-save path | `frontend/src/pages/Editor.tsx:L214` schedules a save five seconds after the last edit, and nothing tracks whether an earlier save is still in flight | A slower earlier save can land after a later one and overwrite newer content |
-| 17 | Any applied response validation | Three Zod schemas exist under `frontend/src/schema/`, and no module passes a server response through any of them. `frontend/src/services/auth.ts:L240` asserts `as User` instead, which is a compile-time claim that checks nothing at runtime | Server responses are trusted unvalidated, and a schema that exists gives no protection |
+| 17 | Any applied response validation | Four Zod object schemas exist across the three modules under `frontend/src/schema/`, and no module passes a server response through any of them. `frontend/src/services/auth.ts:L240` asserts `as User` instead, which is a compile-time claim that checks nothing at runtime | Server responses are trusted unvalidated, and a schema that exists gives no protection |
 | 18 | An allow-list on remote image sources | `frontend/src/components/Header.tsx:L77` renders `currentUser.avatar` and `frontend/src/pages/Templates.tsx:L182` renders `template.thumbnail`, both as an unconstrained `src`. Neither carries a `referrerPolicy`, and no Content Security Policy is committed | A stored URL causes the browser to contact an arbitrary host, disclosing the viewer address and referrer to it |
 
 One frontend absence is easy to misread. `frontend/src/utils/validation.ts` expresses its email and
@@ -1331,7 +1367,7 @@ path does not run, because both facts matter to whoever repairs it.
 | 20 | Authorization against the document being joined | The same method never checks that `user_id` may read `document_id` before it derives a topic at `:L120` and a subscription at `:L121` | Any caller joins the collaboration stream of any document identifier |
 | 21 | Validation of `document_id` before it names a broker resource | `:L120` and `:L121` interpolate the value straight into Pub/Sub resource paths, and `:L173` does the same on disconnect | An unvalidated identifier selects or creates broker resources |
 | 22 | A payload schema and a size bound on broadcast changes | `:L218` declares `change: dict` with no model behind it, and `:L248` serialises whatever arrives with `json.dumps` | Arbitrary unbounded structures are published to every subscriber |
-| 23 | Producer authentication and authorization on the Celery broker | `backend/app/tasks/background_tasks.py:L98` builds the Celery application from `settings.REDIS_URL` alone. No service provides Redis, so no transport security, no access control list and no credential is configured anywhere. See [G8 no Redis broker](#no-redis-service-backs-the-celery-broker) | Anyone who reaches the broker enqueues work that workers execute. What a deployed broker would actually permit cannot be established here, because no broker is provisioned |
+| 23 | Producer authentication and authorization on the Celery broker | `backend/app/tasks/background_tasks.py:L98` builds the Celery application from `settings.REDIS_URL` alone. No committed file gives that setting a value and no service provides Redis, so the transport security, the access control list and the credentials a deployment would use are all unestablished and not reviewable here. The URL could encode a password or select `rediss://`, and nothing tracked says whether it does. See [G8 no Redis broker](#no-redis-service-backs-the-celery-broker) | Anyone who reaches the broker enqueues work that workers execute, and no committed control stands in the way |
 | 24 | Format allow-listing and idempotency on the export task | `:L101` accepts `export_format` and `:L142` interpolates it into the object key `exports/{user_id}/{document_id}.{export_format}`. No allowed-value check and no deduplication key exists | A caller influences the stored object path, and a replayed message repeats the work |
 | 25 | An authorization check before a signed link is minted | `backend/app/services/export_service.py:L160-L164` and `:L234-L238` generate a v4 signed URL immediately after upload, with no check that the requester may read the document | A link is issued to whoever reached the call |
 | 26 | A reviewed expiry and a protected signing credential | The two v4 calls read `settings.SIGNED_URL_EXPIRATION`, a field `backend/app/core/config.py:L111-L119` never declares. `backend/app/tasks/background_tasks.py:L146` signs with `expiration=timedelta(hours=1)` and passes no `version`, so the two paths do not even agree on a signing scheme | A signed URL is a bearer credential, and possession alone authorises the read for the whole validity window |
@@ -1346,11 +1382,11 @@ have no caller in `backend/app/` at all. No signed URL is produced by this repos
 
 | # | Absent control | Evidence | What the absence permits |
 | --- | ---------------- | ---------- | -------------------------- |
-| 27 | Immutable action references | `.github/workflows/ci.yml:L13` and `:L15` and `.github/workflows/cd.yml:L11` and `:L13` each name a mutable tag. A tag can be moved or deleted by whoever controls the action repository, so a tag is a reference and not a pin. Only a full-length commit SHA is immutable. The March 2025 compromise of `tj-actions/changed-files` moved every tag in that repository | A third party changes the code your workflow runs without any change to this repository |
+| 27 | Immutable action references | `.github/workflows/ci.yml:L13` and `:L15` and `.github/workflows/cd.yml:L11` and `:L13` each name a mutable tag. A tag can be moved or deleted by whoever controls the action repository, so a tag is a reference and not a pin. Only a full-length commit SHA is immutable, which is [GitHub's own position](https://docs.github.com/en/actions/reference/security/secure-use). In the March 2025 compromise of `tj-actions/changed-files`, tags v1 through v45.0.7 were repointed at a single malicious commit on 14 and 15 March 2025, and the fix shipped in v46.0.1 ([CVE-2025-30066](https://github.com/advisories/GHSA-mrrh-fwg8-r2c3), [CISA alert](https://www.cisa.gov/news-events/alerts/2025/03/18/supply-chain-compromise-third-party-tj-actionschanged-files-cve-2025-30066-and-reviewdogaction)) | A third party changes the code your workflow runs without any change to this repository |
 | 28 | A pinned runner and pinned base images | Both workflows request `ubuntu-latest`, at `ci.yml:L11` and `cd.yml:L9`. `infrastructure/docker/backend.Dockerfile:L2`, `frontend.Dockerfile:L2` and `:L20`, and `infrastructure/docker/docker-compose.yml:L31` each name a mutable tag rather than an `image@sha256:` digest | The build environment and the image contents change underneath an unchanged repository |
-| 29 | A least-privilege `permissions:` block | Neither workflow file declares `permissions:` at any level, so `GITHUB_TOKEN` receives the repository default rather than the minimum each job needs | Every step in every job holds broader repository access than its work requires |
+| 29 | A least-privilege `permissions:` block | Neither workflow file declares `permissions:` at any level, so `GITHUB_TOKEN` receives whatever default the repository or organisation sets. Neither default is committed, so the scope each job actually receives is unknown from this tree | Least privilege is neither explicit nor auditable. Add a `permissions:` block to each job so the scope is stated in the file rather than inherited from a setting no reviewer can see here |
 | 30 | Short-lived federated credentials | `.github/workflows/cd.yml:L16` supplies `GCP_SA_KEY`, a long-lived user-managed service account key held as a secret. Workload Identity Federation exchanges the workflow OIDC token for a short-lived credential and stores no key, and an attribute condition on the provider restricts which workflow may complete that exchange. No federation configuration is committed | A single leaked secret grants standing access until someone notices and rotates it |
-| 31 | Any credential rotation or expiry mechanism | No workflow, script or Terraform file references key rotation, expiry or an age bound on `GCP_SA_KEY` | The key stays valid indefinitely |
+| 31 | Any credential rotation or expiry mechanism | No workflow, script or Terraform file references key rotation, expiry or an age bound on `GCP_SA_KEY`. The key's role, age and expiry are not determinable from this repository: a user-managed service account key does not expire on its own, and only an organization policy or an external process outside these files could bound it | Nothing in the repository limits how long the key remains usable, and no committed file records whether anything outside it does |
 | 32 | A gate between integration and deployment | `.github/workflows/cd.yml:L3-L5` triggers on every push to `main` and declares no `needs:`, no `workflow_run` and no `environment` | A deploy proceeds without the CI job passing and without an approval step |
 
 ### G9.5 Secrets, state and data retention
@@ -1358,9 +1394,10 @@ have no caller in `backend/app/` at all. No signed URL is produced by this repos
 | # | Absent control | Evidence | What the absence permits |
 | --- | ---------------- | ---------- | -------------------------- |
 | 33 | Any ignore rule protecting generated state | No `.gitignore`, `.dockerignore` or `.terraformignore` is tracked anywhere in this repository. `infrastructure/terraform/main.tf` declares no `backend` block, so state is written locally, and Terraform state records resource attributes in clear text | A local state file, which can contain secret values, is one `git add` away from the history |
+| 33a | A `.dockerignore` bounding either build context | No `.dockerignore` is tracked anywhere, so a `docker build` sends the whole named directory to the daemon as its [build context](https://docs.docker.com/build/concepts/context/). `infrastructure/docker/frontend.Dockerfile:L14` then runs `COPY . .`, copying that entire context into the build stage on top of the `node_modules` its own `npm ci` at `:L11` installed | A local `frontend/node_modules`, a local `.env` and any key file in the tree are uploaded to the daemon and written into a build layer. The final stage copies only `/app/build` at `:L23`, so the shipped image is clean while the build cache is not, and a host `node_modules` silently replaces the one the image installed |
 | 34 | A secret allow-list or a preflight on the deploy archive | `scripts/deploy.sh:L19` runs `zip -r app.zip . -x "*.git*" -x "node_modules/*" -x "venv/*"`, a deny-list of three patterns, and `:L23` uploads the archive with `gsutil cp`. Any `.env`, key file, credential or state file outside those three patterns is included | Local secrets leave the machine inside a deployed artifact |
 | 35 | Failure handling in the deploy script | `scripts/deploy.sh` sets no `set -e`, installs no `trap` and inspects `$?` nowhere. Its only guard is the credentials check at `:L4-L7`. `:L47` prints `Deployment completed successfully!` unconditionally | Every stage failure is ignored, and the run reports success after failing |
-| 36 | A retention or lifecycle rule on stored objects | `infrastructure/terraform/main.tf:L56-L58` enables bucket versioning and declares no `lifecycle_rule`. A delete on a versioned bucket leaves earlier generations readable | Content deleted through the application remains retrievable from earlier object generations indefinitely |
+| 36 | A retention or lifecycle rule on stored objects | `infrastructure/terraform/main.tf:L56-L58` enables bucket versioning and declares no `lifecycle_rule`. A delete or an overwrite on a versioned bucket archives the current generation instead of removing the bytes. No committed source file reads this bucket, because `main.tf:L51` names it `word-documents-${var.project_id}` and that name appears in no other tracked file | Prospective. Once user content is stored here and an object-delete path is connected, deleted content stays retrievable from archived generations until a lifecycle rule or a generation-level delete removes it. `DocumentService.delete_document` reaches no bucket today (`backend/app/services/document_service.py:L283-L284`) |
 | 37 | Two credential literals safe to commit | `infrastructure/docker/docker-compose.yml:L35` sets `POSTGRES_PASSWORD=password`, and `scripts/setup_dev_environment.sh:L32` creates a database user with the same literal. Compose maps no port for the database service, which limits reach and does not make either literal safe | A committed credential is reused in an environment that is reachable |
 | 38 | A supported runtime on any of three declared versions | Python 3.9 reached end of support on 31 October 2025 and is named at `infrastructure/docker/backend.Dockerfile:L2`. Node.js 14 left support on 30 April 2023, with its final release 14.21.3 shipped on 16 February 2023, and is named at `.github/workflows/ci.yml:L17` and `infrastructure/docker/frontend.Dockerfile:L2`. PostgreSQL 13 reached end of life on 13 November 2025 and is named at `infrastructure/docker/docker-compose.yml:L31` | Three components receive no security patches, and no future vulnerability in any of them will be fixed upstream |
 | 39 | Any committed transport security or security headers | `infrastructure/docker/frontend.Dockerfile:L20` serves through `nginx:alpine`, and `:L26` leaves the `COPY nginx.conf` line commented out. No `nginx.conf` is tracked, so no TLS configuration, no HSTS, no Content Security Policy and no proxy rule is committed | The served client carries no transport or header protection from anything in this repository |
@@ -1396,7 +1433,7 @@ any code.
 
 The engagement that produced this register placed the root README out of scope, so this register
 records the six entries rather than correcting them in place. The scope entry belongs in
-[decision-log.md](decision-log.md), planned for a later checkpoint and not committed yet.
+[decision-log.md](decision-log.md), which records it as decision row 1.
 
 | Line | Claim | Reality |
 | ------ | ------- | --------- |
@@ -1524,8 +1561,9 @@ These three sit in files that receive no inline documentation. See
 | Which contract is authoritative for a given field? | [data-model.md](data-model.md) |
 | Which external services does the code reach, and what blocks each one? | [integration-guide.md](integration-guide.md) |
 | Why does a deploy fail? | [deployment-guide.md](deployment-guide.md) |
-| Why was something documented this way? | [decision-log.md](decision-log.md), planned and not yet committed |
-| Where is the index for this documentation set? | [README.md](README.md), planned and not yet committed |
+| Why was something documented this way? | [decision-log.md](decision-log.md) |
+| Where is the index for this documentation set? | [README.md](README.md) |
+| Does the writing meet the clarity standard? | [prose-validation.md](prose-validation.md) |
 
 The three specification documents record declared intent and never committed behaviour. Read them as
 the design the code was aiming at:

@@ -10,13 +10,12 @@ contradict the committed tree, one of them only in part. Three sit in the README
 steps, at `L29`, `L42` and `L55`, so a developer following that file in order hits all three before
 reaching any code. For setup, follow this guide instead. The
 engagement that produced this file left the root README untouched, and
-[decision-log.md](decision-log.md) will record that boundary as conflict C1. That file is planned for a
-later checkpoint and is not committed yet.
+[decision-log.md](decision-log.md) records that boundary as conflict C1.
 
 Onboarding documentation normally ends with a running application, and the committed code cannot
 start one. The honest path appears here instead: the commands that work, the exact line where every
 remaining path stops, and the change a future contributor would make. Nothing below is fixed, and no
-entry describes a repair as done. The pending [decision-log.md](decision-log.md) will record the
+entry describes a repair as done. [decision-log.md](decision-log.md) records that
 deviation as conflict C3.
 
 ## How to read this guide
@@ -64,12 +63,12 @@ because every gap in this guide lands against one of them.
 
 - **Document lifecycle.** Create, read, update and delete, abbreviated CRUD, across five HTTP
   handlers and four service methods.
-- **Ownership-based authorization.** Twelve handlers declare bearer authentication, but only three
-  document read, update and delete paths attempt owner checks, and current call defects stop them. No
-  template object authorization exists. The eleven handlers without an owner check include document
-  create and list, both profile handlers and all five template handlers, so a valid token alone
-  decides access on each. [troubleshooting.md](troubleshooting.md#g91-the-backend-http-surface)
-  carries the locators.
+- **Ownership-based authorization.** Of the fourteen handlers, twelve declare bearer authentication
+  and two are public. Only three of the twelve, the document read, update and delete paths, attempt
+  an owner check, and current call defects stop all three. No template object authorization exists.
+  The nine protected handlers without an owner check are document create and list, both profile
+  handlers and all five template handlers, so a valid token alone decides access on each.
+  [troubleshooting.md](troubleshooting.md#g91-the-backend-http-surface) carries the locators.
 - **Rich-text editing.** Draft.js holds the editor state, and two helpers apply inline and block
   formatting.
 - **Templates.** Five handlers and a card gallery on the client.
@@ -107,41 +106,74 @@ Git, to obtain the code, and `zip`, which `scripts/deploy.sh:L19` calls and
 | Google Cloud SDK | Latest release from Google's own installer | `../README.md:L24` names the SDK and no version | The declaration pins nothing, and no pin is needed. The SDK is a host tool that ships its own bundled Python, so it takes no part in the resolution below. `backend/app/db/firestore.py:L40` constructs a Firestore client at import time, so Application Default Credentials, usually shortened to ADC, must already resolve before the module loads |
 
 **All three declared runtimes have passed end of life, often written EOL.** Python 3.9 ended support
-on 31 October 2025, with 3.9.25 as its final security release. Node 14 ended support on 30 April
-2023. PostgreSQL 13 ended support on 13 November 2025, with 13.23 as its final release. None of the
+on 31 October 2025, with 3.9.25 as its final security release ([Python release
+cycle](https://devguide.python.org/versions/)). Node 14 ended support on 30 April 2023 ([Node.js
+previous releases](https://nodejs.org/en/about/previous-releases)). PostgreSQL 13 ended support on
+13 November 2025, with 13.23 as its final release ([versioning
+policy](https://www.postgresql.org/support/versioning/)). None of the
 three receives security patches as of 6 August 2026, so a machine built to these declarations runs
 unsupported software at every layer. Verification for this documentation set used Python 3.9 and Node
 14 anyway, because they are the highest versions the repository documents anywhere.
 
 That end-of-life status changes how you install two of the four tools. A current distribution's own
 repositories no longer carry Python 3.9 or Node 14, so install each through its version manager and
-the rest through the package manager. The commands below are the full prerequisite set for a Debian
-or Ubuntu machine:
+the rest through the package manager. Install the two version managers first, because a clean machine
+carries neither. The commands below are the full prerequisite set for a Debian or Ubuntu machine, in
+order:
 
 ```bash
-# Tools the distribution still carries. zip is needed by scripts/deploy.sh:L19,
-# and the committed setup script never installs it.
+# 1. Packages the distribution still carries. zip is needed by scripts/deploy.sh:L19,
+# and the committed setup script never installs it. The libraries after it are pyenv's
+# suggested build environment; without them a 3.9 build either fails outright or
+# produces an interpreter missing ssl, sqlite3 or lzma.
+# https://github.com/pyenv/pyenv/wiki#suggested-build-environment
 sudo apt-get update
-sudo apt-get install -y git curl zip build-essential postgresql
+sudo apt-get install -y git curl wget zip make build-essential llvm xz-utils tk-dev \
+  libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev libncurses5-dev \
+  libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev postgresql
 
-# Node 14 through nvm, the Node Version Manager. Install nvm from the installer
-# its project publishes, then pin the version this repository declares.
+# 2. nvm, the Node Version Manager. Clone it, then check out a release tag you have
+# verified rather than tracking the default branch. https://github.com/nvm-sh/nvm
+git clone https://github.com/nvm-sh/nvm.git "$HOME/.nvm"
+git -C "$HOME/.nvm" checkout <tag>       # a tag from the project's releases page
+. "$HOME/.nvm/nvm.sh"                    # add this line to your shell profile
+
+# 3. Node 14, the version this repository declares.
 nvm install 14
 nvm use 14
 
-# Python 3.9 through pyenv. pyenv resolves "3.9" to the latest 3.9 patch.
+# 4. pyenv, under the same rule: clone, then check out a verified tag.
+# https://github.com/pyenv/pyenv
+git clone https://github.com/pyenv/pyenv.git "$HOME/.pyenv"
+git -C "$HOME/.pyenv" checkout <tag>
+export PYENV_ROOT="$HOME/.pyenv"         # add these three lines to your
+export PATH="$PYENV_ROOT/bin:$PATH"      # shell profile as well
+eval "$(pyenv init -)"
+
+# 5. Python 3.9. pyenv resolves "3.9" to the latest 3.9 patch and builds from source.
 pyenv install 3.9
 pyenv local 3.9
 
-# Google Cloud SDK, which supplies both the gcloud and gsutil commands
-# that scripts/deploy.sh calls.
-curl https://sdk.cloud.google.com | bash
+# 6. Google Cloud SDK, which supplies the gcloud and gsutil commands that
+# scripts/deploy.sh calls. Google's own guidance is to save the installer rather than
+# pipe it into a shell, so that you can read what you are about to run.
+# https://docs.cloud.google.com/sdk/docs/downloads-interactive
+curl -o install_google_cloud_sdk.bash https://sdk.cloud.google.com
+less install_google_cloud_sdk.bash       # read it first
+bash install_google_cloud_sdk.bash --disable-prompts
 ```
 
-On macOS, `brew install git curl zip postgresql@13` replaces the first block and
-`brew install --cask google-cloud-sdk` replaces the last. The two version managers install and run
-identically on both platforms. Using a version manager for the two runtimes also keeps an unsupported
-interpreter out of the system path.
+Two of those steps carry a deliberate placeholder. `<tag>` stays unresolved because pinning a tag you
+have checked is the whole point, and a tag named here would go stale without warning. For a build
+machine, prefer the fully pinned Cloud SDK route instead of step 6: a versioned archive with a
+published checksum, listed under
+[versioned archives](https://docs.cloud.google.com/sdk/docs/downloads-versioned-archives).
+
+On macOS, `brew install git curl zip postgresql@13` replaces step 1 and
+`brew install --cask google-cloud-sdk` replaces step 6. Homebrew packages both version managers, so
+steps 2 and 4 become `brew install nvm pyenv` followed by the same shell-profile lines. Steps 3 and 5
+are identical on both platforms. Using a version manager for the two runtimes also keeps an
+unsupported interpreter out of the system path.
 
 Every Python version below is pinned. The repository commits no manifest, so this documentation set
 resolved one mutually compatible set for Python 3.9 and records it here rather than leaving the
@@ -187,10 +219,11 @@ environment to build on.
 Three consequences follow, and each one shapes how the next two sections should be read.
 
 - **An unpinned install resolves whatever is current.** Where a table below says a version constraint
-  is unestablished, read that as a gap in the repository. It is not a recommendation to accept any
-  release. Published advisories affect several of the packages this code imports. `python-jose`
-  through 3.3.0 carries CVE-2024-33663, an algorithm confusion weakness with OpenSSH ECDSA and other
-  key formats, fixed in 3.4.0. That advisory lands directly on this code.
+  is unestablished, read that as a gap in the repository. The gap is not a recommendation to accept
+  any release. Published advisories affect several of the packages this code imports. `python-jose`
+  through 3.3.0 carries [CVE-2024-33663](https://github.com/advisories/GHSA-6c5p-j8vq-pqhj), an
+  algorithm confusion weakness with OpenSSH ECDSA and other key formats, fixed in 3.4.0. That advisory
+  lands directly on this code.
   `backend/app/core/config.py:L115` declares `ALGORITHM: str` with no allowed-value check, and
   `backend/app/core/security.py:L79` passes the value straight through to `jwt.encode`. Pydantic 1.x,
   `python-multipart` and `celery` each carry published advisories of their own across their release
@@ -338,11 +371,6 @@ py -3.9 -m venv venv
 .\venv\Scripts\Activate.ps1       # Windows PowerShell
 ```
 
-Seventeen distributions from the Python Package Index (PyPI) remove every dependency error; first-party
-import defects still prevent the application from starting. Eleven of the seventeen sit behind an
-import statement. The other six appear in no import statement at all, which is what makes a first-time
-build fail more than once.
-
 Those are the two commands with a Windows PowerShell equivalent. Outside WSL they read
 `py -3.9 -m venv venv` and `venv\Scripts\Activate.ps1`, and every command after them is identical on
 all three platforms.
@@ -352,10 +380,12 @@ all three platforms.
 count in this documentation set uses. Seventeen distributions from the Python Package Index (PyPI)
 are required: ten named by an `import` statement under `backend/app/`, and seven runtime companions
 that no import names. Thirteen of the seventeen have to be named to a package manager, because
-`starlette`, `ecdsa`, `rsa` and `pyasn1` arrive transitively. Each row there gives the version
-boundary the code establishes and the code fact that establishes it. Every other document in this
-set, this one included, defers to that table rather than restating a list, so there is one list to
-keep correct. Install from it.
+`starlette`, `ecdsa`, `rsa` and `pyasn1` arrive transitively. The seven companions are why an
+environment built by trial fails once per missing distribution rather than once in total: no import
+statement names them, so nothing reveals them until something breaks at run time. Each row there
+gives the version boundary the code establishes and the code fact that establishes it. Every other
+document in this set, this one included, defers to that table rather than restating a list, so there
+is one list to keep correct. Install from it.
 
 Three categories carry the weight there, and knowing them tells you when each package fails. A
 **directly imported** distribution is named by an `import` statement under `backend/app/`, so a
@@ -365,11 +395,11 @@ system while no import names it, which covers `uvicorn`, `starlette`, `python-mu
 `python-multipart` do not, so those three must be named explicitly. `bcrypt` and
 `python-multipart` block a route rather than a build, and each surfaces at the first login rather
 than at install. A **configuration-selected** distribution is chosen by a configuration value
-rather than by code, and the three of those sit outside the seventeen, in the table below.
+rather than by code, and the four of those sit outside the seventeen, in the table below.
 
 Reading import statements alone therefore builds an incomplete environment. Ten names are visible
-that way and seven are not, and three of those seven still have to be installed by name, so the
-build stops once per missing distribution rather than once in total.
+that way and seven are not. Three of those seven still have to be installed by name. The build
+therefore stops once per missing distribution rather than once in total.
 [troubleshooting.md](troubleshooting.md#the-progressive-python-dependency-resolution-failure) names
 that pattern the progressive dependency-resolution failure and records why import statements cannot
 produce a working environment on their own.
@@ -380,40 +410,46 @@ through FastAPI, which re-exports both from Starlette, so the installer resolves
 The inventory still lists it, as one of the seven runtime companions, and marks it among the four
 that arrive transitively.
 
-Three further distributions are chosen by a configuration value rather than by an import or by a
+Four further distributions are chosen by a configuration value rather than by an import or by a
 committed command. The inventory therefore does not count them, and a running environment still needs
-them. No code fact fixes the choice, because the value that selects each one is absent from the
-repository.
+them. No code fact fixes the first three choices, because the value that selects each one is absent
+from the repository. The fourth differs: `Config.env_file` at `backend/app/core/config.py:L123` is
+committed, so that selection is already fixed, and only the file it names is missing.
 
 | Distribution | The value that selects it | When it is needed |
 | --- | --- | --- |
 | A PostgreSQL driver, for example `psycopg2-binary` | The `postgresql://` scheme in `settings.DATABASE_URL`, supplied by `infrastructure/docker/docker-compose.yml:L24` and declared at `backend/app/core/config.py:L118` | `backend/app/db/sql.py:L16` builds an engine at import time, and SQLAlchemy resolves a driver from the scheme in the URL |
 | A Redis client | The `redis://` scheme in `settings.REDIS_URL`, declared at `backend/app/core/config.py:L119` | `backend/app/tasks/background_tasks.py:L98` hands Celery that broker URL, and a worker needs the client to attach. [../backend/app/tasks/README.md](../backend/app/tasks/README.md) records that no dependency manifest declares it |
 | `cryptography` | An RSA or ECDSA name in `settings.ALGORITHM`, declared as a bare `str` at `backend/app/core/config.py:L115` with no allowed-value check | `backend/app/core/security.py:L79` passes the value straight to `jwt.encode`. A symmetric algorithm such as HS256 needs nothing extra |
+| `python-dotenv` | `Config.env_file` at `backend/app/core/config.py:L123`, the one selecting value the repository does commit | Pydantic 1.x reads an `env_file` through `python-dotenv` and requires it as a separate install, either directly or as the `pydantic[dotenv]` extra ([Pydantic 1.10 settings documentation](https://docs.pydantic.dev/1.10/usage/settings/)). That read runs only when the named file is found, so the absent `.env` hides the absent distribution |
 
 **Installing every one of them still leaves the backend unable to import.** Dependencies are
-third-party, and all four blockers here are first-party: the absent `settings` instance, the four
-router names `backend/app/main.py:L16-L19` imports against the bare `router` each module exports, two
-absent modules, and one undefined name. A complete environment moves the first error a run reports
-from `ModuleNotFoundError` to the `ImportError` that
+third-party, and all four blockers here are first-party. Those four are the absent `settings`
+instance, the four router names `backend/app/main.py:L16-L19` imports against the bare `router` each
+module exports, two absent modules, and one undefined name. A complete environment moves the first
+error a run reports from `ModuleNotFoundError` to the `ImportError` that
 [the next section](#where-a-run-stops-with-evidence) traces. Nothing else moves, and no package
 install makes this application start.
 
-One command covers the whole set, and it names sixteen distributions: the thirteen of the seventeen
-that have to be named, plus the three the table above selects by configuration. The four transitive
-arrivals come with them. The `pydantic` upper bound is the one constraint that matters, for the
-reason the table above gives.
+One command covers the whole set, and it names seventeen packages: the thirteen of the seventeen
+required by the import graph that have to be named, plus the four the table above selects by
+configuration. The four transitive arrivals come with them. The `pydantic` upper bound is the one
+constraint that matters, for the reason the table above gives.
 
 ```bash
 pip install \
   "fastapi>=0.89.0" "pydantic>=1.10,<2" "SQLAlchemy>=1.4" \
-  python-jose passlib bcrypt python-multipart \
+  python-jose passlib bcrypt python-multipart python-dotenv \
   celery redis psycopg2-binary cryptography uvicorn \
   google-cloud-firestore google-cloud-storage google-cloud-pubsub google-auth
 ```
 
-`starlette` arrives as a `fastapi` dependency, so the command installs seventeen distributions from
-sixteen names.
+`starlette` arrives as a `fastapi` dependency, so those seventeen names cover all seventeen
+distributions the import graph requires as well as the four that configuration selects. The command
+covers the application and nothing else. It installs no test dependency, because pytest appears in
+no manifest and in no inventory this documentation set keeps. The
+[Testing subsection](#testing-what-exists-and-why-no-green-run-is-possible) below adds that one name and
+states what it does and does not buy.
 
 Configuration needs a `.env` file the repository does not commit.
 `backend/app/core/config.py:L121-L124` points `Settings` at `.env`, and neither `.env` nor
@@ -426,8 +462,14 @@ leaves seven values mandatory: `PROJECT_NAME`, `API_V1_STR`, `SECRET_KEY`,
 A file is not the only way to supply them, and the missing `.env` is therefore not a hard stop.
 `Settings` extends Pydantic's `BaseSettings`, imported at `backend/app/core/config.py:L48` and
 subclassed at `:L51`, which reads each declared field from the process environment and falls back to
-the `env_file` named at `:L123`. Exporting the seven names in your shell satisfies the model exactly
-as a committed `.env` would. A process environment variable also takes precedence over a file entry of
+the `env_file` named at `:L123`. That name is relative, so it resolves against the directory the
+process starts in rather than the directory holding the module. Starting the backend the way
+`../README.md:L54-L55` directs, with `cd backend` first, means the file has to be `backend/.env`, and a
+`.env` at the repository root stays invisible to it. `scripts/setup_dev_environment.sh:L40` would write
+the root copy, so the two are not the same file.
+[../scripts/README.md](../scripts/README.md) traces that mismatch. Exporting the seven names in your
+shell sidesteps the question and satisfies the model exactly as a committed `.env` would. A process
+environment variable also takes precedence over a file entry of
 the same name. `infrastructure/docker/docker-compose.yml:L24` uses that same mechanism, injecting
 `DATABASE_URL` as an environment variable rather than a file.
 [../infrastructure/docker/README.md](../infrastructure/docker/README.md) carries the full injector
@@ -454,9 +496,70 @@ The setup script will not finish, so run the steps above by hand instead.
 
 See [../scripts/README.md](../scripts/README.md).
 
+### Testing: what exists, and why no green run is possible
+
+No supported route to a passing test run exists, so this section documents the unsupported one instead
+of staying silent. `backend/tests/` holds three modules and 21 tests, and none of them collects. Run
+the commands below to reproduce the failures yourself, because reproducing them shows exactly what a
+repair has to change.
+
+Start with the runner, because nothing installs it. No committed file declares pytest: there is no
+`requirements.txt`, no `pyproject.toml`, no `pytest.ini`, no `tox.ini` and no `conftest.py`, and
+`.github/workflows/ci.yml` defines a Node job only, with no Python step at all. One committed file does
+invoke pytest, at `scripts/deploy.sh:L15`, and it runs `python -m pytest tests/` against a root-level
+`tests/` directory that does not exist. A clean machine therefore answers
+`ModuleNotFoundError: No module named 'pytest'` before it reaches a single application defect, and that
+error is not in the register below because no application file causes it.
+
+Four distributions stand between a clean machine and a collection attempt, and only pytest is test-only.
+
+| Distribution | What the suite needs it for | Import site |
+| --- | --- | --- |
+| `pytest` | The runner, plus both module-scoped fixtures | `backend/tests/test_api.py:L1`, `:L10`, `:L16` |
+| `fastapi` | `TestClient`, which wraps the application at `test_api.py:L8` | `backend/tests/test_api.py:L2` |
+| `SQLAlchemy` | The `Session` hint, plus `create_engine` and `sessionmaker` | `backend/tests/test_api.py:L6`, `test_db.py:L4-L5` |
+| `google-cloud-firestore` | The patch target `google.cloud.firestore.Client` used at `test_db.py:L12` | `backend/tests/test_db.py:L3` |
+
+The last three already appear in the application install command above, so `pytest` is the only name to
+add. `test_services.py` needs no third-party package of its own, because it imports `unittest` and
+`unittest.mock` from the standard library and nothing else.
+
+```bash
+pip install pytest
+python -m pytest backend/tests -q
+```
+
+Read the second command as a diagnostic rather than a test run. It reports three collection errors and
+exits non-zero, one error per module, and each names a different import root:
+
+| Module | Stops at | Error |
+| --- | --- | --- |
+| `test_api.py` | `L3`, `from app.main import app` | `ModuleNotFoundError: No module named 'app'` |
+| `test_db.py` | `L6`, `from backend.db.firestore_operations import FirestoreOperations` | `ModuleNotFoundError: No module named 'backend.db'` |
+| `test_services.py` | `L3`, `from services.document_service import DocumentService` | `ModuleNotFoundError: No module named 'services'` |
+
+Two blockers sit behind those three errors, and no single `PYTHONPATH` value clears the first. The
+import roots disagree: `app.*` needs `backend/` on the import path, bare `services.*` needs
+`backend/app/`, and `backend.*` needs the repository root. Zero `__init__.py` files exist under
+`backend/`, so every root that does resolve resolves as an implicit namespace package. The second
+blocker is absent targets. Six module names have no file behind them at any root: `app.models` and
+`app.database` (`test_api.py:L4-L5`), `backend.db.firestore_operations` and `backend.db.sql_operations`
+(`test_db.py:L6-L7`), and `models.document` with `models.user` (`test_services.py:L6-L7`). The three
+`services.*` names are the opposite case, because those files do exist at `backend/app/services/`, and
+importing one still stops at the absent `settings` name that
+[Where a run stops, with evidence](#where-a-run-stops-with-evidence) traces.
+
+Fixing the roots and creating the six modules would move the failure rather than end it. The suite also
+asserts routes the server never registers, expects 201 from handlers that answer 200, and calls methods
+no committed class defines. [../backend/tests/README.md](../backend/tests/README.md) carries the full
+inventory, and
+[troubleshooting.md](troubleshooting.md#three-test-imports-that-are-path-dependent-rather-than-absent)
+carries the import rows. Every item on both lists is a code change, and this documentation pass makes
+none of them.
+
 ## What you can actually run today
 
-Three commands complete. Two of them succeed, one completes and reports failure, and every other path
+Four commands complete. Two of them succeed, two complete and report failure, and every other path
 stops.
 
 | Command | Working directory | Result | Exit status |
@@ -464,9 +567,10 @@ stops.
 | `npm install` | `frontend/` | Succeeds. One observed run resolved 1,532 packages | Zero |
 | `npx tsc --noEmit` | `frontend/` | Completes and reports 76 errors. Emits nothing, per `frontend/tsconfig.json:L25` | Non-zero. The compiler exits non-zero whenever it reports an error, so any script chaining on success stops here |
 | The parse check below | repository root | Succeeds. All 18 Python modules under `backend/` parse, so every file is syntactically valid | Zero |
+| `python -m pytest backend/tests -q` | repository root | Completes and reports three collection errors, one per module. Needs `pytest` installed first, per [the Testing subsection](#testing-what-exists-and-why-no-green-run-is-possible) | Non-zero. Collection is interrupted, so no test body runs |
 
-The middle row is worth reading twice. The type-checker runs to completion, which makes it the most
-informative command in the repository, and it still fails. Reading "the tool ran" as "the check
+The second and fourth rows are worth reading twice. Both tools run to completion, which makes them the
+most informative commands in the repository, and both still fail. Reading "the tool ran" as "the check
 passed" is the easiest mistake to make here. That is why this section counts commands that complete
 rather than commands that succeed.
 
@@ -487,10 +591,10 @@ python -m compileall backend
 find backend -type d -name __pycache__ -prune -exec rm -rf {} +
 ```
 
-Nothing else runs. No server starts, no test suite passes, neither container builds, and
-`terraform init` does not complete. A successful parse proves the syntax valid and says nothing about
-whether a module imports, and [the next section](#where-a-run-stops-with-evidence) shows why the two
-diverge sharply here.
+Nothing else runs. No server starts, no test collects, neither container builds, and `terraform init`
+does not complete. A successful parse proves the syntax valid and says nothing about whether a module
+imports, and [the next section](#where-a-run-stops-with-evidence) shows why the two diverge sharply
+here.
 
 The flowchart below branches on what you want to do and terminates each branch in the line that stops
 it.
@@ -520,7 +624,9 @@ graph LR
     F -.->|"stops"| ENO
     G -.->|"stops"| GNO1["infrastructure/docker/<br/>frontend.Dockerfile:L11<br/>npm ci with no lockfile"]
     G -.->|"stops"| GNO2["infrastructure/docker/<br/>backend.Dockerfile:L8<br/>COPY of an absent requirements.txt"]
-    H -.->|"stops"| HNO["backend/tests/test_api.py:L3<br/>'app' is not on sys.path from the<br/>repository root. Then, with backend/<br/>and backend/app/ on the path, stops<br/>again: 6 import targets name no file,<br/>and 3 services modules resolve only<br/>from backend/app/"]
+    H -.->|"stops"| HNO0["No manifest declares pytest<br/>ModuleNotFoundError:<br/>No module named 'pytest'"]
+    HNO0 -.->|"stops again"| HNO1["backend/tests/test_api.py:L3<br/>'app' is not on sys.path from the<br/>repository root"]
+    HNO1 -.->|"stops again"| HNO2["With backend/ and backend/app/ on<br/>the path: 6 import targets name no<br/>file, and 3 services modules resolve<br/>only from backend/app/"]
     I -.->|"stops"| INO["infrastructure/terraform/main.tf<br/>:L68, :L77, :L86<br/>three module sources absent"]
 
 %% A solid edge marks a path that runs to completion, and its node states whether the run succeeded.
@@ -570,7 +676,8 @@ surfaces only once every row above it is repaired.
 | Third | Four router names that no module exports | `backend/app/main.py:L16-L19` imports `auth_router`, `documents_router`, `users_router` and `templates_router`, and all four modules export the bare name `router` | Nothing. The four `ImportError`s surface one at a time, because each import line stops `main.py` on its own |
 | Fourth | Two absent template modules | `backend/app/api/templates.py:L70` imports from `app.schema.template` and `:L71` from `app.services.template_service`, and neither file exists | Nothing. Reached when `backend/app/main.py:L19` executes `app.api.templates` |
 | Fifth | The absent `init_db` symbol | `backend/app/main.py:L22` imports `init_db` from `app.db.sql`, which defines `engine`, `SessionLocal`, `Base` and `get_db` and no `init_db` | Nothing. Reached once all four router imports resolve |
-| Latent | Undefined names that raise at execution rather than at import | Registered in [troubleshooting.md](troubleshooting.md#the-verified-import-census) | Nothing, and nothing above clears them. `Optional`, `User` and `UserService` in `backend/app/core/security.py`, `asyncio` and `json` in `backend/app/services/collaboration_service.py`, and `datetime` in `backend/app/tasks/background_tasks.py` |
+| Latent, at definition time | Undefined names in a signature, which Python evaluates when it executes the `def` | Registered in [troubleshooting.md](troubleshooting.md#the-verified-import-census) | Nothing, and nothing above clears them. `Optional` at `backend/app/core/security.py:L48` and `User` at `:L117` both sit in signature annotations, so each raises `NameError` while the module is still being evaluated |
+| Latent, at execution time | Undefined names in a function body, which Python evaluates only on a call | Registered in [troubleshooting.md](troubleshooting.md#the-verified-import-census) | Nothing, and nothing above clears them. `UserService` at `backend/app/core/security.py:L186`, `asyncio` and `json` in `backend/app/services/collaboration_service.py`, and `datetime` in `backend/app/tasks/background_tasks.py` |
 
 A future contributor cannot stop after two repairs. Adding the `settings` instance clears nine of
 the twelve failing modules, and the next error comes from the same file rather than from
@@ -719,9 +826,9 @@ are absent from the committed code rather than merely disabled in it.
    `app.services.template_service`, which `backend/app/api/templates.py:L70` and `:L71` import.
    Add `init_db` to `app.db.sql`, which `backend/app/main.py:L22` imports and which that module
    does not define. Until all five land, `import app.main` raises before any other work can be
-   tested, and the undefined names registered in
-   [troubleshooting.md](troubleshooting.md#the-verified-import-census) still raise at execution
-   afterwards.
+   tested. The undefined names registered in
+   [troubleshooting.md](troubleshooting.md#the-verified-import-census) still raise afterwards, two of
+   them while the module is being evaluated and the rest on a call.
 2. **Make the client typecheck.** `frontend/src/schema/document.ts` omits three requested names, not
    one. Export an inferred `Document` type first, following the pattern its sibling already uses at
    `frontend/src/schema/user.ts:L56`, which clears three of the five request positions on its own.
@@ -754,8 +861,8 @@ Use 33 and 16 when you are counting work to do.
 
 ## Related documentation
 
-[docs/README.md](README.md) will index every document in this set once that file lands. Until then,
-the list below is the map.
+[docs/README.md](README.md) indexes every document in this set. The list below is the same map, narrowed
+to the documents this guide leans on.
 
 Repository-level documents beside this one:
 
@@ -767,6 +874,7 @@ Repository-level documents beside this one:
   labels
 - [decision-log.md](decision-log.md), every judgement this engagement made, including conflicts C1
   and C3
+- [prose-validation.md](prose-validation.md), the writing-clarity verdict for this document set
 
 Module documentation for the facts this guide draws on:
 
@@ -780,7 +888,9 @@ Module documentation for the facts this guide draws on:
 - [../infrastructure/docker/README.md](../infrastructure/docker/README.md), the two Dockerfiles and
   the Compose topology
 - [../scripts/README.md](../scripts/README.md), the deploy and setup scripts and their blockers
-- [../backend/tests/README.md](../backend/tests/README.md), why the test suite cannot run
+- [../backend/tests/README.md](../backend/tests/README.md), why the test suite cannot run. The
+  [Testing subsection](#testing-what-exists-and-why-no-green-run-is-possible) above carries the
+  dependency and diagnostic commands that go with it
 
 Reference material, read and never edited:
 

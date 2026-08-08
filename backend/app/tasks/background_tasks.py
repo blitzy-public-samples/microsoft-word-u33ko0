@@ -186,7 +186,7 @@ def cleanup_expired_documents():
     Google Cloud Storage. L283 and L284 delete the matching `document_permissions`
     and `document_metadata` records.
 
-    The deletion sequence is partial, not atomic. The five deletes run one after
+    The deletion sequence is partial, not atomic. The four deletes run one after
     another with no transaction and no compensating action, and four separate
     failures sit along the path. Each one stops the whole pass, because the loop
     holds no `try` block and the task holds no error handler, so the first expired
@@ -216,7 +216,7 @@ def cleanup_expired_documents():
        `exports/{user_id}/{document_id}.{export_format}` at L142, and
        `ExportService` writes `exports/{document.id}.pdf` and
        `exports/{document.id}.docx` at `app/services/export_service.py:L155` and
-       `:L151`. `Blob.delete()` therefore raises `NotFound` before the permission
+       `:L229`. `Blob.delete()` therefore raises `NotFound` before the permission
        cleanup at L283. Partial state: the document record is gone and nothing else
        changed, so both the exported artifacts and the two describing records
        survive.

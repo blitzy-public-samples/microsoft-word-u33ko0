@@ -56,10 +56,10 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ editorState }) => {
   /**
    * Insert an atomic image block carrying the given URL.
    *
-   * @param imageUrl - Address stored on the new entity under `src`. Declared `string`, and the
-   *   declaration constrains the value no further.
-   * @returns The `EditorState` returned by `AtomicBlockUtils.insertAtomicBlock`, which places the
-   *   atomic block using a single space as its placeholder character.
+   * @param imageUrl - Address stored on the new entity under `src` at L89. Declared at L84 as
+   *   `string`, and the declaration constrains the value no further.
+   * @returns The `EditorState` returned by `AtomicBlockUtils.insertAtomicBlock` at L95, which
+   *   places the atomic block using a single space as its placeholder character.
    * @remarks No code path calls this function: the declaration nests inside `ImageEditor`, nothing
    * exports it, and the returned markup renders no control that would invoke it. The assistance
    * marker directly above records that the function needs review.
@@ -68,18 +68,18 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ editorState }) => {
    * takes the key Draft.js assigned to it, and sets the amended content onto a new editor state.
    *
    * Two absences block the result. This function builds an atomic block, which is a Draft.js block
-   * whose content is a single entity rather than text. Draft.js draws such a block only through a
-   * `blockRendererFn`, the function an `Editor` uses to decide how to render it. No module in the
-   * repository defines one, and the two committed `Editor` elements pass none, at
-   * `DocumentCanvas.tsx:L169-L173` and `TextEditor.tsx:L131-L135`, so the atomic block at L95 here
-   * would not appear. No route accepts image bytes either. The fourteen handlers under
-   * `backend/app/api/` cover tokens, documents, templates and the current user, and none takes an
-   * upload, so nothing in the repository produces the `imageUrl` argument L84 requires.
+   * whose content is a single entity rather than text. Rendering it as an image needs a
+   * `blockRendererFn`, the function an `Editor` uses to choose a component per block. No module in
+   * the repository defines one, and the two committed `Editor` elements pass none, at
+   * `DocumentCanvas.tsx:L143-L147` and `TextEditor.tsx:L124-L128`, so Draft.js falls back to its
+   * default block rendering: the block appears carrying the placeholder character, and the `IMAGE`
+   * entity is never drawn as an image. No route accepts image bytes either. The fourteen handlers
+   * under `backend/app/api/` cover tokens, documents, templates and the current user, and none
+   * takes an upload, so nothing produces the `imageUrl` argument L84 requires.
    *
-   * @param imageUrl - Address stored on the new entity under `src` at L89. Declared at L84 as
-   *   `string`, and the declaration constrains the value no further.
-   * @returns The `EditorState` returned by `AtomicBlockUtils.insertAtomicBlock` at L95, which
-   *   places the atomic block using a single space as its placeholder character.
+   * Intended behavior per documentation/Technical Specifications.md, "COMPONENT DIAGRAMS" heading
+   * (`Technical Specifications.md:L192`): `ImageEditor` sits under `DocumentCanvas`.
+   * @see ./README.md
    */
   const handleInsertImage = (imageUrl: string): EditorState => {
     const contentState = editorState.getCurrentContent();

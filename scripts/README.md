@@ -10,8 +10,7 @@ and each closes by printing success regardless of outcomes: `setup_dev_environme
 
 Several stages do work, so a run ends in partial success rather than clean failure. Virtual environment creation succeeds (`setup_dev_environment.sh:L14-L15`), and
 the frontend install succeeds because L20 runs `npm install` rather than `npm ci`. The six `psql` calls at `:L31-L36` create database `msword_clone` and role
-`msword_user` on a host running PostgreSQL. The backend install at `:L26` fails, and the stages after it fail for their own separate reasons rather than because of
-it.
+`msword_user` on a host running PostgreSQL. The backend install at `:L26` fails, and the stages after it fail for their own reasons rather than because of it.
 
 One guard exists, and it is narrower than it looks. `deploy.sh:L4-L7` exits 1 when `GOOGLE_APPLICATION_CREDENTIALS` is empty, and that is all it does. The guard
 checks no path, validates no key, authenticates no `gcloud` command-line interface (CLI) session and selects no project.
@@ -92,7 +91,7 @@ prerequisite and `setup_dev_environment.sh:L10` omits it, and the same line omit
 | --- | --- | --- |
 | `GOOGLE_APPLICATION_CREDENTIALS` | Guarded at `deploy.sh:L4` | DECLARED, AND NOT SUFFICIENT. `backend/app/core/config.py:L117` declares it as `Optional[str]`. The variable configures Application Default Credentials for client libraries, not the `gcloud` CLI, and the script runs no `gcloud auth activate-service-account` |
 | `DATABASE_URL` | Set by neither script | READ ELSEWHERE, NEVER SET HERE. `backend/app/core/config.py:L118` requires it |
-| `.env` | Written at `setup_dev_environment.sh:L40` | ASSUMED ONLY. Copied from an absent source; `backend/app/core/config.py:L121-L124` points `env_file` at it |
+| `.env` | Written at `setup_dev_environment.sh:L40` | ASSUMED ONLY, AND NOT NECESSARILY THE FILE THE BACKEND READS. Copied from an absent source. `backend/app/core/config.py:L123` names `.env` as a relative path, so it resolves against the working directory of the process that builds `Settings`, not against the directory this script wrote into |
 | `my-word-app-bucket`, `my-word-app-db`, `my-word-app-backend` | `deploy.sh:L23`, `:L31`, `:L35` | HARD-CODED. `infrastructure/terraform/main.tf:L51` declares a different bucket, `word-documents-${var.project_id}` |
 | `--user=root` | `deploy.sh:L31` | HARD-CODED, AND UNPROVISIONED. Neither provisioning path creates a `root` role: `setup_dev_environment.sh:L32` creates `msword_user` and `infrastructure/docker/docker-compose.yml:L34` creates `postgres` |
 | Database `msword_clone` and role `msword_user` | `setup_dev_environment.sh:L31-L36` | HARD-CODED. Compose names `wordapp` under `postgres` at `infrastructure/docker/docker-compose.yml:L33-L34` |
@@ -107,9 +106,12 @@ Neither script parses a configuration file itself, and neither accepts an argume
 
 ## Data Flows
 
-A deployment run reads one environment variable and then executes eight stages in fixed line order, from `deploy.sh:L4` to `deploy.sh:L47`. Seven of the eight
-fail against the committed repository. No stage checks the exit status of the one before it, so a failure at `deploy.sh:L11` still reaches the upload at `:L23`
-and the deploy at `:L27`.
+A deployment run reads one environment variable and then executes eight stages in fixed line order, from `deploy.sh:L4` to `deploy.sh:L47`. Four of the eight
+fail deterministically against the committed repository, at `:L11`, `:L15`, `:L27` and `:L31`, because each names a file the tree does not track. One succeeds,
+the archive at `:L19`. One performs no work, because `:L40-L44` are comments. The outcomes of the two remaining cloud stages, `gsutil cp` at `:L23` and
+`backend-services update` at `:L35`, are not established by anything in this repository. Each depends on the ambient `gcloud` identity and on a resource no
+committed file provisions. No stage checks the exit status of the one before it, so a failure at `:L11` still reaches the upload at `:L23` and the deploy at
+`:L27`.
 
 ```mermaid
 flowchart TD
@@ -119,13 +121,14 @@ flowchart TD
     B -.->|"build fails: no root package.json"| T["python -m pytest tests/<br/>deploy.sh:L15"]
     T -.->|"pytest fails: no root tests/ directory"| Z["zip -r app.zip<br/>deploy.sh:L19"]
     Z -->|"archives node_modules, venv, .env"| U["gsutil cp to gs://my-word-app-bucket/<br/>deploy.sh:L23"]
-    U -.->|"upload fails: gcloud CLI unauthenticated"| D["gcloud app deploy app.yaml<br/>deploy.sh:L27"]
-    D -.->|"deploy fails: no app.yaml tracked"| M["gcloud sql connect < db_migrations.sql<br/>deploy.sh:L31"]
+    U -.->|"outcome unestablished: needs an authenticated CLI<br/>and a bucket nothing here provisions"| D["gcloud app deploy app.yaml<br/>deploy.sh:L27"]
+    D -.->|"deploy fails: no app.yaml tracked"| M["gcloud sql connect &lt; db_migrations.sql<br/>deploy.sh:L31"]
     M -.->|"migration fails: no db_migrations.sql"| C["backend-services update --enable-cdn<br/>deploy.sh:L35"]
-    C -.->|"no --global or --region scope"| P["Post-deployment checks<br/>deploy.sh:L37-L44"]
+    C -.->|"outcome unestablished: names no --global or<br/>--region scope, and the backend service<br/>is not provisioned here"| P["Post-deployment checks<br/>deploy.sh:L37-L44"]
     P -.->|"no check runs: L40-L44 are comments"| S["echo Deployment completed successfully!<br/>deploy.sh:L47"]
-%% A dashed edge leaves a stage that fails against the committed repository.
-%% The run continues across it because nothing checks an exit status.
+%% A dashed edge leaves a stage that either fails against the committed repository
+%% or has an outcome this repository cannot establish. The run continues across it
+%% because nothing checks an exit status.
 ```
 
 A setup run moves in one direction, from host packages at `setup_dev_environment.sh:L5` to the printed instructions at `:L56`. The run fails at `:L26`, succeeds
@@ -142,8 +145,8 @@ decides which runtime versions appear.
 
 Both scripts assume the working directory rather than deriving it. Every path is relative, so `deploy.sh:L11`, `:L15`, `:L19` and every `cd` in
 `setup_dev_environment.sh` resolve against wherever the caller happened to be. Running either from `scripts/` rather than the repository root changes which files
-it reads and where it writes. `deploy.sh:L19` writes `app.zip` into that same directory, and `zip` updates an existing archive in place rather than replacing it,
-so a second run adds to whatever the first left behind and uploads the result at `:L23`.
+it reads and where it writes. `deploy.sh:L19` writes `app.zip` into that same directory, and `zip` updates an existing archive in place rather than replacing it.
+A second run therefore adds to whatever the first left behind and uploads the result at `:L23`.
 
 Every remote stage mutates rather than reconciles. `:L23` overwrites the object, `:L27` creates a new App Engine version, `:L31` replays the whole migration file,
 and `:L35` re-applies the CDN flag. Re-running after a partial failure therefore repeats every stage that already succeeded, the migration included.
@@ -177,7 +180,10 @@ Every entry below cites the line that establishes it.
 - `setup_dev_environment.sh:L26` runs `pip install -r requirements.txt` and fails, because no Python manifest is tracked. No `requirements.txt`,
   `pyproject.toml`, `setup.py`, `setup.cfg`, `Pipfile` or `tox.ini` exists anywhere in the repository.
 - `setup_dev_environment.sh:L40` runs `cp .env.example .env` and fails, because `.env.example` does not exist. `backend/app/core/config.py:L121-L124` points
-  `env_file` at that absent `.env`.
+  `env_file` at that absent `.env`, and repairing the copy would not connect the two. The script changes no directory, so the copy lands where the operator
+  invoked it, the repository root that `README.md:L29-L30` establishes. `config.py:L123` names `.env` relatively, so a relative `env_file` resolves against the
+  working directory of the process that builds `Settings`, not the directory holding the module. The documented start at `README.md:L54-L55` runs `cd backend`
+  first, so that process reads `backend/.env`, a different file from the root copy. Supplying only the root one leaves every setting unresolved.
 - See the HUMAN ASSISTANCE NEEDED marker at `setup_dev_environment.sh:L41` and the TODO below it at `:L42`: the environment file still needs production values,
   which the L40 copy cannot supply.
 - `setup_dev_environment.sh:L47` and `:L48` run `manage.py makemigrations` and `manage.py migrate`. Both are Django commands in a FastAPI project that imports
@@ -194,7 +200,8 @@ Every entry below cites the line that establishes it.
 Version floors disagree across five files, and nothing enforces any of them. `README.md:L23` states Python 3.8 or later, while
 `infrastructure/docker/backend.Dockerfile:L2` pins `python:3.9-slim`. `README.md:L22` states Node 14 or later, `.github/workflows/ci.yml:L17` sets
 `node-version: '14'`, and `infrastructure/docker/frontend.Dockerfile:L2` pins `node:14-alpine`, while `setup_dev_environment.sh:L10` pins nothing. Python 3.9
-ended support on 31 October 2025 and Node 14 on 30 April 2023, so both are unsupported as of 6 August 2026.
+ended support on 31 October 2025 and Node 14 on 30 April 2023, so both are unsupported as of 6 August 2026. The
+[runtime table](../docs/troubleshooting.md#runtime-versions-are-declared-three-ways-and-enforced-nowhere) carries the upstream source for each date.
 
 Intended behavior per `documentation/Software Requirements Specifications (SRS).md`, under the QUALITY heading: L617 calls for Continuous Integration and
 Continuous Deployment (CI/CD) pipelines on Google Cloud Build, and no `cloudbuild.yaml` is tracked. The same heading names Google Kubernetes Engine at L615,
@@ -245,5 +252,6 @@ gcloud auth activate-service-account --key-file "$GOOGLE_APPLICATION_CREDENTIALS
 gcloud config set project <project-id>
 ```
 
-The first cloud command (`gsutil cp` at `:L23`) then reaches the bucket instead of failing on credentials. Running `deploy.sh` with the variable unset instead
+The first cloud command (`gsutil cp` at `:L23`) then carries an identity, and whether it succeeds depends on whether that identity can write to a bucket this
+repository does not create. Running `deploy.sh` with the variable unset instead
 exercises the one working check: the guard prints the error at `deploy.sh:L5` and exits 1 at `:L6`, which is the only stage-level failure either script detects.

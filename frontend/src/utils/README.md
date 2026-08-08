@@ -76,9 +76,9 @@ Two flows run through this directory, and each carries an `EditorState`, which i
 `:L61`. Each function reads the content and the selection, hands both to a `Modifier` call, and returns a new snapshot from `EditorState.push`. The
 input snapshot is never changed.
 
-**Serialization flow.** `serializeDocument` at `documentUtils.ts:L39` turns editor content into JSON text through `convertToRaw` and
-`JSON.stringify`. `deserializeDocument` at `:L20` runs the reverse through `JSON.parse` at `:L24`, `convertFromRaw` at `:L34`, and
-`EditorState.createWithContent` at `:L35`.
+**Serialization flow.** `serializeDocument` at `documentUtils.ts:L39` turns editor content into JSON text through `convertToRaw` at `:L40` and
+`JSON.stringify` at `:L41`. `deserializeDocument` at `:L63` runs the reverse through `JSON.parse` at `:L67`, `convertFromRaw` at `:L77`, and
+`EditorState.createWithContent` at `:L78`.
 
 > **Data-flow note.** Neither flow completes as committed, and the two break in different places. The formatting flow breaks
 > outside this directory, at the one-argument calls in `frontend/src/components/Toolbar.tsx:L62` and `:L67`. The
@@ -109,10 +109,10 @@ rather than as defect-free today. The other two modules carry faults in their ow
 - **`SelectionState` is imported and never used.** `formatting.ts:L13` names `SelectionState` in its `draft-js` import, and nothing in the file
   references the symbol.
 - **The two-argument contract has one compliant caller and one violating caller.** `applyInlineStyle` at `formatting.ts:L31` and `applyBlockStyle`
-  at `:L61` each declare two parameters. `frontend/src/components/TextEditor.tsx:L109` and `:L116` pass both. `Toolbar.tsx:L62` and `:L67` pass one,
+  at `:L61` each declare two parameters. `frontend/src/components/TextEditor.tsx:L108` and `:L115` pass both. `Toolbar.tsx:L62` and `:L67` pass one,
   so the style name binds to `editorState` and the second parameter stays `undefined`.
 - **The violating caller's style names do not match Draft.js.** `Toolbar.tsx:L79-L81` and `:L84-L86` pass lowercase names such as `'bold'` and
-  `'heading1'` that Draft.js does not define. `TextEditor.tsx:L111-L115` passes accepted block types such as `header-one`.
+  `'heading1'` that Draft.js does not define. `TextEditor.tsx:L110-L114` passes accepted block types such as `header-one`.
 - **Both credential checks discard their own messages.** `validation.ts:L26` and `:L50` return `.success` only, so the strings configured at `:L46`
   and `:L48` never reach a caller.
 - **No module calls either credential check.** A search across `frontend/src` finds `validateEmail` and `validatePassword` only at their
@@ -160,7 +160,7 @@ const bolded = applyInlineStyle(editorState, 'BOLD');
 const headed = applyBlockStyle(editorState, 'header-one');
 ```
 
-`frontend/src/components/TextEditor.tsx:L109` and `:L116` supply both arguments in this order, though they forward the
+`frontend/src/components/TextEditor.tsx:L108` and `:L115` supply both arguments in this order, though they forward the
 lowercase key command rather than an upper-case inline style. Cannot run: the undeclared `draft-js` import at `formatting.ts:L13` stops the module from resolving.
 
 **Credential checks.** Each function takes one string and returns one boolean, per `validation.ts:L24` and `:L44`.

@@ -152,9 +152,9 @@ sequenceDiagram
     CS -->> WS: send_json, L163
     Note over WS,CS: callback(message) at L131, ack at L162, then<br/>asyncio.run(send_json) at L163.<br/>asyncio is never imported, so L163 raises<br/>NameError on first delivery.<br/>message.data is bytes and send_json<br/>expects a serializable object.<br/>asyncio.run opens a new loop on the<br/>subscriber thread, not the socket loop.
     Note over CS,PUB: broadcast_change(), L218
-    CS ->> PUB: publish, L248
-    PUB ->> CS: future.result(), L249
-    Note over CS,PUB: publish(topic,<br/>json.dumps(change)) at L248.<br/>json is never imported, so<br/>that call raises NameError<br/>on first use
+    CS -->> CS: json.dumps(change) evaluated first, L248: json never imported
+    CS -->> CS: NameError caught at L250, printed at L252, method returns None
+    Note over CS,PUB: publish at L248 and future.result at L249 are never reached
 ```
 
 Diagram 2 traces the export path. The task tier that drives it is documented in
@@ -165,7 +165,8 @@ Diagram 2 traces the export path. The task tier that drives it is documented in
 call into `ExportService`, naming a method the class never defines. The path raises before any upload or signing
 statement is reached. `export_to_pdf` at `export_service.py:L87` and `export_to_docx` at `:L168` have zero
 callers anywhere in `backend/app/`. The only callers in the repository are two test statements at
-`../../tests/test_services.py:L67` and `:L75`, and both pass a string where a `Document` is declared.
+`../../tests/test_services.py:L67` and `:L75`, and both pass the integer `1` where a `Document` is
+declared, bound at `:L65` and `:L73`.
 
 The diagram below therefore draws the one call that exists, not the two that do not.
 
@@ -182,12 +183,17 @@ flowchart TD
     ST -.-> URL["Signed<br/>download link"]
     C -.->|"key exports/<br/>user_id/<br/>document_id.format<br/>at L142"| K["Divergent<br/>object keys"]
 
-    NC["No caller in<br/>the repository"] -.->|"dead code"| PD["export_to_pdf :L87<br/>export_to_docx :L168<br/>export_service.py"]
-    PD -->|"key exports/<br/>document.id.pdf at L155<br/>and .docx at L229"| UPD["upload_from_string<br/>L157 and L231"]
-    UPD -.->|"literal strings<br/>PDF_CONTENT and<br/>DOCX_CONTENT"| PL["Placeholder<br/>payload"]
-    UPD --> SPD["generate_signed_url<br/>version=v4<br/>L160-L164<br/>and L234-L238"]
-    SPD --> URL
-    PD -.->|"exports/<br/>document.id.pdf<br/>at L155"| K
+    NC["No production caller;<br/>two test callers at tests/test_services.py:L67 and :L75"] -.->|"unreachable from app code"| P["export_to_pdf<br/>export_service.py:L87"]
+    NC -.->|"unreachable from app code"| D["export_to_docx<br/>export_service.py:L168"]
+    P -->|"key exports/document.id.pdf, L155"| UP["Blob.upload_from_string, L157"]
+    D -->|"key exports/document.id.docx, L229"| UD["Blob.upload_from_string, L231"]
+    UP -.->|"literal string PDF_CONTENT"| PL["Placeholder payload"]
+    UD -.->|"literal string DOCX_CONTENT"| PL
+    UP --> SP["generate_signed_url version=v4, L160-L164"]
+    UD --> SD["generate_signed_url version=v4, L234-L238"]
+    SP --> URL
+    SD --> URL
+    P -.->|"exports/document.id.pdf, L155"| K
 %% Dashed edges mark a call that does not exist or cannot resolve.
 %% Solid edges inside export_to_pdf and export_to_docx are written and unreached.
 ```
@@ -201,8 +207,8 @@ The two object key layouts do not agree. `ExportService` writes `exports/{docume
 Eight patterns are visible in the three modules.
 
 Ownership-based authorization through a `user_id` comparison. `DocumentService` decides access in
-the service rather than in a policy object, and the comparison appears three times, at L177, L243
-and L282. All three subscript `doc.to_dict()['user_id']` directly, so a stored document missing
+the service rather than in a policy object, and the comparison appears three times, at L175, L241
+and L280. All three subscript `doc.to_dict()['user_id']` directly, so a stored document missing
 that key raises `KeyError` rather than returning 403, and FastAPI answers 500 because `KeyError`
 is not an `HTTPException`.
 
@@ -210,7 +216,7 @@ Async signatures wrapping a synchronous software development kit (SDK). Seven of
 methods are `async def`, and every Firestore and Pub/Sub call inside them is synchronous and
 blocking. `future.result()` at `collaboration_service.py:L168` blocks the event loop for the
 subscription's life. Read-modify-read update follows: `update_document` costs three Firestore
-operations for one edit, the read at L237, the write at L248 and the re-read at L251.
+operations for one edit, the read at L235, the write at L246 and the re-read at L249.
 
 Per-document Pub/Sub topic and subscription fan-out. One topic per document at
 `projects/{PROJECT_ID}/topics/{document_id}`, L120 and L245. One subscription per document and user pair at
@@ -231,7 +237,7 @@ L231, under the correct content types.
 
 Three patterns a reader might expect are absent. No service inherits a common base class, no service is registered in a
 dependency container, and FastAPI's `Depends` never yields one. Every handler constructs its own instance per request,
-at `../api/documents.py:L110`, `:L144`, `:L185`, `:L233` and `:L280`.
+at `../api/documents.py:L107`, `:L141`, `:L182`, `:L230` and `:L277`.
 
 The order of the two checks decides which status code a caller receives, traced line by line
 below. `create_document` writes the compared value: L116 sets `doc_data['user_id'] = user_id`
@@ -259,7 +265,7 @@ more than any other backend directory. All eight are preserved in place. The fou
 
 | Location | Second line of the marker |
 | --- | --- |
-| `document_service.py:L183-L184` | `# This function might need additional error handling and validation` |
+| `document_service.py:L181-L182` | `# This function might need additional error handling and validation` |
 | `collaboration_service.py:L73-L74` | `# The following method has a confidence level of 0.6 and may need adjustments for production readiness` |
 | `collaboration_service.py:L216-L217` | `# The following method has a confidence level of 0.7 and may need adjustments for production readiness` |
 | `export_service.py:L85-L86` | `# The following methods have a low confidence score and may require additional implementation details or error handling` |
@@ -287,8 +293,9 @@ Beyond the call sites:
 
 - **The collaboration path is unreachable.** No application module imports `CollaborationService`, and
   no WebSocket route exists anywhere under `backend/`. The only references are
-  `../../tests/test_services.py:L4` and `:L39`, through a bare `services.*` import root that does not
-  resolve, so `connect`, `disconnect` and `broadcast_change` never run.
+  `../../tests/test_services.py:L4` and `:L39`, reached through a bare `services.*` import root that
+  locates this file only while `backend/app/` sits on the import path, so `connect`, `disconnect` and
+  `broadcast_change` never run.
 - **The export methods write literal strings.** `export_service.py:L157` uploads `"PDF_CONTENT"` and
   `:L231` uploads `"DOCX_CONTENT"`, and no conversion code exists in either method. Neither the upload
   nor the version 4 signature completes today: `settings.STORAGE_BUCKET_NAME` at `:L154` is undeclared,
@@ -296,7 +303,7 @@ Beyond the call sites:
 - **Three sites fail Pydantic validation on missing timestamps.** `../schema/document.py` declares
   `created_at` at L111 and `updated_at` at L112 as required, and `create_document` assembles
   `doc_data` at `document_service.py:L115` to `:L117` without either, so `Document(**doc_data)` at
-  `:L123` raises. Nothing writes them to Firestore, so `:L181` and `:L252` raise for the same reason.
+  `:L121` raises. Nothing writes them to Firestore, so `:L179` and `:L250` raise for the same reason.
 - **Two sibling service modules are imported and absent.** `app.services.user_service` at
   `../api/auth.py:L83` and `../api/users.py:L24`; `app.services.template_service` at `../api/templates.py:L71`.
 - **Two undefined names raise at first call, not at import.** `asyncio` at
@@ -318,28 +325,18 @@ Beyond the call sites:
 
 Every defect above is listed with its symptom and remediation in
 [../../../docs/troubleshooting.md](../../../docs/troubleshooting.md). Judgement calls behind the documentation choices
-belong in the planned, not yet committed [decision log](../../../docs/decision-log.md).
+sit in the [decision log](../../../docs/decision-log.md).
 
 ## Usage Examples
 
 Every example below uses a signature declared in the committed code. No example runs today, and each one names the
 defect that stops it. Setup steps live in [../../../docs/onboarding.md](../../../docs/onboarding.md).
 
-Creating a document and then reading it back, using the signatures declared at `document_service.py:L72` and `:L123`:
+Creating a document and then reading it back, per the signatures declared at `document_service.py:L72` and `:L123`:
 
 ```python
 import asyncio
 
-document = await DocumentService().get_document("abc123", "user-42")
-```
-
-The import fails at `document_service.py:L62`, which requests a `settings` name that `app.core.config` never defines.
-Given that name, `Document(**doc.to_dict())` at L181 then raises because no stored record carries the required
-`created_at` and `updated_at` fields.
-
-Creating a document, per the signature at `document_service.py:L74`:
-
-```python
 from app.schema.document import DocumentCreate
 from app.services.document_service import DocumentService
 
@@ -358,8 +355,9 @@ asyncio.run(main())
 Both second arguments are strings, matching the declared `user_id: str`. The committed router passes the whole `User`
 object at `../api/documents.py:L108`, and calls `get_document` with one argument at `:L183`, `:L231` and `:L278`.
 
-The import fails first, at `document_service.py:L60`, which requests a `settings` name
-`app.core.config` never defines. Given that name, `Document(**doc_data)` at L121 raises on the two
+The import fails before `main` runs, and the first failure is one level down rather than in this module. `L59` imports
+`app.db.firestore`, and `../db/firestore.py:L36` requests a `settings` name that `app.core.config` never defines. This
+module then requests the same name directly at `L60`. Given that name, `Document(**doc_data)` at L121 raises on the two
 missing timestamp fields, and `Document(**doc.to_dict())` at L179 raises for the same reason.
 
 `CollaborationService` has no usage example. No route constructs the class and no WebSocket endpoint exists under
@@ -389,6 +387,8 @@ three. The method is a plain `def`, so no `await` belongs here. The import fails
 same absent `settings` name. Given that name, `settings.STORAGE_BUCKET_NAME` at L154 raises `AttributeError`, and
 given that field, the upload at L157 stores the literal string `"PDF_CONTENT"` rather than a PDF.
 
-The three test modules under `../../tests/` cannot supply a working example. `../../tests/test_services.py:L4` imports
-through a bare `services.*` root that does not resolve, and the suite calls and patches six names no service in this
-folder defines. [../../tests/README.md](../../tests/README.md) enumerates every one.
+The three test modules under `../../tests/` cannot supply a working example. `../../tests/test_services.py:L3-L5` imports
+through a bare `services.*` root, which locates these three files only while `backend/app/` sits on the import path, and
+the suite calls and patches five names no service in this folder defines: `add_collaborator`, `remove_collaborator` and
+`get_collaborators` on `CollaborationService`, plus the two patch targets `services.export_service.generate_pdf` and
+`generate_docx`. [../../tests/README.md](../../tests/README.md) enumerates every one.

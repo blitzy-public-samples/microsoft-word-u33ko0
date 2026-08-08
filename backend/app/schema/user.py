@@ -41,10 +41,10 @@ this contract even if it ran.
 `User` declares no field for the password hash that `app/api/auth.py:L323`
 computes, so a response validated against `User` cannot carry that hash. The
 guarantee stops at this contract. `app/api/auth.py:L243` declares no return
-    annotation and its decorator at `:L242` sets no `response_model`, so `POST
-    /register` returns the absent service's result unfiltered at `:L325`. Nothing
-constrains that value to `User`, so hash exposure on the registration response
-cannot be ruled out from this file.
+annotation and its decorator at `:L242` sets no `response_model`, so
+`POST /register` returns the absent service's result unfiltered at `:L325`.
+Nothing constrains that value to `User`, so hash exposure on the registration
+response cannot be ruled out from this file.
 
 The two authorization flags on `User` are declared and never read. No code path in
 the repository reads `is_active` or `is_superuser`; both names appear only as

@@ -26,7 +26,7 @@ import { Document } from '../schema/document';
  * `withCredentials` cookie policy. None of the three emits at L126, L154 and L201 carries a user
  * identifier either. A server would therefore have no way to tell which account sent a join, a
  * leave or a change, beyond the connection itself. The token that
- * `frontend/src/services/auth.ts:L148` stores never reaches this module, because no line here
+ * `frontend/src/services/auth.ts:L136` stores never reaches this module, because no line here
  * reads `localStorage` or the Redux store.
  *
  * The boundary is also unvalidated. `documentId` arrives at `joinDocument` as a bare `string`
@@ -38,15 +38,15 @@ import { Document } from '../schema/document';
  * endpoint would accept unauthenticated connections carrying unvalidated payloads for any
  * document identifier a caller supplies.
  *
- * Resilience is absent, and every absence below belongs to this class rather than to the
- * library. `io()` at L77 sets no `timeout`, no `reconnection`, no `reconnectionAttempts`, no
- * `reconnectionDelay` and no `transports` option. `setupEventListeners` at L88-L93 registers
- * no `connect`, `connect_error`, `disconnect` or `error` handler, so no connection failure is
- * observed anywhere. No emit passes an acknowledgement callback and no emit sets a per-message
- * timeout, so no send is ever confirmed. No retry, backoff, jitter, circuit breaker, offline
- * queue or fallback transport exists. `socket.io-client` is absent from
- * `frontend/package.json` and no lockfile is committed, so this repository fixes no library
- * version and supports no claim about the library's own default behavior.
+ * This class supplies no resilience options of its own, so whatever the resolved
+ * `socket.io-client` release applies by default is what runs. `io()` at L77 passes no
+ * `timeout`, `reconnection`, `reconnectionAttempts`, `reconnectionDelay` or `transports`
+ * option, so each takes the library default. `setupEventListeners` at L88-L93 registers no
+ * `connect`, `connect_error`, `disconnect` or `error` handler, so this application observes
+ * no connection failure. No emit passes an acknowledgement callback and none sets a
+ * per-message timeout, so no send is confirmed here. No application-level retry queue and no
+ * offline queue exists. `socket.io-client` is absent from `frontend/package.json` and no
+ * lockfile is committed, so the resolved version, and its exact defaults, are unestablished.
  */
 class CollaborationService {
   /** The Socket.IO connection that the constructor opens. */

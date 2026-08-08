@@ -77,34 +77,34 @@ async def shutdown_event():
     is the only statement, and L113 records further cleanup as outstanding work.
 
     L110 awaits `db.close()` on the object that L21 imports from
-    `app.db.firestore`. A Firestore `Client` does carry a `close` method, and that
-    method is synchronous: it inherits `close()` from the shared Google Cloud
-    client base class, which shuts the underlying transport session and returns
-    `None`. The `await` at L110 therefore receives `None`, which is not awaitable,
-    so the statement runs the close and then raises
-    `TypeError: object NoneType can't be used in 'await' expression`. The close
-    takes effect before the error is raised, so the session is already shut when
-    shutdown fails.
+    `app.db.firestore`. Nothing pins `google-cloud-firestore`, so no committed file
+    settles which `close` surface the resolved release provides, and this
+    documentation therefore makes no claim about the client's transport state.
+    The outcome for the handler is settled either way. A synchronous `close()`
+    returns `None`, and `await None` raises
+    `TypeError: object NoneType can't be used in 'await' expression`, because
+    `None` is not awaitable. A release exposing no `close` raises `AttributeError`.
 
-    No backend dependency manifest is committed, so nothing here pins
-    `google-cloud-firestore` and the inherited surface is whatever the resolved
-    release provides. The behavior above is what L110 produces against any release
-    whose client inherits the synchronous `close` from `google.cloud.client`. A
-    release that omitted the method would raise `AttributeError` instead, and no
-    committed file settles which release applies. The startup path at L63 differs
-    either way: `is_connected` belongs to no version of that surface, so that call
-    raises `AttributeError`.
+    Whether anything inside the client shuts down before that error is raised is
+    not established here, because the outcome depends on the resolved release and
+    on which base-class method the client inherits. Neither is pinned. What the
+    handler leaves undone is settled: L113 records further cleanup as outstanding
+    work, and a shutdown that raises never reaches it.
+
+    The startup path at L63 differs from all of this: `is_connected` belongs to no
+    version of that surface, so that call raises `AttributeError`. Neither handler
+    runs as committed, because the module fails at import.
 
     The handler declares no parameters and no return annotation. FastAPI calls it
     with no arguments and discards its result.
 
     Raises:
-        TypeError: At L110, after the synchronous `close()` has returned `None`,
-            because `await` cannot suspend on `None`. The handler wraps L110 in no
-            `try` block, so the error propagates to the caller, unlike the startup
-            path at L68-L69. A shutdown that raises leaves any remaining cleanup
-            undone, and L113 records further cleanup as outstanding work. Neither
-            handler runs as committed, because the module fails at import.
+        TypeError: At L110, when `close()` returns `None`, because `await` cannot
+            suspend on `None`. The handler wraps L110 in no `try` block, so the
+            error propagates to the caller, unlike the startup path at L68-L69.
+        AttributeError: At L110 instead, if the resolved release exposes no `close`
+            method on the client. No committed file pins the release, so the
+            documentation above records both outcomes rather than choosing one.
     """
     # Close database connections
     await db.close()

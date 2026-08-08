@@ -13,7 +13,7 @@ and each Dockerfile fails on its own line when built directly. Known Limitations
 | --- | --- | --- | --- |
 | `backend.Dockerfile` | Single-stage image build | `backend.Dockerfile:L1-L27` | Installs Python dependencies, copies the application code, and starts Uvicorn on port 8000 (`:L20`). Carries the folder's only human-assistance marker at `:L22-L27`. |
 | `frontend.Dockerfile` | Multi-stage image build | `frontend.Dockerfile:L1-L32` | Compiles the React bundle in a Node.js stage (`:L2-L17`), then copies the output into an Nginx stage listening on port 80 (`:L20-L32`). |
-| `docker-compose.yml` | Local orchestration | `docker-compose.yml:L1-L46` | Compose file format `3.8` (`:L1`) declaring three services, one named volume, and one bridge network. Holds no comment and no marker. |
+| `docker-compose.yml` | Local orchestration | `docker-compose.yml:L1-L46` | Declares three services, one named volume, and one bridge network. `:L1` sets `version: '3.8'`, which current Compose ignores: the tool follows the [Compose Specification](https://docs.docker.com/reference/compose-file/version-and-name/), treats the top-level `version` attribute as obsolete, and warns about it. The declaration selects no schema and changes no behavior. Holds no comment and no marker. |
 | `frontend` service | Compose service | `docker-compose.yml:L4-L15` | Builds from context `../../frontend` (`:L6`), publishes `3000:3000` (`:L8-L9`), and declares `depends_on: backend` (`:L12-L13`), which orders container start only. |
 | `backend` service | Compose service | `docker-compose.yml:L17-L28` | Builds from context `../../backend` (`:L19`), publishes `5000:5000` (`:L21-L22`), and declares `depends_on: db` (`:L25-L26`), which orders container start only. |
 | `db` service | Compose service | `docker-compose.yml:L30-L39` | Runs the published `postgres:13` image (`:L31`) and provisions database `wordapp` for user `postgres` (`:L33-L34`). Publishes no port. |
@@ -52,10 +52,10 @@ full treatment and the deployment path.
 
 | Image | Tag | Declared at | Role |
 | --- | --- | --- | --- |
-| `python` | `3.9-slim` | `backend.Dockerfile:L2` | Backend runtime. Python 3.9 reached end of life on 31 October 2025, with 3.9.25 as the final security release. |
-| `node` | `14-alpine` | `frontend.Dockerfile:L2` | Frontend build stage. Node.js 14 reached end of life on 30 April 2023. |
+| `python` | `3.9-slim` | `backend.Dockerfile:L2` | Backend runtime. Python 3.9 reached end of life on 31 October 2025, with 3.9.25 as the final security release, per the [Python release cycle](https://devguide.python.org/versions/). |
+| `node` | `14-alpine` | `frontend.Dockerfile:L2` | Frontend build stage. Node.js 14 reached end of life on 30 April 2023, per [Node.js previous releases](https://nodejs.org/en/about/previous-releases). |
 | `nginx` | `alpine` | `frontend.Dockerfile:L20` | Serves the compiled bundle. The tag pins no minor version, so a rebuild can pull a different Nginx release. |
-| `postgres` | `13` | `docker-compose.yml:L31` | Local database. PostgreSQL 13 reached end of life on 13 November 2025, with 13.23 as the final release. |
+| `postgres` | `13` | `docker-compose.yml:L31` | Local database. PostgreSQL 13 reached end of life on 13 November 2025, with 13.23 as the final release, per the [PostgreSQL versioning policy](https://www.postgresql.org/support/versioning/). |
 
 All three pinned runtimes are unsupported as of 6 August 2026, so none receives security patches. Every tag here except `nginx:alpine` pins a
 major version and takes whatever patch release the registry currently serves.
@@ -98,8 +98,8 @@ application code and declared on no model, so no `.env` file and no Compose entr
 | `REDIS_URL` | `config.py:L119` | Yes | No | `ValidationError`. Compose declares no Redis service to point it at. |
 | `ALLOWED_ORIGINS` | Nowhere | n/a | No | `AttributeError` at `backend/app/main.py:L118` when the CORS middleware reads it. |
 | `PROJECT_ID` | Nowhere | n/a | No | `AttributeError` at `backend/app/services/collaboration_service.py:L120`. |
-| `STORAGE_BUCKET_NAME` | Nowhere | n/a | No | `AttributeError` at `backend/app/services/export_service.py:L154`. |
-| `SIGNED_URL_EXPIRATION` | Nowhere | n/a | No | `AttributeError` at `backend/app/services/export_service.py:L162`. |
+| `STORAGE_BUCKET_NAME` | Nowhere | n/a | No | `AttributeError` at `backend/app/services/export_service.py:L161`. |
+| `SIGNED_URL_EXPIRATION` | Nowhere | n/a | No | `AttributeError` at `backend/app/services/export_service.py:L169`. |
 | `EXPORT_BUCKET_NAME` | Nowhere | n/a | No | `AttributeError` at `backend/app/tasks/background_tasks.py:L141`. |
 | `DOCUMENT_BUCKET_NAME` | Nowhere | n/a | No | `AttributeError` at `backend/app/tasks/background_tasks.py:L278`. |
 
@@ -123,8 +123,11 @@ name a host the browser can resolve, and carry the port the server listens on.
 
 ## Data Flows
 
-The path this stack wires runs from the browser to Nginx, then to the FastAPI service, then to PostgreSQL. Two hops break before a request can
-travel it, because neither service builds and neither published port matches the port its server listens on.
+This stack wires two separate browser paths, not one chain. Nginx serves static files only: `frontend.Dockerfile:L23` copies the built bundle into
+`/usr/share/nginx/html`, and `frontend.Dockerfile:L26` leaves the custom-configuration copy commented out, so no proxy rule exists and no committed
+`.conf` file supplies one. The browser therefore fetches assets from Nginx on the first path, and the loaded bundle then calls the API itself on the
+second path, straight from the host rather than through Nginx. Both paths break before a request travels them, because neither service builds and
+neither published port matches the port its server listens on.
 
 The final hop is wired but unused. Compose hands the backend a `DATABASE_URL` (`docker-compose.yml:L24`) and `backend/app/db/sql.py:L16` builds an
 engine from it. No router or service calls `get_db` (`:L21`), nothing subclasses `Base` (`:L19`), and no migration tooling is committed.
@@ -135,13 +138,13 @@ serving reads or writes. A dashed edge below marks a relationship that does not 
 graph TD
     accTitle: The Compose topology, the mismatched build contexts and the port mismatch
     accDescr: The developer host publishes a port to the frontend service and a port to the backend service. Neither published port matches the port its server listens on. Neither service builds, because each names a Dockerfile that does not exist at its context. A dashed edge marks a relationship that does not work.
-    HOST["Developer host"]
-    FE["frontend service<br/>L4-L15"]
+    HOST["Browser on the developer host"]
+    FE["frontend service<br/>Nginx, static files only<br/>L4-L15"]
     BE["backend service<br/>L17-L28"]
     DB["db service<br/>postgres:13 at L31"]
 
-    HOST -.->|"publishes 3000:3000 at L8-L9,<br/>Nginx listens on 80"| FE
-    HOST -.->|"publishes 5000:5000 at L21-L22,<br/>Uvicorn listens on 8000"| BE
+    HOST -.->|"asset load: publishes 3000:3000 at L8-L9,<br/>Nginx listens on 80"| FE
+    HOST -.->|"API call from the loaded bundle,<br/>not proxied by Nginx: publishes 5000:5000<br/>at L21-L22, Uvicorn listens on 8000"| BE
     FE -.->|"context ../../frontend plus<br/>dockerfile: Dockerfile at L6-L7,<br/>no such file"| FEX["build fails"]
     BE -.->|"context ../../backend plus<br/>dockerfile: Dockerfile at L19-L20,<br/>no such file"| BEX["build fails"]
 
@@ -172,7 +175,7 @@ The `db` service keeps state in a named volume rather than the container layer. 
 
 ## Known Limitations
 
-The numbered order matches the order a developer meets each failure. Items 1 through 3 block a build outright, and items 4 through 12 break
+The numbered order matches the order a developer meets each failure. Items 1 through 3 block a build outright, and items 4 through 13 break
 behavior behind them.
 
 | # | Limitation | Evidence |
@@ -189,6 +192,7 @@ behavior behind them.
 | 10 | **The commented-out Nginx configuration has no file behind it** | `frontend.Dockerfile:L26` holds a commented-out `COPY nginx.conf`, and no `nginx.conf` exists in the repository, so the step has nothing to copy even if uncommented. The image ships the stock configuration from `nginx:alpine` (`:L20`), which serves static files with no single-page-application route fallback |
 | 11 | **No healthcheck and no restart policy exist** | Neither keyword appears in `docker-compose.yml`. The `depends_on` entries (`:L12-L13`, `:L25-L26`) order container start only and never wait for readiness, so the backend can start before PostgreSQL accepts connections and any command issued straight after `docker compose up -d` can reach a database still initializing |
 | 12 | **All three pinned runtimes are past end of life** | Python 3.9 (`backend.Dockerfile:L2`) ended support on 31 October 2025, Node.js 14 (`frontend.Dockerfile:L2`) on 30 April 2023, and PostgreSQL 13 (`docker-compose.yml:L31`) on 13 November 2025. None receives security patches as of 6 August 2026, so every image this stack builds ships an unsupported runtime. `nginx:alpine` (`frontend.Dockerfile:L20`) pins no version, so a rebuild can change the serving runtime with no file changing |
+| 13 | **No `.dockerignore` bounds either build context, and the frontend build copies the whole of it** | No `.dockerignore` is tracked anywhere in the repository, so a build sends every file under the named directory to the daemon as its [build context](https://docs.docker.com/build/concepts/context/). `frontend.Dockerfile:L14` then runs `COPY . .`, which writes that entire context into the build stage **on top of** the `node_modules` its own `npm ci` at `:L11` installed, so a host `frontend/node_modules` silently replaces the one the image resolved. A local `.env` or key file in the tree travels the same route. The final stage copies only `/app/build` (`:L23`), so the shipped image stays clean while the uploaded context and the build cache do not. `backend.Dockerfile:L14` copies `./app` alone and so writes less into the image, and its `./backend` context still uploads in full. A reviewed `.dockerignore` is a prerequisite for either direct build |
 
 `backend.Dockerfile:L22` carries the folder's only human-assistance marker. Its four items at `:L24-L27` ask for review of the Python 3.9 base
 image, the location of `requirements.txt`, the location of `./app`, and any further configuration. No deferred-work comment appears in the folder.
@@ -203,14 +207,17 @@ Start the full local stack.
 ```bash
 cd "$(git rev-parse --show-toplevel)/infrastructure/docker"
 docker compose up --build
-docker build -f infrastructure/docker/backend.Dockerfile -t word-backend ../../backend
-docker build -f infrastructure/docker/frontend.Dockerfile -t word-frontend ../../frontend
 ```
 
 The command fails at once. Docker finds no file named `Dockerfile` in either build context, per `docker-compose.yml:L6-L7` and `:L19-L20`, so
 neither service builds.
 
-Build either image directly, naming the real Dockerfile and a matching context.
+Build either image directly, naming the real Dockerfile and a matching context. **Write a reviewed
+`.dockerignore` first.** No `.dockerignore` is tracked anywhere in this repository. Each command below
+therefore uploads its whole named directory to the daemon, including a local `frontend/node_modules`,
+a `backend/venv` and any `.env` or key file sitting in the tree. Limitation 13 below carries the full
+consequence. The `-f` path is relative to the shell's working directory, not to the context argument, so
+run both from the repository root as written.
 
 ```bash
 cd "$(git rev-parse --show-toplevel)"

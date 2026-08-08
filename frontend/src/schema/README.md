@@ -121,6 +121,9 @@ of how any of them arose, so manual synchronization is stated here as the risk t
 specification declares no cross-language contract tool either: its `### Shared` heading lists ESLint, Prettier and Git at
 `documentation/Technical Specifications.md:L557-L561`.
 
+Each cell cites the file named in its own column header, so a bare line number in the fourth column
+is a line of `documentation/Technical Specifications.md` rather than of the module beside it.
+
 | Concept | This directory | `backend/app/schema/` | `documentation/Technical Specifications.md` |
 | --- | --- | --- | --- |
 | document owner | `owner_id` required, `document.ts:L69` | `owner_id: Optional[str] = None`, `document.py:L66` | `owner_id`, L333 and L375 |
@@ -137,7 +140,7 @@ One row agrees across both code contracts: `full_name` is optional at `user.ts:L
 
 - **Ownership carries four positions, and this README names none of them canonical.** `document.ts:L69` declares `owner_id` on
   the document, and `document.ts:L91` declares `user_id` on the version. Across the boundary, `backend/app/schema/document.py:L66`
-  declares `owner_id` as optional with a default of `None`, while `backend/app/services/document_service.py:L116` writes and later
+  declares `owner_id` as optional with a default of `None`, while `backend/app/services/document_service.py:L125` writes and later
   compares `user_id`. Because the server contract makes `owner_id` optional, a document validates with no owner recorded while
   ownership decides access, and the [data model reference](../../../docs/data-model.md) consolidates all four positions.
 - **The modification timestamp carries three names.** `updated_at` at `document.ts:L71` and `document.py:L112`, and

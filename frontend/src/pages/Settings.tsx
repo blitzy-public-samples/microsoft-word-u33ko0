@@ -94,7 +94,7 @@ const Settings: React.FC = () => {
    *
    * @remarks
    * L121 defines no request. `updateUserSettings` is absent from `services/api.ts`, which exports
-   * only `getDocuments` L138, `createDocument` L143 and `updateDocument` L148, so no method, path,
+   * only `getDocuments` L217, `createDocument` L245 and `updateDocument` L287, so no method, path,
    * body encoding or response shape is declared anywhere for this save. The two fields the object
    * carries are therefore the whole of what the page knows about the intended payload, and L122
    * has no value to dispatch. `updateUser` is absent as well, at `store/userSlice.ts:L139`.

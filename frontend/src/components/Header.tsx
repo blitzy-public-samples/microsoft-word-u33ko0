@@ -12,6 +12,9 @@
  * - `currentUser.avatar` and `currentUser.name` match no user contract.
  *   `frontend/src/schema/user.ts` declares `username` and optional `full_name`.
  * - The logo asset does not load, because `frontend/public/` holds only `index.html`.
+ * - Both `alt` values repeat adjacent visible text. L62 sets `alt="Microsoft Word Logo"` beside the
+ *   span at L63, and L77 sets `alt={currentUser.name}` beside the same name at L78, so a screen
+ *   reader reads each label twice. A decorative image beside its own caption takes an empty `alt`.
  * - Two of the four links match no route. `App.tsx` declares `/`, `/editor`, `/templates` and
  *   `/settings`, so `/documents` and `/login` go nowhere.
  *
@@ -27,30 +30,27 @@ import { selectCurrentUser } from '@/store/userSlice';
  *
  * @returns A `header` element holding the branding block, the nav list and the conditional user
  * block.
- * @remarks The selector call is the only external read, and no dispatch or network call runs here.
- *
  * @remarks
  * The selector call at L56 is the only explicit data read, and no line dispatches an action or
- * calls an application programming interface. Rendering still makes browser requests. The `img`
- * at L77 sets `src` to `currentUser.avatar`, so the browser fetches that URL, and the `img` at
- * L62 fetches the static path `/microsoft-word-logo.png`. The avatar URL is the one that matters:
- * it arrives with the user object rather than from this repository, and no line validates,
- * allow-lists or rewrites it. A value pointing at an outside host makes the browser contact that
- * host on every render of a signed-in page, and the host learns the reader's internet protocol
- * (IP) address, user agent, and whatever referrer the page's policy permits.
+ * calls an application programming interface. Rendering still makes browser requests: the `img` at
+ * L77 sets `src` to `currentUser.avatar`, so the browser fetches that URL, and the `img` at L62
+ * fetches the static path `/microsoft-word-logo.png`. The avatar URL is the one that matters. It
+ * arrives with the user object rather than from this repository, and no line validates, allow-lists
+ * or rewrites it, so a value pointing at an outside host makes the browser contact that host on
+ * every render of a signed-in page. The host then learns the reader's internet protocol (IP)
+ * address, user agent, and whatever referrer the page's policy permits.
  *
  * The branch at L75 tests `currentUser`, then reads `.avatar` and `.name` at L77 and L78.
- * `store/userSlice.ts:L26` types that value `User | null`, which `schema/user.ts:L56` infers
- * from a schema declaring neither field.
- *
- * The branch guards rendering, not access. A truthy `currentUser` means the local store holds an
- * object, so the component shows a profile block instead of the login link, and no content it
- * renders is protected by the test.
+ * `store/userSlice.ts:L26` types that value `User | null`, which `schema/user.ts:L56` infers from a
+ * schema declaring neither field. The branch guards rendering rather than access: a truthy
+ * `currentUser` means the local store holds an object, so the component shows a profile block
+ * instead of the login link, and no content it renders is protected by the test.
  * @example
  *     <Provider store={store}>
  *       <Header />
  *     </Provider>
  * The snippet cannot run: `@/store` raises `TS2307`, so the `useAppSelector` call never resolves.
+ * @see ./README.md for the directory register.
  */
 const Header: React.FC = () => {
   const currentUser = useAppSelector(selectCurrentUser);

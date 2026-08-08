@@ -70,10 +70,12 @@ region and `Footer` only, and `pages/Editor.tsx` renders the other three.
 `frontend/package.json:L15-L30` declares fourteen development dependencies, with `react-scripts` pinned
 exactly at `5.0.1` on `:L29` and no caret.
 
-Five packages appear in import statements under this tree and in no dependency block: `axios`, `draft-js`,
-`@types/draft-js`, `zod` and `socket.io-client`. Two of the five are named by the specification, Axios at
-`documentation/Technical Specifications.md:L544` and Draft.js at `:L545`, while Zod and socket.io-client
-appear nowhere in `documentation/`. Contract shapes travel through
+Four packages appear in import statements under this tree and in no dependency block: `axios`,
+`draft-js`, `zod` and `socket.io-client`. A fifth undeclared package, `@types/draft-js`, appears in no
+import statement at all. TypeScript resolves the `draft-js` declarations from it rather than from an
+import, so `tsc` needs it installed while a grep for the name finds nothing. Two of the five are named
+by the specification, Axios at `documentation/Technical Specifications.md:L544` and Draft.js at
+`:L545`, while Zod and socket.io-client appear nowhere in `documentation/`. Contract shapes travel through
 [the data model](../../docs/data-model.md), and the external services these clients target are listed in
 [the integration guide](../../docs/integration-guide.md).
 
@@ -178,8 +180,9 @@ Every item below sits in the committed code, and none is repaired here.
   `components/` and `pages/` import through `@/`, so their failures read `TS2307`.
 - **`npm ci` fails in two places for two reasons.** `infrastructure/docker/frontend.Dockerfile:L11` fails
   because no lockfile is committed, and `.github/workflows/ci.yml:L19` fails because it runs at the
-  repository root, where no `package.json` exists. A plain `npm install` inside `frontend/` succeeds and
-  resolves 1,532 packages, which is what `README.md:L36` instructs.
+  repository root, where no `package.json` exists. A plain `npm install` inside `frontend/` succeeds,
+  which is what `README.md:L36` instructs. The resolved count follows the public registry, so with no
+  lockfile committed it is not reproducible: two observed runs resolved 1,532 and 1,492 packages.
 - **The client base URL is undefined.** `services/api.ts:L82` reads `REACT_APP_API_BASE_URL` while
   `infrastructure/docker/docker-compose.yml:L11` injects `REACT_APP_API_URL`.
 - **Three react-router-dom version 5 APIs sit against a version 6 range.** `App.tsx:L15` imports `Switch`,

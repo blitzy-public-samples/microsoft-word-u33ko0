@@ -100,22 +100,28 @@ one.
 
 ### External
 
-| Package | Declared | Imported by |
+| Package | Declared | How this directory needs it |
 | --- | --- | --- |
-| `react ^18.2.0` | `frontend/package.json:L8` | All eight components |
+| `react ^18.2.0` | `frontend/package.json:L8` | Imported by all eight components |
 | `react-redux ^8.0.5` | `frontend/package.json:L10` | Reached indirectly, through the absent store hooks |
-| `react-router-dom ^6.11.1` | `frontend/package.json:L11` | `Header.tsx:L21`, for `Link` |
-| `draft-js` | Absent from the manifest | `DocumentCanvas.tsx:L21`, `ImageEditor.tsx:L29`, `TableEditor.tsx:L25`, `TextEditor.tsx:L42` |
-| `@types/draft-js` | Absent from the manifest | Required by the same four modules |
+| `react-router-dom ^6.11.1` | `frontend/package.json:L11` | Imported at `Header.tsx:L21`, for `Link` |
+| `draft-js` | Absent from the manifest | Imported at `DocumentCanvas.tsx:L21`, `ImageEditor.tsx:L29`, `TableEditor.tsx:L25` and `TextEditor.tsx:L42` |
+| `@types/draft-js` | Absent from the manifest | Not imported anywhere. Required as a development dependency, because `draft-js` ships no TypeScript declarations of its own |
 
-`draft-js` and `@types/draft-js` are imported but never declared. `frontend/package.json:L6-L14`
-lists exactly seven runtime dependencies: `@reduxjs/toolkit`, `react`, `react-dom`, `react-redux`,
-`react-router-dom`, `tailwindcss` and `typescript`. Neither Draft.js package appears there or in the
-development dependencies. Four of the thirteen undeclared-package `TS2307` errors originate here,
-one for each module that imports `draft-js`. See [the frontend source README](../README.md) for the
-repository-wide error profile, which this file does not restate. The `FRAMEWORKS AND LIBRARIES`
-heading in `documentation/Technical Specifications.md` lists Draft.js as a frontend library at
-`Technical Specifications.md:L545`, while the manifest declares it nowhere.
+The two Draft.js packages are undeclared for different reasons, and the distinction matters when
+somebody repairs the manifest. `draft-js` is a **runtime import**: four modules in this directory name
+it in an `import` statement, and six name it across `frontend/src/` as a whole. `@types/draft-js` is a
+**type-declaration package** that no source file imports. TypeScript resolves the `draft-js`
+declarations from it rather than from an import, so a grep for the name finds nothing while `tsc`
+still needs the package installed.
+
+`frontend/package.json:L6-L14` lists exactly seven runtime dependencies: `@reduxjs/toolkit`, `react`,
+`react-dom`, `react-redux`, `react-router-dom`, `tailwindcss` and `typescript`. Neither Draft.js
+package appears there or in the development dependencies. Four of the thirteen undeclared-package
+`TS2307` errors originate here, one for each module that imports `draft-js`. See
+[the frontend source README](../README.md) for the repository-wide error profile, which this file does
+not restate. The `FRAMEWORKS AND LIBRARIES` heading in `documentation/Technical Specifications.md`
+lists Draft.js as a frontend library at `:L545`, while the manifest declares it nowhere.
 
 `Header` and `DocumentCanvas` each read a contract that the server side also models. See [the data
 model reference](../../../docs/data-model.md) for the field drift they inherit.
@@ -149,7 +155,7 @@ replaces the local editor state, then `:L163` calls `serializeDocument` with the
 `EditorState`. The helper's first statement reads `getCurrentContent` on the value it received, and
 a `ContentState` declares no such method, so the call raises a `TypeError` before any conversion
 runs. Nothing downstream executes: no `convertToRaw`, no `JSON.stringify`, and no dispatch at
-`:L164`. Both directions carry a type error, and Known Limitations reads the two together, while
+`DocumentCanvas.tsx:L164`. Both directions carry a type error, and Known Limitations reads the two together, while
 [the pages README](../pages/README.md) covers the page that mounts these components.
 
 ```mermaid

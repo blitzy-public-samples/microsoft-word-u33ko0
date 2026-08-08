@@ -10,7 +10,7 @@
  *
  * The server half of the contract is missing. No backend/app/schema/template.py exists, and
  * backend/app/api/templates.py:L70 imports it. The same router imports the absent template
- * service at L32.
+ * service at backend/app/api/templates.py:L71.
  *
  * Every `Lnn` locator here points at the current layout of the file it names. A bare
  * `Lnn` points into this file, and a `path:Lnn` points into the named file.

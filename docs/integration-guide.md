@@ -49,8 +49,8 @@ SYSTEM ARCHITECTURE, `L300` SYSTEM DESIGN, `L523` TECHNOLOGY STACK and `L620` SE
 CONSIDERATIONS. A numbered section citation anywhere in this documentation set refers to the
 generated Technical Specification, a separate document, and the text says so when it does.
 
-Where this engagement made a judgement, [decision-log.md](decision-log.md) will carry the argument.
-That file is planned for a later checkpoint and is not committed yet. No rationale lives in this file.
+Where this engagement made a judgement, [decision-log.md](decision-log.md) carries the argument. No
+rationale lives in this file.
 
 ## Integration inventory
 
@@ -72,12 +72,31 @@ Four labels carry one fixed meaning in this guide and in the rest of the documen
 | **SCAFFOLDED ONLY** | Committed code constructs the client library and writes the calls, and nothing in the application constructs the class holding them, so no call site can run |
 | **ABSENT** | Configuration names the integration and code reads that value, and no committed infrastructure provisions the service |
 
-No label in this table means a call reaches Google Cloud today. Every backend module that touches an
-external system imports `settings` from `app.core.config`, which never creates a module-level
-instance, so the module raises `ImportError` before any client is built. The import sites are
-`backend/app/db/firestore.py:L38`, `backend/app/services/export_service.py:L61`,
-`backend/app/services/collaboration_service.py:L39` and
-`backend/app/tasks/background_tasks.py:L92`. Everything below describes the call the code declares.
+No label in this table means a call reaches Google Cloud today. One import blocks every one of them.
+`app.core.config` declares the `Settings` class and a `get_settings` factory and never creates a
+module-level `settings` instance, so any module importing that name raises `ImportError` before a
+client is built.
+
+Six modules under `backend/app/` import `settings`, and each one touches an external system either
+by constructing a client or by reaching one through a service. Four construct a client directly:
+
+| Module | `settings` import | Client it constructs |
+| -------- | ------------------- | ---------------------- |
+| `backend/app/db/firestore.py` | `:L36` | Firestore `Client` at `:L40` |
+| `backend/app/db/sql.py` | `:L14` | SQLAlchemy `engine` at `:L16`, against `DATABASE_URL` |
+| `backend/app/services/export_service.py` | `:L61` | Cloud Storage `Client` at `:L83` |
+| `backend/app/tasks/background_tasks.py` | `:L92` | `Celery` on `REDIS_URL` at `:L98`, plus Cloud Storage clients at `:L132` and `:L277` |
+
+The other two reach an external system without constructing a client of their own.
+`backend/app/services/collaboration_service.py:L39` imports `settings` and builds Pub/Sub publisher
+and subscriber clients at `:L69-L70`, and it reads `settings.PROJECT_ID`, a field `Settings` never
+declares. `backend/app/services/document_service.py:L60` imports `settings` and reaches Firestore
+through the shared client it binds at `:L70`, so it issues external calls without opening a
+connection.
+
+Three further modules import `settings` and reach no external system: `backend/app/main.py:L20`,
+`backend/app/api/auth.py:L81` and, through the factory rather than the instance,
+`backend/app/core/security.py:L43`. Everything below describes the call the code declares.
 
 - Firestore is the one external system an HTTP handler calls. Five document handlers construct
   `DocumentService`, and each of its four methods issues a Firestore call. No request reaches a
@@ -249,9 +268,9 @@ alone, and no schema in either language models either of them.
 
 **NOT REACHABLE.** Export objects are the only bytes this repository writes to any bucket. The
 write-and-sign sequence in `ExportService` is written in full and in the right order, and more than
-one independent barrier stands in front of it: no handler calls either export method, no route
-uploads a document, and no route uploads an image. Read the label as a statement about the shape of
-the call, not about a successful upload or a usable link. Three
+one independent barrier stands in front of it. Three barriers apply: no handler calls either export
+method, no route uploads a document, and no route uploads an image. Read the label as a statement
+about the shape of the call, not about a successful upload or a usable link. Three
 prerequisites stand between the committed code and either outcome, and the two subsections after the
 step table name each one.
 
@@ -296,17 +315,17 @@ fail in this order inside `export_to_pdf`.
 | Order | Statement | Locator | What it needs |
 | ------- | ----------- | --------- | --------------- |
 | 1 | `self.storage_client.bucket(settings.STORAGE_BUCKET_NAME)` | `export_service.py:L154` | A declared `STORAGE_BUCKET_NAME`. `Settings` declares nine fields at `backend/app/core/config.py:L111-L119` and this is not among them, so attribute access raises `AttributeError` before any network call |
-| 2 | `blob.upload_from_string(...)` | `export_service.py:L157` | Credentials that authenticate and carry write permission on the bucket. `backend/app/db/firestore.py:L39` is the only Application Default Credentials resolution in the repository, and no committed file supplies `GOOGLE_APPLICATION_CREDENTIALS` |
+| 2 | `blob.upload_from_string(...)` | `export_service.py:L157` | Credentials that authenticate and carry write permission on the bucket. `export_service.py:L83` builds `Client()` with no arguments, so the Cloud Storage client runs its own Application Default Credentials lookup, independent of the Firestore lookup at `backend/app/db/firestore.py:L39`, which is the repository's only explicit `default()` call. ADC consults several sources in turn, among them `GOOGLE_APPLICATION_CREDENTIALS`, a `gcloud` user credential in the well-known configuration file, and the metadata server on a Google Cloud instance. No committed file supplies any of them, so what this client resolves is a property of the host |
 | 3 | `blob.generate_signed_url(version="v4", ...)` | `export_service.py:L160-L164` | Sign-capable credentials, and an expiry inside the version 4 limit |
 
 Signing is the prerequisite most easily missed, because it needs more than authentication. A version 4
 signature is computed locally, so the credentials must be able to sign bytes. Two credential shapes
 satisfy that:
 
-- **A service-account private key.** A key file referenced through `GOOGLE_APPLICATION_CREDENTIALS`,
-  which `backend/app/core/config.py:L117` declares as `Optional[str]` with no explicit default,
-  which Pydantic 1.x treats as optional with a `None` default, so the contract never requires it,
-  and no committed `.env` file supplies it. `Config.env_file` at `:L123`
+- **A service-account private key.** A key file referenced through `GOOGLE_APPLICATION_CREDENTIALS`.
+  `backend/app/core/config.py:L117` declares that field as `Optional[str]` with no explicit default,
+  which Pydantic 1.x treats as optional with a `None` default, so the contract never requires it.
+  No committed `.env` file supplies it. `Config.env_file` at `:L123`
   names the file the repository does not commit.
 - **An IAM `signBlob` grant.** Credentials with no private key, such as a metadata-server token on a
   Compute Engine or Cloud Run instance, can sign only by delegating to the IAM Credentials application
@@ -390,21 +409,26 @@ defined bounds on the value measure zero. That matters more than an ordinary mis
 a version 4 signed URL needs no authentication to redeem. Whoever holds the link holds the object for
 as long as the link lives, so the lifetime is the whole of the access control.
 
-Two failure modes follow once a value arrives. A unit mistake passes silently, because the client
-library reads a bare integer as seconds while a `timedelta` or a `datetime` means something else.
-Nothing in the codebase distinguishes the three. An over-long lifetime passes too, since the only
-ceiling in play is the client library's version 4 limit of seven days rather than any project policy.
+One failure mode follows once a value arrives, and one apparent failure mode does not. A unit mistake
+passes silently, because the client library reads a bare integer as seconds while a `timedelta` or a
+`datetime` means something else, and nothing in the codebase distinguishes the three. An over-long
+lifetime does not pass: the client library rejects a version 4 expiry above seven days with
+`ValueError`, so a value above that limit mints no link at all. Every value at or below seven days is
+accepted with no project policy behind it, which is where the real exposure sits.
 
-No signed URL is generated today. Three barriers stand in front of the gap in this order: the absent
-`settings` singleton at `backend/app/services/export_service.py:L61`, the undeclared
-signing also needs a credential that can sign bytes, and whether Application Default Credentials
-supplies one depends on what it resolves. A service-account key file carries a private key and signs
-locally. A metadata-server token on a Compute Engine or Cloud Run instance carries no key and can
-sign only by delegating to the IAM Credentials API, which needs the `iam.serviceAccounts.signBlob`
-permission on the signing account and an explicitly passed signer identity.
-`export_service.py:L160-L164` and `:L234-L236` pass no `credentials`, no `service_account_email` and
-no `access_token`, so the code settles neither the credential type nor the signing route.
-Read the gap as one to close before the first link is issued, not as an exposure running now.
+No signed URL is generated today. Four barriers stand in front of the gap, in the order execution
+meets them. First, the absent `settings` singleton at
+`backend/app/services/export_service.py:L61` stops the module at import. Second, the undeclared
+`settings.STORAGE_BUCKET_NAME` at `:L154` and `:L228` raises `AttributeError`. Third, the undeclared
+`settings.SIGNED_URL_EXPIRATION` at `:L162` and `:L236` raises the same way. Fourth, signing needs a
+credential that can sign bytes, and whether the resolved credential supplies one depends on the host.
+A service-account key file carries a private key and signs locally. A metadata-server token on a
+Compute Engine or Cloud Run instance carries no key. Signing then works only by delegating to
+the IAM Credentials API, which needs the `iam.serviceAccounts.signBlob` permission on the signing account and
+an explicitly passed signer identity. `export_service.py:L160-L164` and `:L234-L238` pass no
+`credentials`, no `service_account_email` and no `access_token`, so the code settles neither the
+credential type nor the signing route, and no committed file supplies a credential that would settle
+it. Read the gap as one to close before the first link is issued, not as an exposure running now.
 The same limitation is recorded against the modules that hold it, in
 [../backend/app/core/README.md](../backend/app/core/README.md) and
 [../backend/app/services/README.md](../backend/app/services/README.md).
@@ -427,7 +451,7 @@ committed code and become prerequisites the moment a caller reaches the signing 
 | 3 | An authorization check before a link is minted | Neither export method takes a caller identity. `export_to_pdf` at `:L87` and `export_to_docx` at `:L168` accept a `Document` and sign a link for it, and nothing compares a requesting user against the document's owner first. `process_document_export` at `background_tasks.py:L101` takes `user_id` and puts it to two uses. `:L135` passes it to `document_service.get_document(document_id, user_id)`, an ownership handoff with the right arity that no `await` drives, so the coroutine is created, never executed and discarded, and the comparison inside it never runs. `:L142` then builds the object key from the same value |
 | 4 | A signing credential held as a secret | Signing needs a private key or an IAM SignBlob delegation. No committed file supplies either, and `scripts/deploy.sh:L19` would archive a service-account key JSON file sitting in the working tree and `:L23` would upload it. [../scripts/README.md](../scripts/README.md) carries that path |
 | 5 | No link in a log or an error | No traced exposure exists today. No committed caller reaches either export method, so no signed URL is produced, and no logging path in the repository receives one. The constraint stands as a prerequisite rather than a finding, because `frontend/src/services/api.ts` and the page handlers log whole error objects, and a link returned through either would land in the console with the rest of the response. [../frontend/src/pages/README.md](../frontend/src/pages/README.md) records that logging behaviour |
-| 6 | Object-level access control that the link cannot bypass | `infrastructure/terraform/main.tf:L54` sets `uniform_bucket_level_access = true`, which is the right default. `:L56-L58` enables versioning with no `lifecycle_rule`, so an earlier generation of an export object is retained after a live delete and remains addressable to anyone able to name it. [../infrastructure/terraform/README.md](../infrastructure/terraform/README.md) carries the bucket detail |
+| 6 | Object-level access control that the link cannot bypass | `infrastructure/terraform/main.tf:L54` sets `uniform_bucket_level_access = true`, which is the right default. `:L56-L58` enables versioning with no `lifecycle_rule`, so a delete or an overwrite on that bucket archives the current generation and leaves it addressable to anyone able to name it. Whether an export ever lands there is undetermined, because both upload sites read `settings.STORAGE_BUCKET_NAME` (`backend/app/services/export_service.py:L154`, `:L228`) and `Settings` does not declare that field. [../infrastructure/terraform/README.md](../infrastructure/terraform/README.md) carries the bucket detail |
 
 None of the six is changed here. Each is recorded so that whoever makes this path reachable knows what
 has to land with it.
@@ -438,9 +462,17 @@ has to land with it.
 unreachable at runtime. The class sits at `backend/app/services/collaboration_service.py:L41`, and a
 search of all four routers and `backend/app/main.py` finds no import of the module and no
 construction of the class. The only constructor call in the repository sits at
-`backend/tests/test_services.py:L39`, and that file imports from a `services.collaboration_service`
-root that does not exist. The same file calls three methods the class never defines, at `:L44`,
-`:L50` and `:L55`.
+`backend/tests/test_services.py:L39`, reached through a `services.collaboration_service` specifier
+whose target file does exist. Two conditions stand between that specifier and a live object. The name
+is discoverable only while `backend/app/` sits on the import path, because `services/` holds no
+`__init__.py` and acts as an implicit namespace package. Importing it then needs `backend/` on the
+path as well, for the module's own `app.*` imports, and stops at
+`backend/app/services/collaboration_service.py:L39`, which requests the `settings` name that
+`app.core.config` never binds. The same test file calls three methods the class never defines, at
+`:L44`, `:L50` and `:L55`. [../backend/tests/README.md](../backend/tests/README.md) carries the full
+import-resolution matrix, and
+[troubleshooting.md](troubleshooting.md#three-test-imports-that-are-path-dependent-rather-than-absent)
+records the same sequence.
 
 Declared intent runs the other way. `documentation/Technical Specifications.md:L292`, under the
 DATA-FLOW DIAGRAM heading at `L264`, presents a collaboration service managing real-time updates as
@@ -491,8 +523,8 @@ need one topic per document identifier, created outside this repository before a
 | `delete_subscription` | `collaboration_service.py:L211` | No, it names the subscription | `NotFound` for a subscription that was never created, caught at `:L212` and printed at `:L214` |
 | `publish` | `collaboration_service.py:L248` | Yes, as the destination path | **BLOCKED.** `NotFound`, caught at `:L250`, printed at `:L252`, and the method returns normally |
 
-Creating the topic outside the repository is therefore a prerequisite for the collaboration path, and
-it sits behind the earlier blockers rather than in front of them: no route constructs the class, and
+Creating the topic outside the repository is therefore a prerequisite for the collaboration path.
+The prerequisite sits behind the earlier blockers rather than in front of them: no route constructs the class, and
 `settings.PROJECT_ID` is undeclared.
 
 ### Seven faults inside the collaboration path
@@ -504,9 +536,9 @@ it sits behind the earlier blockers rather than in front of them: no route const
   second fault: `message.data` is `bytes` on a Pub/Sub message, `WebSocket.send_json` serializes with
   `json.dumps`, and `json.dumps` rejects `bytes`. Nothing decodes the payload, while
   `broadcast_change` encoded it as UTF-8 at `:L248`, so the round trip is unbalanced. The third fault
-  is event-loop ownership: `asyncio.run` builds a new loop and closes it on return, the `WebSocket`
-  belongs to the server's already-running loop, and `asyncio.run` refuses outright when a loop is
-  already running on the calling thread. The Pub/Sub client invokes the callback on its own thread, so
+  is event-loop ownership. `asyncio.run` builds a new loop and closes it on return, while the
+  `WebSocket` belongs to the server's already-running loop. `asyncio.run` also refuses outright when
+  a loop is already running on the calling thread. The Pub/Sub client invokes the callback on its own thread, so
   none of the three propagates to `connect`.
 - **A failed publish is caught and logged, not raised.** `broadcast_change` reads
   `settings.PROJECT_ID` at `:L245`, which sits **above** the `try` at `:L247`, so the undeclared-field
@@ -620,10 +652,12 @@ No ADC discovery happens against the committed tree. `backend/app/db/firestore.p
 `settings` and raises `ImportError` first, so `:L39` and `:L40` never execute. The credential model
 below is the model the code declares.
 
-The database engine behaves the same way. `backend/app/db/sql.py:L16` calls
-`create_engine(settings.DATABASE_URL)` at module scope, so importing that module needs a connection
-string present in configuration. Engine construction does not open a connection, so a malformed
-value passes here and fails at first use instead.
+The database engine behaves the same way in one respect and differently in another.
+`backend/app/db/sql.py:L16` calls `create_engine(settings.DATABASE_URL)` at module scope, so
+importing that module needs a connection string present in configuration. `create_engine` parses the
+URL eagerly, so an unparseable value raises during that same import. Engine construction does not
+open a connection, so a parseable value naming an unreachable database passes here and fails at the
+first connection instead.
 
 Four surfaces supply credentials, and they do not agree on a single source.
 
@@ -708,7 +742,7 @@ sets the two sides against each other dimension by dimension, and
 [../frontend/src/services/README.md](../frontend/src/services/README.md) carries the same comparison
 for all six client call sites.
 
-| Dimension | Client, `login` at `frontend/src/services/auth.ts:L146` | Server, `POST /token` at `backend/app/api/auth.py:L167` |
+| Dimension | Client, `login` at `frontend/src/services/auth.ts:L144` | Server, `POST /token` at `backend/app/api/auth.py:L167` |
 | --- | --- | --- |
 | Method | `POST` | `POST` |
 | Path | `/auth/login` | `/token`, since `backend/app/main.py:L125` mounts the router with no prefix |
@@ -912,7 +946,8 @@ the wider map.
 
 ## Related documentation
 
-[docs/README.md](README.md) is planned as the index for this documentation set, and is not committed yet.
+[docs/README.md](README.md) is the index for this documentation set. The list below is the same map,
+narrowed to the documents this guide leans on.
 
 Repository-level documents beside this one:
 
@@ -922,7 +957,8 @@ Repository-level documents beside this one:
 - [deployment-guide.md](deployment-guide.md), what the Terraform, Docker and pipeline assets do
   today
 - [onboarding.md](onboarding.md), clean-machine setup and a prioritised task list
-- [decision-log.md](decision-log.md), planned and not yet committed, for every judgement this engagement made and its reasoning
+- [decision-log.md](decision-log.md), every judgement this engagement made and its reasoning
+- [prose-validation.md](prose-validation.md), the writing-clarity verdict for this document set
 
 Module documentation for the directories this guide draws on:
 

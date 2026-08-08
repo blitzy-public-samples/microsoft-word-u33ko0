@@ -53,7 +53,7 @@ Two of the fourteen return a collection, and neither offers a way to bound it. `
 field-projection parameters number zero across the directory, and no handler declares a `Query(`
 parameter. Nothing bounds a result set further down either, since `backend/app/` holds no
 `.limit(`, `offset`, `start_after` or cursor call. What a list response would actually contain
-cannot be stated from this repository, because neither list handler has a service method behind
+cannot be stated from this repository. Neither list handler has a service method behind
 it: `documents.py:L142` calls `get_documents`, which `DocumentService` does not define, and
 `templates.py` delegates to a `TemplateService` that no file declares. The API surface offers no
 bound on a result set, and the query behaviour behind it is unknown until those methods exist.
@@ -178,7 +178,7 @@ The overlap takes three forms. Static paths collide directly: `POST /` at `docum
 repeat the pair. Dynamic paths collide positionally, because Starlette matches a path template by shape rather than by
 parameter name. `/{document_id}` and `/{template_id}` both compile to one single-segment template, so the differing
 parameter name changes nothing about matching. A literal path collides with a dynamic one for the same reason:
-`GET /me` at `users.py:L29` and `PUT /me` at `:L50` are single-segment paths, and the earlier `GET /{document_id}` at
+`GET /me` at `users.py:L29` and `PUT /me` at `:L50` are single-segment paths. The earlier `GET /{document_id}` at
 `documents.py:L145` and `PUT /{document_id}` at `:L188` match them with `document_id` bound to the string `me`.
 Registration order resolves every collision in favour of the documents router, so five template handlers and both
 profile handlers are unreachable through the assembled application, seven of the twelve protected handlers in total.
@@ -220,7 +220,7 @@ reconciles the two, and no template or profile handler performs an object-level 
 
 Eleven handlers construct a service per request, and three do not. Every document handler builds a
 fresh `DocumentService()` in its own body at `documents.py:L107`, `:L141`, `:L182`, `:L230` and
-`:L277`, the template handlers repeat the pattern at `templates.py:L114`, `:L147`, `:L189`, `:L248`
+`:L277`. The template handlers repeat the pattern at `templates.py:L114`, `:L147`, `:L189`, `:L248`
 and `:L303`, and `update_user` builds a `UserService()` at `users.py:L76`. The two `auth.py`
 handlers call `UserService` on the class at L162, L230, L319 and L324, and `users.py:L30` calls none.
 
@@ -251,16 +251,18 @@ an error message, and each becomes live the moment the import failure is repaire
 | 6 | Any check on `is_active` before a token is honoured | `schema/user.py:L172` declares the field and no code path reads it. `auth.py:L162` loads the user and `:L165` returns it immediately, so a deactivated account keeps full access for the life of its token |
 | 7 | A `WWW-Authenticate: Bearer` header on an explicitly raised 401 | Three 401 sites in this directory set no `headers`: `auth.py:L157-L158`, `:L160` and `:L231-L232`. The duplicate dependency at `core/security.py:L182`, `:L184` and `:L189` behaves the same way. The scheme itself does send the challenge: `OAuth2PasswordBearer` at `auth.py:L85` keeps the default `auto_error`, so a request with no `Authorization` header, or one that is not bearer, receives 401 `Not authenticated` with the header attached and never reaches a handler |
 | 8 | Any constraint on the JWT secret, algorithm, lifetime or claim set | `core/config.py:L113`, `:L115` and `:L114` declare `SECRET_KEY`, `ALGORITHM` and `ACCESS_TOKEN_EXPIRE_MINUTES` as bare types with no validator or allowed-value list. `auth.py:L235-L239` encodes exactly `sub` and `exp`, so no issuer, audience or token identifier exists and no issued token can be revoked before `exp` |
-| 9 | Object-level authorization on any template route | `templates.py:L190`, `:L249` and `:L304` delegate to a `TemplateService` that no file defines, and the 404 details at `:L192`, `:L251` and `:L306` read `Template not found or user not authorized`, promising a check no committed code performs |
+| 9 | Object-level authorization on any template route | `templates.py:L190`, `:L249` and `:L304` delegate to a `TemplateService` that no file defines. The 404 detail at `:L192` reads `Template not found`, while `:L251` and `:L306` read `Template not found or user not authorized`, so two of the three messages promise a check no committed code performs |
 
 [../core/README.md](../core/README.md) carries the full token security contract, and
-[../../../docs/troubleshooting.md](../../../docs/troubleshooting.md) carries the same nine entries in repository-wide
-order alongside the frontend and infrastructure gaps.
+[../../../docs/troubleshooting.md](../../../docs/troubleshooting.md) covers the same ground in repository-wide order,
+alongside the frontend and infrastructure gaps. Its backend register runs to twelve numbered entries rather than nine.
+The register splits this directory's entries 8 and 9, then adds a declared-CORS-origin entry and a handler-count entry that
+belong to the package rather than to these four routers.
 
 `auth.py` limitations:
 
 - **The module cannot import.** `auth.py:L81` requests the `settings` name from `app.core.config`, which declares only
-  the `Settings` class at `core/config.py:L51` and the `get_settings` factory at L126. L84 raises first. `auth.py:L83`
+  the `Settings` class at `core/config.py:L51` and the `get_settings` factory at L126. L81 raises first. `auth.py:L83`
   requests `app.services.user_service`, a module with no file, and would raise next.
 - **A second `get_current_user` exists.** `auth.py:L89` defines one and `core/security.py:L117` defines another.
   `documents.py:L48`, `templates.py:L72` and `users.py:L25` import the local one, so the `auth.py` contract governs
@@ -301,8 +303,8 @@ order alongside the frontend and infrastructure gaps.
   which `Document` inherits at `schema/document.py:L96`. The name `user_id` appears at `schema/document.py:L135`, on
   `DocumentVersion` only. `owner_id` carries a default, so a `Document` validates without the field the authorization
   check compares. Field naming across the two languages sits in
-  [../../../docs/data-model.md](../../../docs/data-model.md). Choosing a canonical name belongs in the planned, not
-  yet committed [decision log](../../../docs/decision-log.md).
+  [../../../docs/data-model.md](../../../docs/data-model.md). The [decision log](../../../docs/decision-log.md) records
+  why this documentation names no canonical field, as decision row 7.
 
 `templates.py` limitations:
 
@@ -323,8 +325,8 @@ order alongside the frontend and infrastructure gaps.
 - **The call at `users.py:L77` is not awaited, and nothing establishes what it returns.**
   `user_service.update_user` belongs to a class that does not exist, so nothing fixes whether
   it is `async def` or a plain `def`. An `async def` implementation would bind a coroutine to
-  `updated_user`, and a coroutine is always truthy, so the guard at `users.py:L78` would never
-  take its 400 branch at `:L79` and `:L80` would return a coroutine where the signature
+  `updated_user`, and a coroutine is always truthy. The guard at `users.py:L78` would therefore never
+  take its 400 branch at `:L79`, and `:L80` would return a coroutine where the signature
   declares `User`. A synchronous implementation would work as written.
 - **The service module is absent.** `users.py:L24` requests `app.services.user_service`, and
   no file exists at that path.
@@ -365,7 +367,7 @@ Once the third-party distributions resolve, the command prints the failure that 
 route here. A machine without them stops earlier, at `auth.py:L76`.
 
 ```text
-File "app/api/auth.py", line 84, in <module>
+File "app/api/auth.py", line 81, in <module>
     from app.core.config import settings
 ImportError: cannot import name 'settings' from 'app.core.config'
 ```

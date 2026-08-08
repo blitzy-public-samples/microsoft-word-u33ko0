@@ -1,25 +1,25 @@
 /**
  * Render the editor status bar: word and page counts, zoom controls and save state.
+ *
+ * Unresolved imports and exports: none. `react` at L4 is the only import, no `@/` specifier
+ * appears, and `Footer` is the default export at L44. It is the one module here that typechecks.
  */
 import React from 'react';
 
 /**
- * Show six status readings across three groups.
+ * Show five status readings across three groups.
  *
  * @returns The `footer` element wrapping those three groups.
  * @remarks The component holds no state and registers no handler, so no reading ever updates and
  * the two zoom buttons do nothing. Each reading is a literal string: `Words: 0`, `Pages: 1`,
  * `100%`, `Last saved: Just now` and `Collaborators: 1`.
  *
- * Accessibility: the zoom buttons carry the labels `-` and `+` and nothing else, so a screen reader
- * announces a single punctuation character rather than "zoom out" or "zoom in". Neither button
- * carries a `disabled` or `aria-disabled` attribute, so both present themselves as working controls
- * while doing nothing.
+ * Accessibility: the zoom buttons are labelled `-` and `+` alone, so a screen reader announces one
+ * punctuation character, and neither carries `disabled` or `aria-disabled`, so both present as
+ * working controls while doing nothing.
  * @example
  * <Footer />
- * `frontend/src/App.tsx` renders `Footer` in the shell. That shell cannot mount today, because
- * `App.tsx` imports `store` as a named import of a default-only export, and `@/` resolves to
- * nothing.
+ * Cannot mount today: `App.tsx` imports `store` as a named import of a default-only export.
  */
 const Footer: React.FC = () => {
   return (

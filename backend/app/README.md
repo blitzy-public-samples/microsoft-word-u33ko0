@@ -86,27 +86,27 @@ Ten of the import statements below do not resolve. Contract shapes are covered i
 **This section publishes no supported package set, because no supported set exists.** No dependency manifest and no lock
 file is committed anywhere in the repository, so nothing here is pinned, reviewed or reproducible. The two tables below
 record what the code *requires*, split by how a reader can discover it, and a "Floor" of unestablished means the repository
-fixes nothing. It is not a statement that any release is safe.
+fixes nothing rather than that any release is safe.
 
-Two of the distributions carry published advisories that the missing pin cannot exclude. `python-jose` releases through
-3.3.0 carry CVE-2024-33663, an algorithm confusion weakness fixed in 3.4.0, and this package leaves `settings.ALGORITHM`
-unconstrained at `core/config.py:L115`, which is the condition that advisory concerns. Pydantic 1.x, `python-multipart` and
-`celery` each carry advisories of their own across their release histories, and none can be assessed here.
+Two of the distributions carry published advisories that the missing pin cannot exclude. `python-jose` releases through 3.3.0
+carry [CVE-2024-33663](https://github.com/advisories/GHSA-6c5p-j8vq-pqhj), an algorithm confusion weakness fixed in 3.4.0,
+and this package leaves `settings.ALGORITHM` unconstrained at `core/config.py:L115`, which is the condition that advisory
+concerns. Pydantic 1.x, `python-multipart` and `celery` each carry advisories of their own across their release histories,
+and none can be assessed here.
 
 **A reviewed manifest and lock file, with a tested compatibility and security matrix that satisfies the applicable
-advisories, is required future work.** It is recorded in [../../docs/onboarding.md](../../docs/onboarding.md), and
-[../../docs/decision-log.md](../../docs/decision-log.md) records the inference choices below.
+advisories, is required future work**, recorded in the [onboarding guide](../../docs/onboarding.md). The
+[decision log](../../docs/decision-log.md) records the inference choices below.
 
-**One inventory, three categories.** Seventeen distributions are required. Ten are named by an `import` statement and seven
-are runtime companions that no import names. Of those seventeen, thirteen have to be named to a package manager, because
-`starlette`, `ecdsa`, `rsa` and `pyasn1` arrive transitively. Three further distributions are chosen by configuration
-rather than by code, namely a PostgreSQL driver, a Redis client and `cryptography`, which is why an install command names
-sixteen. Every dependency count in this documentation set refers to this model, and this file is where it is defined.
+**One inventory, three categories.** The import graph requires seventeen distributions: ten named by an `import` statement
+and seven runtime companions that no import names, thirteen of which need naming to a package manager because `starlette`,
+`ecdsa`, `rsa` and `pyasn1` arrive transitively. Four more sit outside it, selected by configuration rather than code: a
+PostgreSQL driver, a Redis client, `cryptography`, and `python-dotenv`, which `Config.env_file` at `core/config.py:L123`
+selects and which is needed only once that file exists ([Pydantic 1.10](https://docs.pydantic.dev/1.10/usage/settings/)).
+An install command names seventeen: the thirteen plus these four. Every dependency count in this set refers to this model.
 
 **Directly imported distributions.** An `import` statement names each one, so a reader finds it by grep and a resolver
-reports it by name.
-
-The ten a direct import names:
+reports it by name. The ten a direct import names:
 
 | Distribution | Constraint | Establishing code fact |
 | --- | --- | --- |
@@ -132,8 +132,7 @@ makes a first environment build fail repeatedly rather than once.
 | bcrypt | Unestablished | `core/security.py:L45` and `api/auth.py:L86` build a `CryptContext` with the bcrypt scheme, and passlib does not depend on bcrypt. |
 | ecdsa, rsa, pyasn1 | Unestablished | Transitive closure of `python-jose`, pulled in for its signing backends. |
 
-Because nothing pins either set, a first environment build fails once per missing distribution rather than once in total.
-Setup steps belong in [../../docs/onboarding.md](../../docs/onboarding.md).
+Nothing pins either set. Setup steps belong in [../../docs/onboarding.md](../../docs/onboarding.md).
 
 ## Configuration
 
@@ -141,7 +140,8 @@ Every setting arrives through the `Settings` model at `core/config.py:L51`. Nine
 `core/config.py:L111-L119`, and six more are read from a `settings` object that never declares them. No field carries an
 explicit default. The two `Optional[str]` fields at L116 and L117 take an implicit `None` under Pydantic 1.x, so exactly
 seven of the nine are required at instantiation. `Config.env_file` at `core/config.py:L123` points at a `.env` file that is
-not committed. [core/README.md](core/README.md) classifies all fifteen.
+not committed, and names it relatively, so the path resolves against the working directory of the process rather than this
+package. [core/README.md](core/README.md) classifies all fifteen.
 
 | Setting | Status | Location | Read by |
 | --- | --- | --- | --- |
@@ -282,7 +282,7 @@ a misconfiguration. Each is unexploitable while import fails, and each becomes l
 | Package-wide gap | Evidence |
 | --- | --- |
 | No authentication on the two public routes and no rate limit on any route. `main.py:L116` adds one middleware and it is CORS | `api/auth.py:L167` and `:L242` are public; no limiter, dependency or proxy configuration is committed |
-| Object authorization covers three handlers only. Eleven of fourteen decide access on a valid token alone | Comparisons at `api/documents.py:L184`, `:L232`, `:L279`; none on create, list, the two profile routes or the five template routes |
+| Object authorization is attempted on three handlers only. Of the fourteen routes, twelve require a bearer token and two are public, and nine of the twelve protected ones decide access on a valid token alone | Comparisons attempted at `api/documents.py:L184`, `:L232`, `:L279`; none on create, list, the two profile routes or the five template routes. `api/auth.py:L167` and `:L242` are the two public routes |
 | CORS origins come from a field no settings class declares, alongside credentialed access and full wildcards | `main.py:L118` reads `settings.ALLOWED_ORIGINS`, absent from `core/config.py:L111-L119`; `:L119` sets `allow_credentials=True`, `:L120-L121` allow every method and header |
 | The JWT secret, algorithm and lifetime are unconstrained, and tokens carry no issuer, audience or identifier | `core/config.py:L113`, `:L115`, `:L114` declare bare types with no validator; `api/auth.py:L235-L239` encodes only `sub` and `exp` |
 | No explicitly raised 401 carries a `WWW-Authenticate: Bearer` challenge | Six explicit raises set no `headers`: `api/auth.py:L157-L158`, `:L160`, `:L231-L232`, `core/security.py:L182`, `:L184`, `:L189`. The scheme itself is the exception: `OAuth2PasswordBearer` at `api/auth.py:L85` and `core/security.py:L46` leaves `auto_error` at its default, so a missing or non-bearer `Authorization` header is answered by FastAPI with its own 401 carrying the challenge, before any handler runs |
@@ -316,8 +316,8 @@ per-handler table.
   [../../docs/deployment-guide.md](../../docs/deployment-guide.md).
 - **Both lifecycle handlers are broken.** `main.py:L63` calls `db.is_connected()`, which the Firestore client does not
   provide. `main.py:L68` catches every exception and `main.py:L69` prints it, so startup completes and the application
-  serves requests against connections it never verified. `main.py:L110` awaits `db.close()`. The inherited `close` is
-  synchronous, so the call shuts the transport, returns `None`, and `await` then raises `TypeError`.
+  serves requests against connections it never verified. `main.py:L110` awaits `db.close()`. A synchronous `close()`
+  returns `None`, and `await None` raises `TypeError`; nothing pins the client, so its transport state is unestablished.
 - **Six settings are read and never declared,** starting with `settings.ALLOWED_ORIGINS` at `main.py:L118`, and three
   declared fields are never read: `PROJECT_NAME`, `API_V1_STR` and `GOOGLE_APPLICATION_CREDENTIALS`, at
   `core/config.py:L111`, `L112` and `L117`.
@@ -326,12 +326,14 @@ per-handler table.
   route, because no WebSocket endpoint is registered in `main.py` or under `api/` and no package module imports the class.
   The four adapter helpers at `db/firestore.py:L42`, `L70`, `L92` and `L110` have no caller, because services use the raw
   client instead.
-- **Two undefined names raise at execution rather than at import.** `core/security.py:L48` annotates a default with
-  `Optional`, which the module never imports, so importing `app.core.security` raises `NameError`.
-  `tasks/background_tasks.py:L96` imports `timedelta` only, and `L267` and `L321` call `datetime.now()`.
+- **Undefined names raise in two different places, and the difference decides how each is diagnosed.** A name in a
+  signature is evaluated when Python executes the `def`, so `Optional` at `core/security.py:L48` and `User` at `:L117`
+  each raise `NameError` while `app.core.security` is still loading, and `L48` raises first. A name in a function body
+  raises only under exercise: `UserService` at `core/security.py:L186`, and `datetime` at
+  `tasks/background_tasks.py:L267` and `:L321` against the `timedelta`-only import at `:L96`.
 - **Nine `HUMAN ASSISTANCE NEEDED` markers and six `TODO` markers stand in the package.** Markers sit at `main.py:L56`,
-  `api/users.py:L76`, `core/security.py:L115`, `services/collaboration_service.py:L73` and `L211`,
-  `services/document_service.py:L183`, `services/export_service.py:L85`, and `tasks/background_tasks.py:L128` and `L262`.
+  `api/users.py:L73`, `core/security.py:L113`, `services/collaboration_service.py:L73` and `L216`,
+  `services/document_service.py:L181`, `services/export_service.py:L85`, and `tasks/background_tasks.py:L128` and `L262`.
   The `TODO` markers sit at `main.py:L67` and `L113`, and `services/export_service.py:L151`, `L156`, `L225` and `L230`.
 - **Two instructions in the root `README.md` do not work against this package.** `L42` directs a reader to
   `pip install -r requirements.txt`, and no such file exists. `L55` starts `uvicorn main:app` from `backend`, while the
@@ -359,7 +361,7 @@ then `python -c "import app.main"`. It prints the chain that stops every other b
 ```text
 File "app/main.py", line 16, in <module>
     from app.api.auth import auth_router
-File "app/api/auth.py", line 84, in <module>
+File "app/api/auth.py", line 81, in <module>
     from app.core.config import settings
 ImportError: cannot import name 'settings' from 'app.core.config'
 ```

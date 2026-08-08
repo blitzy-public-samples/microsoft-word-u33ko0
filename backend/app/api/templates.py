@@ -16,8 +16,8 @@ authorization decision would have to live in `TemplateService`. That class does
 not exist: `app.services.template_service` is absent, so no contract states
 whether such a check happens, and none can be inferred. Three of the five backend
 document routes take the opposite approach and compare ownership in the router
-body, at `app/api/documents.py:L184`, `:L232` and `:L279`; the create and list routes
-at `:L77` and `:L118` compare nothing.
+body, at `app/api/documents.py:L184`, `:L232` and `:L279`; its create and list routes,
+at `app/api/documents.py:L53` and `:L111`, compare nothing.
 
 Error text is not a control. L251 and L306 send the detail
 `"Template not found or user not authorized"`. The string names authorization,

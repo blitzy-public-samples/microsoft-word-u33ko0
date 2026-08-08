@@ -34,8 +34,8 @@ imports `background_tasks`.
 ## Architecture Fit
 
 The task tier sits beside the service tier and reaches persistence the same way a service does. `background_tasks.py:L93` imports the
-module-level Firestore client built at `db/firestore.py:L42`, and `:L94` imports `DocumentService` declared at
-`services/document_service.py:L64`. No route module imports this one, so nothing in the application programming interface (API) tier
+module-level Firestore client built at `db/firestore.py:L40`, and `:L94` imports `DocumentService` declared at
+`services/document_service.py:L62`. No route module imports this one, so nothing in the application programming interface (API) tier
 hands work to the queue. Repository-wide layering sits in
 [../../../docs/architecture-overview.md](../../../docs/architecture-overview.md), the package view in [../README.md](../README.md).
 
@@ -59,8 +59,8 @@ then hands the result to `ExportService` at `:L138`, reversing the ExportService
 ## Dependencies
 
 Three of the seven internal names below do not resolve, and one of the three stops the module at import. Every external floor carries
-a code fact, because the repository commits no backend dependency manifest. The planned, not yet committed
-[decision log](../../../docs/decision-log.md) will record those inference choices. [../services/README.md](../services/README.md)
+a code fact, because the repository commits no backend dependency manifest. The
+[decision log](../../../docs/decision-log.md) records those inference choices. [../services/README.md](../services/README.md)
 documents `DocumentService` and `ExportService` themselves. [../../../docs/integration-guide.md](../../../docs/integration-guide.md)
 labels the external services these packages reach by reachability, and the absent worker, beat scheduler and Memorystore instance sit
 in [../../../docs/deployment-guide.md](../../../docs/deployment-guide.md).
@@ -183,11 +183,14 @@ anywhere.
 | `statistics.page_count` | `update_document_statistics`, `:L320` | Write | This task only |
 | `statistics.last_updated` | `update_document_statistics`, `:L321` | Write | This task only |
 
-The retention sweep selects on a field nothing creates. `:L267` filters
+The retention sweep selects on a field nothing in this repository creates. `:L267` filters
 `where('expiration_date', '<=', datetime.now())`, and no service method, no route handler and
-no other task writes `expiration_date`. Once the `NameError` at `:L267` clears, the query
-returns an empty result against every document ever stored, so the sweep deletes nothing
-rather than the wrong records. The three `statistics` subfields at `:L319` to `:L321` sit
+no other task writes `expiration_date`. Once the `NameError` at `:L267` clears, no
+application-created document can match, because no committed writer sets the field. What the query
+returns against the live collection is unknown from source alone: a record written before this code,
+or written by any process outside this repository, can carry `expiration_date` and match. Read the
+sweep as unable to select its own documents rather than as guaranteed to select nothing. The three
+`statistics` subfields at `:L319` to `:L321` sit
 under one map key written at `:L317`, and no reader consumes them. Neither
 `../schema/document.py` nor any frontend module names a `statistics` field.
 
@@ -196,7 +199,7 @@ under one map key written at `:L317`, and no reader consumes them. Neither
 Four patterns are present in the code. `celery_app` at `background_tasks.py:L98` applies task-queue offloading, moving work off the
 request path and onto a broker. `:L151` states an intended scheduled retention sweep with `run_every=timedelta(days=1)`. `:L146`
 applies signed-URL delivery, handing a caller a time-limited link instead of file bytes. `:L98` also builds the application as a
-module-level instance during import, the same import-time construction `db/firestore.py:L42` uses for the Firestore client.
+module-level instance during import, the same import-time construction `db/firestore.py:L40` uses for the Firestore client.
 
 Six pieces that a working Celery deployment needs are absent, and each absence belongs to this module rather than to Celery. No
 producer exists: no tracked file calls `.delay(`, `.apply_async` or `send_task`. No worker descriptor and no beat schedule appears in
@@ -206,9 +209,9 @@ the repository, so the daily sweep `background_tasks.py:L151` asks for has nothi
 `time_limit` applies, and no task body holds a `try` block.
 
 The retention sweep carries no idempotency guard and deletes in an order that cannot be undone. Its loop body raises at five
-successive points once the earlier layers clear: `:L271` on a record with no `user_id` key, `:L278` on the undeclared
-`settings.DOCUMENT_BUCKET_NAME`, `:L280` on an object key no writer produces, `:L283` on `.delete()` against a list, and nothing at
-all after `:L284`. The Firestore document goes first, at `:L274`, so every one of those raises leaves the record gone and its file,
+successive points once the earlier layers clear. Those points are `:L271` on a record with no `user_id` key, `:L278` on the
+undeclared `settings.DOCUMENT_BUCKET_NAME`, `:L280` on an object key no writer produces, `:L283` on `.delete()` against a list,
+and nothing at all after `:L284`. The Firestore document goes first, at `:L274`, so every one of those raises leaves the record gone and its file,
 permissions and metadata behind. No `try` guards the loop, so the first raise abandons every remaining expired document too.
 [../../../docs/troubleshooting.md](../../../docs/troubleshooting.md#the-retention-sweep-fails-partway-and-leaves-records-behind)
 traces each step and the state it leaves.
@@ -225,7 +228,7 @@ exposed, and none exists today.
 
 | Prerequisite | State as committed | Evidence |
 | --- | --- | --- |
-| Authenticated and authorized producers | Absent. The publisher asserts identity through `user_id`, and `:L135` calls `get_document(document_id, user_id)` on an `async def` without awaiting it, so the ownership comparison at `services/document_service.py:L177` never runs. Awaiting it would check only the pair the message supplied, so knowledge of any document identifier and its owner would authorize the export. | `:L101`, `:L135` |
+| Authenticated and authorized producers | Absent. The publisher asserts identity through `user_id`, and `:L135` calls `get_document(document_id, user_id)` on an `async def` without awaiting it, so the ownership comparison at `services/document_service.py:L175` never runs. Awaiting it would check only the pair the message supplied, so knowledge of any document identifier and its owner would authorize the export. | `:L101`, `:L135` |
 | Broker transport security and access control | Unestablished. `:L98` reads `settings.REDIS_URL`, a bare string at `core/config.py:L119` with no scheme, credential or peer requirement, and no committed file provisions the instance, so no password, no access control list and no `rediss://` transport exists to review. | `:L98`, `core/config.py:L119` |
 | Message schema and size validation | Absent. Celery binds the three declared arguments, and no body line validates the type, the length or the content of any of them. | `:L101` |
 | `export_format` allow-listing | Absent. `:L138` hands the value to a conversion call and `:L142` interpolates it into the object key extension, so a publisher chooses the extension the stored object carries. | `:L138`, `:L142` |
@@ -275,9 +278,9 @@ The remaining defects, each latent behind a failure above:
 - **`background_tasks.py:L283` calls `.delete()` on a list.**
   `db.collection('document_permissions').where('document_id', '==', doc_id).get()` returns a list of snapshots, and a list carries no
   `delete` method.
-- **`background_tasks.py:L314` reads `document.pages`, which no contract declares.** `Document` at `schema/document.py:L98` declares
-  `id` at `:L112`, `created_at` at `:L113` and `updated_at` at `:L114`. The model inherits `title` at `schema/document.py:L66`,
-  `content` at `:L67` and `owner_id` at `:L68` from `DocumentBase` at `:L57`. Six fields, and no `pages`.
+- **`background_tasks.py:L314` reads `document.pages`, which no contract declares.** `Document` at `schema/document.py:L96` declares
+  `id` at `:L110`, `created_at` at `:L111` and `updated_at` at `:L112`. The model inherits `title` at `schema/document.py:L64`,
+  `content` at `:L65` and `owner_id` at `:L66` from `DocumentBase` at `:L55`. Six fields, and no `pages`.
 - **`background_tasks.py:L321` reads the undefined `datetime`,** as does `:L267`. `:L96` imports `timedelta` alone.
 - **`background_tasks.py:L146` generates a signed URL with no `version` argument,** so the call defaults to version 2.
   `services/export_service.py:L161` and `:L235` both pass `version="v4"` for the same kind of artifact, so the two paths sign

@@ -128,7 +128,9 @@ graph TD
 
 Unidirectional single store. One `configureStore` call at `index.ts:L41-L46` holds all shared client state, and a consumer
 changes that state by dispatching an action rather than by writing to it. `index.tsx:L36` passes the store to a React Redux
-`Provider`, the single point where the component tree gains access.
+`Provider`, the outer and first point where the component tree gains access. `App.tsx:L46` wraps a second `Provider` around
+the same store inside the first, which Known Limitations records as redundant rather than harmful: a consumer resolves the
+store through whichever provider is nearest, and both hold the identical instance.
 
 Slice per domain. Each slice declares its state shape, initial state and reducers in one module. `documentSlice.ts:L57-L136`
 covers documents and `userSlice.ts:L54-L121` covers the user, and neither slice reads the other's state.
@@ -173,7 +175,7 @@ modules import `selectCurrentUser`, and one also imports `updateUser`, each thro
 - **No `auth` reducer key exists, and a request interceptor reads one.** `index.ts:L42-L45` registers `document` at L43 and
   `user` at L44. `services/api.ts:L142` reads `(store.getState() as RootState).auth.token` for its `Authorization` header.
 - **`updateDocument` and `selectCurrentDocument` are absent from `documentSlice.ts`.** `components/DocumentCanvas.tsx:L23`
-  imports both and dispatches `updateDocument` at `:L164`, and `components/Toolbar.tsx:L24` imports it and dispatches it at
+  imports both and dispatches `updateDocument` at `:L138`, and `components/Toolbar.tsx:L24` imports it and dispatches it at
   `:L63` and `:L68`. The slice exports six creators at `documentSlice.ts:L154-L161` and neither name is among them. A separate
   `updateDocument` is an application programming interface (API) client function at `services/api.ts:L287`, imported at
   `pages/Editor.tsx:L25`; the two names are unrelated.
@@ -187,7 +189,7 @@ modules import `selectCurrentUser`, and one also imports `updateUser`, each thro
   constant carries the limit and no configuration changes it.
 - **`AppDispatch` is exported and unused.** `index.ts:L62` declares the type, and no module imports the name. The four
   `useAppDispatch()` call sites at `pages/Editor.tsx:L84`, `pages/Settings.tsx:L80`,
-  `components/DocumentCanvas.tsx:L109` and `components/Toolbar.tsx:L59` call the absent hook rather than use the type.
+  `components/DocumentCanvas.tsx:L83` and `components/Toolbar.tsx:L59` call the absent hook rather than use the type.
 - **The two slices treat a cleared error differently.** `documentSlice.ts:L112` declares `PayloadAction<string | null>`, so
   `setError(null)` clears the document error. `userSlice.ts:L116` declares `PayloadAction<string>`, so no payload clears the
   user error and only `clearUser` at `userSlice.ts:L91` resets it. `userSlice.ts:L118` also sets `isLoading` to `false`,
@@ -195,6 +197,10 @@ modules import `selectCurrentUser`, and one also imports `updateUser`, each thro
 - **`App.tsx` imports the store under a name the module does not export.** `frontend/src/App.tsx:L23` writes
   `import { store } from '@/store/index'`, a named import of a default-only export. `frontend/src/index.tsx:L17` writes
   `import store from '@/store'` and gets the form right.
+- **The same store is provided twice.** `frontend/src/index.tsx:L36` opens a `Provider` and `frontend/src/App.tsx:L46`
+  opens a second one inside it around the same instance. The inner provider is redundant rather than harmful, because a
+  consumer resolves the store through whichever provider is nearest and both hold the identical instance. It still costs a
+  reader time, since the outer provider alone is what supplies the tree.
 - **Both slices carry an end-of-file assistance marker.** `documentSlice.ts:L171-L174` and `userSlice.ts:L149-L154` each sit
   after the export statements. The user-slice marker names the missing `updateUser` action at `:L152` and the missing
   selectors at `:L153`.

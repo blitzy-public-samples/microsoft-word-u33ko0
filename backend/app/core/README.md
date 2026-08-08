@@ -117,10 +117,13 @@ covers `GOOGLE_CLOUD_PROJECT` at `config.py:L116` and `GOOGLE_APPLICATION_CREDEN
 annotated `Optional[str]`. The remaining seven raise `ValidationError` when absent.
 
 **`GOOGLE_APPLICATION_CREDENTIALS` is unread through `settings` yet still load-bearing.** The settings field is never
-dereferenced. The like-named operating-system environment variable is read directly by the Google authentication library
-through Application Default Credentials (ADC) at `db/firestore.py:L39`, where `credentials, project = default()` runs at
-import time. `scripts/deploy.sh:L4` aborts the deploy when that variable is unset. Removing the field would change
-nothing; unsetting the environment variable breaks both Firestore and the deploy script.
+dereferenced. The like-named operating-system environment variable is one of several sources Application Default
+Credentials (ADC) consults, and `db/firestore.py:L39` holds the repository's only explicit ADC call, where
+`credentials, project = default()` runs at import time. `scripts/deploy.sh:L4` aborts the deploy when that variable is
+unset. Removing the settings field would change nothing. Unsetting the environment variable stops the deploy script
+outright, and leaves each Google client to whatever other ADC source the host offers. Examples are a `gcloud` user
+credential in the well-known configuration file or the metadata server on a Google Cloud instance. This repository
+commits none of those, so the outcome depends on the host rather than on anything tracked here.
 
 **No `.env` file is committed.** `config.py:L123` points `env_file` at `.env`, and no such file exists in the
 repository, so every required key must arrive from the process environment.
@@ -131,15 +134,17 @@ whoever holds the link downloads the object until the link expires. The key is
 absent from `Settings` entirely, so `config.py:L111-L119` constrains nothing about
 it. `Settings` declares no `int`, `timedelta` or `datetime` annotation for it. It
 declares no `Field` with `le` or `ge`, and no validator, so nothing here caps the
-value the process environment supplies. Two consequences follow once the key
-arrives. A unit mistake passes silently, because the Google client reads a bare
-integer as seconds while a `timedelta` or a `datetime` means something else. An
-over-long lifetime passes too. The only ceiling that exists lives in the client
-library rather than here. `Blob.generate_signed_url` rejects a version 4 expiry
-above seven days, and that is a library limit rather than a project policy.
+value the process environment supplies. A unit mistake therefore passes silently,
+because the Google client reads a bare integer as seconds while a `timedelta` or a
+`datetime` means something else. The only ceiling lives in the client library rather
+than here. `Blob.generate_signed_url` raises `ValueError` for a version 4 expiry
+above seven days, so a value above that limit fails outright rather than minting a
+long-lived link. Any value at or below it is accepted with no project policy
+behind it.
 No signed URL is generated today, so this is a latent gap rather than a live
-exposure. Three barriers sit in front of it, in order. `services/export_service.py`
-imports the absent `settings` singleton, so the module fails at import.
+exposure. Four barriers sit in front of it, in the order execution meets them.
+`services/export_service.py` imports the absent `settings` singleton, so the module
+fails at import.
 `export_service.py:L154` then reads the undeclared `STORAGE_BUCKET_NAME`.
 `export_service.py:L162` then reads the undeclared `SIGNED_URL_EXPIRATION`. Version 4
 signing then needs a credential that can sign, and two routes qualify. A
@@ -147,13 +152,15 @@ service-account private key signs locally. A principal holding
 `iam.serviceAccounts.signBlob` signs through the Identity and Access Management
 (IAM) API instead, which the Google Cloud Storage client uses when the call
 supplies `service_account_email` and `access_token`. `export_service.py:L160-L164`
-supplies neither, and passes no `credentials`, so signing falls to whatever
-Application Default Credentials resolves at `db/firestore.py:L39`. A key-file
-credential carries a private key and signs. A metadata-server credential carries
-only a token, so local signing raises and the IAM route is unavailable because the
-call names no service account. The outcome therefore depends on the credential the
-environment supplies, and this repository fixes neither the credential type nor the
-signing route. The
+supplies neither, and passes no `credentials`. Signing therefore uses whatever the
+Cloud Storage client resolved for itself at `export_service.py:L83`, which builds
+`Client()` with no arguments and runs its own ADC lookup. That lookup is independent
+of the Firestore lookup at `db/firestore.py:L39`, and neither client shares a
+credential with the other. A key-file credential carries a private key and signs. A
+metadata-server credential carries only a token, so local signing raises and the IAM
+route is unavailable because the call names no service account. Which credential each
+client resolves is a property of the host, and this repository supplies none, so the
+signing outcome is unestablished here. The
 [services README](../services/README.md) and the
 [integration guide](../../../docs/integration-guide.md) carry the same gap from the
 call-site and integration views.
@@ -230,7 +237,7 @@ actually import from `app.api.auth`. Every row is an absent control rather than 
 | Inactive-account rejection | Absent in the dependency routes use | `api/auth.py:L162` loads the user and `:L165` returns it with no check, while `app/schema/user.py:L172` declares `is_active`. `security.py:L186-L189` behaves the same way, so a deactivated account keeps access |
 | `WWW-Authenticate: Bearer` on an explicitly raised 401 | Absent | Six explicitly raised 401 responses set no `headers`: `api/auth.py:L157-L158`, `:L160`, `:L231-L232`, and `security.py:L182`, `:L184`, `:L189` |
 | `WWW-Authenticate: Bearer` on a missing-header 401 | Present, from the framework | `security.py:L46` and `api/auth.py:L85` construct `OAuth2PasswordBearer` without `auto_error=False`, so FastAPI answers a missing or non-bearer `Authorization` header itself, with 401 `Not authenticated` and the challenge attached. Only the raises inside the dependency bodies omit it |
-| Reviewed cryptography dependency floor | Absent | No backend manifest or lock file is committed, so nothing pins `python-jose`. Releases through 3.3.0 carry CVE-2024-33663, an algorithm confusion weakness fixed in 3.4.0, and the unconstrained `ALGORITHM` above is exactly the condition that advisory concerns |
+| Reviewed cryptography dependency floor | Absent | No backend manifest or lock file is committed, so nothing pins `python-jose`. Releases through 3.3.0 carry [CVE-2024-33663](https://github.com/advisories/GHSA-6c5p-j8vq-pqhj), an algorithm confusion weakness fixed in 3.4.0, and the unconstrained `ALGORITHM` above is exactly the condition that advisory concerns |
 
 A safe floor cannot be asserted from this repository, because no committed file names a version. Establishing one
 belongs to the reviewed manifest and lock recorded as future work in

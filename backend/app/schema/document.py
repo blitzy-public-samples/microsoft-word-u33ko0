@@ -13,25 +13,25 @@ Pydantic never publishes.
 Every import resolves and `import app.schema.document` succeeds, because this file
 depends only on pydantic, typing and datetime, never on the absent `settings`
 singleton in app/core/config.py. `List` on the typing import line is imported
-and never used. No app/schema/template.py exists, though app/api/templates.py:L249
+and never used. No app/schema/template.py exists, though app/api/templates.py:L70
 imports Template, TemplateCreate and TemplateUpdate from app.schema.template.
 
 Consumers. app/api/documents.py:L54 binds DocumentCreate as the create request
 body. app/api/documents.py:L189 binds DocumentUpdate as the update request body and
-passes it to the service signature at app/services/document_service.py:L183.
+passes it to the service signature at app/services/document_service.py:L192.
 DocumentCreate adds no field of its own, so the create request body accepts a
 client-supplied `owner_id`. No module imports DocumentVersion, and the name
 appears exactly once across the repository's Python files, at its definition on
 L114.
 
 DocumentBase declares `owner_id` while DocumentVersion declares `user_id`. See
-docs/data-model.md for the full comparison. `owner_id` at L66 is optional with a
-default of `None`, so a document validates with no owner recorded, while ownership
-decides access at app/services/document_service.py:L175, :L241 and :L280.
+docs/data-model.md for the full comparison. `owner_id` at `document.py:L66` is
+optional with a default of `None`, so a document validates with no owner recorded,
+and ownership decides access at app/services/document_service.py:L184, :L250 and :L289.
 
-`Document(**doc_data)` at app/services/document_service.py:L121 raises a Pydantic
+`Document(**doc_data)` at app/services/document_service.py:L130 raises a Pydantic
 validation error on two missing required fields.
-app/services/document_service.py:L115-L117 assembles `doc_data` from `title`,
+app/services/document_service.py:L124-L126 assembles `doc_data` from `title`,
 `content`, `owner_id`, `user_id` and `id`, and writes neither `created_at` nor
 `updated_at`, which L111 and L112 declare as required.
 

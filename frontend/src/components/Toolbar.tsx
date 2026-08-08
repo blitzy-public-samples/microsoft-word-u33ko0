@@ -43,12 +43,12 @@ import { updateDocument } from '@/store/documentSlice';
  *
  * A second mismatch sits on those same two lines, and it stays latent. Both helpers declare an
  * `EditorState` return, per the `EditorState.push` returns at `formatting.ts:L41` and `:L71`. L62
- * and L67 bind that declared type to `updatedContent`, and L63 and L68 would pass it as a `content`
- * value. No diagnostic covers either point today: the three `@/` specifiers at L22, L23 and L24 fail
- * to resolve, so the checker types the two helpers and the dispatched action as `any` and reports
- * only those module-resolution failures. Neither the argument counts above nor this payload
- * question becomes checkable until those imports resolve, and the payload question needs an
- * `updateDocument` action with a declared contract before anyone can settle it.
+ * and L67 bind that declared type to `updatedContent`, and L63 and L68 would pass it as a
+ * `content` value. No diagnostic covers either point today: the three `@/` specifiers at
+ * L22, L23 and L24 fail to resolve, so the checker types the two helpers and the dispatched
+ * action as `any` and reports only those module-resolution failures. Neither the argument
+ * counts above nor this payload question becomes checkable until those imports resolve, and
+ * the payload question needs an `updateDocument` action with a declared contract to settle.
  *
  * Accessibility: the wrapper carries no `role="toolbar"` and no accessible name, the six style
  * buttons expose no pressed state through `aria-pressed`, and the two nonfunctional insert

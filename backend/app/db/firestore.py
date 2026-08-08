@@ -17,13 +17,13 @@ directly instead: `app/main.py`, `app/services/document_service.py` and
 `app/main.py:L63` calls `db.is_connected()`, and a Firestore `Client` defines no
 such method, so that call raises `AttributeError`.
 
-`app/main.py:L110` awaits `db.close()`, and the outcome differs. The client does
-carry `close`, inherited from the shared Google Cloud client base class, and that
-method is synchronous: it shuts the underlying transport session and returns
-`None`. The `await` then receives `None`, which is not awaitable, so the statement
-performs the close and afterwards raises `TypeError`. No backend dependency
-manifest is committed, so nothing pins `google-cloud-firestore` and the inherited
-surface is whatever the resolved release provides.
+`app/main.py:L110` awaits `db.close()`, and the outcome differs. Nothing pins
+`google-cloud-firestore`, so no committed file settles which `close` surface the
+resolved release provides, and no claim about the client's transport state follows
+from this repository. The handler's outcome is settled either way: a synchronous
+`close()` returns `None`, and awaiting `None` raises `TypeError` because `None` is
+not awaitable, while a release exposing no `close` raises `AttributeError`
+instead. See `app/main.py` for the full account.
 
 None of the four helpers opens a transaction, sets a retry policy, sets a
 timeout, or catches an exception.

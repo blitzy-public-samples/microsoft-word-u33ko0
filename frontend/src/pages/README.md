@@ -230,8 +230,10 @@ runs too early.
 - `Settings.tsx:L82-L83` initialise the form state once from `currentUser`. A `currentUser` that arrives after
   the first render leaves both fields empty.
 
-**Accessibility.** Every interactive control here is a native element or a Router `Link`, so each is keyboard
-reachable without an extra handler. `Settings.tsx` associates both labels correctly, `L137` to the input at
+**Accessibility.** Every interactive control here is a native element or a Router `Link`, with one
+exception, so each of the rest is keyboard reachable without an extra handler. The exception is the
+template card at `Templates.tsx:L176-L179`, a clickable `div` that the last bullet below covers.
+`Settings.tsx` associates both labels correctly, `L137` to the input at
 `L140` and `L147` to the input at `L150`. No contrast ratio is asserted below, because no stylesheet is
 committed and no authored colour pair exists to measure.
 
@@ -312,7 +314,9 @@ The effect never reaches the server as committed. `L207` dereferences `currentDo
 `null` document raises a `TypeError` five seconds after mount. The `catch` at `L208` absorbs it and `L209` logs
 it, so the closure resolves and the page shows nothing.
 
-**Calling the page handlers.** Both blocks below reproduce a committed declaration verbatim.
+**Calling the page handlers.** The first block below reproduces a committed declaration verbatim. The
+second is abbreviated: every line is verbatim except the two comment lines at
+`Templates.tsx:L165-L166`, which are summarised rather than quoted.
 
 ```tsx
 // frontend/src/pages/Editor.tsx:L228-L230
@@ -320,10 +324,10 @@ const handleContentChange = (newContent: string) => {
   setContent(newContent);
 };
 
-// frontend/src/pages/Templates.tsx:L163-L167
+// frontend/src/pages/Templates.tsx:L163-L167, comments abbreviated
 const handleTemplateSelection = (templateId: string) => {
   setSelectedTemplate(templateId);
-  // assistance marker at L37, then an outstanding-work comment at L38 asking for
+  // an assistance marker at L165, then an outstanding-work comment at L166 asking for
   // navigation to a template editing page or the next step in the process
 };
 ```

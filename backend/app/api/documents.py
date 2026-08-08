@@ -161,23 +161,23 @@ async def get_document(document_id: str, current_user: User = Depends(get_curren
             `try` block, so FastAPI converts the uncaught error into a 500
             response, and the 403 below is unreachable as committed.
         HTTPException: HTTP 403, detail
-            `"Not authorized to access this document"`, when the caller does not
-            own the document. Reachable only once the arity at L183 is corrected.
+            `"Not authorized to access this document"`, declared and unreachable.
+            An arity repair at L183 does not expose it; the notes below explain.
 
     Internal notes.
 
     The decorator sits at L145, the 403 at L185, and L186 returns the document.
+    That 403 stays unreachable even after an arity repair. Supplying the second
+    argument hands `user_id` to `app/services/document_service.py:L123`, whose
+    comparison at `:L175` raises 403 at `:L176` for a non-owner, so an owner
+    reaches L184 with a matching identifier and the branch is false either way.
 
     Side effects:
         None. The failure at L183 precedes the service's Firestore read, so the
         route reads nothing and writes nothing.
 
-    Two call sites disagree with their contracts. L183 passes one argument where
-    `app/services/document_service.py:L123` declares two, `document_id` and
-    `user_id`. L184 reads `user_id` from a `Document`, and that contract declares
-    `owner_id` at `app/schema/document.py:L66`. `owner_id` is optional and
-    defaults to `None`, so a `Document` validates without the value the
-    ownership check reads.
+    L184 reads `user_id` from a `Document`, whose contract declares `owner_id` at
+    `app/schema/document.py:L66` as optional with a default of `None`.
     """
     document_service = DocumentService()
     document = await document_service.get_document(document_id)
@@ -208,8 +208,8 @@ async def update_document(document_id: str, document: DocumentUpdate, current_us
             `document_id`, `document` and `user_id` after `self`. L234 is
             unreachable while L231 raises first.
         HTTPException: HTTP 403, detail
-            `"Not authorized to update this document"`, when the caller does not
-            own the document. Reachable only once the arity at L231 is corrected.
+            `"Not authorized to update this document"`, declared and unreachable.
+            An arity repair at L231 does not expose it; the notes below explain.
 
         The handler wraps neither call in a `try` block, so FastAPI converts the
         uncaught `TypeError` into a 500 response and the caller sees a server
@@ -221,11 +221,11 @@ async def update_document(document_id: str, document: DocumentUpdate, current_us
         None. The `TypeError` at L231 precedes the service's Firestore read, so the
         route reads nothing and writes nothing.
 
-    Once the arity at L231 and L234 is corrected, the route performs one write to
-    the Firestore `documents` collection, preceded by two reads: this handler's
-    ownership read plus the service's own read-before-write. The ownership
-    comparison at L232 reads `document.user_id` against a contract declaring
-    `owner_id` at `app/schema/document.py:L66`.
+    Once the arity at L231 and L234 is corrected, the route spends four Firestore
+    round trips: the read at L231, the service read at
+    `app/services/document_service.py:L235`, the write at `:L246` and the refresh
+    read at `:L249`. Three reads and one write. The service comparison at `:L241`
+    raises 403 first, so the L232 read of `document.user_id` never decides anything.
     """
     document_service = DocumentService()
     existing_document = await document_service.get_document(document_id)
@@ -256,8 +256,8 @@ async def delete_document(document_id: str, current_user: User = Depends(get_cur
             `document_id` and `user_id` after `self`. L281 is unreachable while L278
             raises first.
         HTTPException: HTTP 403, detail
-            `"Not authorized to delete this document"`, when the caller does not
-            own the document. Reachable only once the arity at L278 is corrected.
+            `"Not authorized to delete this document"`, declared and unreachable.
+            An arity repair at L278 does not expose it; the notes below explain.
 
         The handler wraps neither call in a `try` block, so FastAPI converts the
         uncaught `TypeError` into a 500 response and the caller sees a server
@@ -269,10 +269,10 @@ async def delete_document(document_id: str, current_user: User = Depends(get_cur
         None. The `TypeError` at L278 precedes the service's Firestore read, so the
         route reads nothing and deletes nothing.
 
-    Once the arity at L278 and L281 is corrected, the route performs one hard delete
-    from the Firestore `documents` collection, with no soft-delete flag and no
-    version retained. The ownership comparison at L279 reads `document.user_id`
-    against a contract declaring `owner_id` at `app/schema/document.py:L66`.
+    Once the arity at L278 and L281 is corrected, the route spends three Firestore
+    round trips: the read at L278, the service read at
+    `app/services/document_service.py:L274` and the hard delete at `:L284`. No
+    soft-delete flag is set. The service comparison at `:L280` raises 403 first.
     """
     document_service = DocumentService()
     existing_document = await document_service.get_document(document_id)

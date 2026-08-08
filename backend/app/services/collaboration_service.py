@@ -2,8 +2,8 @@
 
 `settings` is requested from `app.core.config`, which never defines it, so importing
 this module raises `ImportError`. `WebSocketDisconnect` and `Document` are imported and
-unused. `asyncio` and `json` are used and never imported, so `connect` and
-`broadcast_change` each raise `NameError` when they run.
+unused. `asyncio` and `json` are used and never imported. Neither `NameError` leaves a
+public method: L163 runs on the Pub/Sub client's thread, and L248 sits inside a `try`.
 
 The module creates no topic. No `create_topic` call exists anywhere in this file
 or in the repository. L120 and L245 interpolate a topic path into a string, and L124
@@ -14,20 +14,20 @@ already, so L124 and L248 both fail against a project where nothing else created
 The other two address a subscription instead: L165 consumes the subscription path
 built at L121, and L211 deletes the subscription path built at L209.
 
-Resilience. The module configures none, and every absence below belongs to this
-module rather than to the client library. `PublisherClient()` at L69 and
-`SubscriberClient()` at L70 receive no `client_options`, no publisher batch or flow
-control settings and no credentials. The four operations pass no `retry` and no
-`timeout` argument. `create_subscription` at L124 sets no `dead_letter_policy`, no
-`ack_deadline_seconds`, no `retry_policy` and no `message_retention_duration`, so
-no redelivery policy and no dead-letter route exists for a message the client
-fails to handle. `future.result()` at L168 and L249 is called with no timeout, so
-each call blocks indefinitely on a stalled future. No circuit breaker, no backoff,
-no jitter and no fallback path exists. The `callback` at L131 acknowledges each
-message at L162 before it attempts delivery at L163, so a delivery that fails
-cannot be redelivered and the change it carried is lost. No backend dependency
-manifest is committed, so nothing pins `google-cloud-pubsub` and no committed file
-records which defaults the resolved release would apply.
+Resilience. This module supplies no resilience configuration of its own, so whatever
+the resolved client and the Pub/Sub service apply by default is what runs.
+`PublisherClient()` at L69 and `SubscriberClient()` at L70 receive no
+`client_options`, no publisher batch or flow-control settings and no credentials. The
+four operations pass no `retry` and no `timeout` argument, so each takes the client
+default. `create_subscription` at L124 sets no `dead_letter_policy`, no
+`ack_deadline_seconds`, no `retry_policy` and no `message_retention_duration`, so the
+subscription carries the service defaults for redelivery and retention and has no
+dead-letter route for a message the client repeatedly fails to handle.
+`future.result()` at L168 and L249 passes no timeout, so each call waits as long as
+the future takes. No application-level circuit breaker, backoff or fallback path
+exists. The `callback` at L131 acknowledges each message at L162 before it attempts
+delivery at L163, so a delivery that fails is already acknowledged and the change it
+carried is lost. Nothing pins `google-cloud-pubsub`, so the exact defaults are unknown.
 
 No route constructs this class, so the whole path is unreachable. The client half speaks
 Socket.IO while `connect` expects a FastAPI `WebSocket`, and no WebSocket route exists
@@ -95,17 +95,17 @@ class CollaborationService:
                 therefore sits in the registry with no subscription behind it, and
                 the caller cannot tell from the exception that the registry was
                 mutated.
-            Whatever `SubscriberClient.subscribe` raises at L165. That call sits
-                between the two `try` blocks, outside both, so a synchronous
-                client or argument-validation failure propagates to the caller. L123
-                guards only `create_subscription` at L124, and L167 guards only
-                `future.result()` at L168.
             NameError: From the nested `callback` at L163 on first delivery, as
                 documented on that function. The error surfaces on the Pub/Sub
                 client's own thread rather than through this method.
 
-        No other exception leaves the method. L125 and L169 catch every exception
-        their own blocks raise, and L127 and L171 print it.
+        The unguarded `SubscriberClient.subscribe` call at L165 sits between the two
+        `try` blocks, outside both, so any exception it raises also reaches the
+        caller. Which class that would be is unestablished, because no committed file
+        pins the client library. L123 guards only `create_subscription` at L124, and
+        L167 guards only `future.result()` at L168, so no other exception leaves the
+        method: L125 and L169 catch every exception their own blocks raise, and L127
+        and L171 print it.
 
         Note:
             See the human-assistance marker at L73-L74 directly above this

@@ -45,10 +45,10 @@ and `scripts/setup_dev_environment.sh:L26` both read one. `frontend/package.json
 dependency manifest the repository commits, and no lockfile accompanies it.
 
 Writing that missing manifest needs a definitive package list, and one authoritative inventory exists.
-[../backend/app/README.md](../backend/app/README.md) carries it: thirteen distributions, ten of them
-direct imports, one runtime-only and two conditional, each with the version boundary the code
-establishes and the code fact that establishes it. Every other document in this set, this one included,
-defers to that inventory rather than restating it, so there is one list to keep correct.
+[../backend/app/README.md](../backend/app/README.md) carries it: seventeen required distributions,
+ten named by an `import` statement and seven runtime companions no import names, of which thirteen
+have to be named to a package manager. Every other document in this set, this one included, defers
+to that inventory rather than restating it, so there is one list to keep correct.
 
 ## Terraform
 
@@ -145,7 +145,7 @@ Services (AWS) address that no file in the folder declares.
 carry a database password, and the one that names the wrong network.
 
 Those output references block `terraform apply` on their own, independently of the module problem.
-Terraform resolves every reference in the configuration before it plans, and each of the 14 outputs
+Terraform resolves every reference in the configuration before it plans. Each of the 14 outputs
 names a resource address that no file declares, so the run reports an unresolved reference rather
 than a plan. No apply happens, and no resource is created, until every output either points at a
 declared resource or is removed. Fixing only the three module sources is therefore not enough: it
@@ -381,7 +381,7 @@ pins an action. [../.github/workflows/README.md](../.github/workflows/README.md)
 
 Three gaps surround the two workflows. Nothing gates CD on CI, so CD runs on a push to `main`
 whether or not CI passed. A `needs:` key cannot close that gap, because `needs:` orders jobs inside
-one workflow and cannot reference another workflow; the options are one combined workflow or a
+one workflow and cannot reference another workflow. The options are one combined workflow or a
 `workflow_run` trigger on `cd.yml`, and neither file contains either key. Neither workflow defines a
 rollback path, so a partial deploy stays partial. And `infrastructure/terraform/main.tf` declares no App Engine resource, so the
 committed infrastructure never provisions the target that both `gcloud app deploy` commands address.
@@ -389,25 +389,26 @@ A search of the three `.tf` files for `app_engine` returns no match.
 
 ### Operations risk register
 
-Nine risks apply to any environment built from these assets, and none of them is a build failure, so
+Ten risks apply to any environment built from these assets, and none of them is a build failure, so
 none surfaces from a green pipeline. Each row names the committed evidence and the prerequisite that
 closes it. Every one is future work; this documentation pass changes no manifest, image or workflow.
 
 | # | Risk | Committed evidence | Prerequisite |
 | --- | ------ | -------------------- | -------------- |
-| 1 | Python 3.9 receives no security fix | `infrastructure/docker/backend.Dockerfile:L2` names `python:3.9-slim`, and `../README.md:L23` states Python 3.8 or later. Python 3.9 reached end of support on 31 October 2025 | Move to a supported Python and pin it in one place, with a reviewed backend dependency manifest behind it |
-| 2 | Node.js 14 receives no security fix | `.github/workflows/ci.yml:L17` sets `node-version: '14'`, `infrastructure/docker/frontend.Dockerfile:L2` names `node:14-alpine`, and `../README.md:L22` states Node 14 or later. Node.js 14 left support on 30 April 2023, and its final release, 14.21.3, shipped on 16 February 2023 | Move to a supported Node major, declare it in `engines` and in the workflow, and add a lockfile so `npm ci` can run |
-| 3 | PostgreSQL 13 receives no security fix | `infrastructure/docker/docker-compose.yml:L31` names `image: postgres:13`. PostgreSQL 13 reached end of life on 13 November 2025, so the community ships no further fix for the 13 branch | Move to a supported major, and plan the upgrade path for any data already written |
+| 1 | Python 3.9 receives no security fix | `infrastructure/docker/backend.Dockerfile:L2` names `python:3.9-slim`, and `../README.md:L23` states Python 3.8 or later. Python 3.9 reached end of support on 31 October 2025, per the [Python release cycle](https://devguide.python.org/versions/) | Move to a supported Python and pin it in one place, with a reviewed backend dependency manifest behind it |
+| 2 | Node.js 14 receives no security fix | `.github/workflows/ci.yml:L17` sets `node-version: '14'`, `infrastructure/docker/frontend.Dockerfile:L2` names `node:14-alpine`, and `../README.md:L22` states Node 14 or later. Node.js 14 left support on 30 April 2023, and its final release, 14.21.3, shipped on 16 February 2023, per [Node.js previous releases](https://nodejs.org/en/about/previous-releases) | Move to a supported Node major, declare it in `engines` and in the workflow, and add a lockfile so `npm ci` can run |
+| 3 | PostgreSQL 13 receives no security fix | `infrastructure/docker/docker-compose.yml:L31` names `image: postgres:13`. PostgreSQL 13 reached end of life on 13 November 2025, so the community ships no further fix for the 13 branch, per the [versioning policy](https://www.postgresql.org/support/versioning/) and the [release announcement](https://www.postgresql.org/about/news/postgresql-181-177-1611-1515-1420-and-1323-released-3171/) | Move to a supported major, and plan the upgrade path for any data already written |
 | 4 | Image references are mutable | Every `FROM` and every `image:` above names a tag. A tag can be repointed at different bytes by whoever publishes it, and `frontend.Dockerfile:L20` names `nginx:alpine`, which pins no minor version at all | Pin each image by digest, written `image@sha256:<hex>`, which is the only immutable form, and record the resolved version beside it |
-| 5 | Action references are mutable | `ci.yml:L13`, `:L15` and `cd.yml:L11`, `:L13` name tags. Anyone with write access to an action repository can move or delete a tag. The March 2025 `tj-actions/changed-files` compromise moved every tag in that repository to malicious code | Replace each tag with a reviewed full-length commit SHA, the only immutable reference, and record the resolved version in a comment |
-| 6 | Both jobs hold more token scope than they need | Neither workflow declares a `permissions:` block at workflow or job level, so both receive the default `GITHUB_TOKEN` scope | Declare the minimum explicitly: `contents: read` for `ci.yml`, and `contents: read` plus `id-token: write` for `cd.yml` under federated identity |
-| 7 | A long-lived key authenticates the deploy | `cd.yml:L16` passes `secrets.GCP_SA_KEY` to `setup-gcloud`. A user-managed service account key does not expire by default and grants its permissions to anyone who obtains it | Replace it with Workload Identity Federation, which exchanges the OpenID Connect token GitHub issues for short-lived credentials and removes key handling entirely |
+| 5 | Action references are mutable | `ci.yml:L13`, `:L15` and `cd.yml:L11`, `:L13` name tags. Anyone with write access to an action repository can move or delete a tag. In the March 2025 `tj-actions/changed-files` compromise, tags v1 through v45.0.7 were repointed at a single malicious commit on 14 and 15 March 2025, with the fix in v46.0.1 ([CVE-2025-30066](https://github.com/advisories/GHSA-mrrh-fwg8-r2c3), [CISA alert](https://www.cisa.gov/news-events/alerts/2025/03/18/supply-chain-compromise-third-party-tj-actionschanged-files-cve-2025-30066-and-reviewdogaction)) | Replace each tag with a reviewed full-length commit SHA, which [GitHub documents](https://docs.github.com/en/actions/reference/security/secure-use) as the only immutable reference, and record the resolved version in a comment |
+| 6 | Neither job declares the token scope it needs | Neither workflow declares a `permissions:` block at workflow or job level, so each job receives the default `GITHUB_TOKEN` scope. What that default grants is **not determinable from this repository**: it is set by a repository or organization setting, and no committed file records it, so whether the scope is broader than the work requires cannot be read off the committed files. [GitHub's guidance](https://docs.github.com/en/actions/reference/security/secure-use) is to declare it regardless | Declare the minimum explicitly: `contents: read` for `ci.yml`, and `contents: read` plus `id-token: write` for `cd.yml` under federated identity |
+| 7 | A service-account key authenticates the deploy, and nothing committed bounds it | `cd.yml:L16` passes `secrets.GCP_SA_KEY` to `setup-gcloud`. A user-managed service account key does not expire on its own, and grants its permissions to anyone who obtains it. The key's actual role, age and expiry are **not determinable from this repository**: no committed file records them, and an organization policy could bound them outside these files | Replace it with [Workload Identity Federation](https://docs.cloud.google.com/iam/docs/workload-identity-federation), which exchanges the OpenID Connect token GitHub issues for short-lived credentials and removes key handling entirely |
 | 8 | No federated identity is configured | Nothing in either workflow requests an OIDC token, and no workload identity pool or provider appears in `infrastructure/terraform/` | Create a pool and provider, request `id-token: write` on the job, and add an attribute condition restricting the provider to this repository, because an unconditioned provider lets any repository authenticate |
 | 9 | No credential rotation or audit exists | No committed file records which IAM role `GCP_SA_KEY` carries, when it was issued, or when it is next rotated. [Continuous delivery](#continuous-delivery) above records the same gap | Record the role, set a rotation schedule, and audit key use, until item 7 removes the key |
+| 10 | Neither build context is bounded, and the frontend build copies the whole of it | No `.dockerignore` is tracked anywhere in the repository, so each build uploads its whole named directory to the daemon as its [build context](https://docs.docker.com/build/concepts/context/). `infrastructure/docker/frontend.Dockerfile:L14` then runs `COPY . .`, writing that context into the build stage on top of the `node_modules` its own `npm ci` at `:L11` installed. A local `.env` or key file in the tree travels the same route. The final stage copies only `/app/build` at `:L23`, so the shipped image stays clean while the uploaded context and the build cache do not | Commit a reviewed `.dockerignore` excluding at least `node_modules`, a local virtual environment, `.env` and key material, and treat it as a prerequisite for either direct build |
 
 [../.github/workflows/README.md](../.github/workflows/README.md) carries rows 5 through 8 against the
 workflow files, and [../infrastructure/docker/README.md](../infrastructure/docker/README.md) carries
-rows 1 through 4 against the images.
+rows 1 through 4 and row 10 against the images.
 
 ### The intended release pipeline, with its stops marked
 
@@ -584,7 +585,14 @@ telling the developer to start the backend with `python manage.py runserver`, wh
 `../README.md:L55` and `infrastructure/docker/backend.Dockerfile:L20`, each of which runs Uvicorn. A
 marker at `scripts/setup_dev_environment.sh:L41` and a TODO at `:L42` sit above the environment step.
 The `.env` file that `:L40` would create is the file `backend/app/core/config.py:L123` names as its
-settings source.
+settings source, and repairing the copy would still not connect the two. `:L123` names `.env` as a
+relative path, and a relative `env_file` resolves against the working directory of the process that
+constructs `Settings`, not against the directory holding the module. The script changes no directory,
+so its copy lands at the repository root that `../README.md:L29-L30` establishes, while the documented
+backend start at `../README.md:L54-L55` runs `cd backend` first and therefore reads `backend/.env`.
+`infrastructure/docker/backend.Dockerfile:L5` sets a third location, `/app`, and `:L14` copies only
+`./app` into it. Three plausible paths for one relative filename, and no committed line reconciles
+them.
 
 ## Why a deploy fails as committed
 
@@ -599,7 +607,9 @@ table below groups them so a reader can tell what a run will actually say from w
 | Direct backend build | `docker build -f infrastructure/docker/backend.Dockerfile ./backend` | Item 4, `COPY requirements.txt` | Item 7, the `app.` prefix, which only surfaces once the image runs |
 | Direct frontend build | `docker build -f infrastructure/docker/frontend.Dockerfile ./frontend` | Item 3, `npm ci` with no lockfile | The `npm run build` at `frontend.Dockerfile:L17`, which fails on 76 TypeScript errors |
 | Continuous integration | Push or pull request to `main` | Item 2, `npm ci` at the repository root | `npm run build` at `ci.yml:L23`, which fails on the same 76 errors |
-| Continuous delivery and `deploy.sh` | Push to `main`, or `bash scripts/deploy.sh` | Item 9 for the workflow, `app.yaml` absent; item 11's `:L11` for the script, no root `package.json` | `cd.yml:L20` behind `bash -e`; and for the script, the unauthenticated CLI at `scripts/deploy.sh:L23`, the absent `app.yaml` at `:L27`, the absent migration file at `:L31`, the unscoped CDN update at `:L35`, and the unconditional success echo at `:L47` |
+| Continuous delivery | Push to `main` | Item 9, `app.yaml` absent at `cd.yml:L19` | `cd.yml:L20`, the absent `dispatch.yaml`, which `bash -e` never reaches |
+| `deploy.sh` on a clean shell | `bash scripts/deploy.sh` | Item 11's guard, `:L4-L7` exits 1 at `:L6` because `GOOGLE_APPLICATION_CREDENTIALS` is unset | Every later stage. The guard is the script's only `exit`, so nothing behind it is attempted |
+| `deploy.sh` with the credential variable set | `GOOGLE_APPLICATION_CREDENTIALS=... bash scripts/deploy.sh` | Item 11's `:L11`, no root `package.json` | Nothing stops the run, because no stage checks an exit status: `:L15` with no root `tests/`, then `:L23`, which fails unless the host already carries an authenticated `gcloud`, a default project and write access to a bucket no Terraform declares, then the absent `app.yaml` at `:L27`, the absent migration file at `:L31`, the unscoped CDN update at `:L35`, and the unconditional success echo at `:L47` |
 
 Two consequences follow. Fixing a first-hit blocker exposes the next blocker on that path rather than
 producing a working deploy, so no single fix moves any path to completion. A path's silence about a
@@ -644,9 +654,12 @@ final script, each naming the file and line that stops the step.
     commands and `scripts/deploy.sh:L27` address App Engine. The three `.tf` files declare one
     network, one subnet, one firewall rule and one bucket, and a search for `app_engine` returns no
     match, so the deploy target is never provisioned.
-11. **`deploy.sh` addresses absent resources and then reports success.** `:L4-L7` guards a variable
-    without authenticating the `gcloud` CLI, so `:L23` fails on credentials before the bucket name even
-    matters. That bucket is hard-coded `gs://my-word-app-bucket/`, which no Terraform creates. `:L31`
+11. **`deploy.sh` addresses absent resources and then reports success.** `:L4-L7` is the script's only
+    `exit`, so on a shell without `GOOGLE_APPLICATION_CREDENTIALS` it is the whole run. Set the variable
+    and the guard passes while authenticating nothing, because it tests a variable rather than running
+    `gcloud auth activate-service-account`. `:L23` then fails unless the host already carries an
+    authenticated `gcloud`, a default project and write access to the target. That target is hard-coded
+    `gs://my-word-app-bucket/`, which no Terraform creates, so the upload fails there in any case. `:L31`
     pipes an uncommitted `db_migrations.sql` into Cloud SQL as a `root` role neither provisioning path
     creates. `:L35` updates a backend service with no `--global` or `--region` scope. `:L47` echoes
     `Deployment completed successfully!` with no guard, whatever the earlier stages returned.
@@ -712,8 +725,8 @@ configured in the folder is `google` at `main.tf:L9`, which cannot create an AWS
 outputs fail to resolve during a plan.
 
 The generated Technical Specification describes fifteen AWS resources at its §1.2.1.3. The verified
-count is 12 distinct addresses across 9 types, and the pending
-[decision-log.md](decision-log.md) will record that correction.
+count is 12 distinct addresses across 9 types, and
+[decision-log.md](decision-log.md) records that correction.
 
 Two outputs interpolate a database password into their value. `outputs.tf:L20` builds
 `database_connection_string` from the username, password, endpoint and name of
@@ -760,8 +773,8 @@ two separate defects, and the second one blocks the first.
 
 ## Related documentation
 
-[docs/README.md](README.md) will index every document in this set once that file lands. Until then,
-the list below is the map.
+[docs/README.md](README.md) indexes every document in this set. The list below is the same map, narrowed
+to the documents this guide leans on.
 
 Repository-level documents beside this one:
 
@@ -770,11 +783,9 @@ Repository-level documents beside this one:
 - [integration-guide.md](integration-guide.md), each external service under one of four reachability
   labels
 - [onboarding.md](onboarding.md), clean-machine setup and a prioritised task list
-- [decision-log.md](decision-log.md), pending and not yet committed: every judgement this engagement
-  made, with its reasoning
+- [decision-log.md](decision-log.md), every judgement this engagement made, with its reasoning
 - [data-model.md](data-model.md), the Pydantic and Zod contracts and every field divergence
-- `docs/decision-log.md`, scheduled and not yet written. A later checkpoint will record every
-  judgement this engagement made, with its reasoning
+- [prose-validation.md](prose-validation.md), the writing-clarity verdict for this document set
 
 Module documentation for the four asset groups this guide describes:
 

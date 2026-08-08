@@ -32,7 +32,7 @@ The specification places two databases behind this folder, and the committed cod
 `documentation/Technical Specifications.md, SYSTEM DESIGN > DATABASE DESIGN (L315)` describes a hybrid at L317 and restates it at L400. Google Cloud
 Firestore, a non-relational store, holds flexible documents, and Google Cloud SQL, a relational store, holds structured data. The committed code
 matches the Firestore half, and `services/document_service.py` and `tasks/background_tasks.py` read and write through the client at
-`firestore.py:L42`. The Cloud SQL half exists as declarations only.
+`firestore.py:L40`. The Cloud SQL half exists as declarations only.
 `documentation/Technical Specifications.md, SYSTEM DESIGN > DATABASE DESIGN > Google Cloud SQL (Relational) (L356)` diagrams five tables at
 L359-L397: USERS, DOCUMENTS carrying `owner_id` at L375, TEMPLATES, DOCUMENT_PERMISSIONS at L387-L391, and TEMPLATE_PERMISSIONS. Zero of the five
 have an implementing class, because nothing subclasses `Base` at `sql.py:L19`. One of those tables crossed the boundary. The specification models
@@ -45,8 +45,11 @@ Comments and Users, and the code touches `documents`, `document_permissions` and
 
 Four import statements touching this folder do not resolve. What each external service can reach sits in
 [../../../docs/integration-guide.md](../../../docs/integration-guide.md), contract shapes sit in
-[../../../docs/data-model.md](../../../docs/data-model.md), and the package-wide floor set for all thirteen required distributions sits in
-[../README.md](../README.md).
+[../../../docs/data-model.md](../../../docs/data-model.md), and the package-wide dependency inventory sits in
+[../README.md](../README.md). That inventory carries the model every count in this documentation set uses. Seventeen
+distributions are required: ten named by an `import` statement and seven runtime companions that no import names.
+Thirteen of the seventeen have to be named to a package manager, because `starlette`, `ecdsa`, `rsa` and `pyasn1`
+arrive transitively.
 
 ### Internal
 
@@ -154,17 +157,18 @@ graph LR
 
 ## Design Patterns
 
-Four patterns appear across the two modules, and one expected pattern does not. `firestore.py:L42` builds a module-level singleton, so one client
+Four patterns appear across the two modules, and one expected pattern does not. `firestore.py:L40` builds a module-level singleton, so one client
 exists per process and every importer shares it. The four helpers wrap that client thinly and synchronously, each resolving a document reference at
-`firestore.py:L66`, `L91`, `L109` or `L126` and then making one client call. `sql.py:L21` follows the per-request session generator pattern, closing
+`firestore.py:L64`, `L89`, `L107` or `L124` and then making one client call. `sql.py:L21` follows the per-request session generator pattern, closing
 the session in a `finally` block at L38-L39 so the connection returns to the pool on every path including an exception. `sql.py:L19` declares an
 Object-Relational Mapping base class for models that nobody wrote. No repository abstraction sits over the two persistence paths.
-`services/document_service.py:L72` holds the raw Firestore client and calls `self.db.collection('documents')` inline, and a service needing the
-relational path would import `sql.py` itself. Service-tier detail sits in [../services/README.md](../services/README.md).
+`services/document_service.py:L70` binds the raw Firestore client to an instance attribute and calls `self.db.collection('documents')` inline at
+`:L114`, `:L168`, `:L234` and `:L273`, and a service needing the relational path would import `sql.py` itself. Service-tier detail sits in
+[../services/README.md](../services/README.md).
 
 ## Known Limitations
 
-Zero `HUMAN ASSISTANCE NEEDED` markers and zero `TODO` markers sit in this folder, and the single `#` comment at `firestore.py:L40` labels the client
+Zero `HUMAN ASSISTANCE NEEDED` markers and zero `TODO` markers sit in this folder, and the single `#` comment at `firestore.py:L38` labels the client
 construction. Every defect below comes from reading the two modules and their callers. Repository-wide defects sit in
 [../../../docs/troubleshooting.md](../../../docs/troubleshooting.md). Provisioning splits three ways, and the three must not be conflated.
 
@@ -176,9 +180,9 @@ construction. Every defect below comes from reading the two modules and their ca
 - **Local provisioning: one PostgreSQL service.** `infrastructure/docker/docker-compose.yml:L30-L39` declares a `db` service on `postgres:13`, with
   database `wordapp`, user `postgres` and password `password` at `:L33-L35`, and a named `postgres_data` volume at `:L37`. That service starts on its
   own and accepts connections, so the relational path has a running server available in local development even though no managed equivalent exists.
-- **Application use of that server: none.** The local PostgreSQL service is provisioned and unused. One module does import `sql.py`: `main.py:L20`
+- **Application use of that server: none.** The local PostgreSQL service is provisioned and unused. One module does import `sql.py`: `main.py:L22`
   asks it for `init_db`, a name this module never defines, so that import raises `ImportError` rather than reaching the engine. Every name `sql.py`
-  actually exports is unconsumed. `engine` at `sql.py:L17` has no reader, `Base` at `sql.py:L19` is never subclassed, `get_db` at `sql.py:L21` has no
+  actually exports is unconsumed. `engine` at `sql.py:L16` has no reader, `Base` at `sql.py:L19` is never subclassed, `get_db` at `sql.py:L21` has no
   consumer, no ORM model is declared, and no migration tool is configured. Every request-path persistence call in the committed code goes to
   Firestore through `services/document_service.py`. A reader should therefore treat the Compose database as a configured-but-dead path rather than as
   the store behind any request.
@@ -206,8 +210,8 @@ construction. Every defect below comes from reading the two modules and their ca
 - **The SQLAlchemy path is dead.** `Base` at `sql.py:L19` has no subclass, so the repository holds zero Object-Relational Mapping models, and
   `get_db` at `sql.py:L21` has no consumer. `backend/tests/test_api.py:L5` imports a same-named symbol from the absent module `app.database` and
   never calls it. No migration tooling pairs with `Base` either, because neither `alembic.ini` nor a migration directory is tracked anywhere.
-- **`sql.py` opens the engine at import time.** `sql.py:L16` calls `create_engine`, so a missing or malformed `DATABASE_URL` fails on import rather
-  than at first query.
+- **`sql.py` opens the engine at import time.** `sql.py:L16` calls `create_engine`, which parses the URL eagerly, so an unparseable
+  `DATABASE_URL` raises on import. A parseable URL naming an unreachable database fails later instead, at the first connection.
 - **`main.py` expects three things from this folder, and one of them does not exist.** `main.py:L22` imports `init_db` and `main.py:L60` awaits it,
   and `sql.py` defines no such name. The other two depend on an unpinned client surface rather than on this folder: `main.py:L63` calls
   `db.is_connected()` and `main.py:L110` awaits `db.close()`, both on the client built at `firestore.py:L40`. No dependency manifest pins
@@ -225,7 +229,7 @@ from app.db.firestore import get_document
 fields = get_document("documents", "abc123")
 
 # firestore.py:L68 returns None for a missing document despite the -> dict
-# annotation at :L44, so subscripting None raises TypeError. Guard the read.
+# annotation at :L42, so subscripting None raises TypeError. Guard the read.
 title = fields["title"] if fields is not None else None
 ```
 

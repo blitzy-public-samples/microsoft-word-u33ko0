@@ -106,16 +106,16 @@ const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
  * reaches the header assignment at L144.
  *
  * No issued token reaches this interceptor even once both faults are repaired, because the
- * writer and the reader use different stores. `frontend/src/services/auth.ts:L148` writes to
- * browser `localStorage` under the key `accessToken`. The value it writes comes from
- * `response.data.accessToken` at `auth.ts:L147`, a camelCase field that
- * `backend/app/api/auth.py:L240` never sends, so the stored string is `"undefined"`. No
- * module under `frontend/src` calls `localStorage.getItem('accessToken')`, and no module
- * dispatches a token into the Redux store, so the path L142 reads has no writer at all. The
- * flow is broken at both ends: the one writer stores a useless value where nothing reads,
- * and the one reader reads where nothing writes. `auth.ts:L194-L195` removes the key only
- * after the logout request resolves, and `auth.ts:L196-L198` swallows the error, so a failed
- * logout keeps the stored value while reporting success.
+ * writer and the reader use different stores. No module under `frontend/src` imports
+ * `services/auth`, so `login` has no caller and the one write to browser `localStorage`,
+ * `frontend/src/services/auth.ts:L148`, never runs as committed. Reaching it would store the
+ * string `"undefined"` under the key `accessToken`, because `auth.ts:L147` reads
+ * `response.data.accessToken` in camelCase while `backend/app/api/auth.py:L240` sends
+ * `access_token` in snake_case. No module calls `localStorage.getItem('accessToken')` either,
+ * and no module dispatches a token into the Redux store, so the path L142 reads has no writer
+ * at all. Both ends need repair. `auth.ts:L194-L195` removes the key only after the logout
+ * request resolves, and `auth.ts:L196-L198` swallows the error, so a failed logout would keep
+ * any stored value while reporting success.
  *
  * The response interceptor at L151-L157 passes both outcomes straight through: L152 returns the
  * response unchanged and L155 re-rejects the error unchanged. L154 carries the file's only
@@ -200,7 +200,7 @@ const api = createApiClient();
  *    HTTP 401 before the handler body runs.
  * 5. The handler fails its service call. A request carrying a valid token reaches
  *    `backend/app/api/documents.py:L183`, which passes one argument where
- *    `backend/app/services/document_service.py:L123` declares `document_id` and `user_id`, so
+ *    `backend/app/services/document_service.py:L132` declares `document_id` and `user_id`, so
  *    Python raises `TypeError` and FastAPI answers HTTP 500.
  *
  * No layer produces a list, so this call buffers nothing. The route the path selects returns
@@ -257,7 +257,7 @@ export const createDocument = async (documentData: DocumentCreate): Promise<Docu
  * @returns A promise resolving to the Axios `response.data`, typed as `Document`.
  * @remarks The request replaces no field the caller leaves out. The server contract for this
  * operation is a partial patch: `backend/app/schema/document.py:L82-L94` declares only `title` and
- * `content` on `DocumentUpdate`, and `backend/app/services/document_service.py:L245` calls
+ * `content` on `DocumentUpdate`, and `backend/app/services/document_service.py:L254` calls
  * `dict(exclude_unset=True)`, so only the fields a caller sets explicitly reach storage.
  *
  * The shared `api` instance applies the same request interceptor, so the call fails

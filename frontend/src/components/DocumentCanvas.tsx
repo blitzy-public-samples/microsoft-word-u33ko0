@@ -48,10 +48,10 @@ import { serializeDocument, deserializeDocument } from '@/utils/documentUtils';
  * `ContentState` declares no such method, so the `TypeError` lands on that line and the
  * `isValid` read at `documentUtils.ts:L44` is never reached.
  *
- * 1. L116 and L117 send an `EditorState` where a `ContentState` belongs. L116 binds the `EditorState`
- *    returned by `deserializeDocument` to a variable named `contentState`, and that name reports
- *    the wrong type. L117 hands the value to `EditorState.createWithContent()`, which accepts a
- *    `ContentState`.
+ * 1. L116 and L117 send an `EditorState` where a `ContentState` belongs. L116 binds the
+ *    `EditorState` returned by `deserializeDocument` to a variable named `contentState`,
+ *    and that name reports the wrong type. L117 hands the value to
+ *    `EditorState.createWithContent()`, which accepts a `ContentState`.
  * 2. L163 sends a `ContentState` where an `EditorState` belongs. `getCurrentContent()` returns the
  *    `ContentState` held inside the snapshot, and L163 passes it straight to `serializeDocument`.
  *
