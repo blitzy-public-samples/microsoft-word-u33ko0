@@ -250,7 +250,7 @@ No JavaScript Object Notation (JSON) string is built, and the dispatch at `:L60`
 
 ### Per-component limitations
 
-**`Header.tsx`, 66 lines.** `Header.tsx:L36` renders `/microsoft-word-logo.png`, and that asset does not exist, because
+**`Header.tsx`, 65 lines.** `Header.tsx:L36` renders `/microsoft-word-logo.png`, and that asset does not exist, because
 `frontend/public/` holds only `index.html`. Two of the four links reach a declared route: `Header.tsx:L42` targets `/` and
 `:L44` targets `/templates`, declared at `App.tsx:L41` and `:L43`. The other two reach nothing, because `Header.tsx:L43`
 targets `/documents` and `:L55` targets `/login`, and `App.tsx` declares neither.
@@ -267,15 +267,15 @@ point here. Its five status values are literal text, listed under Configuration 
 and `:L12` import `@/components/StylePanel`, `@/components/CommentPanel` and `@/components/RevisionPanel`, and `:L25`, `:L26`
 and `:L27` render all three behind no guard.
 
-**`TableEditor.tsx`, 75 lines.** `TableEditor.tsx:L12` imports `insertTable`, `deleteTable` and `modifyTable` from the absent
+**`TableEditor.tsx`, 74 lines.** `TableEditor.tsx:L12` imports `insertTable`, `deleteTable` and `modifyTable` from the absent
 `@/utils/tableUtils`, and `deleteTable` and `modifyTable` are never referenced. `handleInsertTable` at `:L41` is defined and
 never called.
 
-`:L50-L54` passes the value `insertTable(rows, columns)` returns at `:L47` as the third argument to `Modifier.replaceText`,
-which requires a string. `:L68-L72` returns an empty element holding only a JavaScript XML (JSX) comment at `:L70`. An
-assistance marker sits at `:L29`.
+`TableEditor.tsx:L49-L53` passes the value `insertTable(rows, columns)` returns at `:L46` as the third argument to
+`Modifier.replaceText`, which requires a string. `:L67-L71` returns an empty element holding only a JavaScript XML (JSX)
+comment at `:L69`. An assistance marker sits at `:L28`.
 
-**`ImageEditor.tsx`, 67 lines.** `ImageEditor.tsx:L12` imports `resizeImage` and `cropImage` from the absent
+**`ImageEditor.tsx`, 66 lines.** `ImageEditor.tsx:L12` imports `resizeImage` and `cropImage` from the absent
 `@/utils/imageUtils`, and neither is referenced. `handleInsertImage` at `:L40` is defined and never called. `:L42-L46`
 creates an `IMAGE` entity and `:L51` calls `AtomicBlockUtils.insertAtomicBlock`, and no `blockRendererFn` exists anywhere in
 the tree, so an atomic image block would not render.
@@ -297,30 +297,35 @@ specifier does not resolve at all, so the checker reports `TS2307` rather than `
 Every item below is read from the committed markup rather than from a running page, because the client does not bundle. Three
 positives hold: `Header.tsx:L33` uses a semantic `header` element and `:L40` a `nav`, `Footer.tsx:L23` uses a semantic
 `footer`, and the logo image at `Header.tsx:L36` carries meaningful `alt` text. Every interactive control here is a native
-`button`, a React Router `Link` rendering an anchor, or a Draft.js `Editor`, so each is keyboard reachable. The defects:
+`button`, a React Router `Link` rendering an anchor, or a Draft.js `Editor`, so each is keyboard reachable: criterion 2.1.1.
+
+Each defect below names its WCAG 2.1 Level AA success criterion, defined in [the documentation
+conventions](../../../docs/README.md#6-accessibility-criterion-tags). A tag asserts no conformance. The defects:
 
 - **`Header` renders twice per route, so every route exposes two unnamed navigation landmarks.** `App.tsx:L38` renders one
 `Header`, and each page renders its own at `pages/Home.tsx:L32`, `pages/Editor.tsx:L107`, `pages/Templates.tsx:L87` and
 `pages/Settings.tsx:L61`. Both copies present the same `nav` at `Header.tsx:L40` with no `aria-label`, so assistive
 technology announces two identical navigation regions and a reader cannot tell them apart. Distinct accessible names on each
 `nav` are required, and the duplicate render is the defect to remove first. `Footer.tsx:L23` duplicates the `contentinfo`
-landmark the same way on three of the four routes.
+landmark the same way on three of the four routes. Criteria 1.3.1 and 2.4.6.
 - **Neither Draft.js editor receives an accessible name.** `DocumentCanvas.tsx:L65-L69` and `TextEditor.tsx:L70-L74` render
 `Editor` with no `aria-label`, no `aria-labelledby` and no associated `label`, so assistive technology announces an
-unlabelled text box.
+unlabelled text box. Criterion 4.1.2.
 - **The toolbar is not identified as a toolbar and has no name.** `Toolbar.tsx:L72` sets `className="toolbar"` alone, with no
 `role="toolbar"` and no `aria-label`. The three group wrappers at `:L73`, `:L78` and `:L83` carry no `role="group"` and no
-name, so the eight buttons present as one flat list.
-- **The six style buttons expose no pressed state.** `Toolbar.tsx:L74-L76` and `:L79-L81` declare no `aria-pressed`, so a
-screen reader cannot report whether a style is active. The component holds no `editorState`, so no state exists to report.
-- **Two controls look active and do nothing, without saying so.** The insert buttons at `Toolbar.tsx:L84` and `:L85` call
-`handleInsert`, whose body reaches `console.log` only, and neither carries `disabled` or `aria-disabled`.
+name, so the eight buttons present as one flat list. Criteria 1.3.1 and 4.1.2.
+- **The six style buttons expose no pressed state.** `Toolbar.tsx:L74-L76` and `:L79-L81` declare no `aria-pressed`,
+so a screen reader cannot report whether a style is active. The component holds no `editorState`, so no state exists
+to report. Criterion 4.1.2.
+- **Two controls look active and do nothing, without saying so.** The insert buttons at `Toolbar.tsx:L84` and `:L85`
+call `handleInsert`, whose body reaches `console.log` only, and neither carries `disabled` or `aria-disabled`.
+Criterion 4.1.2.
 - **Both zoom controls carry punctuation-only names and no handler.** `Footer.tsx:L29` labels its button `-` and `:L31`
 labels its button `+`, which a screen reader announces as punctuation or skips. Neither declares `onClick`, and neither
-carries `disabled`.
+carries `disabled`. Criteria 2.4.6 and 4.1.2.
 - **No focus or disabled treatment is authored anywhere,** because no stylesheet is committed. Browsers would apply their
 default focus ring, and nothing here removes or replaces it. No project-authored rendered style exists either, so no contrast
-ratio is measurable and none is asserted.
+ratio is measurable and none is asserted. Criteria 1.4.3 and 2.4.7.
 
 ### Styling
 
@@ -330,6 +335,10 @@ across twelve `className` attributes. Bespoke semantic class names with no backi
 `className` at all. No `tailwind.config.js`, no `postcss.config.js` and no Cascading Style Sheets (CSS) file is committed, so
 no authored styling would apply under either convention once the build blockers clear. With no component library declared in
 `frontend/package.json`, the divergence is a styling inconsistency rather than a compliance gap.
+
+No component in this folder declares a responsive breakpoint. The only breakpoint-prefixed classes in `frontend/src` sit on
+one line of a page, `../pages/Templates.tsx:L90`, so every component here renders at a single fixed width. See
+[../pages/README.md](../pages/README.md) for the page-side treatment.
 
 ### Markers and outstanding work
 

@@ -18,13 +18,13 @@ from app.core.config import settings
 class ExportService:
     """Upload an export of a document and return a signed download link.
 
-    Public methods:
-        export_to_pdf: Upload a PDF export and return its signed URL.
-        export_to_docx: Upload a DOCX export and return its signed URL.
-
     The two methods are identical apart from the extension, the content type
     and the placeholder payload. See the HUMAN ASSISTANCE NEEDED marker
     below.
+
+    Public methods:
+        export_to_pdf: Upload a PDF export and return its signed URL.
+        export_to_docx: Upload a DOCX export and return its signed URL.
     """
     def __init__(self):
         """Build the Cloud Storage client for this service instance.

@@ -52,13 +52,13 @@ class DocumentUpdate(BaseModel):
 class Document(DocumentBase):
     """Model a stored document as the API returns it.
 
+    Both timestamps are required and no service writes either, so building
+    this model from a stored record raises a validation error.
+
     Attributes:
         id: Firestore document identifier.
         created_at: Creation timestamp, required.
         updated_at: Last-modification timestamp, required.
-
-    Both timestamps are required and no service writes either, so building
-    this model from a stored record raises a validation error.
     """
     id: str
     created_at: datetime
@@ -67,6 +67,9 @@ class Document(DocumentBase):
 class DocumentVersion(BaseModel):
     """Model one stored revision of a document.
 
+    No route, service or task reads or writes this model, so no revision is
+    ever stored.
+
     Attributes:
         id: Version identifier.
         document_id: Identifier of the document this revision belongs to.
@@ -74,9 +77,6 @@ class DocumentVersion(BaseModel):
         created_at: When the revision was written.
         user_id: Author of the revision, and the second owner field name
             in the file.
-
-    No route, service or task reads or writes this model, so no revision is
-    ever stored.
     """
     id: str
     document_id: str

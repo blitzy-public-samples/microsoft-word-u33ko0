@@ -17,7 +17,7 @@ deleting documents past their retention date, and recounting a document's words 
 
 The module does not import. `background_tasks.py:L16` requests `settings` from `app.core.config`, which declares the `Settings` class
 at `core/config.py:L20` and a `get_settings` factory at `:L63` and no module-level instance, so `import app.tasks.background_tasks`
-raises `ImportError`. `:L22` then reads `settings.REDIS_URL` while the module body runs.
+raises `ImportError`. `background_tasks.py:L22` then reads `settings.REDIS_URL` while the module body runs.
 
 Nothing enqueues these tasks. The repository holds no `.delay(` call, no `.apply_async` call and no `send_task` call, and no module
 imports `background_tasks`.
@@ -211,7 +211,7 @@ the repository, so the daily sweep `background_tasks.py:L72` asks for has nothin
 The retention sweep carries no idempotency guard and deletes in an order that cannot be undone. Its loop body raises at five
 successive points once the earlier layers clear. The first three points are `:L100` on a record with no `user_id` key, `:L107` on the
 undeclared `settings.DOCUMENT_BUCKET_NAME`, and `:L109` on an object key no writer produces. The last two are
-`:L187` on `.delete()` against a list, and nothing at all after `:L113`.
+`:L112` on `.delete()` against a list, and nothing at all after `:L113`.
 
 The Firestore document goes first, at `:L103`, so every one of those raises leaves the record gone and its file, permissions and
 metadata behind. No `try` guards the loop, so the first raise abandons every remaining expired document too.
@@ -230,14 +230,14 @@ exposed, and none exists today.
 
 | Prerequisite | State as committed | Evidence |
 | --- | --- | --- |
-| Authenticated and authorized producers | Absent. The publisher asserts identity through `user_id`, and `:L56` calls `get_document(document_id, user_id)` on an `async def` without awaiting it, so the ownership comparison at `services/document_service.py:L108` never runs. Awaiting it would check only the pair the message supplied, so knowledge of any document identifier and its owner would authorize the export. | `:L25`, `:L56` |
-| Broker transport security and access control | Unestablished. `:L22` reads `settings.REDIS_URL`, a bare string at `core/config.py:L48` with no scheme, credential or peer requirement. No committed file provisions the instance, so no password, no access control list and no `rediss://` transport exists to review. | `:L22`, `core/config.py:L48` |
-| Message schema and size validation | Absent. Celery binds the three declared arguments, and no body line validates the type, the length or the content of any of them. | `:L25` |
-| `export_format` allow-listing | Absent. `:L61` hands the value to a conversion call and `:L65` interpolates it into the object key extension, so a publisher chooses the extension the stored object carries. | `:L61`, `:L65` |
-| Object key confinement | Absent as committed, because the unawaited call at `:L58` leaves `user_id` unchecked before `:L65` builds `exports/{user_id}/{document_id}.{export_format}`. Awaiting the call would tie the prefix to the stored owner and would leave the extension segment publisher-controlled. | `:L65`, `:L66` |
-| Idempotency | Absent. The three decorators pass no arguments, so no `acks_late`, `time_limit` or retry policy applies. A redelivered message repeats the whole body, including the overwrite at `:L66` and the four deletes at `:L103`, `:L109`, `:L112` and `:L113`. | `:L24`, `:L73`, `:L115` |
-| Least-privilege workers | Absent. `:L17` binds the module-level Firestore client, and `:L55` and `:L106` construct Cloud Storage clients. The sweep deletes documents, stored files, permission records and metadata, so a publisher who can enqueue reaches delete authority across the project. | `:L17`, `:L103`, `:L109`, `:L112`, `:L113` |
-| Result confidentiality | `:L71` returns a signed URL, which is a bearer credential, and `:L22` configures no result backend, so no reviewed store and no retention rule covers the returned value. | `:L22`, `:L69`, `:L71` |
+| Authenticated and authorized producers | Absent. The publisher asserts identity through `user_id`, and `background_tasks.py:L56` calls `get_document(document_id, user_id)` on an `async def` without awaiting it, so the ownership comparison at `services/document_service.py:L108` never runs. Awaiting it would check only the pair the message supplied, so knowledge of any document identifier and its owner would authorize the export. | `:L25`, `background_tasks.py:L56` |
+| Broker transport security and access control | Unestablished. `background_tasks.py:L22` reads `settings.REDIS_URL`, a bare string at `core/config.py:L48` with no scheme, credential or peer requirement. No committed file provisions the instance, so no password, no access control list and no `rediss://` transport exists to review. | `background_tasks.py:L22`, `core/config.py:L48` |
+| Message schema and size validation | Absent. Celery binds the three declared arguments, and no body line validates the type, the length or the content of any of them. | `background_tasks.py:L25` |
+| `export_format` allow-listing | Absent. `background_tasks.py:L59` hands the value to a conversion call and `:L63` interpolates it into the object key extension, so a publisher chooses the extension the stored object carries. | `:L59`, `:L63` |
+| Object key confinement | Absent as committed, because the unawaited call at `background_tasks.py:L56` leaves `user_id` unchecked before `:L63` builds `exports/{user_id}/{document_id}.{export_format}`. Awaiting the call would tie the prefix to the stored owner and would leave the extension segment publisher-controlled. | `:L63`, `:L64` |
+| Idempotency | Absent. The three decorators pass no arguments, so no `acks_late`, `time_limit` or retry policy applies. A redelivered message repeats the whole body, including the overwrite at `background_tasks.py:L64` and the four deletes at `:L103`, `:L109`, `:L112` and `:L113`. | `:L24`, `:L71`, `:L115` |
+| Least-privilege workers | Absent. `background_tasks.py:L17` binds the module-level Firestore client, and `:L53` and `:L106` construct Cloud Storage clients. The sweep deletes documents, stored files, permission records and metadata, so a publisher who can enqueue reaches delete authority across the project. | `:L17`, `:L103`, `:L109`, `:L112`, `:L113` |
+| Result confidentiality | `background_tasks.py:L69` returns a signed URL, which is a bearer credential, and `:L22` configures no result backend, so no reviewed store and no retention rule covers the returned value. | `:L22`, `:L67`, `:L69` |
 
 Two of those rows belong to a broker deployment rather than to this code: producer authentication and transport security are Redis
 configuration, and no committed file provisions Redis. The other six are code changes in this module.

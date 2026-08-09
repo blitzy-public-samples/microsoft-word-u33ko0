@@ -14,7 +14,7 @@ from the working tree. A reviewer can reproduce both sides from the [Checks run]
 Nothing here changes a source file's behaviour. Every replacement keeps the factual claim, the
 `path:Lnn` locator and the consequence of the passage it replaced.
 
-Conflict C5 in [decision-log.md](decision-log.md) at `:L136` records the gap this file fills. Rule 3
+Conflict C5 in [decision-log.md](decision-log.md) at `:L143` records the gap this file fills. Rule 3
 demands a verdict and a scorecard per piece of generated text, and no other enumerated deliverable
 can hold them. Decision row 4 at `decision-log.md:L94` records the choice and the risk it carries,
 and decision row 23 at `:L113` records the shape this record uses.
@@ -158,7 +158,7 @@ Rule 3 scopes validation to generated text, so two bodies of prose in this repos
 verdict and appear in no row below.
 
 - **The root README.** [../README.md](../README.md) predates this engagement and received no edit,
-  so no sentence in it was generated here. Conflict C1 at `decision-log.md:L132` records why the
+  so no sentence in it was generated here. Conflict C1 at `decision-log.md:L139` records why the
   file stayed untouched. The omission is deliberate, and the file is not a deliverable.
 - **The three specification documents under `../documentation/`.** All three predate this
   engagement and were read as reference only. No sentence in them was generated here, so none is
@@ -211,13 +211,13 @@ committed. V6 reads Pass on every deliverable because the scan covers every one 
 Rule 3 holds that thoroughness which destroys readability is a failure of courage, and that a
 document nobody reads has communicated nothing. The position produced the 150-to-400-line band for
 the module READMEs, and all 19 sit inside it. The shortest is
-[frontend/src/utils/README.md](../frontend/src/utils/README.md) at 196 lines and the longest is
-[infrastructure/terraform/README.md](../infrastructure/terraform/README.md) at 399, one line under
-the ceiling.
+[frontend/src/utils/README.md](../frontend/src/utils/README.md) at 196 lines. Two files tie for the
+longest at exactly 400, [backend/app/services/README.md](../backend/app/services/README.md) and
+[infrastructure/terraform/README.md](../infrastructure/terraform/README.md), both on the ceiling.
 
 Completeness is measured by the traceability matrix in [decision-log.md](decision-log.md), which
 runs 255 rows and reports every row COVERED. Word count measures nothing. Conflict C4 at
-`decision-log.md:L135` and decision row 20 at `:L110` record how coverage and verbosity were
+`decision-log.md:L142` and decision row 20 at `:L110` record how coverage and verbosity were
 separated.
 
 The position also shaped how the four longest `docs/` files were scored. No line band governs a
@@ -236,7 +236,7 @@ Eleven checks produced the numbers in this record. A reviewer can re-run every o
 
 | Check | What it measured | Result |
 | --- | --- | --- |
-| Physical line count | Every deliverable, counting the file's last line | 19 module READMEs from 196 to 400 lines; 9 `docs/` files from 162 to 1,848 |
+| Physical line count | Every deliverable, counting the file's last line | 19 module READMEs from 196 to 400 lines; 9 `docs/` files from 187 to 1,848 |
 | Sentence length | Prose words per sentence, inline code counted as one word | 17,476 prose sentences, none over 30 words |
 | Paragraph length | Sentences per paragraph, list items and cells counted separately | No paragraph or cell over 5 sentences; 227 sit at exactly 5 |
 | Em dash and en dash | Whole file, fenced blocks included | Zero |
@@ -271,6 +271,15 @@ against that file, every one of which was rewritten rather than annotated.
 Hard and soft columns are omitted because every cell in both would read zero. The register in the
 last section carries the history instead, entry by entry.
 
+Two measurement dates sit in the table, which matters when checking this record. Lines is measured at
+the current branch head. Prose sentences, Longest sentence and Longest paragraph were measured at
+commit `1803114`, the checkpoint that raised the charges below. The remediation pass that followed
+corrected locators across eleven deliverables and added accessibility-criterion prose to
+[frontend/src/components/README.md](../frontend/src/components/README.md) and
+[frontend/src/pages/README.md](../frontend/src/pages/README.md), so those two sentence counts read as
+a floor rather than an exact current figure. Neither threshold moved. No rewrapped or added sentence
+runs past 30 words, and no paragraph or cell past 5.
+
 ### The 19 module READMEs
 
 The Lines column is measured against the 150-to-400-line band that
@@ -285,25 +294,25 @@ The Lines column is measured against the 150-to-400-line band that
 | [backend/app/schema/README.md](../backend/app/schema/README.md) | 213 | 235 | 28 | 5 | 0 | CLEAN |
 | [backend/app/services/README.md](../backend/app/services/README.md) | 400 | 380 | 30 | 5 | 3 | CLEAN |
 | [backend/app/tasks/README.md](../backend/app/tasks/README.md) | 366 | 379 | 30 | 5 | 0 | CLEAN |
-| [backend/tests/README.md](../backend/tests/README.md) | 264 | 425 | 29 | 5 | 1 | CLEAN |
+| [backend/tests/README.md](../backend/tests/README.md) | 267 | 425 | 29 | 5 | 1 | CLEAN |
 | [frontend/src/README.md](../frontend/src/README.md) | 270 | 263 | 30 | 5 | 0 | CLEAN |
-| [frontend/src/components/README.md](../frontend/src/components/README.md) | 389 | 343 | 30 | 5 | 0 | CLEAN |
-| [frontend/src/pages/README.md](../frontend/src/pages/README.md) | 363 | 340 | 30 | 5 | 0 | CLEAN |
+| [frontend/src/components/README.md](../frontend/src/components/README.md) | 398 | 343 | 30 | 5 | 0 | CLEAN |
+| [frontend/src/pages/README.md](../frontend/src/pages/README.md) | 369 | 340 | 30 | 5 | 0 | CLEAN |
 | [frontend/src/schema/README.md](../frontend/src/schema/README.md) | 202 | 234 | 29 | 5 | 0 | CLEAN |
 | [frontend/src/services/README.md](../frontend/src/services/README.md) | 231 | 329 | 30 | 5 | 2 | CLEAN |
 | [frontend/src/store/README.md](../frontend/src/store/README.md) | 260 | 306 | 28 | 5 | 0 | CLEAN |
 | [frontend/src/utils/README.md](../frontend/src/utils/README.md) | 196 | 158 | 30 | 5 | 1 | CLEAN |
-| [infrastructure/terraform/README.md](../infrastructure/terraform/README.md) | 399 | 400 | 30 | 5 | 2 | CLEAN |
+| [infrastructure/terraform/README.md](../infrastructure/terraform/README.md) | 400 | 400 | 30 | 5 | 2 | CLEAN |
 | [infrastructure/docker/README.md](../infrastructure/docker/README.md) | 262 | 400 | 30 | 5 | 5 | CLEAN |
 | [.github/workflows/README.md](../.github/workflows/README.md) | 252 | 311 | 30 | 5 | 1 | CLEAN |
 | [scripts/README.md](../scripts/README.md) | 267 | 318 | 30 | 5 | 2 | CLEAN |
 
-The 19 files hold 5,730 physical lines and 6,403 prose sentences between them, and 20 of the 94
-charged violations sat in this group. Every one of the 19 lands inside the band, with 46 lines of
-headroom at the short end and none at the long end.
-[backend/app/services/README.md](../backend/app/services/README.md) sits exactly on the 400-line
-ceiling, and [infrastructure/terraform/README.md](../infrastructure/terraform/README.md) one line
-under it. A paragraph added to either would have to replace text rather than extend the file.
+The 19 files hold 5,749 physical lines, and 20 of the 94 charged violations sat in this group. Every
+one of the 19 lands inside the band, with 46 lines of headroom at the short end and none at the long
+end. Two files sit exactly on the 400-line ceiling,
+[backend/app/services/README.md](../backend/app/services/README.md) and
+[infrastructure/terraform/README.md](../infrastructure/terraform/README.md). A paragraph added to
+either has to replace text rather than extend the file.
 
 ### The 9 documents under `docs/`
 
@@ -312,15 +321,15 @@ rather than as a test.
 
 | Deliverable | Lines | Prose sentences | Longest sentence | Longest paragraph | Charged | Verdict |
 | --- | --- | --- | --- | --- | --- | --- |
-| [README.md](README.md) | 162 | 102 | 29 | 5 | 1 | CLEAN |
+| [README.md](README.md) | 187 | 102 | 29 | 5 | 1 | CLEAN |
 | [architecture-overview.md](architecture-overview.md) | 372 | 347 | 30 | 5 | 1 | CLEAN |
 | [data-model.md](data-model.md) | 656 | 599 | 30 | 5 | 3 | CLEAN |
 | [integration-guide.md](integration-guide.md) | 1,009 | 1,020 | 30 | 5 | 4 | CLEAN |
-| [deployment-guide.md](deployment-guide.md) | 834 | 892 | 30 | 5 | 3 | CLEAN |
+| [deployment-guide.md](deployment-guide.md) | 835 | 892 | 30 | 5 | 3 | CLEAN |
 | [troubleshooting.md](troubleshooting.md) | 1,848 | 2,789 | 30 | 5 | 25 | CLEAN |
 | [onboarding.md](onboarding.md) | 1,097 | 775 | 30 | 5 | 12 | CLEAN |
-| [decision-log.md](decision-log.md) | 756 | 2,345 | 29 | 5 | 14 | CLEAN |
-| [prose-validation.md](prose-validation.md) | 1,510 | 2,204 | 30 | 5 | 6 | CLEAN |
+| [decision-log.md](decision-log.md) | 765 | 2,345 | 29 | 5 | 14 | CLEAN |
+| [prose-validation.md](prose-validation.md) | 1,533 | 2,204 | 30 | 5 | 6 | CLEAN |
 
 Two documents in this group are worth naming for opposite reasons.
 [troubleshooting.md](troubleshooting.md) carried 25 charged violations, the highest count in the
@@ -637,7 +646,7 @@ longer sat where it said, which is register entry 62.
 | --- | --- | --- | --- |
 | A1 | Plate Glass Clarity | Pass, all 29 | The candidate was a relative pronoun dropped inside what was once the corpus's longest sentence, at `troubleshooting.md:L12`. The pronoun was restored when that sentence was split, and the line now reads "the seven protected handlers that registration order makes unreachable" |
 | A2 | Short Words, Simple Structures | Pass, all 29. 42 charges cleared | A2 shares the over-30-word heuristic with V3, so every long-sentence charge registered against both. On its own ground A2 passes cleanly: the corpus expands each acronym at first use, including "Continuous Integration (CI)" at `../.github/workflows/README.md:L6` and "create, read, update and delete (CRUD)" at `../backend/app/schema/README.md:L9` |
-| A3 | Logical Sequence | Pass, all 29 | All 19 module READMEs carry the nine required headings in the required order, verified heading by heading and stated at `architecture-overview.md:L331`. Inside the Python docstrings, a prose paragraph sometimes follows a Google section header where Google style puts extended description first. A blank line separates each such paragraph, so a reader sees a new movement start |
+| A3 | Logical Sequence | Pass, all 29 | All 19 module READMEs carry the nine required headings in the required order, verified heading by heading and stated at `architecture-overview.md:L332-L334`. Inside the Python docstrings, a prose paragraph sometimes follows a Google section header where Google style puts extended description first. A blank line separates each such paragraph, so a reader sees a new movement start |
 | A4 | Ideas Carry the Weight | Pass, all 29 | No passage in the corpus builds mood or ornaments an idea. A figurative-language scan across all 28 committed files returned two hits and no third, and both introduce a concrete point rather than decorate one. Every paragraph read advances a claim and cites it |
 | A5 | Conversational Informality | Pass, all 29 | Passive constructions account for 829 of 17,476 prose sentences, 4.7 percent by pattern. Only 77 of the 829 name an agent. The commonest forms are `is committed`, `is declared`, `is tracked` and `are declared`, which put a file or a value in focus, inside blog rule B3's stated exception. The densest example sits at `deployment-guide.md:L154`: "No apply happens, and no resource is created, until every output either points at a declared resource or is removed." Terraform is the unnamed actor there and the resource is the focus |
 | A6 | No Ornamental Language | Pass, all 29 | The figurative-language scan returned exactly two hits, both mild. The stronger is "Each one looks like a local problem and has a cause somewhere else." at `onboarding.md:L835`, which introduces a concrete point about four traps. The second is at `troubleshooting.md:L1812`, where a divergence is called out precisely because it looks like a defect and is not one |
@@ -713,6 +722,20 @@ validation measured, which is the only set it can quote from both sides.
 | Claim contradicting the committed tree | V7 | 34 | 0 |
 | **Total** | | **94** | **0** |
 
+The Outstanding column was re-measured after remediation rather than carried forward. A symbol
+anchored sweep re-read every source locator in all 28 deliverables at the current branch head, 5,822
+citations in total. Each citation was checked three ways: the target file exists, the cited lines fall
+inside it, and a symbol named in the citing sentence appears in the cited span. Every V7 charge below
+is closed against that sweep.
+
+The sweep also surfaced defects the original pass missed, and each was fixed rather than recorded.
+[../backend/app/tasks/README.md](../backend/app/tasks/README.md) cited `:L187` against a 157-line
+module, and five rows of that file's security-prerequisite table carried a two-line offset. Six bare
+continuations inherited the wrong file, in [deployment-guide.md](deployment-guide.md),
+[../scripts/README.md](../scripts/README.md), [integration-guide.md](integration-guide.md) and
+[../backend/tests/README.md](../backend/tests/README.md). Nine more in the tasks table were qualified
+with their own file name so a checker can verify each row on its own.
+
 ### How to read an entry
 
 Each entry carries Rule 3's four required parts: the passage, the principle by number and name, the
@@ -763,10 +786,10 @@ two later sentences tightened:
 
 > Nothing pins `python-jose`, because no backend manifest or lock file is committed, and the
 > `dated register` carries the full advisory set.
-
+>
 > Exposure here is conditional and unestablished, needing an installed release at or below 3.3.0, a
 > verification key in an affected format, and an algorithm list admitting the confused algorithm.
-
+>
 > Both decode calls pass `algorithms=[settings.ALGORITHM]` while `config.py:L42` and `:L44` declare
 > neither value, so no precondition can be checked here
 
@@ -900,7 +923,7 @@ Now 5 sentences at the same locator, with two pairs merged:
 
 > A host `frontend/node_modules` therefore silently replaces the one the image resolved, and a local
 > `.env` or key file in the tree travels the same route.
-
+>
 > `backend.Dockerfile:L14` copies `./app` alone and writes less into the image, while its `./backend`
 > context still uploads in full, so a reviewed `.dockerignore` is a prerequisite for either direct
 > build
@@ -945,10 +968,10 @@ Now 5 sentences at the same locator, with three pairs merged:
 
 > Anyone with write access to an action repository can move or delete a tag, so a tag names whatever
 > bytes it currently points at rather than a fixed release.
-
+>
 > In the March 2025 `tj-actions/changed-files` compromise, tags v1 through v45.0.7 were repointed at
 > one malicious commit, fixed in v46.0.1.
-
+>
 > A moved tag is the failure mode this leaves open, and a reviewed full commit SHA per tag, with its
 > version in a comment beside it, is the prerequisite.
 
@@ -1204,10 +1227,10 @@ Now 4 sentences at `:L1561`, with three pairs merged into 23, 23 and 14 words:
 
 > Of the fourteen handlers, twelve require a bearer token and two are public, at
 > `backend/app/api/auth.py:L66` and `:L103`, and the twelve split four ways.
-
+>
 > Two are self-scoped by the token, at `backend/app/api/users.py:L20` and `:L33`, and one is the
 > create path at `backend/app/api/documents.py:L46`, which fails before it persists.
-
+>
 > Six leave object scope unestablished, and the paragraph below takes each group in turn
 
 Four of the seven sentences ran under twelve words each, and merging the short pairs keeps all four
@@ -1417,15 +1440,15 @@ are `1803114` and locators on the right are current.
 | 54 | `onboarding.md:L576` | "no single `PYTHONPATH` value clears the first" | `:L640` reads "no single directory on `PYTHONPATH` clears the first" | One `PYTHONPATH` value can hold several directories, so the drafted claim was false as written while the point behind it holds |
 | 55 | `onboarding.md:L789` | "**The invisible six.**" introduced the packages an import-reading developer would miss | `:L857` reads "**The invisible seven.**", and separates the three transitive arrivals from the four a configuration value selects | The list beneath it names four configuration-selected distributions and three transitive ones, so the count was one short of its own contents |
 | 56 | `onboarding.md:L959` | "The instructions at `L42` and `L44` name a file and a path the tree does not carry" | `:L11` names "`L29`, `L42` and `L55`" and describes each step | The root README's bad backend command sits at `L55`, and `L44` is a directory change that works, so a reader checking `L44` would have found nothing wrong |
-| 57 | `decision-log.md:L3` | "Fifteen choices shaped the documentation layer over this repository" | `:L3` reads "Twenty-four choices", and `:L81` reads "Twenty-four decisions sit below" | The table carried nineteen rows when the sentence said fifteen, and it carries twenty-four now, so the opening count contradicted the section it introduces |
-| 58 | `decision-log.md:L714` | The reverse-matrix row read "Fifteen decisions, ten deviations and the bidirectional matrix" | `:L736` reads "Twenty-four decisions, ten deviations and the bidirectional matrix" | The reverse matrix exists to prove nothing is unaccounted for, and a row that miscounts its own file undermines that |
-| 59 | `decision-log.md:L110` | Conflict C4's Decision-row cell pointed at a note under the table rather than at a numbered row, so C4 carried no alternatives and no risk | Decision row 20 at `:L110` now carries C4's four columns, and the C4 row at `:L135` points to it | Rule 1 requires alternatives and risks per decision, and a conflict resolved in prose alone had neither |
+| 57 | `decision-log.md:L3` | "Fifteen choices shaped the documentation layer over this repository" | `:L3` reads "Twenty-five choices", and `:L81` reads "Twenty-five decisions sit below" | The table carried nineteen rows when the sentence said fifteen, and it carries twenty-five now, so the opening count contradicted the section it introduces |
+| 58 | `decision-log.md:L714` | The reverse-matrix row read "Fifteen decisions, ten deviations and the bidirectional matrix" | `:L745` reads "Twenty-five decisions, thirteen deviations and the bidirectional matrix" | The reverse matrix exists to prove nothing is unaccounted for, and a row that miscounts its own file undermines that |
+| 59 | `decision-log.md:L110` | Conflict C4's Decision-row cell pointed at a note under the table rather than at a numbered row, so C4 carried no alternatives and no risk | Decision row 20 at `:L110` now carries C4's four columns, and the C4 row at `:L142` points to it | Rule 1 requires alternatives and risks per decision, and a conflict resolved in prose alone had neither |
 | 60 | `decision-log.md:L91` | Decision row 11 read "All three validators also require Node 18 or newer" | `:L101` reads "Two of the three also declare a Node floor above this project's highest", and states each validator's own metadata | `markdown-link-check@3.15.0` declares no `engines` field at all, so the claim was false for one of the three named packages |
 | 61 | `decision-log.md:L14` | "No docstring, no JSDoc block and no README in this repository carries design rationale" | `:L13-L25` state the rule, give the two sentence shapes that divide the two kinds of writing, and name the four defences that sat outside this file | Three sibling documents carried rationale prose when the claim was written, so the log asserted a boundary the corpus did not keep |
 | 62 | `prose-validation.md`, seven rows of the verdict tables | Seven line counts described files that had grown or shrunk since the counts were taken, including `troubleshooting.md` at 1,662 lines | The verdict tables now carry measurements taken at the current branch head, with `troubleshooting.md` at 1,848 lines | A validation record whose own measurements are stale cannot be used to check anything, which is the failure it exists to prevent |
-| 63 | `prose-validation.md`, the module totals and the band headroom | The totals read 5,652 lines and a range of "196 to 396", with 4 lines of headroom at the long end | The totals read 5,730 lines and a range of 196 to 400, with no headroom at the long end | Three lines of headroom is the difference between a paragraph that fits and one that pushes a README past the band |
+| 63 | `prose-validation.md`, the module totals and the band headroom | The totals read 5,652 lines and a range of "196 to 396", with 4 lines of headroom at the long end | The totals read 5,749 lines and a range of 196 to 400, with no headroom at the long end | Three lines of headroom is the difference between a paragraph that fits and one that pushes a README past the band |
 | 64 | `prose-validation.md`, a register entry's replacement quotation | The quotation given as the current text of `integration-guide.md:L165` no longer matched that line | The register now quotes both sides from named commits, and every quotation was re-extracted against the working tree | A quotation that does not match its cited line is the one error a reader cannot recover from without the diff |
-| 65 | `prose-validation.md`, six `decision-log.md` locators | The record cited conflicts C1, C4 and C5 and decision rows 4, 15 and 17 at line numbers that had all moved | The record cites `:L132`, `:L135`, `:L136`, `:L94`, `:L105` and `:L107`, each re-derived from the current file | Six links into a 749-line table landing on the wrong rows would send a reader to the wrong decisions |
+| 65 | `prose-validation.md`, six `decision-log.md` locators | The record cited conflicts C1, C4 and C5 and decision rows 4, 15 and 17 at line numbers that had all moved | The record cites `:L139`, `:L142`, `:L143`, `:L94`, `:L105` and `:L107`, each re-derived from the current file | Six links into a 749-line table landing on the wrong rows would send a reader to the wrong decisions |
 | 66 | `../backend/app/core/security.py`, the `verify_password` and `get_password_hash` docstrings | `verify_password` promised a Boolean-only return, and `get_password_hash` limited `ValueError` to a password over 72 bytes | The two docstrings now document the passlib and bcrypt pair together, every reachable exception, and one tested compatible pairing | A docstring is the contract a caller writes against, and both promised behaviour the resolved distribution pair does not deliver |
 | 67 | `../backend/app/api/auth.py`, the `register_user` docstring | The `Raises:` entry limited `ValueError` to a password over 72 bytes | `:L124-L133` document the `CryptContext` indirection, the unpinned pair, and that every call raises under one of the two pairings | The route is public, so the difference between a length ceiling and an unconditional raise is the difference between an edge case and a route that never works |
 
@@ -1450,8 +1473,8 @@ were rewritten. Fourteen were introduced by edits made in this checkpoint, and t
 | 78 | `README.md:L105` | V2, 6 sentences | The accessibility metadata note became its own paragraph | Edge semantics and screen-reader metadata are separate subjects |
 | 79 | `architecture-overview.md:L97` | V3, 35 words | The three updated line counts split across two sentences in a new paragraph | Three counts in one clause forced a reader to hold all three at once |
 | 80 | `deployment-guide.md:L675` | V2, 6 sentences | The `deploy.sh` step list broke into a second paragraph after the bucket finding | The bucket qualification and the remaining steps are separate readings |
-| 81 | `prose-validation.md:L694` | V3, 32 words | The register composition split from the entry and charge totals | Totals are checkable only when stated on their own |
-| 82 | `prose-validation.md:L810` | V3, 34 words | The entry 22a ownership note split from what the pattern note keeps | Ownership and residue are two facts |
+| 81 | `prose-validation.md:L703` | V3, 32 words | The register composition split from the entry and charge totals | Totals are checkable only when stated on their own |
+| 82 | `prose-validation.md:L833` | V3, 34 words | The entry 22a ownership note split from what the pattern note keeps | Ownership and residue are two facts |
 | 83 | `../infrastructure/terraform/README.md:L205` | V2, 6 sentences | Two dead-variable sentences merged into one | The count and its qualification belong in the same sentence |
 
 Entries 68 to 77 and 80 to 82 record violations this checkpoint introduced, which is why they are
@@ -1502,7 +1525,7 @@ The A5 row names the densest example and the reason it stands.
 ### Related documentation
 
 - [README.md](README.md) indexes every document in this set.
-- [decision-log.md](decision-log.md) carries conflict C5 at `:L136`, decision row 4 at `:L94`, the
+- [decision-log.md](decision-log.md) carries conflict C5 at `:L143`, decision row 4 at `:L94`, the
   scoring convention at decision row 17, `:L107`, and this record's shape at decision row 23,
   `:L113`.
 - [troubleshooting.md](troubleshooting.md) is the corpus's longest deliverable and the file this

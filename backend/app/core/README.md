@@ -247,9 +247,9 @@ A safe floor cannot be asserted from this repository, because no committed file 
 belongs to the reviewed manifest and lock recorded as future work in
 [../../../docs/onboarding.md](../../../docs/onboarding.md).
 
-- **The whole `security.py` module is unconsumed.** A search for `core.security` across every tracked file returns no
-  result. `create_access_token` (`security.py:L27`), `verify_password` (`security.py:L59`) and `get_password_hash`
-  (`security.py:L86`) appear only at their own definitions and have zero callers. The twelve protected routes import
+- **The whole `security.py` module is unconsumed.** No tracked source file imports `core.security`, and the name appears
+  only in documentation, including this file. `create_access_token` (`security.py:L27`), `verify_password` (`:L59`) and
+  `get_password_hash` (`:L86`) appear only at their own definitions and have zero callers. The twelve protected routes import
   `get_current_user` from `app.api.auth` at `api/documents.py:L19`, `api/templates.py:L19` and `api/users.py:L15`.
 - **No module-level `settings` instance exists.** `config.py` declares the `Settings` class at `L20` and the
   `get_settings` factory at `L63`, and never creates a `settings` object. Eight modules import one by name, listed

@@ -91,7 +91,7 @@ The other two reach an external system without constructing a client of their ow
 `backend/app/services/collaboration_service.py:L18` imports `settings` and builds Pub/Sub publisher
 and subscriber clients at `:L38-L39`, and it reads `settings.PROJECT_ID`, a field `Settings` never
 declares. `backend/app/services/document_service.py:L17` imports `settings` and reaches Firestore
-through the shared client it binds at `:L45`, so it issues external calls without opening a
+through the shared client it binds at `:L40`, so it issues external calls without opening a
 connection.
 
 Three further modules import `settings` and reach no external system: `backend/app/main.py:L20`,
@@ -167,7 +167,7 @@ absence of a call rather than a call. No route anywhere constructs `Collaboratio
 | S3 | Application to the four routers | `backend/app/main.py:L84-L87` would register four routers | `:L16-L19` import `auth_router`, `documents_router`, `users_router` and `templates_router`, and all four modules export the bare name `router` |
 | S4 | socket.io-client to CollaborationService | a Socket.IO connection from the browser | No route joins Socket.IO to the FastAPI WebSocket signature the service declares |
 | S5 | CollaborationService to Pub/Sub | subscribe at `backend/app/services/collaboration_service.py:L99`, publish at `:L156` | Neither runs, because nothing constructs the class. `settings.PROJECT_ID` is undeclared at `:L69`, `:L70`, `:L128` and `:L153`. The subscription name at `:L70` identifies a document and user rather than a connection. A second session for one user would therefore answer `AlreadyExists` at `:L73`, and either session closing would delete the shared subscription at `:L130` |
-| S6 | Routers to DocumentService | constructed at `backend/app/api/documents.py:L45`, `:L64`, `:L92`, `:L124` and `:L152` | Every call breaks its signature. `:L46` hands a `User` where `user_id: str` is declared, so `set` at `backend/app/services/document_service.py:L73` raises while it builds the write and nothing is stored. `:L91`, `:L120` and `:L146` pass one argument to a two-parameter `get_document`, and `:L65` calls `get_documents`, which the class never defines. All five handlers sit behind the token dependency, so a caller without valid credentials receives 401 and reaches none of these faults |
+| S6 | Routers to DocumentService | constructed at `backend/app/api/documents.py:L45`, `:L64`, `:L92`, `:L124` and `:L152` | Every call breaks its signature. `:L46` hands a `User` where `user_id: str` is declared, so `set` at `backend/app/services/document_service.py:L73` raises while it builds the write and nothing is stored. `backend/app/api/documents.py:L93`, `:L125` and `:L153` pass one argument to a two-parameter `get_document`, and `:L65` calls `get_documents`, which the class never defines. All five handlers sit behind the token dependency, so a caller without valid credentials receives 401 and reaches none of these faults |
 | S7 | Routers to the Celery tasks | nothing | No producer. Zero `.delay()` and zero `.apply_async()` call sites exist anywhere |
 | S8 | DocumentService to Firestore | set at `backend/app/services/document_service.py:L73`, get at `:L102`, update at `:L153`, delete at `:L188`, all written in full | Each read then builds `Document(**...)` against `created_at` and `updated_at`, required at `backend/app/schema/document.py:L64-L65` and written by nothing |
 | S9 | Celery tasks to Firestore | read at `backend/app/tasks/background_tasks.py:L96`, delete at `:L103`, update at `:L142` | No producer runs them |
@@ -221,14 +221,14 @@ issues **seven** remote Firestore operations across four methods. The count excl
 `:L69`, `:L101`, `:L141` and `:L177` are not remote operations.
 
 | Method | Remote operations | Count | Locators |
-|--------|-------------------|-------|----------|
+| -------- | ------------------- | ------- | ---------- |
 | `create_document` at `:L42` | `set` | 1 | `:L73`, on the reference built at `:L69` |
 | `get_document` at `:L78` | `get` | 1 | `:L102`, on the reference built at `:L101` |
 | `update_document` at `:L116` | `get`, `update`, then `get` again | 3 | `:L142`, `:L153`, `:L156` |
 | `delete_document` at `:L159` | `get`, then `delete` | 2 | `:L178`, `:L188` |
 
 The update path reads, modifies, then reads again, which costs three Firestore operations for one
-logical update. The first read at `:L142` supports the existence check at `:L126` and the ownership
+logical update. The first read at `:L142` supports the existence check at `:L144` and the ownership
 comparison at `:L148`. The second read at `:L156` fetches the record the method returns, because
 `update()` returns no snapshot.
 
@@ -263,8 +263,8 @@ snapshots rather than a reference, so the call raises `AttributeError`.
 [G3](troubleshooting.md#g3-undefined-names-that-raise-at-execution).
 
 Three collections appear across the code. `documents` is the only one a service writes.
-`document_permissions` at `:L112` and `document_metadata` at `:L113` appear in the retention task
-alone, and no schema in either language models either of them.
+`document_permissions` at `background_tasks.py:L112` and `document_metadata` at `:L113` appear in the
+retention task alone, and no schema in either language models either of them.
 [../backend/app/tasks/README.md](../backend/app/tasks/README.md) carries the task detail.
 
 ## Google Cloud Storage and version 4 signed URLs
@@ -456,7 +456,7 @@ committed code and become prerequisites the moment a caller reaches the signing 
 | --- | ------------ | ----------------- |
 | 1 | A reviewed expiry, short enough to bound exposure | `export_service.py:L68` and `:L100` read `settings.SIGNED_URL_EXPIRATION`, which `Settings` never declares, so no value and no ceiling exists in the repository. `background_tasks.py:L67` hard-codes `timedelta(hours=1)` instead, so the two paths would expire differently even once the field exists |
 | 2 | One signing scheme | The service passes `version="v4"` at `:L67` and `:L99`. The task passes no `version` argument at `:L67`. A consumer of both paths receives links signed under two different schemes |
-| 3 | An authorization check before a link is minted | Neither export method takes a caller identity. `export_to_pdf` at `:L40` and `export_to_docx` at `:L74` accept a `Document` and sign a link for it, and nothing compares a requesting user against the document's owner first. `process_document_export` at `background_tasks.py:L25` takes `user_id` and puts it to two uses. `:L56` passes it to `document_service.get_document(document_id, user_id)`, an ownership handoff with the right arity that no `await` drives, so the coroutine is created, never executed and discarded. `:L63` then builds the object key from the same value |
+| 3 | An authorization check before a link is minted | Neither export method takes a caller identity. `export_to_pdf` at `export_service.py:L40` and `export_to_docx` at `:L74` accept a `Document` and sign a link for it, and nothing compares a requesting user against the document's owner first. `process_document_export` at `background_tasks.py:L25` takes `user_id` and puts it to two uses. `:L56` passes it to `document_service.get_document(document_id, user_id)`, an ownership handoff with the right arity that no `await` drives, so the coroutine is created, never executed and discarded. `:L63` then builds the object key from the same value |
 | 4 | A signing credential held as a secret | Signing needs a private key or an IAM SignBlob delegation. No committed file supplies either, and `scripts/deploy.sh:L19` would archive a service-account key JSON file sitting in the working tree and `:L23` would upload it. [../scripts/README.md](../scripts/README.md) carries that path |
 | 5 | No link in a log or an error | No traced exposure exists today. No committed caller reaches either export method, so no signed URL is produced, and no logging path in the repository receives one. The constraint stands as a prerequisite rather than a finding. `frontend/src/services/api.ts` and the page handlers log whole error objects, so a link returned through either would land in the console with the rest of the response. [../frontend/src/pages/README.md](../frontend/src/pages/README.md) records that logging behaviour |
 | 6 | Object-level access control that the link cannot bypass | `infrastructure/terraform/main.tf:L54` sets `uniform_bucket_level_access = true`, which is the right default. `:L56-L58` enables versioning with no `lifecycle_rule`, so a delete or an overwrite on that bucket archives the current generation and leaves it addressable to anyone able to name it. Whether an export ever lands there is undetermined, because both upload sites read `settings.STORAGE_BUCKET_NAME` (`backend/app/services/export_service.py:L60`, `:L92`) and `Settings` does not declare that field. [../infrastructure/terraform/README.md](../infrastructure/terraform/README.md) carries the bucket detail |
@@ -478,7 +478,7 @@ holds no `__init__.py` and acts as an implicit namespace package. Importing it t
 on the path as well, for the module's own `app.*` imports, and stops at
 `backend/app/services/collaboration_service.py:L18`, which requests the `settings` name that
 `app.core.config` never binds. The same test file calls three methods the class never defines, at
-`:L44`, `:L50` and `:L55`. [../backend/tests/README.md](../backend/tests/README.md) carries the full
+`backend/tests/test_services.py:L44`, `:L50` and `:L55`. [../backend/tests/README.md](../backend/tests/README.md) carries the full
 import-resolution matrix, and
 [troubleshooting.md](troubleshooting.md#three-test-imports-that-are-path-dependent-rather-than-absent)
 records the same sequence.
@@ -491,7 +491,7 @@ intent. The committed code holds the calls and no path to them.
 
 ### What the service constructs and calls
 
-`__init__` at `:L32` builds both clients and one registry. `:L29` constructs `PublisherClient()`,
+`__init__` at `:L32` builds both clients and one registry. `:L38` constructs `PublisherClient()`,
 `:L39` constructs `SubscriberClient()`, and `:L40` creates `active_connections` as a plain
 dictionary. The registry lives in one process and carries no lock, so two workers hold two separate
 views of who is connected.
@@ -501,15 +501,15 @@ Four Pub/Sub calls exist across three methods.
 | Method | Pub/Sub call | Locator |
 | -------- | -------------- | --------- |
 | `connect` at `:L44` | `create_subscription` | `:L73` |
-| `connect` at `:L44` | `subscribe` | `:L95` |
-| `disconnect` at `:L103` | `delete_subscription` | `:L126` |
-| `broadcast_change` at `:L133` | `publish` | `:L152` |
+| `connect` at `:L44` | `subscribe` | `:L99` |
+| `disconnect` at `:L107` | `delete_subscription` | `:L130` |
+| `broadcast_change` at `:L137` | `publish` | `:L156` |
 
 `connect` registers the socket at `:L66`, then builds a per-document topic path at `:L69` and a
 per-document, per-user subscription path at `:L70`. Both paths interpolate `settings.PROJECT_ID`,
 and `Settings` never declares that field, so `:L69` raises `AttributeError` before any Pub/Sub call
-runs. `disconnect` rebuilds the same subscription path at `:L124`, and `broadcast_change` rebuilds the
-same topic path at `:L149`.
+runs. `disconnect` rebuilds the same subscription path at `:L128`, and `broadcast_change` rebuilds the
+same topic path at `:L153`.
 
 ### The topic must already exist, and nothing creates it
 
@@ -551,33 +551,33 @@ The prerequisite sits behind the earlier blockers rather than in front of them: 
   outright when a loop is already running on the calling thread. The Pub/Sub client invokes the
   callback on its own thread, so none of the three propagates to `connect`.
 - **A failed publish is caught and logged, not raised.** `broadcast_change` reads
-  `settings.PROJECT_ID` at `:L149`, which sits **above** the `try` at `:L151`, so the undeclared-field
+  `settings.PROJECT_ID` at `:L153`, which sits **above** the `try` at `:L155`, so the undeclared-field
   `AttributeError` propagates to the caller on the first call and nothing is published. That is the
-  method's first statement, so it leaves no partial state. Everything after it is guarded: `:L152`
-  calls `json.dumps(change)` against a module that imports no `json`, and `:L154` catches every
-  exception the body raises while `:L156` prints it. Once `PROJECT_ID` exists, a publish failure
+  method's first statement, so it leaves no partial state. Everything after it is guarded: `:L156`
+  calls `json.dumps(change)` against a module that imports no `json`, and `:L158` catches every
+  exception the body raises while `:L160` prints it. Once `PROJECT_ID` exists, a publish failure
   therefore surfaces as a printed line and a normal `None` return, and a caller cannot tell a
   delivered change from a dropped one.
-- **Acknowledgement precedes delivery.** `:L92` calls `message.ack()` and `:L93` then sends the
+- **Acknowledgement precedes delivery.** `:L96` calls `message.ack()` and `:L97` then sends the
   data to the socket. A send that fails after the acknowledgement loses the message, because Pub/Sub
   has already been told the message was handled and will not redeliver.
-- **Both futures block, and the third method has no future to wait on.** `:L98` calls
-  `future.result()` on the streaming pull future, and `:L153` calls `future.result()` on the publish
+- **Both futures block, and the third method has no future to wait on.** `:L102` calls
+  `future.result()` on the streaming pull future, and `:L157` calls `future.result()` on the publish
   future. Neither call passes a timeout, so each blocks the calling thread until the future settles.
-  `connect` is declared `async def`, so the block at `:L98` holds the event loop rather than one
-  worker thread. `disconnect` creates no future: `:L126` calls `delete_subscription`, which returns
+  `connect` is declared `async def`, so the block at `:L102` holds the event loop rather than one
+  worker thread. `disconnect` creates no future: `:L130` calls `delete_subscription`, which returns
   nothing to wait on, so the method has nothing to block for and nothing to cancel.
 - **Two partial states can persist.** `connect` mutates the registry at `:L64-L66` before it touches
   Pub/Sub. `:L73` calls `create_subscription` inside a `try`, and on failure `:L76` prints the error
   and `:L77` returns, leaving the socket registered in `active_connections` with no subscription
   behind it. That connection receives nothing and no later call removes it.
 
-  `disconnect` removes the registry entry at `:L118-L121` before it deletes the subscription, so a
-  caught deletion failure at `:L127` leaves a subscription with no registry entry. Neither method
+  `disconnect` removes the registry entry at `:L122-L125` before it deletes the subscription, so a
+  caught deletion failure at `:L131` leaves a subscription with no registry entry. Neither method
   compensates, and neither reports the state to its caller.
 
 Two markers sit inside this module, above `connect` at `:L42-L43` and above `broadcast_change` at
-`:L131-L132`. Both record the code authors' own confidence in the method beneath them. Read them in
+`:L135-L136`. Both record the code authors' own confidence in the method beneath them. Read them in
 place. [../backend/app/services/README.md](../backend/app/services/README.md) carries the service
 detail, and [troubleshooting.md](troubleshooting.md) registers the transport gap under
 [G7](troubleshooting.md#the-collaboration-path-has-no-route-and-two-protocols).
@@ -596,15 +596,15 @@ route that authenticated the socket and authorized the pair before calling would
 4 without changing the service at all.
 
 | # | Control | Committed state |
-|---|---------|-----------------|
+| --- | --------- | ----------------- |
 | 1 | Authenticate the connection | `connect` at `:L44` takes `websocket`, `document_id` and `user_id`. The method accepts no token, reads no header and calls no dependency, so nothing establishes who is connecting. Every other protected surface in the backend goes through `get_current_user` at `backend/app/api/auth.py:L28`, and this path does not |
-| 2 | Authorize the identity against the document | Nothing compares `user_id` against the document's stored owner. `:L64-L66` registers the socket straight from the two string arguments. The document handlers at least attempt an owner check, at `backend/app/api/documents.py:L94`, `:L126` and `:L154` |
-| 3 | Validate `document_id` before it names a resource | `:L69`, `:L70` and `:L149` interpolate `document_id` directly into Pub/Sub topic and subscription paths, with no allow-list, no format check and no membership check. Whichever string the method receives selects the topic it publishes to and the subscription it creates, so a caller that forwarded a client-supplied value would let the client choose both |
-| 4 | Authorize a disconnect | `disconnect` at `:L103` takes the same two strings, removes the entry at `:L119` and `:L121`, then deletes the subscription at `:L126`. The method verifies neither argument, so a caller that did not check them would let one user's identifiers drop another user's connection |
-| 5 | Validate the event payload | `broadcast_change` at `:L133` declares `change: dict` and publishes it unchanged at `:L152`. No schema constrains the keys, no field is bounded, and no type is checked |
+| 2 | Authorize the identity against the document | Nothing compares `user_id` against the document's stored owner. `backend/app/services/collaboration_service.py:L64-L66` registers the socket straight from the two string arguments. The document handlers at least attempt an owner check, at `backend/app/api/documents.py:L94`, `:L126` and `:L154` |
+| 3 | Validate `document_id` before it names a resource | `backend/app/services/collaboration_service.py:L69`, `:L70` and `:L153` interpolate `document_id` directly into Pub/Sub topic and subscription paths, with no allow-list, no format check and no membership check. Whichever string the method receives selects the topic it publishes to and the subscription it creates, so a caller that forwarded a client-supplied value would let the client choose both |
+| 4 | Authorize a disconnect | `disconnect` at `:L107` takes the same two strings, removes the entry at `:L123` and `:L125`, then deletes the subscription at `:L130`. The method verifies neither argument, so a caller that did not check them would let one user's identifiers drop another user's connection |
+| 5 | Validate the event payload | `broadcast_change` at `:L137` declares `change: dict` and publishes it unchanged at `:L156`. No schema constrains the keys, no field is bounded, and no type is checked |
 | 6 | Bound the payload size | Nothing limits the size of `change`. A large object is serialized and published as one message, and Pub/Sub rejects a message above its own limit rather than the application refusing it first |
-| 7 | Scope the fan-out per recipient | `active_connections[document_id]` maps every registered `user_id` to a socket, and the callback at `:L80` sends each delivered message to the socket at `:L93` with no per-recipient authorization check. One publish reaches every socket registered against that document |
-| 8 | Share state across processes | `__init__` at `:L32` builds `active_connections` as a plain dictionary in process memory, and the class docstring records the consequence at `:L15-L17`. A second server process shares none of it, so a fan-out under more than one worker reaches only the subset of clients that landed on the same process |
+| 7 | Scope the fan-out per recipient | `active_connections[document_id]` maps every registered `user_id` to a socket, and the callback at `:L80` sends each delivered message to the socket at `:L97` with no per-recipient authorization check. One publish reaches every socket registered against that document |
+| 8 | Share state across processes | `__init__` at `:L32` builds `active_connections` as a plain dictionary in process memory, and the class docstring records the consequence at `:L23-L25`. A second server process shares none of it, so a fan-out under more than one worker reaches only the subset of clients that landed on the same process |
 
 Read the whole table as future work, not as a change made here. Nothing in this documentation pass
 alters the service. The security gates that must land before this integration is made reachable are
@@ -747,7 +747,7 @@ response. Assume for a moment that the import chain and the client's own blocker
 dispatch actually happens:
 
 | Client call | Locator | What the server does with it |
-|-------------|---------|------------------------------|
+| ------------- | --------- | ------------------------------ |
 | `GET /documents` | `frontend/src/services/api.ts:L70` | Matches `GET /{document_id}` at `backend/app/api/documents.py:L68`, because `/documents` is a single path segment, so `document_id` binds to the string `documents` and no body follows. That route is protected at `:L69`, so its dependency resolves before the body, and without a valid token the response is **401**. For an authenticated caller whose user record resolves, `:L93` passes one argument to the two-parameter `get_document` signature at `backend/app/services/document_service.py:L78`. A `TypeError` then propagates out of the handler and the response is a **500**. The declared `Document[]` never meets a document object on either path |
 | `POST /documents` | `frontend/src/services/api.ts:L83` | The single-segment shape matches `GET`, `PUT` and `DELETE` at `backend/app/api/documents.py:L68`, `:L98` and `:L131`, and no router declares `POST /{document_id}`. Starlette answers **405 Method Not Allowed** rather than 404. Routing settles that before any dependency runs, so no credential affects it |
 | `PUT /documents/${documentId}` | `frontend/src/services/api.ts:L96` | Two path segments, and no two-segment route is registered anywhere in the four routers. The response is **404**, again settled by routing before any dependency runs, so no credential affects it either |
@@ -772,8 +772,8 @@ for all six client call sites.
 | Encoding | JSON. Axios serializes the object literal at `:L37` | `application/x-www-form-urlencoded`, because `:L67` declares `OAuth2PasswordRequestForm` |
 | Credential fields | `email` and `password` | `username` and `password` |
 | Request headers | No `Authorization` header. `auth.ts` never reaches the interceptor at `api.ts:L38-L44` | The route is public and reads none |
-| Response fields | Reads `response.data.accessToken` at `:L37` | Returns `{"access_token": ..., "token_type": "bearer"}` at `:L72` |
-| State handoff | Writes the read value to `localStorage` under `accessToken` at `:L38` | None. The server holds no session |
+| Response fields | Reads `response.data.accessToken` at `:L38` | Returns `{"access_token": ..., "token_type": "bearer"}` at `backend/app/api/auth.py:L101` |
+| State handoff | Writes the read value to `localStorage` under `accessToken` at `frontend/src/services/auth.ts:L39` | None. The server holds no session |
 
 The other two calls in the same module have no working counterpart either.
 
@@ -826,10 +826,10 @@ form, so a user cannot reach either server route through the interface.
 | Side | What runs | Locator |
 | ------ | ----------- | --------- |
 | Client | Imports `getDocument` and `updateDocument` from the API module | `frontend/src/pages/Editor.tsx:L16` |
-| Client | Loads the document inside an effect, guarded on the identifier | `:L40-L55`, guard at `:L52`, call at `:L43` |
-| Client | Auto-saves inside a second effect | `:L72-L84` |
-| Client | Calls `updateDocument(currentDocument.id, { content })` | `:L75` |
-| Client | Arms a five-second timer and clears it on cleanup | `:L82`, `:L83` |
+| Client | Loads the document inside an effect, guarded on the identifier | `:L37-L61`, guard at `:L58`, call at `:L49` |
+| Client | Auto-saves inside a second effect | `:L70-L93` |
+| Client | Calls `updateDocument(currentDocument.id, { content })` | `:L84` |
+| Client | Arms a five-second timer and clears it on cleanup | `:L91`, `:L92` |
 | Server | `GET /{document_id}` reads the document | `backend/app/api/documents.py:L69`, decorator at `:L68` |
 | Server | `PUT /{document_id}` updates it | `:L99`, decorator at `:L98` |
 
@@ -850,16 +850,16 @@ Four mismatches:
   `L540`, describes an auto-save that fires every thirty seconds. Read the thirty-second figure as
   declared intent and the five-second timer as committed behaviour.
 
-The auto-save effect carries no null guard and no empty-content guard. `:L75` dereferences
-`currentDocument.id` with no test, while the sibling load effect does guard, at `:L52`. The effect body
+The auto-save effect carries no null guard and no empty-content guard. `:L84` dereferences
+`currentDocument.id` with no test, while the sibling load effect does guard, at `:L58`. The effect body
 runs on mount, so the timer fires five seconds after the page appears.
 
 **That first firing sends no request.** `currentDocument` comes from the selector at `:L30`, and
 `frontend/src/store/documentSlice.ts:L25` initialises `currentDocument` to `null`. Dereferencing
-`currentDocument.id` at `:L105` therefore raises `TypeError` inside the client, on the argument
-expression, before `updateDocument` is called and before any network activity begins. The `catch` at
-`:L106` receives that `TypeError`, `console.error` at `:L107` writes it, and the outstanding-work
-comment at `:L108` records the gap.
+`currentDocument.id` at `Editor.tsx:L84` therefore raises `TypeError` inside the client, on the
+argument expression, before `updateDocument` is called and before any network activity begins.
+The `catch` at `:L85` receives that `TypeError`, `console.error` at `:L86` writes it, and the
+outstanding-work comment at `:L87` records the gap.
 
 No HTTP request reaches the server, so no server-side effect and no partial write is possible from
 this path. The reader of the page sees nothing either way.
@@ -870,7 +870,7 @@ this path. The reader of the page sees nothing either way.
 | Side | What runs | Locator |
 | ------ | ----------- | --------- |
 | Client | Imports `getTemplates` from the API module | `frontend/src/pages/Templates.tsx:L14` |
-| Client | Calls it inside a load effect | `:L49` |
+| Client | Calls it inside a load effect | `:L60` |
 | Client | Declares a local `Template` interface | `:L25-L30` |
 | Server | Five template handlers | `backend/app/api/templates.py:L25`, `:L43`, `:L60`, `:L87`, `:L113` |
 
@@ -949,8 +949,8 @@ None of the three pairs can meet, and the reason differs per row.
 | Client event | Emitted payload | Nearest server counterpart | Why the pair cannot meet |
 | -------------- | ----------------- | ---------------------------- | -------------------------- |
 | `join_document` | the bare `documentId` string, at `frontend/src/services/collaboration.ts:L65` | `CollaborationService.connect` at `backend/app/services/collaboration_service.py:L44` | `connect` declares a `WebSocket`, a `document_id` and a `user_id`. The emit carries one string, no socket object and no user identity, and no route delivers it |
-| `leave_document` | the bare `currentDocumentId` string, at `:L76` | `CollaborationService.disconnect` at `backend/app/services/collaboration_service.py:L107` | `disconnect` declares `document_id` and `user_id`. The emit carries the identifier alone, and `:L159` clears it straight afterwards with nothing confirming the emit |
-| `document_changes` | the envelope `{ documentId, changes }`, at `:L96-L99` | `CollaborationService.broadcast_change` at `backend/app/services/collaboration_service.py:L137` | `broadcast_change` declares `document_id` and a `change` dictionary and publishes `json.dumps(change)` at `:L156`. The client nests the change inside an envelope, so the shapes differ even with a route in place |
+| `leave_document` | the bare `currentDocumentId` string, at `frontend/src/services/collaboration.ts:L78` | `CollaborationService.disconnect` at `backend/app/services/collaboration_service.py:L107` | `disconnect` declares `document_id` and `user_id`. The emit carries the identifier alone, and `frontend/src/services/collaboration.ts:L79` clears it straight afterwards with nothing confirming the emit |
+| `document_changes` | the envelope `{ documentId, changes }`, at `frontend/src/services/collaboration.ts:L98-L101` | `CollaborationService.broadcast_change` at `backend/app/services/collaboration_service.py:L137` | `broadcast_change` declares `document_id` and a `change` dictionary and publishes `json.dumps(change)` at `:L156`. The client nests the change inside an envelope, so the shapes differ even with a route in place |
 
 Four further facts complete the picture:
 

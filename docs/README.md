@@ -65,16 +65,20 @@ Nineteen directories carry a README of their own, one per source package.
 - [.github/workflows](../.github/workflows/README.md), the continuous integration and delivery workflows
 - [scripts](../scripts/README.md), the deploy and setup scripts and the blockers in each
 
-Five directories carry no README of their own. [frontend/src](../frontend/src/README.md) covers the
-frontend root, including `frontend/package.json`, `frontend/tsconfig.json` and
-`frontend/public/index.html`. The `backend/` and `infrastructure/` parents hold only subdirectories
-that already carry one. This index and [architecture-overview.md](architecture-overview.md) describe
-`../documentation/`. The repository root carries the original
-[../README.md](../README.md), which this documentation set leaves untouched.
+Six directories carry no README of their own: `.github`, `backend`, `documentation`, `frontend`,
+`frontend/public` and `infrastructure`. Each is still described from a neighbour.
+[frontend/src](../frontend/src/README.md) covers the frontend root, including
+`frontend/package.json`, `frontend/tsconfig.json` and `frontend/public/index.html`. The `backend/`
+and `infrastructure/` parents hold only subdirectories that already carry one, and `.github` holds
+only `.github/workflows`, which does. This index and
+[architecture-overview.md](architecture-overview.md) describe `../documentation/`.
+
+The repository root is not one of the six. It carries the original [../README.md](../README.md),
+which this documentation set leaves untouched.
 
 ## Conventions used
 
-Five conventions run through every document in this set.
+Six conventions run through every document in this set.
 
 ### 1. Citation format
 
@@ -133,6 +137,27 @@ The three files are [Technical Specifications](<../documentation/Technical Speci
 [Software Requirements Specifications](<../documentation/Software Requirements Specifications (SRS).md>)
 and [Software Project Proposal](<../documentation/Software Project Proposal.md>). All three carry
 spaces in their filenames, so links to them use angle-bracket destinations.
+
+### 6. Accessibility criterion tags
+
+Two module READMEs carry an accessibility section, and each item in them names the Web Content
+Accessibility Guidelines (WCAG) 2.1 Level AA success criterion it bears on. A tag locates a finding
+against a published criterion. A tag is not a conformance claim, because conformance is measured on a
+rendered page, and neither deployable unit in this repository runs. Six criteria carry findings.
+
+| Criterion | Name | What it covers here |
+| --------- | ---- | ------------------- |
+| 1.3.1 | Info and Relationships | Landmark and role structure: duplicated `banner`, `navigation`, `main` and `contentinfo` regions, an unroled toolbar, and a page with no heading |
+| 1.4.3 | Contrast (Minimum) | Unassessable rather than failing. No stylesheet is committed, so no authored colour pair exists to measure |
+| 2.1.1 | Keyboard | Keyboard reachability. Every control is a native element, a Router `Link` or a Draft.js `Editor`, except one clickable `div` |
+| 2.4.6 | Headings and Labels | Descriptive names: two identical navigation landmarks, and two buttons labelled with punctuation alone |
+| 2.4.7 | Focus Visible | No authored focus indicator, so focus visibility rests on the browser default |
+| 4.1.2 | Name, Role, Value | Missing accessible names, a missing `toolbar` role, absent `aria-pressed` state, and controls that look active without saying otherwise |
+
+The two sections are [the components accessibility
+review](../frontend/src/components/README.md#accessibility) and the Accessibility block inside
+[frontend/src/pages/README.md](../frontend/src/pages/README.md). No other deliverable makes an
+accessibility claim.
 
 ### Module README structure
 

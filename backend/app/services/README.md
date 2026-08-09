@@ -26,8 +26,8 @@ Three classes and thirteen `def` statements, located against the committed files
 | `CollaborationService.__init__` | Constructor | `collaboration_service.py:L32` | Builds a `PublisherClient` at L38 and a `SubscriberClient` at L39, then sets `active_connections = {}` at L40. Both clients are built eagerly. |
 | `connect` | Async method | `collaboration_service.py:L44` | Registers the socket at L66, derives the topic at L69 and the subscription at L70, creates the subscription at L73, subscribes at L99, then blocks on `future.result()` at L102. L66 keys by user, so a second socket for the same document and user replaces the first without closing it. The shared name at L70 then makes the second `create_subscription` raise `AlreadyExists`, which the broad handler catches and prints at L76 before returning at L77. |
 | `callback` | Nested function | `collaboration_service.py:L80` | Closure passed to `subscribe` at L99. Calls `message.ack()` at L96, then `asyncio.run(websocket.send_json(...))` at L97. |
-| `disconnect` | Async method | `collaboration_service.py:L107` | Removes the socket from the registry at L118 to L121 and deletes the subscription at L126. L124 rebuilds the name from the document and user alone, so L126 deletes the subscription every socket for that pair shares. |
-| `broadcast_change` | Async method | `collaboration_service.py:L137` | Publishes a JavaScript Object Notation (JSON) encoded change to the document topic at L152 and waits on the publish future at L153. |
+| `disconnect` | Async method | `collaboration_service.py:L107` | Removes the socket from the registry at L122 to L125 and deletes the subscription at L130. L128 rebuilds the name from the document and user alone, so L130 deletes the subscription every socket for that pair shares. |
+| `broadcast_change` | Async method | `collaboration_service.py:L137` | Publishes a JavaScript Object Notation (JSON) encoded change to the document topic at L156 and waits on the publish future at L157. |
 | `ExportService` | Class | `export_service.py:L18` | Uploads export artifacts and returns signed links. Declares two methods and no `convert_document`. |
 | `ExportService.__init__` | Constructor | `export_service.py:L29` | Builds a Cloud Storage `Client()` at L36. Construction runs at instantiation, so a missing credential fails there rather than at first upload. |
 | `export_to_pdf` | Method | `export_service.py:L40` | Plain `def`. Uploads the literal string `"PDF_CONTENT"` at L63 to `exports/{document.id}.pdf`, then returns a version 4 signed uniform resource locator (URL) built at L66 to L68. |
@@ -215,12 +215,12 @@ is not an `HTTPException`.
 Async signatures wrapping a synchronous software development kit (SDK). Seven of the nine public
 methods are `async def`, and every Firestore and Pub/Sub call inside them is synchronous and
 blocking. `future.result()` at `collaboration_service.py:L102` blocks the event loop for the
-subscription's life. Read-modify-read update follows: `update_document` costs three Firestore
-operations for one edit, the read at L142, the write at L153 and the re-read at L156.
+subscription's life. Read-modify-read update follows: `document_service.py`'s `update_document`
+costs three Firestore operations for one edit, the read at L142, the write at L153, the re-read at L156.
 
 Per-document Pub/Sub topic and subscription fan-out. One topic per document at
 `projects/{PROJECT_ID}/topics/{document_id}`, L69 and L153. One subscription per document and user pair at
-`projects/{PROJECT_ID}/subscriptions/{document_id}_{user_id}`, L70 and L124. The pattern assumes a topic that already
+`projects/{PROJECT_ID}/subscriptions/{document_id}_{user_id}`, L70 and L128. The pattern assumes a topic that already
 exists: no `create_topic` call sits anywhere in the repository, and `create_subscription` at L73 and `publish` at L156
 both answer `NotFound` without one.
 
@@ -303,7 +303,7 @@ Beyond the call sites:
 - **Two sibling service modules are imported and absent.** `app.services.user_service` at
   `../api/auth.py:L22` and `../api/users.py:L14`; `app.services.template_service` at `../api/templates.py:L18`.
 - **Two undefined names raise at first call, not at import.** `asyncio` at `collaboration_service.py:L97` and `json` at
-  `:L152`, neither imported. `:L154` catches the second and `:L156` prints it, so a publish failure never reaches the
+  `:L156`, neither imported. `:L158` catches the second and `:L160` prints it, so a publish failure never reaches the
   caller. A failed subscription is silent too, which entry 22a below traces.
 - **Four imports are unused.** `Client` at `document_service.py:L14` and `settings` at `:L17`, which the module never
   dereferences, plus `WebSocketDisconnect` at `collaboration_service.py:L15` and `Document` at `:L17`.
@@ -324,9 +324,9 @@ call site in this folder, and the locators below match the register.
 
 | # | Absent control | Evidence in this folder | What the absence permits |
 | --- | --- | --- | --- |
-| 19, 20, 21 | Authentication, authorization and identifier validation on the collaboration handshake | `collaboration_service.py:L44` takes `websocket`, `document_id` and `user_id` as plain arguments and no route constructs the service, so nothing verifies a token before the socket is registered at `:L64-L66`. The method never checks that `user_id` may read `document_id`, then interpolates the value straight into a topic at `:L69`, a subscription at `:L70` and a delete at `:L107` | The method establishes no identity, performs no ownership or membership check and validates no format, so a caller has to prove and constrain all three before calling. A route forwarding a client-supplied value would let a client join as any identity, to any document identifier |
-| 22 | A payload schema and a size bound on broadcast changes | `:L133` declares `change: dict` with no model behind it, and `:L152` serialises whatever arrives with `json.dumps` | Arbitrary unbounded structures are published to every subscriber |
-| 22a | Per-connection identity in the socket registry, so two sessions for one user can coexist | `:L66` keys `active_connections` by `user_id` rather than by connection, so a second socket for the same document and user replaces the first without closing it. Both resolve to one subscription name at `:L70`, so the second `create_subscription` at `:L73` answers `AlreadyExists`, which `:L76` prints before `:L77` returns. On disconnect, `:L124` rebuilds that shared name and `:L126` deletes it | A second session evicts the first from the registry and receives no feed itself, and either session closing deletes the subscription the other still depends on. Holding both would need a unique connection identifier per socket and subscription ownership that is reference counted or idempotent |
+| 19, 20, 21 | Authentication, authorization and identifier validation on the collaboration handshake | `collaboration_service.py:L44` takes `websocket`, `document_id` and `user_id` as plain arguments and no route constructs the service, so nothing verifies a token before the socket is registered at `:L64-L66`. The method never checks that `user_id` may read `document_id`, then interpolates the value straight into a topic at `:L69`, a subscription at `:L70` and the subscription a disconnect deletes at `:L128` | The method establishes no identity, performs no ownership or membership check and validates no format, so a caller has to prove and constrain all three before calling. A route forwarding a client-supplied value would let a client join as any identity, to any document identifier |
+| 22 | A payload schema and a size bound on broadcast changes | `:L137` declares `change: dict` with no model behind it, and `:L156` serialises whatever arrives with `json.dumps` | Arbitrary unbounded structures are published to every subscriber |
+| 22a | Per-connection identity in the socket registry, so two sessions for one user can coexist | `:L66` keys `active_connections` by `user_id` rather than by connection, so a second socket for the same document and user replaces the first without closing it. Both resolve to one subscription name at `:L70`, so the second `create_subscription` at `:L73` answers `AlreadyExists`, which `:L76` prints before `:L77` returns. On disconnect, `:L128` rebuilds that shared name and `:L130` deletes it | A second session evicts the first from the registry and receives no feed itself, and either session closing deletes the subscription the other still depends on. Holding both would need a unique connection identifier per socket and subscription ownership that is reference counted or idempotent |
 | 25, 26 | An authorization check before a signed link is minted, plus a reviewed expiry and a protected signing credential | `export_service.py:L66-L70` and `:L98-L102` generate a version 4 signed URL immediately after upload, with no check that the requester may read the document. Both read `settings.SIGNED_URL_EXPIRATION`, which `../core/config.py:L40-L48` never declares, while `../tasks/background_tasks.py:L67` signs with `expiration=timedelta(hours=1)` and passes no `version`, so the two paths do not agree on a signing scheme | A link is issued to whoever reached the call. Signing needs a credential able to sign bytes, meaning a private key or an IAM `signBlob` grant. A signed URL is a bearer credential, so possession alone authorises the read for its whole validity window |
 
 Every defect above is listed with its symptom and remediation in [../../../docs/troubleshooting.md](../../../docs/troubleshooting.md),

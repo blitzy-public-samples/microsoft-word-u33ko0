@@ -7,8 +7,8 @@ contracts.
 
 `List` is imported and never used. The read model sets `orm_mode`, which is
 the Pydantic 1.x spelling. The client contract in
-`frontend/src/schema/user.ts` declares neither `updated_at` nor the two
-boolean flags. See ./README.md for the field comparison.
+`frontend/src/schema/user.ts` declares no `updated_at`, though it does
+declare both boolean flags. See ./README.md for the field comparison.
 """
 from pydantic import BaseModel
 from typing import List, Optional

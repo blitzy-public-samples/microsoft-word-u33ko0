@@ -6,8 +6,8 @@ it and no edit ever reaches Pub/Sub.
 
 Two modules are used and never imported: `asyncio` in the subscribe callback
 and `json` in `broadcast_change`. Both raise `NameError` when first reached.
-`settings.PROJECT_ID` is read three times and `app/core/config.py` declares
-no such field, and `Document` is imported and never used.
+`settings.PROJECT_ID` is read four times, at L69, L70, L128 and L153, and
+`Settings` declares no such field. `Document` is imported and never used.
 
 The client half speaks Socket.IO in `frontend/src/services/collaboration.ts`,
 while `connect` below declares a FastAPI `WebSocket`. See ./README.md.

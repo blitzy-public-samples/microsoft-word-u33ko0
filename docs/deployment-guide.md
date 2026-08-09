@@ -107,8 +107,8 @@ variables and the two network resources above.
 
 ### No `terraform` block
 
-The configuration declares no `terraform` block at all. A search of all three files returns zero,
-and three consequences follow.
+The configuration declares no `terraform` block at all. None of the three files opens one, so the
+block's contents are undeclared rather than partly declared, and three consequences follow.
 
 - No `required_providers` entry pins the Google provider, so `terraform init` would resolve whatever
   version the registry serves that day.
@@ -138,7 +138,7 @@ unreferenced 11 are `zone` at `:L21`, `compute_instance_type` at `:L29`, `storag
 `database_tier` at `:L44` and `environment` at `:L53`. The other six are three instance counts at
 `:L61`, `:L67` and `:L73`, and three storage sizes at `:L79`, `:L85` and `:L91`.
 
-No variable declares a `validation` block. A search of the file returns zero, so `environment` at
+No variable declares a `validation` block. None of the 13 declarations carries one, so `environment` at
 `:L53` accepts any string, and not only the `dev`, `staging` and `prod` values its own description
 names. `project_id` at `:L7` carries no default, and the repository commits no `.tfvars` file, so a
 caller must supply the value on every invocation.
@@ -239,8 +239,8 @@ silent port.
 **No Redis service exists.** `backend/app/core/config.py:L48` declares `REDIS_URL` as a required
 field, and `backend/app/tasks/background_tasks.py:L22` builds
 `Celery('microsoft_word', broker=settings.REDIS_URL)` at module scope. Compose declares `frontend`,
-`backend` and `db` and nothing more, and a search of all of `infrastructure/` for `redis` or
-`memorystore` returns no match. `infrastructure/terraform/main.tf` declares no cache resource either,
+`backend` and `db` and nothing more, and no configuration file under `infrastructure/` names `redis`
+or `memorystore`. `infrastructure/terraform/main.tf` declares no cache resource either,
 so the Celery broker has no target in the local topology or in the cloud configuration. No worker
 process and no beat scheduler appears anywhere in the repository, and
 [../backend/app/tasks/README.md](../backend/app/tasks/README.md) covers the task tier.
@@ -506,7 +506,7 @@ the step before it returned. [../scripts/README.md](../scripts/README.md) owns t
 | App Engine deploy | `:L27` | Runs `gcloud app deploy app.yaml --quiet`. The repository commits no `app.yaml` |
 | Database migration | `:L31` | Pipes `db_migrations.sql` into `gcloud sql connect my-word-app-db --user=root`. The repository commits no such file, and neither provisioning path creates a `root` role |
 | Content delivery | `:L35` | Enables a content delivery network (CDN) on backend service `my-word-app-backend`. Passes neither `--global` nor `--region`, and no `--quiet` |
-| Post-deploy checks | `:L37-L44` | A marker at `:L37` sits above four commented-out checks |
+| Post-deploy checks | `:L37-L44` | A marker at `:L37` sits above five comment lines, `:L40-L44`, naming three example checks: that the application responds, that database connections work, and that critical functionality works. No check runs |
 | Success message | `:L47` | Echoes `Deployment completed successfully!` with no guard |
 
 **The credentials guard authenticates nothing.** Two credential mechanisms exist and the script
@@ -529,11 +529,11 @@ repository root, and nothing excludes a service-account JSON key left in the tre
 dependency trees leave the machine on the upload at `:L23`.
 
 **Three operational details the step table does not carry.** Every path in the script is relative,
-so `:L11`, `:L15` and `:L19` resolve against whatever directory the caller invoked from. Running the
-script from `scripts/` rather than the repository root changes which files it reads and where it
-writes. `:L19` writes `app.zip` into that same directory, and `zip` updates an existing archive in
-place rather than replacing it. A second run therefore adds to whatever the first left behind and
-uploads the result.
+so `deploy.sh:L11`, `:L15` and `:L19` resolve against whatever directory the caller invoked from.
+Running the script from `scripts/` rather than the repository root changes which files it reads and
+where it writes. `:L19` writes `app.zip` into that same directory, and `zip` updates an existing
+archive in place rather than replacing it. A second run therefore adds to whatever the first left
+behind and uploads the result.
 
 Every remote stage mutates rather than reconciles: `:L23` overwrites the object, `:L27` creates a
 new App Engine version, `:L31` replays the whole migration file, and `:L35` re-applies the CDN flag.
@@ -544,12 +544,12 @@ A re-run after a partial failure repeats every stage that already succeeded, the
 unattended. `:L35` also omits the `--quiet` that `:L27` and `.github/workflows/cd.yml:L19-L20` pass, so
 this one stage can block on a prompt in a script designed to run without a person watching.
 
-The hard-coded bucket at `:L23` does not match the infrastructure. `gs://my-word-app-bucket/` names
-one bucket, and the only bucket the configuration declares is `word-documents-${var.project_id}` at
-`infrastructure/terraform/main.tf:L51`. No committed Terraform creates `my-word-app-bucket`, so the
-upload addresses a bucket the infrastructure never provisions. The same mismatch applies to
-`my-word-app-db` at `scripts/deploy.sh:L31` and `my-word-app-backend` at `:L35`, and neither name
-appears in any `.tf` file.
+The hard-coded bucket at `deploy.sh:L23` does not match the infrastructure.
+`gs://my-word-app-bucket/` names one bucket, and the only bucket the configuration declares is
+`word-documents-${var.project_id}` at `infrastructure/terraform/main.tf:L51`. No committed Terraform
+creates `my-word-app-bucket`, so the upload addresses a bucket the infrastructure never provisions.
+The same mismatch applies to `my-word-app-db` at `scripts/deploy.sh:L31` and `my-word-app-backend`
+at `:L35`, and neither name appears in any `.tf` file.
 
 The final echo at `:L47` reports success unconditionally. No line sets `set -e`, no step tests an exit
 status, and `:L47` carries no guard, so the script prints `Deployment completed successfully!` whatever
@@ -580,9 +580,9 @@ therefore leaves a usable database, an activated virtual environment holding no 
 installed frontend packages, no `.env` and no migrations. `:L52` then prints success over that mixed
 outcome, for the same reason `deploy.sh:L47` does: no `set -e`, and no exit-status check anywhere.
 
-Two prerequisites the script does not install are worth naming, because `deploy.sh` needs both. `:L10`
-omits the Google Cloud SDK, which `README.md:L24` lists as a prerequisite, and omits `zip`, which
-`deploy.sh:L19` runs.
+Two prerequisites the script does not install are worth naming, because `deploy.sh` needs both.
+`setup_dev_environment.sh:L10` omits the Google Cloud SDK, which `README.md:L24` lists as a
+prerequisite, and omits `zip`, which `deploy.sh:L19` runs.
 
 The database names disagree with Compose. `setup_dev_environment.sh:L31` creates `msword_clone` and
 `:L32` creates user `msword_user`, while `infrastructure/docker/docker-compose.yml:L33-L34` provisions
@@ -590,12 +590,12 @@ database `wordapp` and user `postgres`. A developer who runs the script and then
 up with two differently named databases, and `docker-compose.yml:L24` points the backend service at
 the Compose pair.
 
-The migration commands belong to Django, and the backend is FastAPI. `:L47` and `:L48` call `python
-manage.py`, and no `manage.py` exists anywhere in the repository. `:L55` closes the script by
-telling the developer to start the backend with `python manage.py runserver`, which contradicts both
-`../README.md:L55` and `infrastructure/docker/backend.Dockerfile:L20`, each of which runs Uvicorn. A
-marker at `scripts/setup_dev_environment.sh:L41` and a TODO at `:L42` sit above the environment
-step.
+The migration commands belong to Django, and the backend is FastAPI.
+`setup_dev_environment.sh:L47` and `:L48` call `python manage.py`, and no `manage.py` exists
+anywhere in the repository. `:L55` closes the script by telling the developer to start the backend
+with `python manage.py runserver`, which contradicts both `../README.md:L55` and
+`infrastructure/docker/backend.Dockerfile:L20`, each of which runs Uvicorn. A marker at
+`scripts/setup_dev_environment.sh:L41` and a TODO at `:L42` sit above the environment step.
 
 The `.env` file that `:L40` would create is the file `backend/app/core/config.py:L60` names as its
 settings source, and repairing the copy would still not connect the two. `:L60` names `.env` as a
@@ -679,7 +679,7 @@ final script, each naming the file and line that stops the step.
     deploy target, and whether the upload succeeds depends on external state and on the caller's
     permissions.
 
-    `:L31` pipes an uncommitted `db_migrations.sql` into Cloud SQL as a `root` role
+    `deploy.sh:L31` pipes an uncommitted `db_migrations.sql` into Cloud SQL as a `root` role
     neither provisioning path creates. `:L35` updates a backend service with no `--global` or
     `--region` scope. `:L47` echoes `Deployment completed successfully!` with no guard, whatever the
     earlier stages returned.
@@ -764,8 +764,9 @@ marker at `outputs.tf:L58-L60` raises the same mismatch.
 ### Microsoft Azure, in the project proposal
 
 Azure appears only in the project proposal, and only as declared intent. No implementation file and
-no infrastructure file references Azure: a search across `backend/`, `frontend/src/`,
-`infrastructure/`, `.github/workflows/` and `scripts/` returns nothing.
+no infrastructure file references Azure. Across `backend/`, `frontend/src/`, `infrastructure/`,
+`.github/workflows/` and `scripts/`, the name occurs in no source file and in no configuration file,
+and only in the READMEs this documentation set adds.
 
 | Site | Heading | Statement |
 | ------ | --------- | ----------- |

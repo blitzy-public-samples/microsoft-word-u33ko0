@@ -35,8 +35,8 @@ layer map these tiers belong to, see [the architecture overview](../../docs/arch
 
 The suite tracks the specification's route shape rather than the code's, and that one fact explains most of its route failures. `documentation/Technical
 Specifications.md` declares four prefixed endpoint groups under `SYSTEM DESIGN > API DESIGN` at L406-L432, and `test_api.py` asserts that same prefixed grouping at
-L26, L36, L46, L52, L57, L63 and L73. Three of those seven paths correspond to a declared endpoint. `/auth/login` composes the `/auth` group node at `:L408` with
-`POST /login` at `:L413`, and `/documents/{id}` and `/templates/{id}` appear verbatim at `:L419` and `:L430`.
+L26, L36, L46, L52, L57, L63 and L73. Three of those seven paths correspond to a declared endpoint. `/auth/login` composes the `/auth` group node
+at `documentation/Technical Specifications.md:L408` with `POST /login` at `:L413`, and `/documents/{id}` and `/templates/{id}` appear verbatim at `:L419` and `:L430`.
 
 The other four do not. `/documents/` and `/templates/` carry a trailing slash that `:L418` and `:L429` do not declare. The specification declares neither `POST
 /users` nor `GET /users/{id}`, listing only `GET /users/me` at `:L424`, `PUT /users/me` at `:L425` and `GET /users/{id}/documents` at `:L426`. Intended behavior per
@@ -99,8 +99,8 @@ so `test_api.py:L3` raises `ModuleNotFoundError: No module named 'app'` during c
 
 Add `backend/` to the path and the next failure appears. `test_api.py:L8` builds one module-level client over the real application imported at `L3`, so importing the module
 runs the whole application import chain before pytest collects a single test. That chain enters `backend/app/main.py:L16`, which imports `auth_router` from `app.api.auth`,
-and stops at `backend/app/api/auth.py:L20`, which imports `settings` from `app.core.config`. That configuration module binds only `Settings` at `L21` and `get_settings` at
-`L62`, so the name does not exist and the import raises `ImportError`. A second import-time cost sits at `backend/app/db/firestore.py:L20`, which constructs a Firestore
+and stops at `backend/app/api/auth.py:L20`, which imports `settings` from `app.core.config`. That configuration module binds only `Settings` at `backend/app/core/config.py:L20` and `get_settings` at
+`:L63`, so the name does not exist and the import raises `ImportError`. A second import-time cost sits at `backend/app/db/firestore.py:L20`, which constructs a Firestore
 client and so triggers Google Cloud credential discovery.
 
 The two `unittest` modules never reach the application, because both fail on absent imports first. `test_db.py` replaces `google.cloud.firestore.Client` and
@@ -149,18 +149,21 @@ No single `sys.path` entry or working directory satisfies all three roots at onc
 **The request contract, call by call.** `test_api.py` issues eight requests, and none reaches a server today, because the module fails at import. Column four names the closest
 committed endpoint, and column five names the first mismatch a reader would hit after correcting the ones before it.
 
+Every locator in the Site column below names the line that issues the request in `test_api.py`, so the column is one
+anchor type throughout. Assertion lines are named in the Asserted column where they matter.
+
 | Site | Request | Body and headers | Asserted | Closest committed endpoint | First mismatch |
 | --- | --- | --- | --- | --- | --- |
-| `L26` | `POST /auth/login` | JavaScript Object Notation (JSON) `username` and `password`, no header | 200 with `access_token` | `POST /token`, `backend/app/api/auth.py:L66` | Path. No registered route carries two segments. Correct the path and the encoding still fails: `auth.py:L67` binds `OAuth2PasswordRequestForm`, which reads form fields, so request validation answers 422 before the 200 branch |
-| `L32` | `POST /auth/login` | JSON with a wrong password, no header | 401 | `POST /token`, `auth.py:L66` | The same path miss, then the same 422 before the 401 branch at `auth.py:L93` |
-| `L37` | `POST /documents/` | JSON `title` and `content`, bearer header from `get_token()` | 201 with `title` | `POST /`, `documents.py:L24` | Path. `main.py:L84-L87` mounts every router with no prefix, so the create route is `/`. The decorator sets no `status_code`, so a success answers 200 rather than 201 |
-| `L46` | `GET /documents/{id}` | Bearer header only | 200 with `title` | `GET /{document_id}`, `documents.py:L68` | Path. The `documents` segment is not mounted, and `/{document_id}` collides with the template router's `/{template_id}` at `templates.py:L59` |
-| `L52` | `POST /users/` | JSON `username`, `email` and `password`, no header | 201 with `username` | None. `users.py` registers `GET /me` at `L19` and `PUT /me` at `L32` only | No user-creation route exists on that router. Registration lives at `POST /register`, `auth.py:L103`, which answers 200 and takes `UserCreate` |
-| `L58` | `GET /users/{id}` | Bearer header only | 200 with `username` | `GET /me`, `users.py:L19` | Contract shape. The server identifies the user from the token dependency, not from a path parameter, so no per-identifier user route exists |
-| `L63` | `POST /templates/` | JSON `name` and `content`, bearer header | 201 with `name` | `POST /`, `templates.py:L24` | Path, as at `L36`, plus the same 200-versus-201 gap. The template router also fails to import, at `templates.py:L17-L18` |
-| `L20` | `GET /templates/{id}` | Bearer header only | 200 with `name` | `GET /{template_id}`, `templates.py:L59` | Path, plus the collision with `documents.py:L68` over the identical mounted pattern |
+| `L26` | `POST /auth/login` | JavaScript Object Notation (JSON) `username` and `password`, no header | 200 with `access_token`, at `L27-L28` | `POST /token`, `backend/app/api/auth.py:L66` | Path. No registered route carries two segments. Correct the path and the encoding still fails: `auth.py:L67` binds `OAuth2PasswordRequestForm`, which reads form fields, so request validation answers 422 before the 200 branch |
+| `L31` | `POST /auth/login` | JSON with a wrong password, no header | 401, at `L32` | `POST /token`, `auth.py:L66` | The same path miss, then the same 422 before the 401 branch at `auth.py:L93` |
+| `L36` | `POST /documents/` | JSON `title` and `content`, bearer header from `get_token()` | 201 with `title`, at `L37-L38` | `POST /`, `documents.py:L24` | Path. `main.py:L84-L87` mounts every router with no prefix, so the create route is `/`. The decorator sets no `status_code`, so a success answers 200 rather than 201 |
+| `L46` | `GET /documents/{id}` | Bearer header only | 200 with `title`, at `L47-L48` | `GET /{document_id}`, `documents.py:L68` | Path. The `documents` segment is not mounted, and `/{document_id}` collides with the template router's `/{template_id}` at `templates.py:L59` |
+| `L52` | `POST /users/` | JSON `username`, `email` and `password`, no header | 201 with `username`, at `L53-L54` | None. `users.py` registers `GET /me` at `L19` and `PUT /me` at `L32` only | No user-creation route exists on that router. Registration lives at `POST /register`, `auth.py:L103`, which answers 200 and takes `UserCreate` |
+| `L57` | `GET /users/{id}` | Bearer header only | 200 with `username`, at `L58-L59` | `GET /me`, `users.py:L19` | Contract shape. The server identifies the user from the token dependency, not from a path parameter, so no per-identifier user route exists |
+| `L63` | `POST /templates/` | JSON `name` and `content`, bearer header | 201 with `name`, at `L64-L65` | `POST /`, `templates.py:L24` | Path, as at `L36`, plus the same 200-versus-201 gap. The template router also fails to import, at `templates.py:L17-L18` |
+| `L73` | `GET /templates/{id}` | Bearer header only | 200 with `name`, at `L74-L75` | `GET /{template_id}`, `templates.py:L59` | Path, plus the collision with `documents.py:L68` over the identical mounted pattern |
 
-Two consequences generalise across the table: not one asserted path matches a registered path. The three 201 assertions at `L37`, `:L24` and `:L64` face a 200 even after
+Two consequences generalise across the table: not one asserted path matches a registered path. The three 201 assertions, at `test_api.py:L37`, `:L53` and `:L64`, face a 200 even after
 every path is corrected, because no handler in the four routers sets `status_code=`.
 
 **Six call sites carry the wrong shape**, all in `test_services.py`.

@@ -1,6 +1,6 @@
-﻿# Decision Log and Traceability Matrix
+# Decision Log and Traceability Matrix
 
-Twenty-four choices shaped the documentation layer over this repository, and a competent engineer
+Twenty-five choices shaped the documentation layer over this repository, and a competent engineer
 could reasonably have made every one of them differently. The decision table below records each
 choice with its alternatives, its reasoning and its risk. The traceability matrix that follows
 maps all 255 documented constructs to the artifacts that document them, which is how this layer
@@ -67,8 +67,8 @@ nowhere. The reverse matrix in the final section exists to expose both failures.
 
 | Section | What you will find |
 | --- | --- |
-| [The decision table](#the-decision-table) | Twenty-four choices, their alternatives, their reasons and their risks |
-| [Deviations from a literal reading](#deviations-from-a-literal-reading-of-the-requirements) | Ten deviations: five rule conflicts, four corrections, one re-anchoring |
+| [The decision table](#the-decision-table) | Twenty-five choices, their alternatives, their reasons and their risks |
+| [Deviations from a literal reading](#deviations-from-a-literal-reading-of-the-requirements) | Thirteen deviations: five rule conflicts, seven corrections, one re-anchoring |
 | [The traceability matrix](#the-source-construct-to-documentation-artifact-traceability-matrix) | 255 rows, source construct to documenting artifact |
 | [The reverse matrix](#the-reverse-matrix) | 28 rows, one per new artifact, running the mapping backwards |
 
@@ -78,13 +78,13 @@ to flag code they were not confident in.
 
 ## The decision table
 
-Twenty-four decisions sit below. Each one is a choice a competent engineer could reasonably have made
+Twenty-five decisions sit below. Each one is a choice a competent engineer could reasonably have made
 differently, which is the test Rule 1 sets. Entries 1 through 4 and entry 20 resolve collisions
 between the user-specified rules and the requirements, and the next section traces every collision by
 identifier. Entries 16 through 18 govern how this documentation counts, scores and sites its own
 evidence, and entry 19 governs the shape of the defect register itself. Entries 21 through 24 govern
 four artifacts individually: the dependency register, the data model reference, the prose record and
-the onboarding guide.
+the onboarding guide. Entry 25 governs how README length was allocated across the nineteen modules.
 
 | What was decided | What alternatives existed | Why this choice was made | What risks it carries |
 | --- | --- | --- | --- |
@@ -112,12 +112,13 @@ the onboarding guide.
 | **22. [data-model.md](data-model.md) explains the drift mechanism before it enumerates the divergences.** The [Why drift arose](data-model.md#why-drift-arose) section precedes the per-entity comparisons. | Lead with the field-by-field divergence tables and explain the cause at the end, or leave the mechanism out and list the divergences alone. | The mechanism is the more useful fact. No shared schema artifact and no generated client exist, so a reader who knows that predicts the next divergence instead of memorising the current list. AAP section 0.3.3 states the same ordering. | A reader looking up one field reads a page of mechanism first. The ordering also puts the least concrete material at the top, which is exactly what a section link invites a reader to skip. |
 | **23. Every generated-text piece carries its own scorecard, and every charged violation carries its own record.** `prose-validation.md` scores all 29 pieces against each principle family. Every charged violation gets one entry carrying quote, principle, replacement and reason, and every Pass cites the closest passage found rather than asserting itself. | One corpus-wide scorecard with representative entries for the worst case in each class, which is the shape that file carried before the current pass. | Rule 3's output format asks for a verdict and a scorecard per piece of generated text, and a corpus-wide row cannot show that a named file was examined. A sampled register cannot be re-derived either, because a reader cannot tell an unlisted violation from an absent one. | The per-piece tables and the full register cost more lines than a summary, and every figure in them goes stale the moment any deliverable is edited. Citing a passage under each Pass also invites a reader to mistake the citation for a defect. |
 | **24. [onboarding.md](onboarding.md) pins a version only where a resolver's default breaks something.** The `passlib` and `bcrypt` pair carries exact pins at `onboarding.md:L522`. Three distributions carry a floor or a range that the code's own use establishes, and the remaining twelve are named with no version. The pyenv release tag is exact, while `nvm install 14` and `pyenv install 3.9` each resolve to the latest matching release. Every pin lives in prose because no manifest may be created. | Pin all seventeen distributions and both runtimes exactly, which is what a committed manifest would do. Or pin nothing at all and let each reader's resolver choose throughout. | An unpinned command is not a reproducible clean-machine path wherever a default resolution fails. One such pair, passlib 1.7.4 with bcrypt 5.0.0, raises on every call. Pinning the rest would assert versions no code fact establishes, so each name carries the weakest constraint its evidence supports. | Pins in prose age without warning, and no tool in this repository checks them. The twelve unpinned names resolve differently on a later date, so a reader can reach a set this guide never saw. A reader may also read a pin as a project requirement rather than as a diagnostic aid, so each pinned command has to say which it is. |
+| **25. README length was allocated by evidence weight inside the 150-to-400-line band, not by the four finer sub-bands the AAP suggests.** All 19 files hold inside the band. Thirteen exceed their suggested sub-band by 2 to 50 lines, and six sit inside it. | Trim the thirteen back into their sub-bands, which cuts roughly 231 lines of cited material. Or widen the sub-bands here, which would amend an AAP that no decision entry may amend. | The AAP states one testable band, 150 to 400, and states the sub-bands as an allocation scaled to module weight. All 19 hold inside the testable band. The allocation was drawn before the defect inventory was measured, and the measured evidence redistributed the weight. [infrastructure/terraform/README.md](../infrastructure/terraform/README.md) shows why: the file carries 35 HCL blocks, 11 dead variables, 14 outputs against undeclared AWS resources and the live `terraform validate` and `fmt` results. Cutting 50 lines from it would delete cited evidence, and the AAP requires a citation for every factual claim. | A reader auditing against the sub-bands finds thirteen files over. The deltas run terraform +50, `backend/app` +44, `frontend/src` +20, `backend/tests` and `scripts` +17 each, and `pages` and `tasks` +16 each. The rest run `backend/app/schema` +13, `db` and `docker` +12 each, `store` +10, and `frontend/src/schema` and `workflows` +2 each. Two files now sit exactly on the 400-line ceiling, `backend/app/services/README.md` and `infrastructure/terraform/README.md`, so a paragraph added to either has to replace text rather than extend the file. |
 
 ## Deviations from a literal reading of the requirements
 
-Rule 1 treats an unexplained deviation as a defect. Ten deviations are recorded below: five
-collisions between the user-specified rules and the requirements, and four interpretive
-corrections where verification contradicted a stated fact. The tenth re-anchors every line
+Rule 1 treats an unexplained deviation as a defect. Thirteen deviations are recorded below: five
+collisions between the user-specified rules and the requirements, and seven interpretive
+corrections where verification contradicted a stated fact. The thirteenth re-anchors every line
 number in this file. Each collision points at the decision-table row that resolves it.
 
 Two further departures are not numbered here, because neither is a collision between two
@@ -146,10 +147,10 @@ involves no trade-off. Rule 1 tests for a choice a competent engineer could have
 and separating the two measures is such a choice. Row 20 now records it with its alternatives and
 its risk, so every conflict in the table above points at a row.
 
-### The four interpretive corrections
+### The seven interpretive corrections
 
-Verification against the repository contradicted four stated facts. Recording them here stops a
-reader from treating a corrected claim as an error in this documentation.
+Verification against the repository contradicted seven stated facts. Every delivered figure below is
+the verified one, so each row discloses a correction rather than an error in this documentation.
 
 | ID | What the requirements state | What verification found | Where it is recorded |
 | --- | --- | --- | --- |
@@ -157,6 +158,9 @@ reader from treating a corrected claim as an error in this documentation.
 | A2 | `document_service.py` imports `app.schema.template` as the worked example of a dependency on an absent module. | `document_service.py` carries no such import. The real site is `backend/app/api/templates.py:L17-L18`, which imports from `app.schema.template` and `app.services.template_service`, and neither module exists. | Decision row 12, and [backend/app/api/README.md](../backend/app/api/README.md). |
 | A3 | Twenty-one new README files. | The enumeration yields 19: eight backend directories, seven frontend directories, four infrastructure and automation directories. | Decision row 13, and [README.md](README.md). |
 | A4 | The ownership drift is two-way, `owner_id` against `user_id`, with two specification sites. | The drift spans four code positions and **three** specification sites. The third sits at `documentation/Technical Specifications.md:L383`. | [data-model.md](data-model.md), and decision row 7. |
+| A5 | The reachability label `REACHABLE`, applied to Firestore and to Cloud Storage for exports. | No integration earns that label. Every module holding a Firestore call fails to import, and no handler calls either export method, so four narrower labels replace it: `WIRED, BLOCKED AT IMPORT`, `NOT REACHABLE`, `SCAFFOLDED ONLY` and `ABSENT`. | [integration-guide.md](integration-guide.md) states at `integration-guide.md:L57` that no integration earns the strongest label, and defines all four at `:L68-L73`. [README.md](README.md) fixes the same four across the set at `docs/README.md:L122-L126`. |
+| A6 | Nine modules import a `settings` singleton from `app.core.config`. | Eight import that name. Nine modules import from `config.py`, and the ninth is `backend/app/core/security.py:L22`, which imports the `get_settings` factory instead and resolves. Nine module-import failures also trace to the absent singleton, which is a third measurement again. | [integration-guide.md](integration-guide.md) separates all three counts at `integration-guide.md:L715-L726`. [backend/app/core/README.md](../backend/app/core/README.md) carries both importer rows at `backend/app/core/README.md:L67-L68`. |
+| A7 | Five statements in the root README contradict the committed tree. | Six do. The sixth is the `git clone` command at `../README.md:L29`, which names a placeholder organisation and cannot succeed as written. | [troubleshooting.md](troubleshooting.md) lists all six at `troubleshooting.md:L1706-L1713`. [README.md](README.md) states the same total at `docs/README.md:L182-L184`. |
 
 #### The third specification site, in detail
 
@@ -685,6 +689,11 @@ exclude from inline documentation. Twelve of those are file rows carrying an exp
 `None by design (AAP R7)` cell, and seven are marker rows recording a marker preserved in a file
 that was never edited. All nineteen reach COVERED through their README.
 
+One counting note, so a mechanical check agrees with this total. The three worked rows under
+[The three worked rows](#the-three-worked-rows) each carry a COVERED cell and sit outside the 255,
+because they demonstrate the row shape rather than document a construct. A checker that scans the
+whole section for COVERED therefore finds 258.
+
 ## The reverse matrix
 
 Running the mapping backwards exposes two failure modes a single-direction matrix hides: an
@@ -733,7 +742,7 @@ The nineteen counts above sum to 255, matching the matrix total exactly.
 | [deployment-guide.md](deployment-guide.md) | Terraform, containers, both pipelines, the deploy script and every reason a deploy fails | 51 matrix rows | None |
 | [troubleshooting.md](troubleshooting.md) | The full defect register across nine gap classes, the root README inaccuracies, and all 49 markers | 209 matrix rows | None |
 | [onboarding.md](onboarding.md) | Clean-machine setup, domain context, the common pitfalls, how to extend, and the ordered next tasks | 29 matrix rows | None |
-| decision-log.md (this file) | Twenty-four decisions, ten deviations and the bidirectional matrix | All 255 matrix rows | None |
+| decision-log.md (this file) | Twenty-five decisions, thirteen deviations and the bidirectional matrix | All 255 matrix rows | None |
 | prose-validation.md | Rule 3 verdicts and principle scorecards for all 29 pieces of generated text | None, by design | None. Validates prose quality, not construct coverage |
 
 Two artifacts cover no construct, and both do so deliberately. [README.md](README.md) navigates,

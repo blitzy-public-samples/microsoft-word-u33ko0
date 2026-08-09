@@ -933,14 +933,14 @@ merely disabled in it.
    `backend/app/api/users.py:L14` both import and which fails next, from the same file the first
    error came from.
 
-Reconcile the four router names imported at `backend/app/main.py:L16-L19` against the bare `router`
-each module exports. Write `app.schema.template` and `app.services.template_service`, which
-`backend/app/api/templates.py:L17` and `:L18` import. Add `init_db` to `app.db.sql`, which
-`backend/app/main.py:L22` imports and which that module does not define.
+   Reconcile the four router names imported at `backend/app/main.py:L16-L19` against the bare `router`
+   each module exports. Write `app.schema.template` and `app.services.template_service`, which
+   `backend/app/api/templates.py:L17` and `:L18` import. Add `init_db` to `app.db.sql`, which
+   `backend/app/main.py:L22` imports and which that module does not define.
 
-Until all five land, `import app.main` raises before any other work can be tested. The undefined
-names registered in [troubleshooting.md](troubleshooting.md#the-verified-import-census) still raise
-afterwards, two of them while the module is being evaluated and the rest on a call.
+   Until all five land, `import app.main` raises before any other work can be tested. The undefined
+   names registered in [troubleshooting.md](troubleshooting.md#the-verified-import-census) still raise
+   afterwards, two of them while the module is being evaluated and the rest on a call.
 
 2. **Make the client typecheck.** Fifteen repairs stand between the committed tree and zero type
    errors, and the first four unmask the rest.

@@ -533,7 +533,7 @@ Python question.
 | `pyasn1` | Any release `python-jose` depends on, by way of `rsa`. Arrives transitively and is named by no committed line | Five advisories, each rated 7.5 and each a denial of service in the BER, CER and DER codecs. [CVE-2026-23490](https://github.com/advisories/GHSA-63vm-454h-vhhq) memory exhaustion from a malformed RELATIVE-OID, fixed in 0.6.2. [CVE-2026-30922](https://github.com/advisories/GHSA-jr27-m4p2-rc6r) unbounded recursion, fixed in 0.6.3. Then three published together on 21 July 2026, all fixed in 0.6.4. They are [CVE-2026-59884](https://github.com/advisories/GHSA-m4p7-r5rc-7g4j) unbounded long-form tag identifiers, [CVE-2026-59885](https://github.com/advisories/GHSA-8ppf-4f7h-5ppj) quadratic OBJECT IDENTIFIER and RELATIVE-OID processing, and [CVE-2026-59886](https://github.com/advisories/GHSA-hm4w-wwcw-mr6r) uncontrolled consumption converting a decoded REAL value | 0.6.4 | **Yes.** 0.6.4 carries all five fixes and installs on Python 3.9 |
 | `passlib` | Any release exposing `CryptContext`, imported at `../backend/app/core/security.py:L19` | None recorded against the distribution. The distribution's last release is 1.7.4, dated 8 October 2020, and its bcrypt backend cannot drive bcrypt 5.0.0. [The pairing subsection](#the-passlib-and-bcrypt-pairing-decides-whether-any-password-can-be-hashed) carries the mechanism and the two ways out | 1.7.4, which declares no Python floor | Not applicable |
 | `rsa` | Any release `python-jose` depends on for RSA key handling. Arrives transitively and is named by no committed line | Three advisories: [CVE-2016-1494](https://github.com/advisories/GHSA-8rjr-6qq5-pj9p) signature spoofing, fixed in 3.3; [CVE-2020-13757](https://github.com/advisories/GHSA-537h-rv9q-vvph) denial of service decrypting a crafted ciphertext, fixed in 4.1; and [CVE-2020-25658](https://github.com/advisories/GHSA-xrx6-fmxq-rjj2) a Bleichenbacher timing attack, fixed in 4.7 | 4.9.1 | **Yes.** 4.9.1 carries all three fixes. The precondition for the timing attack is an RSA `ALGORITHM` value, which no committed file selects |
-| `redis` | Any release a Celery worker could use against the `REDIS_URL` declared at `../backend/app/core/config.py:L47`. No committed line imports it | Two advisories, both a race condition where a cancelled command leaks its response to the next caller on the same connection. [CVE-2023-28858](https://github.com/advisories/GHSA-24wv-mv5m-xv4h) is fixed in 4.3.6, 4.4.3 and 4.5.3. [CVE-2023-28859](https://github.com/advisories/GHSA-8fww-64cx-x8p5), the follow-up for an incomplete first fix, is fixed in 4.4.4 and 4.5.4 | 7.0.1 | **Yes.** 7.0.1 carries both fixes. The precondition needs `asyncio` cancellation against a live broker, and Compose declares no Redis service while Terraform declares no Memorystore instance |
+| `redis` | Any release a Celery worker could use against the `REDIS_URL` declared at `../backend/app/core/config.py:L48`. No committed line imports it | Two advisories, both a race condition where a cancelled command leaks its response to the next caller on the same connection. [CVE-2023-28858](https://github.com/advisories/GHSA-24wv-mv5m-xv4h) is fixed in 4.3.6, 4.4.3 and 4.5.3. [CVE-2023-28859](https://github.com/advisories/GHSA-8fww-64cx-x8p5), the follow-up for an incomplete first fix, is fixed in 4.4.4 and 4.5.4 | 7.0.1 | **Yes.** 7.0.1 carries both fixes. The precondition needs `asyncio` cancellation against a live broker, and Compose declares no Redis service while Terraform declares no Memorystore instance |
 | `cryptography` | Any release `python-jose` can use once `settings.ALGORITHM` names an RSA or ECDSA algorithm. No committed line imports it | Twenty-four advisories, the longest history in this register, spanning 2018 to 2026. Every fix lands at or below 50.0.0. The three most recent were published together on 3 August 2026: [CVE-2026-69247](https://github.com/advisories/GHSA-g6cj-pr64-35w5), fixed in 50.0.0, and [CVE-2026-69248](https://github.com/advisories/GHSA-m2h6-j472-rp4c) with [CVE-2026-69249](https://github.com/advisories/GHSA-jwv3-5hgf-82ww), both fixed in 49.0.0 | Depends on the patch level. 50.0.0 declares `!=3.9.0,!=3.9.1,>=3.9`, so a 3.9.2 interpreter reaches it while a 3.9.0 or 3.9.1 interpreter is capped at 43.0.3 | **Yes on Python 3.9.2 or newer.** On 3.9.0 or 3.9.1 the 43.0.3 ceiling misses ten fixes, including all three from August 2026 |
 | `python-dotenv` | Any release Pydantic 1.x can use to read the `Config.env_file` value at `../backend/app/core/config.py:L60`. Loaded only when that file exists | [CVE-2026-28684](https://github.com/advisories/GHSA-mf9w-mj56-hr94), symlink following in `set_key` that overwrites an arbitrary file through a cross-device rename fallback, fixed in 1.2.2 | 1.2.1, because 1.2.2 requires Python 3.10 or newer | **No.** The fix is unreachable on Python 3.9. The precondition is a call to `set_key`, and no committed line writes a `.env` file: this repository only ever reads one |
 
@@ -820,7 +820,7 @@ transaction and no precondition on the write. The window between the read and th
 time-of-check to time-of-use race.
 
 | Method | Read | Existence check | Ownership check | Write |
-|--------|------|-----------------|-----------------|-------|
+| -------- | ------ | ----------------- | ----------------- | ------- |
 | `update_document` at `backend/app/services/document_service.py:L116` | `:L142` | `:L144`, 404 at `:L145` | `:L148`, 403 at `:L149` | `:L153` |
 | `delete_document` at `backend/app/services/document_service.py:L159` | `:L178` | `:L180`, 404 at `:L181` | `:L184`, 403 at `:L185` | `:L188` |
 
@@ -931,7 +931,7 @@ rather than a route table. The outcomes below assume the import chain and the cl
 are repaired, so dispatch actually happens.
 
 | Client call | Locator | Dispatch outcome |
-|-------------|---------|------------------|
+| ------------- | --------- | ------------------ |
 | `GET /documents` | `frontend/src/services/api.ts:L70` | `/documents` is one path segment, so it matches `GET /{document_id}` at `backend/app/api/documents.py:L68`, `document_id` binds to the literal string `documents`, and no body follows. The matched route is protected at `backend/app/api/documents.py:L69`, so the dependency resolves before the body runs, and without a valid token the response is **401** and the handler never executes. For an authenticated caller whose user record resolves, `:L93` passes one argument to the two-parameter `get_document` signature at `backend/app/services/document_service.py:L78`, so a `TypeError` propagates and the response is a **500**. The declared `Document[]` never meets a document object on either path |
 | `POST /documents` | `frontend/src/services/api.ts:L83` | The single-segment shape matches `GET`, `PUT` and `DELETE` at `backend/app/api/documents.py:L68`, `:L98` and `:L131`, and no router declares `POST /{document_id}`. Starlette answers **405 Method Not Allowed**, not 404. Routing settles that before any dependency runs, so the outcome does not depend on credentials |
 | `PUT /documents/{id}` | `frontend/src/services/api.ts:L96` | Two path segments, and no two-segment route exists in any of the four routers. The response is **404**, again settled by routing before any dependency runs, so it too is independent of credentials |
@@ -965,7 +965,7 @@ The profile router declares two literal single-segment paths, and a literal path
 segment. Both fall inside the pattern the document router already claimed.
 
 | Method and path | Profile handler | Shadowing document handler |
-|-----------------|-----------------|----------------------------|
+| ----------------- | ----------------- | ---------------------------- |
 | `GET /me` | `backend/app/api/users.py:L19` | `GET /{document_id}` at `backend/app/api/documents.py:L68` |
 | `PUT /me` | `backend/app/api/users.py:L32` | `PUT /{document_id}` at `backend/app/api/documents.py:L98` |
 
@@ -992,8 +992,8 @@ None of the three pairs can meet.
 | Client event | Emitted payload | Nearest server counterpart | Why the pair cannot meet |
 | -------------- | ----------------- | ---------------------------- | -------------------------- |
 | `join_document` | the bare `documentId` string, at `frontend/src/services/collaboration.ts:L65` | `CollaborationService.connect` at `backend/app/services/collaboration_service.py:L44` | `connect` declares a `WebSocket`, a `document_id` and a `user_id`. The emit carries one string, no socket object and no user identity |
-| `leave_document` | the bare `currentDocumentId` string, at `:L76` | `CollaborationService.disconnect` at `backend/app/services/collaboration_service.py:L107` | `disconnect` declares `document_id` and `user_id`. The emit carries the identifier alone, and `:L159` clears it immediately with nothing confirming delivery |
-| `document_changes` | the envelope `{ documentId, changes }`, at `:L96-L99` | `CollaborationService.broadcast_change` at `backend/app/services/collaboration_service.py:L137` | `broadcast_change` declares `document_id` and a `change` dictionary and publishes `json.dumps(change)` at `:L156`. The client nests the change inside an envelope, so the shapes differ even with a route in place |
+| `leave_document` | the bare `currentDocumentId` string, at `frontend/src/services/collaboration.ts:L78` | `CollaborationService.disconnect` at `backend/app/services/collaboration_service.py:L107` | `disconnect` declares `document_id` and `user_id`. The emit carries the identifier alone, and `frontend/src/services/collaboration.ts:L79` clears it immediately with nothing confirming delivery |
+| `document_changes` | the envelope `{ documentId, changes }`, at `frontend/src/services/collaboration.ts:L98-L101` | `CollaborationService.broadcast_change` at `backend/app/services/collaboration_service.py:L137` | `broadcast_change` declares `document_id` and a `change` dictionary and publishes `json.dumps(change)` at `:L156`. The client nests the change inside an envelope, so the shapes differ even with a route in place |
 
 Socket.IO is a protocol layered over WebSocket rather than a WebSocket client, so the two ends could
 not complete a handshake even with a route between them. No route exists: no module constructs
@@ -1031,35 +1031,35 @@ topic per document identifier, created outside this repository before any editor
 `PROJECT_ID`, so the `AttributeError` propagates to the caller on the first call. That read is the
 method's first statement, so nothing is published and no partial state remains.
 
-Everything after it is guarded. `:L152` calls `json.dumps(change)` against a module that imports no
-`json`, `:L154` catches every exception the body raises, and `:L156` prints it. Once `PROJECT_ID`
+Everything after it is guarded. `:L156` calls `json.dumps(change)` against a module that imports no
+`json`, `:L158` catches every exception the body raises, and `:L160` prints it. Once `PROJECT_ID`
 exists, a publish failure therefore surfaces as a printed line and a normal `None` return, and a caller
 cannot tell a delivered change from a dropped one.
 
 Three more faults in the same path deserve their own statement:
 
-- **The callback carries three faults on one line.** `:L93` calls
+- **The callback carries three faults on one line.** `:L97` calls
   `asyncio.run(websocket.send_json(message.data))`. `asyncio` is never imported, so the first
   delivered message raises `NameError`. Supplying the import exposes the next fault: `message.data`
   is `bytes`, `WebSocket.send_json` serializes with `json.dumps`, and `json.dumps` rejects `bytes`.
-  Nothing decodes the payload, while `:L152` encoded it as UTF-8 before publishing, so the round
+  Nothing decodes the payload, while `:L156` encoded it as UTF-8 before publishing, so the round
   trip is unbalanced.
 
   The third fault is event-loop ownership. `asyncio.run` builds a new loop and closes it, while the
   socket belongs to the server's already-running loop. `asyncio.run` also refuses outright when a
   loop is already running on the calling thread. The Pub/Sub client invokes the callback on its own
   thread, so none of the three reaches `connect`.
-- **Acknowledgement precedes delivery.** `:L92` calls `message.ack()` before `:L93` sends. A send that
+- **Acknowledgement precedes delivery.** `:L96` calls `message.ack()` before `:L97` sends. A send that
   fails after the acknowledgement loses the message, because Pub/Sub has already been told it was
   handled and will not redeliver.
 - **Two partial states can persist.** `connect` mutates the registry at `:L64-L66` before it touches
   Pub/Sub. A caught subscription failure therefore leaves a socket in `active_connections` with no
-  subscription behind it, and no later call removes it. `disconnect` removes the registry entry at `:L118-L121`
-  before deleting the subscription, so a caught failure at `:L127` leaves a subscription with no
+  subscription behind it, and no later call removes it. `disconnect` removes the registry entry at `:L122-L125`
+  before deleting the subscription, so a caught failure at `:L131` leaves a subscription with no
   registry entry. Neither method compensates or reports the state.
-- **Both futures block, and one method has no future at all.** `future.result()` at `:L98` and `:L153`
-  pass no timeout, so each blocks its calling thread, and `connect` is `async def`, so `:L98` holds the
-  event loop. `disconnect` calls `delete_subscription` at `:L126`, which returns nothing to wait on.
+- **Both futures block, and one method has no future at all.** `future.result()` at `:L102` and `:L157`
+  pass no timeout, so each blocks its calling thread, and `connect` is `async def`, so `:L102` holds the
+  event loop. `disconnect` calls `delete_subscription` at `:L130`, which returns nothing to wait on.
 
 ### Route registration and protection
 
@@ -1546,7 +1546,7 @@ attempted, so read each row's scope from the row itself. Entry 7 records one 401
 a challenge, and entry 12 records three handlers that attempt an owner comparison.
 
 | # | Absent control | Evidence | What the absence permits once routes serve traffic |
-|---|----------------|----------|-----------------------------------------------------|
+| --- | ---------------- | ---------- | ----------------------------------------------------- |
 | 1 | Rate limiting or throttling on any route, including the two public ones | `backend/app/main.py:L75` adds one middleware, and it is CORS. No limiter, no dependency and no proxy configuration is committed anywhere. The public routes are `backend/app/api/auth.py:L66` (`POST /token`) and `:L103` (`POST /register`) | Unmetered credential guessing against `/token` and unmetered account creation against `/register` |
 | 2 | A request body size limit | No handler, no middleware and no server flag bounds a body. `backend/app/schema/document.py:L27` declares `content` as a bare `str` | A single request can carry an unbounded document body into a Firestore write |
 | 3 | Field length or format bounds on any model field | Neither `backend/app/schema/document.py` nor `backend/app/schema/user.py` contains a single `Field(` call, so no `max_length`, no `min_length` and no pattern applies to any field. `backend/app/schema/user.py:L26` declares `email: str` rather than an email type | Oversized and malformed values validate successfully and reach storage |
@@ -1594,7 +1594,7 @@ The client cannot build, for the reasons at [G8 type-check profile](#the-verifie
 are absent from its source regardless.
 
 | # | Absent control | Evidence | What the absence permits |
-|---|----------------|----------|--------------------------|
+| --- | ---------------- | ---------- | -------------------------- |
 | 13 | Storage of the bearer token outside script-readable persistence | `frontend/src/services/auth.ts:L39` writes the login response value to `localStorage`, which persists past the tab and is readable by any script on the origin. Nothing reads it back. `frontend/src/services/api.ts:L40` reads `auth.token` from the Redux store instead, a key `frontend/src/store/index.ts` never registers, so the request interceptor throws and no request carries an `Authorization` header. The two stores are disconnected, and the write itself stores the string `"undefined"` today, because `frontend/src/services/auth.ts:L38` reads `accessToken` from a response that returns `access_token` | Any injected or third-party script on the origin reads whatever the write persists, and it survives the session. Reconciling the field name and the store turns that value into a live bearer token in the same place |
 | 14 | Redaction before an error is logged | `frontend/src/services/auth.ts:L58`, `frontend/src/pages/Editor.tsx:L53` and `:L86`, `frontend/src/pages/Templates.tsx:L63` and `frontend/src/pages/Settings.tsx:L54` each pass a whole error object to `console.error`. An Axios error carries the request configuration, which includes the `Authorization` header, the full URL and the request body | Nothing leaks today, because the client cannot build and no request carries a token. Once the blockers clear, any failed request whose configuration holds a bearer token or a document body puts both in the browser console and in anything that collects from it |
 | 15 | A request timeout or a cancellation path | `frontend/src/services/api.ts:L32-L34` creates the Axios instance with a `baseURL` and no `timeout`, and no call site passes an `AbortSignal` | A request hangs indefinitely, and no in-flight request can be withdrawn |
@@ -1623,9 +1623,9 @@ caller could establish the identity and the authorization the method never check
 | --- | ---------------- | ---------- | --------------------------------------------- |
 | 19 | Authentication on the collaboration handshake | `backend/app/services/collaboration_service.py:L44` accepts `websocket`, `document_id` and `user_id` as plain arguments, and no route constructs the service, so nothing verifies a token before a socket is registered at `:L64-L66` | The method establishes no identity. The method registers whatever `user_id` string it receives, so the caller has to prove that identity before calling. A route that forwarded a client-supplied value would let a client join as any identity |
 | 20 | Authorization against the document being joined | The same method never checks that `user_id` may read `document_id` before it derives a topic at `:L69` and a subscription at `:L70` | The method performs no ownership or membership check. A caller has to authorize the pair itself, and a route that did not would join any caller to any document identifier |
-| 21 | Validation of `document_id` before it names a broker resource | `:L69` and `:L70` interpolate the value straight into Pub/Sub resource paths, and `:L103` does the same on disconnect | The method validates no format and consults no allow-list, so an unvalidated identifier reaches a resource path. A caller has to constrain the value before the interpolation happens |
-| 22 | A payload schema and a size bound on broadcast changes | `:L133` declares `change: dict` with no model behind it, and `:L152` serialises whatever arrives with `json.dumps` | Arbitrary unbounded structures are published to every subscriber |
-| 22a | Per-connection identity in the socket registry, so two sessions for one user can coexist | `:L66` keys `active_connections` by `user_id` rather than by connection, so a second socket for the same document and user replaces the first without closing it. Both sockets resolve to one subscription name at `:L70`, so the second `create_subscription` at `:L73` answers `AlreadyExists`, which `:L76` prints before `:L77` returns. On disconnect, `:L124` rebuilds that same shared name and `:L126` deletes it | A second session evicts the first from the registry and receives no feed itself, and either session closing deletes the subscription the other still depends on. Holding both would need a unique connection identifier per socket and subscription ownership that is reference counted or idempotent |
+| 21 | Validation of `document_id` before it names a broker resource | `:L69` and `:L70` interpolate the value straight into Pub/Sub resource paths, and `:L128` does the same on disconnect | The method validates no format and consults no allow-list, so an unvalidated identifier reaches a resource path. A caller has to constrain the value before the interpolation happens |
+| 22 | A payload schema and a size bound on broadcast changes | `:L137` declares `change: dict` with no model behind it, and `:L156` serialises whatever arrives with `json.dumps` | Arbitrary unbounded structures are published to every subscriber |
+| 22a | Per-connection identity in the socket registry, so two sessions for one user can coexist | `:L66` keys `active_connections` by `user_id` rather than by connection, so a second socket for the same document and user replaces the first without closing it. Both sockets resolve to one subscription name at `:L70`, so the second `create_subscription` at `:L73` answers `AlreadyExists`, which `:L76` prints before `:L77` returns. On disconnect, `:L128` rebuilds that same shared name and `:L130` deletes it | A second session evicts the first from the registry and receives no feed itself, and either session closing deletes the subscription the other still depends on. Holding both would need a unique connection identifier per socket and subscription ownership that is reference counted or idempotent |
 | 23 | Producer authentication and authorization on the Celery broker | `backend/app/tasks/background_tasks.py:L22` builds the Celery application from `settings.REDIS_URL` alone. No committed file gives that setting a value and no service provides Redis. The transport security, the access control list and the credentials a deployment would use are therefore all unestablished here. The URL could encode a password or select `rediss://`, and nothing tracked says whether it does. See [G8 no Redis broker](#no-redis-service-backs-the-celery-broker) | Anyone who reaches the broker enqueues work that workers execute, and no committed control stands in the way |
 | 24 | Format allow-listing and idempotency on the export task | `:L25` accepts `export_format` and `:L63` interpolates it into the object key `exports/{user_id}/{document_id}.{export_format}`. No allowed-value check and no deduplication key exists | A caller influences the stored object path, and a replayed message repeats the work |
 | 25 | An authorization check before a signed link is minted | `backend/app/services/export_service.py:L66-L70` and `:L98-L102` generate a v4 signed URL immediately after upload, with no check that the requester may read the document | A link is issued to whoever reached the call |

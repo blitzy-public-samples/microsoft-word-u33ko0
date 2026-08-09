@@ -78,6 +78,13 @@ class DocumentService:
     async def get_document(self, document_id: str, user_id: str) -> Document:
         """Retrieve a single document if the caller owns it.
 
+        The ownership test reads the `user_id` key out of the stored record
+        rather than off the `Document` model, because the model declares
+        `owner_id` and the record carries `user_id`. A record written
+        without that key raises `KeyError` before the comparison, which
+        answers 500 rather than 403. Every caller in
+        `app/api/documents.py` omits the second argument.
+
         Args:
             document_id: Firestore document identifier.
             user_id: Identifier of the requesting user, compared against
@@ -89,13 +96,6 @@ class DocumentService:
         Raises:
             HTTPException: 404 if not found, 403 if user_id does not match
                 the stored owner.
-
-        The ownership test reads the `user_id` key out of the stored record
-        rather than off the `Document` model, because the model declares
-        `owner_id` and the record carries `user_id`. A record written
-        without that key raises `KeyError` before the comparison, which
-        answers 500 rather than 403. Every caller in
-        `app/api/documents.py` omits the second argument.
         """
         # Retrieve document from Firestore
         doc_ref = self.db.collection('documents').document(document_id)

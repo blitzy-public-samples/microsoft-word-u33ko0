@@ -366,7 +366,7 @@ Every specification line in the fourth column falls under the SYSTEM DESIGN head
 rather than committed behaviour.
 
 | Concept | Pydantic position | Zod position | Declared intent | Consequence |
-|---------|-------------------|--------------|-----------------|-------------|
+| --------- | ------------------- | -------------- | ----------------- | ------------- |
 | Ownership field | `owner_id` at `document.py:L28`, `user_id` at `:L85` | `owner_id` at `document.ts:L27`, `user_id` at `:L44` | `owner_id` at `documentation/Technical Specifications.md:L333`, `:L375` and `:L383` | Four positions disagree. See [the ownership field](#the-ownership-field-four-positions-none-canonical) |
 | Modification timestamp | `updated_at` at `document.py:L65` | `updated_at` at `document.ts:L29` | `last_modified` at `documentation/Technical Specifications.md:L335` and `:L377` | The two contracts agree with each other and differ from declared intent |
 | Timestamp type | `datetime`, which the server serializes to text | `z.date()` at `document.ts:L28`, `:L29`, `:L43` | `timestamp` at `documentation/Technical Specifications.md:L334-L335` | `z.date()` rejects an ISO 8601 string, so validation would fail on correct server data |
