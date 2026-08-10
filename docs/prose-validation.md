@@ -790,7 +790,7 @@ groups.
 
 Drafted, in the cryptography-floor cell, opening and closing:
 
-> No backend manifest or lock file is committed, so nothing pins `python-jose`. [Ã¢â‚¬Â¦] The
+> No backend manifest or lock file is committed, so nothing pins `python-jose`. [...] The
 > `dated register` carries the full advisory set
 
 Now 5 sentences at the same locator, with the register pointer folded into the opening sentence and
@@ -871,7 +871,7 @@ Drafted, as one list item holding both charges:
 > because it calls `get_document(document_id)` with one argument against the two the signature at
 > `../../../backend/app/services/document_service.py:L78` requires, so that caller receives 500.
 > Either way no document comes back, and no `Document[]` the caller declared either. `POST /documents`
-> at `api.ts:L83` matches the same single-segment shape [Ã¢â‚¬Â¦]
+> at `api.ts:L83` matches the same single-segment shape [...]
 
 Now two list items. The first runs 4 sentences at `:L137`, with the 32-word sentence split into 15
 and 15:
@@ -927,7 +927,7 @@ sentence boundary.
 Drafted, in the build-context cell, at the four sentences that changed:
 
 > A host `frontend/node_modules` therefore silently replaces the one the image resolved. A local
-> `.env` or key file in the tree travels the same route. [Ã¢â‚¬Â¦] `backend.Dockerfile:L14` copies `./app`
+> `.env` or key file in the tree travels the same route. [...] `backend.Dockerfile:L14` copies `./app`
 > alone and so writes less into the image, and its `./backend` context still uploads in full. A
 > reviewed `.dockerignore` is a prerequisite for either direct build
 
@@ -970,9 +970,9 @@ count of settings before listing them lets a reader check the list against it.
 Drafted, in the mutable-action-reference cell, at the six sentences that changed:
 
 > Anyone with write access to an action repository can move or delete a tag. A tag therefore names
-> whatever bytes it currently points at rather than a fixed release. [Ã¢â‚¬Â¦] In the March 2025
+> whatever bytes it currently points at rather than a fixed release. [...] In the March 2025
 > `tj-actions/changed-files` compromise, tags v1 through v45.0.7 were repointed at a single malicious
-> commit on 14 and 15 March 2025. The fix shipped in v46.0.1. [Ã¢â‚¬Â¦] A moved tag is the failure mode this
+> commit on 14 and 15 March 2025. The fix shipped in v46.0.1. [...] A moved tag is the failure mode this
 > leaves open. Replacing each tag with a reviewed full commit SHA, and recording the resolved version
 > in a comment beside it, is the prerequisite.
 
@@ -1230,7 +1230,7 @@ one list of four reads faster than two lists of two.
 Drafted, in the object-authorization cell, at the six sentences that changed:
 
 > Of the fourteen handlers, twelve require a bearer token and two are public, at
-> `backend/app/api/auth.py:L66` and `:L103`. The twelve split four ways. [Ã¢â‚¬Â¦] Two are self-scoped by
+> `backend/app/api/auth.py:L66` and `:L103`. The twelve split four ways. [...] Two are self-scoped by
 > the token, at `backend/app/api/users.py:L20` and `:L33`. One is the create path at
 > `backend/app/api/documents.py:L46`, which fails before it persists. Six leave object scope
 > unestablished. The paragraph below takes each group in turn
