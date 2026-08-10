@@ -121,15 +121,15 @@ section that carries the detail.
 | `git clone` targets a placeholder organisation and fails | Following step 1 of the README installation section | [README](#documentation-inaccuracies-in-the-root-readme) | `README.md:L29` names `github.com/your-organization/` `microsoft-word.git` |
 | `npm install` succeeds. One observed run resolved 1,532 packages | Installing frontend dependencies | none | Verified in `frontend/`. The count follows the registry rather than this repository. The five packages at [G4](#g4-undeclared-third-party-dependencies) stay missing because no manifest lists them |
 | `pip install -r requirements.txt` fails, no such file | Installing backend dependencies | [G4](#g4-undeclared-third-party-dependencies) | No `requirements.txt` exists anywhere. `README.md:L42` and `scripts/` `setup_dev_environment.sh` `L26` both invoke it |
-| `tsc --noEmit` reports 76 errors, so the build fails | Starting or building the frontend | [G1](#g1-absent-modules-referenced-by-committed-code), [G2](#g2-absent-symbols-inside-modules-that-do-exist), [G4](#g4-undeclared-third-party-dependencies) | Distribution in [the type-check profile](#the-verified-type-check-profile) |
-| The interface renders with no styling at all | Viewing the running frontend | [G8 Tailwind](#tailwind-never-compiles) | No `tailwind.config.js`, no `postcss.config.js` and no committed stylesheet |
+| `tsc --noEmit` reports 76 errors, and `npm run build` stops on an unresolved `@/` specifier before reporting any of them | Type-checking or building the frontend | [G1](#g1-absent-modules-referenced-by-committed-code), [G2](#g2-absent-symbols-inside-modules-that-do-exist), [G4](#g4-undeclared-third-party-dependencies) | Distribution in [the type-check profile](#the-verified-type-check-profile). The build stop is the first `@/` import webpack meets, per [the unmapped prefix](#the-unmapped-import-prefix) |
+| `npm start` serves every route and the page stays blank behind an error overlay | Starting the frontend | [G4 unmapped prefix](#the-unmapped-import-prefix) | Compilation fails on the `@/` prefix, so `#root` stays empty and the overlay lists all 78 errors, the 2 webpack failures plus the 76 the type-checker reports. Missing styling sits behind that: no `tailwind.config.js`, no `postcss.config.js` and no committed stylesheet ([G8 Tailwind](#tailwind-never-compiles)) |
 | `uvicorn main:app --reload` cannot find the application | Starting the backend from `backend/` per the README | [README](#documentation-inaccuracies-in-the-root-readme) | The application object sits at `backend/app/` `main.py:L24` (`app = FastAPI()`), one directory deeper |
 | `ImportError: cannot import name 'settings' from 'app.core.config'` | Importing `app.main` from `backend/` | [G2 settings singleton](#the-absent-settings-singleton) | `backend/app/` `main.py:L16` reaches `backend/app/api/` `auth.py:L20`, which requests a name `backend/app/core/` `config.py` never defines |
 | `ModuleNotFoundError: No module named 'app.schema.template'` | Importing `app.api.templates` | [G1](#g1-absent-modules-referenced-by-committed-code) | `backend/app/api/` `templates.py:L17` |
 | `ModuleNotFoundError: No module named 'app.services.user_service'` | Importing `app.api.users` or `app.api.auth` | [G1](#g1-absent-modules-referenced-by-committed-code) | `backend/app/api/` `users.py:L14` and `backend/app/api/` `auth.py:L22` |
 | `NameError: name 'Optional' is not defined` | Importing `app.core.security` | [G3](#g3-undefined-names-that-raise-at-execution) | `backend/app/core/` `security.py:L27` uses `Optional` with no import behind it |
 | Template endpoints return document responses | Calling any `/{id}` route | [G7 shadowed routes](#document-routes-shadow-the-template-and-profile-routes) | `backend/app/` `main.py:L84-L87` mounts every router with no prefix |
-| `GET /me` answers 401 without valid credentials, and with them returns a document read or a 404 for a document called `me` | Fetching the signed-in profile | [G7 shadowed routes](#document-routes-shadow-the-template-and-profile-routes) | `backend/app/api/` `documents.py:L68` claims every single-segment path ahead of `backend/app/api/` `users.py:L19`, and both routes are protected, so the token resolves before the substitution is observable |
+| `GET /me` answers 401 without valid credentials and 500 with them | Fetching the signed-in profile | [G7 shadowed routes](#document-routes-shadow-the-template-and-profile-routes) | `backend/app/api/` `documents.py:L68` claims every single-segment path ahead of `backend/app/api/` `users.py:L19`. For an authenticated caller, `documents.py:L93` passes one argument to the two-parameter `get_document` at `backend/app/services/` `document_service.py` `L78`, so a `TypeError` answers 500. `PUT /me` and `DELETE /me` answer 500 the same way |
 | `POST /documents` answers 405 while `PUT /documents/{id}` answers 404 | Calling the document API from the client | [G7 client routes](#the-client-calls-six-routes-and-no-server-route-matches-any-of-them) | `frontend/src/services/` `api.ts:L83` and `:L96` prefix a segment no route declares. Routing settles both before any dependency runs, so neither depends on credentials |
 | `GET /documents` answers 401 without valid credentials and 500 with them | Listing documents from the client | [G7 client routes](#the-client-calls-six-routes-and-no-server-route-matches-any-of-them) | `frontend/src/services/` `api.ts:L70` sends one segment, which the protected `GET /{document_id}` at `backend/app/api/` `documents.py:L68` claims |
 | Login answers 422 rather than 401 once the path is corrected | Signing in | [G7 client routes](#the-client-calls-six-routes-and-no-server-route-matches-any-of-them) | `frontend/src/services/` `auth.ts:L37` sends JSON `email`, and `backend/app/api/` `auth.py:L67` reads a form `username` |
@@ -976,8 +976,8 @@ protected handlers are unreachable**: all five template handlers and both profil
 
 A request to `GET /me` reaches the single-document read with `document_id` bound to the literal string
 `me`.
-Both routes are protected, so that substitution is only observable to a caller who presents valid
-credentials. Without them the shared dependency answers 401, and the shadowing stays invisible.
+Both routes are protected, so observing the substitution needs valid credentials. Without them the
+dependency answers 401. With them `documents.py:L93` raises `TypeError`, so the response is 500.
 
 ### The collaboration path has no route and two protocols
 
@@ -1316,12 +1316,12 @@ Python job, no dedicated linting step and no dedicated type-check step, so the p
 the 12 import failures at all.
 
 The 76 type errors are a different case, and the distinction matters because the workflow does contain a
-step that would surface them. `.github/workflows/ci.yml:L23` runs `npm run build`, which
-`frontend/package.json:L33` resolves to `react-scripts build`. Create React App treats a TypeScript
-error as a build failure rather than a warning unless `TSC_COMPILE_ON_ERROR=true` is set in the
-environment, and nothing in the repository sets it. Fixing the install step at `:L19` therefore moves
-the CI failure from installation to the build, and the build failure names type errors rather than a
-missing lockfile. A `lint` script exists at `frontend/package.json:L36` and no workflow step invokes it.
+step that would report a failure. `.github/workflows/ci.yml:L23` runs `npm run build`, which
+`frontend/package.json:L33` resolves to `react-scripts build`. That command bundles before it
+type-checks, and a measured run prints `Failed to compile.` with one error, `Module not found: Error:
+Can't resolve '@/App'`. Fixing the install step at `:L19` therefore moves the CI failure from
+installation to the build, and the build names an unresolved import rather than a type error. A `lint`
+script exists at `frontend/package.json:L36` and no workflow step invokes it.
 
 Neither of those steps runs today, because `:L19` fails first. See
 [`npm ci` cannot run anywhere](#npm-ci-cannot-run-anywhere).

@@ -22,26 +22,26 @@ answers a request as committed, and the Reachability column names each reason.
 | Per-handler service objects | `DocumentService`, `TemplateService`, `UserService` | `documents.py:L45`, `templates.py:L38`, `users.py:L57` | Eleven of the fourteen handlers construct their own service instance. `auth.py` calls `UserService` methods on the class instead, at L61, L91, L130 and L135, and `get_current_user_info` at `users.py:L20` calls no service at all. |
 
 The four routers publish fourteen handlers. Twelve declare `current_user: User = Depends(get_current_user)` and two declare
-none, so the split measures 14 handlers, 12 protected, 2 public. No handler supplies `status_code=` on its decorator,
-verified across all fourteen, so every success returns HTTP 200 by FastAPI default. The three assertions expecting 201 at
-`../../tests/test_api.py:L37`, `:L53` and `:L64` do not describe committed behaviour.
+none, so the split measures 14 handlers, 12 protected, 2 public. The table below writes that declaration as Protected. No
+handler supplies `status_code=` on its decorator, verified across all fourteen, so every success returns HTTP 200 by FastAPI
+default. The three assertions expecting 201 at `../../tests/test_api.py:L37`, `:L53` and `:L64` do not describe committed behaviour.
 
 | Method | Path | Declaring file and handler | Authentication | Success status | Reachability |
 | --- | --- | --- | --- | --- | --- |
 | POST | `/token` | `auth.py:L66`, `login_for_access_token` at L67 | Public | 200 | No. `auth.py:L20` fails on import first. |
 | POST | `/register` | `auth.py:L103`, `register_user` at L104 | Public | 200 | No. Same import failure at `auth.py:L20`. |
-| POST | `/` | `documents.py:L24`, `create_document` at L25 | `Depends(get_current_user)` | 200 | No. `documents.py:L18` fails through `../services/document_service.py:L16` then `../db/firestore.py:L16`. |
-| GET | `/` | `documents.py:L49`, `get_documents` at L50 | `Depends(get_current_user)` | 200 | No. Same transitive failure at `documents.py:L18`. |
-| GET | `/{document_id}` | `documents.py:L68`, `get_document` at L69 | `Depends(get_current_user)` | 200 | No. Same transitive failure at `documents.py:L18`. |
-| PUT | `/{document_id}` | `documents.py:L98`, `update_document` at L99 | `Depends(get_current_user)` | 200 | No. Same transitive failure at `documents.py:L18`. |
-| DELETE | `/{document_id}` | `documents.py:L131`, `delete_document` at L132 | `Depends(get_current_user)` | 200 | No. Same transitive failure at `documents.py:L18`. |
-| GET | `/me` | `users.py:L19`, `get_current_user_info` at L20 | `Depends(get_current_user)` | 200 | No. `users.py:L14` requests an absent module, and `documents.py:L68` already holds this shape. |
-| PUT | `/me` | `users.py:L32`, `update_user` at L33 | `Depends(get_current_user)` | 200 | No. Same import failure at `users.py:L14`, and `documents.py:L98` already holds this shape. |
-| POST | `/` | `templates.py:L24`, `create_template` at L25 | `Depends(get_current_user)` | 200 | No. `templates.py:L17` requests an absent module, and `documents.py:L24` already holds this shape. |
-| GET | `/` | `templates.py:L42`, `get_templates` at L43 | `Depends(get_current_user)` | 200 | No. Same failure at `templates.py:L17`, and `documents.py:L49` already holds this shape. |
-| GET | `/{template_id}` | `templates.py:L59`, `get_template` at L60 | `Depends(get_current_user)` | 200 | No. Same failure at `templates.py:L17`, and `documents.py:L68` already holds this shape. |
-| PUT | `/{template_id}` | `templates.py:L86`, `update_template` at L87 | `Depends(get_current_user)` | 200 | No. Same failure at `templates.py:L17`, and `documents.py:L98` already holds this shape. |
-| DELETE | `/{template_id}` | `templates.py:L112`, `delete_template` at L113 | `Depends(get_current_user)` | 200 | No. Same failure at `templates.py:L17`, and `documents.py:L131` already holds this shape. |
+| POST | `/` | `documents.py:L24`, `create_document` at L25 | Protected | 200 | No. `documents.py:L18` fails through `../services/` `document_service.py:L16` then `../db/` `firestore.py:L16`. |
+| GET | `/` | `documents.py:L49`, `get_documents` at L50 | Protected | 200 | No. Same transitive failure at `documents.py:L18`. |
+| GET | `/{document_id}` | `documents.py:L68`, `get_document` at L69 | Protected | 200 | No. Same transitive failure at `documents.py:L18`. |
+| PUT | `/{document_id}` | `documents.py:L98`, `update_document` at L99 | Protected | 200 | No. Same transitive failure at `documents.py:L18`. |
+| DELETE | `/{document_id}` | `documents.py:L131`, `delete_document` at L132 | Protected | 200 | No. Same transitive failure at `documents.py:L18`. |
+| GET | `/me` | `users.py:L19`, `get_current_user_info` at L20 | Protected | 200 | No. `users.py:L14` requests an absent module, and `documents.py:L68` already holds this shape. |
+| PUT | `/me` | `users.py:L32`, `update_user` at L33 | Protected | 200 | No. Same import failure at `users.py:L14`, and `documents.py:L98` already holds this shape. |
+| POST | `/` | `templates.py:L24`, `create_template` at L25 | Protected | 200 | No. `templates.py:L17` requests an absent module, and `documents.py:L24` already holds this shape. |
+| GET | `/` | `templates.py:L42`, `get_templates` at L43 | Protected | 200 | No. Same failure at `templates.py:L17`, and `documents.py:L49` already holds this shape. |
+| GET | `/{template_id}` | `templates.py:L59`, `get_template` at L60 | Protected | 200 | No. Same failure at `templates.py:L17`, and `documents.py:L68` already holds this shape. |
+| PUT | `/{template_id}` | `templates.py:L86`, `update_template` at L87 | Protected | 200 | No. Same failure at `templates.py:L17`, and `documents.py:L98` already holds this shape. |
+| DELETE | `/{template_id}` | `templates.py:L112`, `delete_template` at L113 | Protected | 200 | No. Same failure at `templates.py:L17`, and `documents.py:L131` already holds this shape. |
 
 One failure precedes every entry in that column. `main.py:L16-L19` requests `auth_router`, `documents_router`, `users_router`
 and `templates_router`, while all four modules export the bare name `router` at `auth.py:L26`, `documents.py:L22`,

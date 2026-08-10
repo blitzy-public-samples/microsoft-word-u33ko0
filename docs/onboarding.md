@@ -1,10 +1,10 @@
 # Onboarding Guide
 
-The `microsoft-word-u33ko0` repository does not run. Four commands complete on a clean machine: two
-succeed and two run to completion and report failure by design.
-[What you can actually run today](#what-you-can-actually-run-today) lists all four, and every path
-past them stops at a line named below. Work through the setup, expect the failures this guide
-predicts, then use the closing task list to choose what to repair first.
+The `microsoft-word-u33ko0` repository does not run. Five commands produce a result on a clean
+machine. Two succeed, two report failure by design, and the development server serves the client
+while compilation fails. [What you can actually run today](#what-you-can-actually-run-today) lists
+all five, and every path past them stops at a line named below. Work through the setup, expect the
+failures this guide predicts, then use the closing task list to choose what to repair first.
 
 The [root README](../README.md) is the only other onboarding document here, and six of its statements
 contradict the committed tree, one of them only in part. Three sit in the README's installation and run
@@ -407,9 +407,9 @@ exact versions. Committing a lockfile changes what the pipeline installs, which 
 repository change rather than a documentation change, so this pass leaves the manifest as it found
 it. [troubleshooting.md](troubleshooting.md#npm-ci-cannot-run-anywhere) carries the entry.
 
-Starting the development server fails. `npm start` runs `react-scripts start`, which resolves modules
-through webpack rather than through the `tsconfig` `paths` block, so every `@/` specifier fails there
-as well. No server serves the client.
+`npm start` runs `react-scripts start`, which resolves modules through webpack rather than through
+the `tsconfig` `paths` block, so every `@/` specifier fails there as well. Compilation fails and the
+server still serves every route, so a browser shows the error overlay rather than the interface.
 
 ## Setting up the backend
 
@@ -662,8 +662,8 @@ none of them.
 
 ## What you can actually run today
 
-Four commands complete. Two of them succeed, two complete and report failure, and every other path
-stops.
+Five commands produce a result. Two succeed, two complete and report failure, and the development
+server keeps running while it reports failure. No other path gets that far.
 
 | Command | Working directory | Result | Exit status |
 | --- | --- | --- | --- |
@@ -671,11 +671,12 @@ stops.
 | `npx tsc --noEmit` | `frontend/` | Completes and reports 76 errors. Emits nothing, per `frontend/` `tsconfig.json:L25` | Non-zero. The compiler exits non-zero whenever it reports an error, so any script chaining on success stops here |
 | The parse check below | repository root | Succeeds. All 18 Python modules under `backend/` parse, so every file is syntactically valid | Zero |
 | `python -m pytest backend/tests -q` | repository root | Completes and reports three collection errors, one per module. Needs `pytest` installed first, per [the Testing subsection](#testing-what-exists-and-why-no-green-run-is-possible) | Non-zero. Collection is interrupted, so no test body runs |
+| `npm start` | `frontend/` | Serves every route with the 441-byte shell and a 1.7 MB bundle. Compilation fails, so `#root` stays empty and the error overlay lists all 78 errors: 2 from webpack and 76 from the type-checker | None. The process keeps running until you stop it |
 
-The second and fourth rows are worth reading twice. Both tools run to completion, which makes them the
-most informative commands in the repository, and both still fail. Reading "the tool ran" as "the check
-passed" is the easiest mistake to make here. The table therefore counts commands that complete, and
-the Exit status column separates the two that succeed from the two that report failure.
+The second, fourth and fifth rows are worth reading twice. Each one runs, which makes the three the
+most informative commands in the repository, and each one still fails. Reading "the tool ran" as "the
+check passed" is the easiest mistake to make here. The fifth row is the most informative of all,
+because the overlay lists every unresolved import and every type error in one place.
 
 Parse the backend without writing anything into the tree:
 
@@ -696,10 +697,9 @@ python -m compileall backend
 find backend -type d -name __pycache__ -prune -exec rm -rf {} +
 ```
 
-Nothing else runs. No server starts, no test collects, neither container builds, and `terraform init`
-does not complete. A successful parse proves the syntax valid and says nothing about whether a module
-imports, and [the next section](#where-a-run-stops-with-evidence) shows why the two diverge sharply
-here.
+No other path completes. The backend server does not start, no test body runs, neither container
+builds, and `terraform init` stops. A successful parse proves the syntax valid and says nothing
+about whether a module imports, which [the next section](#where-a-run-stops-with-evidence) explains.
 
 The flowchart below branches on what you want to do and terminates each branch in the line that stops
 it.
@@ -707,7 +707,7 @@ it.
 ```mermaid
 graph LR
     accTitle: What runs today and where each run stops
-    accDescr: A decision node fans out to nine tasks. Four run to completion and two of those succeed. Five stop, and each failure node cites a file and line where one exists or names the missing artifact or path. The test path stops until pytest is installed, then completes and reports three collection errors, and its completion node also names the first cause and what sits behind it.
+    accDescr: A decision node fans out to nine tasks. Five reach a result and two of those succeed. Four stop, and each failure node cites a file and line where one exists or names the missing artifact or path. The client-start path serves every route while compilation fails. The test path stops until pytest is installed, then completes and reports three collection errors, and its completion node also names the first cause and what sits behind it.
     START{"What do you<br/>want to do?"}
 
     START --> A["Install client<br/>dependencies"]
@@ -724,7 +724,7 @@ graph LR
     B -->|"runs"| BOK["Completes, exit non-zero<br/>tsc --noEmit reports<br/>76 errors"]
     C -->|"runs"| COK["Succeeds, exit 0<br/>all 18 modules parse"]
 
-    D -.->|"stops"| DNO["frontend/tsconfig.json<br/>:L10-L16 declares no<br/>'@/*' alias, and webpack<br/>ignores the paths block"]
+    D -->|"serves"| DOK["Serves every route, and<br/>compilation fails<br/>frontend/tsconfig.json<br/>:L10-L16 declares no<br/>'@/*' alias, and webpack<br/>ignores the paths block"]
     E -.->|"stops"| ENO["backend/app/api/<br/>auth.py:L20, reached<br/>from main.py:L16<br/>ImportError: cannot<br/>import name 'settings'"]
     F -.->|"stops"| ENO
     G -.->|"stops"| GNO1["infrastructure/docker/<br/>frontend.Dockerfile:L11<br/>npm ci with no lockfile"]
@@ -733,8 +733,8 @@ graph LR
     H -->|"runs once<br/>pytest is<br/>installed"| HOK["Completes, exit non-zero<br/>3 collection errors, one<br/>per module, and no test<br/>body runs<br/>First cause:<br/>backend/tests/<br/>test_api.py:L3, 'app' is<br/>not on sys.path from the<br/>repository root<br/>Then, with backend/ and<br/>backend/app/ on the<br/>path: 6 import targets<br/>name no file, and 3<br/>services modules resolve<br/>only from backend/app/"]
     I -.->|"stops"| INO["infrastructure/terraform/<br/>main.tf:L68, :L77, :L86<br/>three module sources<br/>are absent"]
 
-%% A solid edge marks a path that runs to completion, and its node states whether the run succeeded.
-%% A dashed edge marks a path that stops before completing. Failure nodes cite a file and line
+%% A solid edge marks a path that reaches a result, and its node states what the result was. A
+%% dashed edge marks a path that stops before completing. Failure nodes cite a file and line
 %% where one exists, and absence-only nodes name the missing artifact or path. The test path
 %% carries both edge kinds, because it stops until pytest is installed and then completes.
 ```

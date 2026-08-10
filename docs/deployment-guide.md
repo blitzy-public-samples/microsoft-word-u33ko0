@@ -341,18 +341,18 @@ Two workflows automate the pipeline, and each one fails on its own first substan
 | `actions/setup-node@v2` | `:L15` | Installs Node, pinned to `'14'` at `:L17`. Version 2 is deprecated, and Node 14 is past end of life |
 | `npm ci` | `:L19` | Fails. The step runs at the repository root, where no `package.json` and no lockfile exist |
 | `npm test` | `:L21` | Never runs |
-| `npm run build` | `:L23` | Never runs, and would fail on the 76 TypeScript errors if reached |
+| `npm run build` | `:L23` | Never runs. If reached, it stops at webpack module resolution on the first unresolved `@/` specifier, before any type error is reported |
 
 The job stops at `:L19`. No step sets a `working-directory`, so `npm ci` executes at the repository
 root, and the only manifest in the tree sits at `frontend/package.json`. The workflow also defines no
 Python job.
 
 The Build step is a latent second blocker rather than a step that would pass. `npm run build` runs
-`react-scripts build` (`frontend/package.json:L33`), which type-checks the project and treats a
-TypeScript error as a build failure. Create React App downgrades those errors to warnings only when
-`TSC_COMPILE_ON_ERROR=true` is set, and no committed file sets it, because the repository commits no
-`.env`. `npx tsc --noEmit` reports 76 errors, so repairing the install moves the failure from `:L19`
-to `:L23` rather than producing a green run.
+`react-scripts build` (`frontend/package.json:L33`), which bundles before it type-checks. A measured
+run prints `Failed to compile.` and one error, `Module not found: Error: Can't resolve '@/App'`, so
+resolution ends the build before any type error is reported. Type errors would fail it too, because
+Create React App downgrades them to warnings only when `TSC_COMPILE_ON_ERROR=true` is set and no
+committed file sets it. Repairing the install moves the failure from `:L19` to `:L23`, not to green.
 
 No dedicated lint step and no dedicated type-check step exist, although both tools are configured:
 `frontend/package.json:L36` defines a `lint` script, and `frontend/tsconfig.json:L25` sets
@@ -459,10 +459,10 @@ graph TD
         A2["setup-node 14, :L15-L17"]
         A3["npm ci, :L19"]
         A4["npm test, :L21"]
-        A5["npm run build, :L23<br/>LATENT: 76 TypeScript errors"]
+        A5["npm run build, :L23<br/>LATENT: webpack cannot<br/>resolve '@/App'"]
         A1 --> A2 --> A3
         A3 -.->|"FIRST HIT: no root package.json,<br/>no lockfile"| A4
-        A4 -.->|"unreachable: the step above ends<br/>the job, so the 76 type errors are<br/>never reported"| A5
+        A4 -.->|"unreachable: the step above ends<br/>the job, so the build error is<br/>never reported"| A5
     end
 
     subgraph CDJOB["Stage 4, delivery: .github/workflows/cd.yml"]
@@ -618,8 +618,8 @@ table below groups them so a reader can tell what a run will actually say from w
 | Terraform | `terraform init` | Item 1, three unreadable module sources | The 14 outputs reading undeclared `aws_*` addresses, which block `apply` once `init` clears, and item 10, the absent App Engine resource |
 | Compose | `docker compose up --build` | Item 5, neither build context holds a `Dockerfile` | Items 3 and 4, the two image builds; then item 6, the port mapping; then item 7, the flattened package; then item 8, the absent broker |
 | Direct backend build | `docker build -f infrastructure/docker/backend.Dockerfile ./backend` | Item 4, `COPY requirements.txt` | Item 7, the `app.` prefix, which only surfaces once the image runs |
-| Direct frontend build | `docker build -f infrastructure/docker/frontend.Dockerfile ./frontend` | Item 3, `npm ci` with no lockfile | The `npm run build` at `frontend.Dockerfile` `L17`, which fails on 76 TypeScript errors |
-| Continuous integration | Push or pull request to `main` | Item 2, `npm ci` at the repository root | `npm run build` at `ci.yml:L23`, which fails on the same 76 errors |
+| Direct frontend build | `docker build -f infrastructure/docker/frontend.Dockerfile ./frontend` | Item 3, `npm ci` with no lockfile | The `npm run build` at `frontend.Dockerfile` `L17`, which stops at webpack module resolution on the first unresolved `@/` specifier |
+| Continuous integration | Push or pull request to `main` | Item 2, `npm ci` at the repository root | `npm run build` at `ci.yml:L23`, which stops at the same specifier. The 76 type errors are what `npx tsc --noEmit` reports separately |
 | Continuous delivery | Push to `main` | Item 9, `app.yaml` absent at `cd.yml:L19` | `cd.yml:L20`, the absent `dispatch.yaml`, which `bash -e` never reaches |
 | `deploy.sh` on a clean shell | `bash scripts/deploy.sh` | Item 11's guard, `:L4-L7` exits 1 at `:L6` because `GOOGLE_APPLICATION_CREDENTIALS` is unset | Every later stage. The guard is the script's only `exit`, so nothing behind it is attempted |
 | `deploy.sh` with the credential variable set | `GOOGLE_APPLICATION_CREDENTIALS=... bash scripts/deploy.sh` | Item 11's `:L11`, no root `package.json` | Nothing stops the run, because no stage checks an exit status. `:L15` runs with no root `tests/`. `:L23` then fails unless the host already carries an authenticated `gcloud`, a default project and write access to a bucket no Terraform declares. After that come the absent `app.yaml` at `:L27`, the absent migration file at `:L31`, the unscoped CDN update at `:L35`, and the unconditional success echo at `:L47` |

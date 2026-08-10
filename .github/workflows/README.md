@@ -17,7 +17,7 @@ Continuous Deployment (CD) is the automated release pass after a merge. Neither 
 | `Set up Node.js` | Step 2 of 5 | `ci.yml:L14-L17` | Installs Node.js 14 through `actions/setup-node@v2` (`ci.yml:L15`, `:L17`) |
 | `Install dependencies` | Step 3 of 5 | `ci.yml:L18-L19` | Runs `npm ci` at the checkout root. Exits non-zero, so steps 4 and 5 never start |
 | `Run tests` | Step 4 of 5 | `ci.yml:L20-L21` | Runs `npm test`. Unreachable |
-| `Build` | Step 5 of 5 | `ci.yml:L22-L23` | Runs `npm run build`. Unreachable, and would fail on the 76 TypeScript errors if reached. No step uploads the output |
+| `Build` | Step 5 of 5 | `ci.yml:L22-L23` | Runs `npm run build`. Unreachable, and would stop at webpack module resolution on the first unresolved `@/` specifier if reached. No step uploads the output |
 | `CD` | Workflow | `cd.yml:L1` | Deployment workflow. Fires on push to `main` only (`cd.yml:L3-L5`) |
 | `deploy` | Job | `cd.yml:L8-L20` | The only job in `cd.yml`. Runs on `ubuntu-latest` (`cd.yml:L9`) across three steps |
 | Checkout, unnamed | Step 1 of 3 | `cd.yml:L11` | Bare `- uses: actions/checkout@v2` with no `name:` key |
@@ -105,7 +105,7 @@ flowchart TB
         C2["2: Set up Node.js 14<br/>ci.yml:L14-L17"]
         C3["3: npm ci, FIRST FAILURE<br/>ci.yml:L19"]
         C4["4: npm test<br/>ci.yml:L20-L21"]
-        C5["5: npm run build<br/>LATENT: fails on 76 TS errors<br/>ci.yml:L22-L23"]
+        C5["5: npm run build<br/>LATENT: cannot resolve '@/App'<br/>ci.yml:L22-L23"]
         C1 --> C2 --> C3
         C3 -.->|"never runs: no package.json or lockfile at root"| C4
         C4 -.->|"never runs"| C5
@@ -161,7 +161,7 @@ first blocker exposes the next one rather than producing a green run.
 | `ci.yml` | Scoping the command to `frontend/` would still fail, because no lockfile is committed | `npm ci` requires one, and the repository holds no `package-lock.json`, `yarn.lock` or `pnpm-lock.yaml`. Running `npm install` inside `frontend/` does succeed |
 | `ci.yml` | The front-door install instructions and the CI command disagree | `README.md:L35-L36` documents `cd frontend` followed by `npm install`, while `ci.yml:L19` runs `npm ci` at the root: different directory, different command |
 | `ci.yml` | No job runs Python | All 18 committed Python files go unexercised, including the three test modules under `backend/tests/` |
-| `ci.yml` | LATENT: the `Build` step would fail even once installation is fixed | `npm run build` (`ci.yml:L23`) runs `react-scripts build` (`frontend/package.json:L33`), which type-checks the project and treats a TypeScript error as a build failure. Create React App downgrades those errors to warnings only when `TSC_COMPILE_ON_ERROR=true` is set, and no committed file sets it, because no `.env` file exists. `npx tsc --noEmit` reports 76 errors, so the build step fails on the second attempt at a green run |
+| `ci.yml` | LATENT: the `Build` step would fail even once installation is fixed | `npm run build` (`ci.yml:L23`) runs `react-scripts build` (`frontend/package.json:L33`), which bundles before it type-checks. A measured run prints `Failed to compile.` and one error, `Module not found: Error: Can't resolve '@/App'`, so resolution ends the build before any type error is reported. Type errors would fail it too, because Create React App downgrades them to warnings only when `TSC_COMPILE_ON_ERROR=true` is set and no committed file sets it. The 76 errors are what `npx tsc --noEmit` reports separately |
 | `ci.yml` | No dedicated lint step and no dedicated type-check step exist, although both tools are already configured | `frontend/package.json:L36` defines a `lint` script, and `frontend/tsconfig.json:L25` sets `"noEmit": true`, which supports a standalone type check. The `Build` step type-checks as a side effect, which reports the errors at the wrong stage and gives no separate signal |
 | `ci.yml` | Two deprecated action pins | `actions/checkout@v2` (`ci.yml:L13`) and `actions/setup-node@v2` (`ci.yml:L15`) |
 | `ci.yml` | Node 14 reached end of life on 30 April 2023 and is unsupported as of 6 August 2026, per [Node.js previous releases](https://nodejs.org/en/about/previous-releases) | `ci.yml:L17`. Three files declare the floor while nothing enforces it: `README.md:L22`, `ci.yml:L17` and `infrastructure/docker/frontend.Dockerfile:L2`. No `engines` field and no `.nvmrc` is committed |
