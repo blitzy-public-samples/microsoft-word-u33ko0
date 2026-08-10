@@ -1,7 +1,5 @@
 # backend/app/schema
 
-*Every `file:Lnn` locator below numbers the file as it stands at current `HEAD`, using physical line numbering.*
-
 ## Purpose
 
 The package declares the Pydantic models that validate request bodies and shape response payloads at the HyperText Transfer Protocol (HTTP)
@@ -11,7 +9,8 @@ the create payload, the patch payload and the read response.
 
 `DocumentVersion` is the exception: it has one model and no create or update variant, because no handler and no service writes a version. No
 module here reaches a database, reads configuration or holds state. The application programming interface (API) routers under `app/api/` and
-the services under `app/services/` import from this package rather than the reverse.
+the services under `app/services/` import from this package rather than the reverse. Every `file:Lnn` locator below numbers the file as it
+stands at current `HEAD`, using physical line numbering.
 
 ## Key Components
 
@@ -180,7 +179,8 @@ The [troubleshooting register](../../../docs/troubleshooting.md) carries each de
 Both modules import cleanly, and only three of the fifteen modules under `backend/app/` do. Run the check from the `backend/` directory.
 
 ```bash
-python -c "import app.schema.document, app.schema.user; print('both modules imported')"
+python -c "import app.schema.document, app.schema.user
+print('both modules imported')"
 ```
 
 Neither module imports the `settings` singleton that `app/core/config.py` never defines, which is why both resolve. Under Pydantic 2 the `user.py`
@@ -190,11 +190,12 @@ argument below names a field one of the two modules declares.
 ```python
 from app.schema.document import DocumentCreate, DocumentUpdate
 from app.schema.user import UserCreate, UserUpdate
-# owner_id is optional at document.py:L28, so the create payload validates without it.
+# owner_id is optional at document.py:L28, so create validates without it.
 new_document = DocumentCreate(title="Q4 report", content="Opening paragraph.")
 patch = DocumentUpdate(title="Q4 report, final")     # every field is optional
 patch.dict(exclude_unset=True)                       # {'title': 'Q4 report, final'}
-new_user = UserCreate(email="dev@example.com", username="dev", password="Passw0rd@1")  # password at user.py:L38
+# password is declared at user.py:L38
+new_user = UserCreate(email="dev@example.com", username="dev", password="Passw0rd@1")
 profile_patch = UserUpdate(full_name="Dev Example")
 ```
 

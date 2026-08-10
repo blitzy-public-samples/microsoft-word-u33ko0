@@ -246,7 +246,8 @@ the last line.
 Deploy to Google Cloud. Setting the variable below satisfies the guard, and does not authenticate the CLI:
 
 ```bash
-# Inspection reference. Deploys to App Engine and mutates Cloud SQL under the active project.
+# Inspection reference. Deploys to App Engine and mutates
+# Cloud SQL under the active project.
 export GOOGLE_APPLICATION_CREDENTIALS=/path/to/disposable-service-account-key.json
 gcloud config set project <disposable-project-id>
 bash scripts/deploy.sh

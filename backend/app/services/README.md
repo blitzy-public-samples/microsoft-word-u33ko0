@@ -135,26 +135,26 @@ sequenceDiagram
     participant PUB as PublisherClient
     participant SUB as SubscriberClient
 
-    Note over WS,CS: connect(), L44. No route calls connect:<br/>zero WebSocket routes exist under backend/
+    Note over WS,CS: connect(), L44.<br/>No route calls connect:<br/>zero WebSocket routes<br/>exist under backend/
     WS -->> CS: no caller
     CS ->> CS: register socket, L66
     CS ->> CS: build topic, L69
     CS ->> CS: build subscription, L70
-    Note over CS,PUB: Registers into<br/>active_connections at L66.<br/>topic projects/PROJECT_ID/topics/<br/>document_id at L69, subscription<br/>projects/PROJECT_ID/subscriptions/<br/>document_id_user_id at L70.<br/>settings.PROJECT_ID is undeclared,<br/>read at L69, L70, L124 and L149.
+    Note over CS,PUB: Registers into<br/>active_connections at L66.<br/>topic projects/PROJECT_ID/topics/<br/>document_id at L69, subscription<br/>projects/PROJECT_ID/subscriptions/<br/>document_id_user_id at L70.<br/>settings.PROJECT_ID is undeclared,<br/>read at L69, L70, L128 and L153.
     CS ->> SUB: create_subscription, L73
     SUB -->> CS: failure, L76
     Note over CS,PUB: print at L76, then the<br/>early return at L77 leaves<br/>the L66 socket registered<br/>with no subscription
-    CS ->> SUB: subscribe, L95
-    CS ->> CS: future.result(), L98
-    Note over CS,PUB: subscribe(subscription,<br/>callback) at L95, then<br/>future.result() at L98<br/>blocks the event loop
+    CS ->> SUB: subscribe, L99
+    CS ->> CS: future.result(), L102
+    Note over CS,PUB: subscribe(subscription,<br/>callback) at L99, then<br/>future.result() at L102<br/>blocks the event loop
     SUB ->> CS: callback, L80
-    CS ->> CS: message.ack(), L92
-    CS -->> WS: send_json, L93
-    Note over WS,CS: callback(message) at L80, ack at L92, then<br/>asyncio.run(send_json) at L93.<br/>asyncio is never imported, so L93 raises<br/>NameError on first delivery.<br/>message.data is bytes and send_json<br/>expects a serializable object.<br/>asyncio.run opens a new loop on the<br/>subscriber thread, not the socket loop.
-    Note over CS,PUB: broadcast_change(), L133
-    CS -->> CS: json.dumps(change) evaluated first, L152: json never imported
-    CS -->> CS: NameError caught at L154, printed at L156, method returns None
-    Note over CS,PUB: publish at L152 and future.result at L153 are never reached
+    CS ->> CS: message.ack(), L96
+    CS -->> WS: send_json, L97
+    Note over WS,CS: callback(message) at L80, ack<br/>at L96, then<br/>asyncio.run(send_json) at L97.<br/>asyncio is never imported, so<br/>L97 raises NameError on first<br/>delivery. message.data is<br/>bytes and send_json expects a<br/>serializable object.<br/>asyncio.run opens a new loop<br/>on the subscriber thread, not<br/>the socket loop.
+    Note over CS,PUB: broadcast_change(), L137
+    CS -->> CS: json.dumps(change) evaluated first, L156: json never imported
+    CS -->> CS: NameError caught at L158, printed at L160, method returns None
+    Note over CS,PUB: publish at L156 and future.result at<br/>L157 are never reached
 ```
 
 Diagram 2 traces the export path. The task tier that drives it is documented in
@@ -173,27 +173,24 @@ The diagram below therefore draws the one call that exists, not the two that do 
 ```mermaid
 flowchart TD
     accTitle: The export job lifecycle across the task and the two service methods
-    accDescr: The task path cannot complete because ExportService declares no convert_document. The two written service methods are dead code with no caller, and the two paths build divergent object keys. The two methods share one column because their structure is identical, and both line numbers appear in each node.
-    Q["Celery queue"] -.->|"no producer<br/>enqueues<br/>this task"| T["process_document_export<br/>background_tasks.py:L25"]
+    accDescr: The task path cannot complete because ExportService declares no convert_document. The two written service methods are dead code with no caller, and the two paths build divergent object keys. The two methods run as parallel branches, and the steps they share appear once with both line numbers in the node.
+    Q["Celery queue"] -.->|"no producer<br/>enqueues<br/>this task"| T["process_document_export<br/>background_tasks.py<br/>:L25"]
     T --> G["get_document<br/>:L56"]
     G -.->|"not awaited:<br/>binds a<br/>coroutine object"| C
-    T -.->|"the only export call<br/>the task makes:<br/>ExportService declares<br/>no convert_document"| C["convert_document<br/>:L59"]
+    T -.->|"the only export<br/>call the task<br/>makes:<br/>ExportService<br/>declares no<br/>convert_document"| C["convert_document<br/>:L59"]
     C -.->|"unreachable until<br/>convert_document<br/>exists"| UT["upload_from_file<br/>:L64"]
-    UT -.->|"unreachable: no<br/>version argument, so<br/>the client default<br/>applies"| ST["generate_signed_url<br/>:L67"]
-    ST -.->|"unreachable: the task<br/>returns no link, because<br/>every step above it stops"| URL["Signed<br/>download link"]
+    UT -.->|"unreachable: no<br/>version<br/>argument, so<br/>the client<br/>default applies"| ST["generate_signed_url<br/>:L67"]
+    ST -.->|"unreachable: the<br/>task returns no<br/>link, because<br/>every step<br/>above it stops"| URL["Signed<br/>download link"]
     C -.->|"key exports/<br/>user_id/<br/>document_id.format<br/>at L63"| K["Divergent<br/>object keys"]
 
-    NC["No production caller;<br/>two test callers at tests/test_services.py:L67 and :L75"] -.->|"unreachable from app code"| P["export_to_pdf<br/>export_service.py:L40"]
-    NC -.->|"unreachable from app code"| D["export_to_docx<br/>export_service.py:L74"]
-    P -->|"key exports/document.id.pdf, L61"| UP["Blob.upload_from_string, L63"]
-    D -->|"key exports/document.id.docx, L93"| UD["Blob.upload_from_string, L95"]
-    UP -.->|"literal string PDF_CONTENT"| PL["Placeholder payload"]
-    UD -.->|"literal string DOCX_CONTENT"| PL
-    UP --> SP["generate_signed_url version=v4, L66-L70"]
-    UD --> SD["generate_signed_url version=v4, L98-L102"]
-    SP --> URL
-    SD --> URL
-    P -.->|"exports/document.id.pdf, L61"| K
+    NC["No production<br/>caller; two test<br/>callers at tests/<br/>test_services.py<br/>:L67 and :L75"] -.->|"unreachable from<br/>app code"| P["export_to_pdf<br/>export_service.py<br/>:L40"]
+    NC -.->|"unreachable from<br/>app code"| D["export_to_docx<br/>export_service.py<br/>:L74"]
+    P -->|"key exports/<br/>document.id.pdf,<br/>L61"| UPD["upload_from_string<br/>L63 and L95"]
+    D -->|"key exports/<br/>document.id.docx,<br/>L93"| UPD
+    UPD -.->|"literal strings<br/>PDF_CONTENT<br/>and DOCX_CONTENT"| PL["Placeholder<br/>payload"]
+    UPD --> SPD["generate_signed_url<br/>version=v4,<br/>L66-L70<br/>and L98-L102"]
+    SPD --> URL
+    P -.->|"key exports/<br/>document.id.pdf,<br/>L61"| K
 %% Dashed edges mark a call that does not exist or cannot resolve.
 %% Solid edges inside export_to_pdf and export_to_docx are written and unreached.
 ```
@@ -319,15 +316,15 @@ Beyond the call sites:
 
 ### Absent security controls
 
-Seven entries in the repository-wide [G9 register](../../../docs/troubleshooting.md#g9-absent-security-controls) have their
+Eight entries in the repository-wide [G9 register](../../../docs/troubleshooting.md#g9-absent-security-controls) have their
 call site in this folder, and the locators below match the register.
 
 | # | Absent control | Evidence in this folder | What the absence permits |
 | --- | --- | --- | --- |
-| 19, 20, 21 | Authentication, authorization and identifier validation on the collaboration handshake | `collaboration_service.py:L44` takes `websocket`, `document_id` and `user_id` as plain arguments and no route constructs the service, so nothing verifies a token before the socket is registered at `:L64-L66`. The method never checks that `user_id` may read `document_id`, then interpolates the value straight into a topic at `:L69`, a subscription at `:L70` and the subscription a disconnect deletes at `:L128` | The method establishes no identity, performs no ownership or membership check and validates no format, so a caller has to prove and constrain all three before calling. A route forwarding a client-supplied value would let a client join as any identity, to any document identifier |
+| 19, 20, 21 | Authentication, authorization and identifier validation on the collaboration handshake | `collaboration_service.py:L44` takes `websocket`, `document_id` and `user_id` as plain arguments and no route constructs the service, so nothing verifies a token before the socket is registered at `:L64-L66`. The method never checks that `user_id` may read `document_id`, then interpolates the value straight into a topic at `:L69`, a subscription at `:L70` and the subscription a disconnect deletes at `:L128` | The method establishes no identity, performs no ownership or membership check and validates no format, so a caller has to prove and constrain all three before calling. A route forwarding a client-supplied value would let a client join as any identity, to any document identifier. The `:L70` template also runs the two identifiers together with an underscore that is legal inside both, so `("d_1", "2")` and `("d", "1_2")` resolve to one subscription name and each pair can delete the other's subscription at `:L130` |
 | 22 | A payload schema and a size bound on broadcast changes | `:L137` declares `change: dict` with no model behind it, and `:L156` serialises whatever arrives with `json.dumps` | Arbitrary unbounded structures are published to every subscriber |
 | 22a | Per-connection identity in the socket registry, so two sessions for one user can coexist | `:L66` keys `active_connections` by `user_id` rather than by connection, so a second socket for the same document and user replaces the first without closing it. Both resolve to one subscription name at `:L70`, so the second `create_subscription` at `:L73` answers `AlreadyExists`, which `:L76` prints before `:L77` returns. On disconnect, `:L128` rebuilds that shared name and `:L130` deletes it | A second session evicts the first from the registry and receives no feed itself, and either session closing deletes the subscription the other still depends on. Holding both would need a unique connection identifier per socket and subscription ownership that is reference counted or idempotent |
-| 25, 26 | An authorization check before a signed link is minted, plus a reviewed expiry and a protected signing credential | `export_service.py:L66-L70` and `:L98-L102` generate a version 4 signed URL immediately after upload, with no check that the requester may read the document. Both read `settings.SIGNED_URL_EXPIRATION`, which `../core/config.py:L40-L48` never declares, while `../tasks/background_tasks.py:L67` signs with `expiration=timedelta(hours=1)` and passes no `version`, so the two paths do not agree on a signing scheme | A link is issued to whoever reached the call. Signing needs a credential able to sign bytes, meaning a private key or an IAM `signBlob` grant. A signed URL is a bearer credential, so possession alone authorises the read for its whole validity window |
+| 24a, 25, 26 | Validation of `document.id` before it names a storage object, an authorization check before a signed link is minted, plus a reviewed expiry and a protected signing credential | `export_service.py:L61` and `:L93` interpolate `document.id` into `exports/{document.id}.pdf` and `exports/{document.id}.docx`, and `../schema/document.py:L63` declares `id: str` with no `Field(` behind it, so no length, character set or pattern applies. `export_service.py:L66-L70` and `:L98-L102` then generate a version 4 signed URL immediately after upload, with no check that the requester may read the document. Both read `settings.SIGNED_URL_EXPIRATION`, which `../core/config.py:L40-L48` never declares, while `../tasks/background_tasks.py:L67` signs with `expiration=timedelta(hours=1)` and passes no `version`, so the two paths do not agree on a signing scheme | The identifier is constrained nowhere, so a value carrying `/` relocates the object out of the `exports/` prefix, a value carrying `..` walks above it, and an empty value writes `exports/.pdf`. A link is then issued to whoever reached the call. Signing needs a credential able to sign bytes, meaning a private key or an IAM `signBlob` grant. A signed URL is a bearer credential, so possession alone authorises the read for its whole validity window |
 
 Every defect above is listed with its symptom and remediation in [../../../docs/troubleshooting.md](../../../docs/troubleshooting.md),
 and the judgement calls behind the documentation choices sit in the [decision log](../../../docs/decision-log.md).
@@ -362,7 +359,7 @@ object at `../api/documents.py:L46`, and calls `get_document` with one argument 
 
 The import fails before `main` runs, and the first failure is one level down rather than in this module. `L16` imports
 `app.db.firestore`, and `../db/firestore.py:L16` requests a `settings` name that `app.core.config` never defines. This
-module then requests the same name directly at `L17`. Given that name, `Document(**doc_data)` at L78 raises on the two
+module then requests the same name directly at `L17`. Given that name, `Document(**doc_data)` at L76 raises on the two
 missing timestamp fields, and `Document(**doc.to_dict())` at L112 raises for the same reason.
 
 `CollaborationService` has no usage example. No route constructs the class and no WebSocket endpoint exists under

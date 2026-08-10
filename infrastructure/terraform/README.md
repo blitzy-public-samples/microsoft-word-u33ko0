@@ -1,9 +1,5 @@
 # Terraform Root Configuration
 
-Line references throughout this document are physical line numbers in the three `.tf` files as committed at `HEAD`,
-counting the `#` comment lines the documentation pass added. `main.tf` runs to 99 lines, `variables.tf` to 95 and
-`outputs.tf` to 87.
-
 ## Purpose
 
 The project's entire Terraform root configuration lives here: three files and 35 top-level blocks, with no child modules
@@ -12,7 +8,9 @@ virtual private cloud (VPC) network, a regional subnetwork, an internal firewall
 (`main.tf:L19-L59`). Three module blocks then call `./modules/word_backend`, `./modules/word_frontend` and
 `./modules/word_database` (`main.tf:L67-L92`), and none of those three directories exists. `variables.tf` declares 13
 input variables, and the configuration reads 2 of them. `outputs.tf` declares 14 outputs that read Amazon Web Services
-(AWS) resource addresses no file in this repository declares.
+(AWS) resource addresses no file in this repository declares. Line references below are physical line numbers in the three
+`.tf` files as committed at `HEAD`, counting the `#` comment lines the documentation pass added: `main.tf` runs to 99
+lines, `variables.tf` to 95 and `outputs.tf` to 87.
 
 ## Key Components
 
@@ -21,9 +19,9 @@ calls, 13 variables and 14 outputs.
 
 | Component | Type | Location | Description |
 | --- | --- | --- | --- |
-| `main.tf` | File, 99 lines | `infrastructure/terraform/main.tf` | Holds the provider, all four resources, all three module calls, and a `HUMAN ASSISTANCE NEEDED` marker at `main.tf:L94-L99`. |
-| `variables.tf` | File, 95 lines | `infrastructure/terraform/variables.tf` | Declares 13 input variables. Carries no `validation` block and no marker. |
-| `outputs.tf` | File, 87 lines | `infrastructure/terraform/outputs.tf` | Declares 14 outputs. Carries a `HUMAN ASSISTANCE NEEDED` marker mid-file at `outputs.tf:L58-L60`. |
+| `main.tf` | File, 99 lines | `infrastructure/terraform/` `main.tf` | Holds the provider, all four resources, all three module calls, and a `HUMAN ASSISTANCE NEEDED` marker at `main.tf:L94-L99`. |
+| `variables.tf` | File, 95 lines | `infrastructure/terraform/` `variables.tf` | Declares 13 input variables. Carries no `validation` block and no marker. |
+| `outputs.tf` | File, 87 lines | `infrastructure/terraform/` `outputs.tf` | Declares 14 outputs. Carries a `HUMAN ASSISTANCE NEEDED` marker mid-file at `outputs.tf:L58-L60`. |
 | `provider "google"` | Provider | `main.tf:L9-L12` | Sets `project` from `var.project_id` (`main.tf:L10`) and `region` from `var.region` (`main.tf:L11`). The only provider block in the configuration. |
 | `google_compute_network.word_network` | Resource | `main.tf:L19-L22` | Names the network `word-network` (`main.tf:L20`) and sets `auto_create_subnetworks = false` (`main.tf:L21`), so the network runs in custom mode. |
 | `google_compute_subnetwork.word_subnet` | Resource | `main.tf:L25-L30` | Names the subnetwork `word-subnet` (`main.tf:L26`) on the `10.0.0.0/24` Classless Inter-Domain Routing (CIDR) range (`main.tf:L27`). Attaches the network by `.id` (`main.tf:L29`). |
@@ -63,7 +61,7 @@ provider that carries no version constraint. Internal dependencies resolve insid
 | `./modules/word_frontend` | `main.tf:L77` | Absent. No `modules` directory exists in the repository. |
 | `./modules/word_database` | `main.tf:L86` | Absent. No `modules` directory exists in the repository. |
 | `var.project_id` | `main.tf:L10`, `:L51`, `:L70`, `:L79`, `:L88` | Declared at `variables.tf:L7-L10` and read at 5 sites. |
-| `var.region` | `main.tf:L11`, `:L28`, `:L52`, `:L71`, `:L80`, `:L89` | Declared at `variables.tf:L14-L18` and read at 6 sites. |
+| `var.region` | `main.tf:L11`, `:L28`, `:L52`, `:L71`, `:L80`, `:L89` | Declared at `variables.tf` `L14-L18` and read at 6 sites. |
 | `google_compute_network.word_network` | `main.tf:L29`, `:L37`, `:L72`, `:L81`, `:L90` | Resolves inside `main.tf`. Read by `.id` at four sites and by `.name` at one. |
 | `google_compute_subnetwork.word_subnet` | `main.tf:L73`, `:L82`, `:L91` | Resolves inside `main.tf`. Read by `.id` and passed to all three module calls. |
 
@@ -88,18 +86,18 @@ a value matching none of the three environments its own description names (`vari
 | Variable | Span | Type | Default | Status |
 | --- | --- | --- | --- | --- |
 | `project_id` | `variables.tf:L7-L10` | `string` | None | Consumed at 5 sites. Required input. |
-| `region` | `variables.tf:L14-L18` | `string` | `us-central1` | Consumed at 6 sites. |
-| `zone` | `variables.tf:L21-L25` | `string` | `us-central1-a` | Unreferenced. |
-| `compute_instance_type` | `variables.tf:L29-L33` | `string` | `n1-standard-1` | Unreferenced. No compute instance is declared. |
-| `storage_class` | `variables.tf:L37-L41` | `string` | `STANDARD` | Unreferenced. The Google Cloud Storage (GCS) bucket at `main.tf:L50-L59` sets no `storage_class`. |
-| `database_tier` | `variables.tf:L44-L48` | `string` | `db-f1-micro` | Unreferenced. No Cloud SQL instance is declared. |
-| `environment` | `variables.tf:L53-L57` | `string` | `dev` | Unreferenced. No `validation` block, so any string is accepted. |
-| `dev_instance_count` | `variables.tf:L61-L65` | `number` | `1` | Unreferenced. |
-| `staging_instance_count` | `variables.tf:L67-L71` | `number` | `2` | Unreferenced. |
-| `prod_instance_count` | `variables.tf:L73-L77` | `number` | `3` | Unreferenced. |
-| `dev_storage_size` | `variables.tf:L79-L83` | `number` | `10` | Unreferenced. |
-| `staging_storage_size` | `variables.tf:L85-L89` | `number` | `50` | Unreferenced. |
-| `prod_storage_size` | `variables.tf:L91-L95` | `number` | `100` | Unreferenced. |
+| `region` | `variables.tf` `L14-L18` | `string` | `us-central1` | Consumed at 6 sites. |
+| `zone` | `variables.tf` `L21-L25` | `string` | `us-central1-a` | Unreferenced. |
+| `compute_instance_type` | `variables.tf` `L29-L33` | `string` | `n1-standard-1` | Unreferenced. No compute instance is declared. |
+| `storage_class` | `variables.tf` `L37-L41` | `string` | `STANDARD` | Unreferenced. The Google Cloud Storage (GCS) bucket at `main.tf:L50-L59` sets no `storage_class`. |
+| `database_tier` | `variables.tf` `L44-L48` | `string` | `db-f1-micro` | Unreferenced. No Cloud SQL instance is declared. |
+| `environment` | `variables.tf` `L53-L57` | `string` | `dev` | Unreferenced. No `validation` block, so any string is accepted. |
+| `dev_instance_count` | `variables.tf` `L61-L65` | `number` | `1` | Unreferenced. |
+| `staging_instance_count` | `variables.tf` `L67-L71` | `number` | `2` | Unreferenced. |
+| `prod_instance_count` | `variables.tf` `L73-L77` | `number` | `3` | Unreferenced. |
+| `dev_storage_size` | `variables.tf` `L79-L83` | `number` | `10` | Unreferenced. |
+| `staging_storage_size` | `variables.tf` `L85-L89` | `number` | `50` | Unreferenced. |
+| `prod_storage_size` | `variables.tf` `L91-L95` | `number` | `100` | Unreferenced. |
 
 That table covers 13 of 13 declared variables, and the 11 rows marked unreferenced appear in no expression in any of the
 three files.
@@ -190,8 +188,8 @@ what blocks what rather than alphabetically.
 
 1. **Three module sources cannot resolve.** The module blocks source `./modules/word_backend` (`main.tf:L68`),
    `./modules/word_frontend` (`main.tf:L77`) and `./modules/word_database` (`main.tf:L86`). No `modules` directory
-   exists anywhere in the repository. `terraform init` reports one `Unreadable module directory` error per block and
-   exits non-zero.
+   exists anywhere in the repository. `terraform init` reports at least one `Unreadable module directory` error per
+   block and exits non-zero. The [initialization transcript](#usage-examples) records how many print.
 
 2. **The firewall rule opens every TCP port across the subnet.** `google_compute_firewall.allow_internal` allows
    protocol `tcp` on ports `0-65535` (`main.tf:L39-L42`) from `source_ranges = ["10.0.0.0/24"]` (`main.tf:L44`), which
@@ -386,9 +384,9 @@ Error: Unreadable module directory
 The directory  could not be read for module "word_backend" at main.tf:67.
 ```
 
-Three qualifications apply. Wording, ordering and how many errors print before Terraform stops all vary by release. No
-version is pinned here, because `main.tf` declares neither a `terraform` block nor a `required_version` constraint
-(item 3 above).
+Three qualifications apply. Wording, ordering and how many errors print before Terraform stops all vary by release.
+Terraform v1.15.8 on Windows printed two per block, a symlink failure and the locator above. No version is pinned
+here, because `main.tf` declares neither a `terraform` block nor a `required_version` constraint (item 3 above).
 
 Only the first of the three module errors is reproduced. The locator moved with this documentation pass. Terraform
 reported `main.tf:52` against the pre-comment file at `06be74c`, and a run today reports `main.tf:67`, where the

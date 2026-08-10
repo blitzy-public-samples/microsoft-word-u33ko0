@@ -1,13 +1,11 @@
 # backend/app
 
-The FastAPI application package. Fifteen Python modules, 1,718 physical lines at the current branch head, 13 top-level classes
-and 43 function and method definitions, documented as committed.
-
 ## Purpose
 
 `backend/app` holds the server side of the application. The fifteen modules cover one composition root, four route modules, two
 persistence adapters, three domain services, the Pydantic validation contracts, and one Celery task module. The route modules
-publish the application programming interface (API) over the hypertext transfer protocol (HTTP).
+publish the application programming interface (API) over the hypertext transfer protocol (HTTP). The package carries 1,717
+physical lines, 13 top-level classes and 43 function and method definitions at the current branch head, documented as committed.
 
 `main.py` builds the application object at `main.py:L24` and mounts all four routers at `main.py:L84-L87`. The package does not
 run as committed. `import app.main` raises `ImportError: cannot import name 'settings' from 'app.core.config'` through
@@ -49,7 +47,7 @@ is what makes the documents and templates paths collide.
 Second, the specification names twelve backend components and the package implements three. `documentation/Technical
 Specifications.md, SYSTEM ARCHITECTURE > COMPONENT DIAGRAMS > Backend Components (L201)` diagrams AuthService, DocumentService,
 CollaborationService, ExportService, DocumentRepository, VersionControl, WebSocketManager, ConflictResolver, PDFGenerator,
-DOCXGenerator, UserManager and PermissionChecker at L118-L132. Three exist as code: `DocumentService` at
+DOCXGenerator, UserManager and PermissionChecker at L205-L216. Three exist as code: `DocumentService` at
 `services/document_service.py:L19`, `CollaborationService` at `services/collaboration_service.py:L20` and `ExportService` at
 `services/export_service.py:L18`. The other nine names have no implementing file.
 
@@ -189,12 +187,12 @@ committed, and every label names the reason.
 graph LR
     accTitle: The composition root, the four routers, the services and the adapters
     accDescr: Every edge is dashed because the package import fails at api/auth.py:L20, so no route registers and no client is constructed. Each node names its file and line, and every edge carries a key resolved in the table below the diagram.
-    MAIN["main.py<br/>:L25"]
+    MAIN["main.py<br/>:L24"]
     NOPROD["no<br/>producer"]
     NOROUTE["no<br/>route"]
 
     AUTH["auth.py:L26"]
-    DOCS["documents.py<br/>:L23"]
+    DOCS["documents.py<br/>:L22"]
     USERS["users.py:L17"]
     TMPL["templates.py<br/>:L22"]
     CFG["config.py:L20"]
@@ -246,10 +244,10 @@ registers anything, and each one is the line that fails.
 | A5 | `main.py` to `core/config.py` | `main.py:L20` runs `from app.core.config import settings` | `config.py:L20` declares the `Settings` class and creates no module-level instance |
 | A6 | `main.py` to `db/sql.py` | `main.py:L22` runs `from app.db.sql import init_db` | `sql.py` defines no `init_db` |
 | A7 | `main.py` to `db/firestore.py` | `main.py:L21` runs `from app.db.firestore import db` | The module body raises first at `firestore.py:L16`, which imports the same absent `settings` |
-| A8 | `api/auth.py` to the absent modules | `auth.py:L22` runs `from app.services.user_service import UserService` | `app/services/user_service.py` does not exist, and this is the import that fails first and stops the whole package |
+| A8 | `api/auth.py` to the absent modules | `auth.py:L22` runs `from app.services.user_service import UserService` | `app/services/user_service.py` does not exist. The line never executes, because `auth.py:L20` raises two lines earlier on A5's absent `settings`, so this import would raise next once that name exists |
 | A9 | `api/users.py` to the absent modules | `users.py:L14` requests the same `UserService` | Same absent module |
 | A10 | `api/templates.py` to the absent modules | `templates.py:L17` imports from `app.schema.template` and `:L18` from `app.services.template_service` | Neither module exists |
-| A11 | `api/documents.py` to `DocumentService` | `documents.py` constructs the service and calls it per handler | No route ever registers, because the package import fails at A8 |
+| A11 | `api/documents.py` to `DocumentService` | `documents.py` constructs the service and calls it per handler | No route ever registers, because the package import fails at A1 through `auth.py:L20`. Importing `api/documents.py` on its own fails too, at `documents.py:L18` through `services/document_service.py:L16` then `db/firestore.py:L16` |
 | A12 | `DocumentService` to the Firestore client | `document_service.py:L16` imports `db` and `:L40` assigns it to `self.db` | The client is never constructed. See [db/README.md](db/README.md) |
 | A13 | `ExportService` to Cloud Storage | `export_service.py` uploads the rendered object | No upload executes, and the payload is a literal placeholder string |
 | A14 | `CollaborationService` to Cloud Pub/Sub | `collaboration_service.py:L20` would publish and subscribe per document | No route and no WebSocket endpoint constructs the class |

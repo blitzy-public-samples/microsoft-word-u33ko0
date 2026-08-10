@@ -1,10 +1,8 @@
 # frontend/src/services
 
-*Line citations in this document use the current numbering of each module at `HEAD`, counting the comment blocks the inline documentation pass added. Each citation names its symbol as well as its line, so a reader can confirm the target after any later edit.*
-
 ## Purpose
 
-The directory holds the client's three outbound integration points: document calls over REST (Representational State Transfer), authentication calls, and a Socket.IO collaboration client. `api.ts` builds one shared Axios instance and exports three document functions. `auth.ts` exports three authentication functions that bypass that shared instance and call the default Axios export. `collaboration.ts` exports a class that wraps a Socket.IO connection. Only `api.ts` has importers anywhere in `frontend/src`, and each of its three importers names a symbol the module never defines.
+The directory holds the client's three outbound integration points: document calls over REST (Representational State Transfer), authentication calls, and a Socket.IO collaboration client. `api.ts` builds one shared Axios instance and exports three document functions. `auth.ts` exports three authentication functions that bypass that shared instance and call the default Axios export. `collaboration.ts` exports a class that wraps a Socket.IO connection. Only `api.ts` has importers anywhere in `frontend/src`, and each of its three importers names a symbol the module never defines. Line citations below use the current numbering of each module at `HEAD`, counting the comment blocks the inline documentation pass added, and each citation names its symbol as well as its line.
 
 ## Key Components
 
@@ -85,11 +83,11 @@ sequenceDiagram
     participant Int as request<br/>interceptor<br/>api.ts:L38-L47
     participant Srv as FastAPI<br/>server
 
-    Page--xPage: read id at L75
+    Page--xPage: read id at L84
     Note over Page,Int: FIRST STOP. Reading<br/>currentDocument.id at Editor.tsx:L84<br/>raises, so updateDocument is<br/>never entered.
     Page--xFn: updateDocument(...)
     Note over Fn,Srv: The steps below run only once<br/>the caller is repaired.
-    Fn->>Int: api.put at L95
+    Fn->>Int: api.put at L96
     Note over Fn,Srv: Calls api.put on /documents/<id><br/>at api.ts:L96 through the axios<br/>instance created at api.ts:L60.
     Int--xInt: read auth.token
     Note over Fn,Srv: SECOND STOP at api.ts:L40.<br/>The store is never imported, and<br/>no 'auth' reducer key is<br/>registered on it.

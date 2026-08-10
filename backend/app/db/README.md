@@ -1,16 +1,13 @@
 # backend/app/db
 
-Two modules hold the whole persistence layer. `firestore.py` builds a Google Cloud Firestore client plus four helper functions, and `sql.py` builds a
-SQLAlchemy engine, a session factory and a declarative base. Both act at import time. Every `Lnn` locator below numbers the file at the current
-branch head, which includes the comment blocks this pass added.
-
 ## Purpose
 
 `backend/app/db` holds the two low-level persistence entry points, and no abstraction unifies them. `firestore.py:L20` constructs one Firestore
 client, and the four helpers at `firestore.py:L22`, `L45`, `L64` and `L81` cover create, read, update and delete work against a collection the
 caller names. `sql.py:L16` opens a SQLAlchemy engine, `sql.py:L17` binds a session factory, and `sql.py:L19` declares a base class for models. Three
 modules import the Firestore client name and then call it directly. The four helpers and the entire SQLAlchemy path are dead: no module imports a
-helper, no class subclasses `Base`, and `get_db` at `sql.py:L21` has no consumer.
+helper, no class subclasses `Base`, and `get_db` at `sql.py:L21` has no consumer. Both modules act at import time. Every `Lnn`
+locator below numbers the file at the current branch head, which includes the comment blocks this pass added.
 
 ## Key Components
 
@@ -29,7 +26,7 @@ helper, no class subclasses `Base`, and `get_db` at `sql.py:L21` has no consumer
 ## Architecture Fit
 
 The specification places two databases behind this folder, and the committed code delivers one. `documentation/Technical Specifications.md, SYSTEM
-DESIGN > DATABASE DESIGN (L315)` describes a hybrid at L142 and restates it at L400. Google Cloud Firestore, a non-relational store, holds flexible
+DESIGN > DATABASE DESIGN (L315)` describes a hybrid at L317 and restates it at L400. Google Cloud Firestore, a non-relational store, holds flexible
 documents, and Google Cloud SQL, a relational store, holds structured data. The committed code matches the Firestore half, and
 `services/document_service.py` and `tasks/background_tasks.py` read and write through the client at `firestore.py:L20`.
 

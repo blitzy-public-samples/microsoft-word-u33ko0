@@ -1,12 +1,5 @@
 # frontend/src/store
 
-The store never constructs. `index.ts:L15` imports `documentReducer` and `index.ts:L16` imports `userReducer` as named
-bindings, while `documentSlice.ts:L127` and `userSlice.ts:L100` export their reducer as the default. Those two lines carry the
-directory's only two `TS2614` errors, reported as a missing member because both relative paths resolve.
-
-Thirteen import statements across seven consumer modules also ask this directory for a symbol it never exports, and the two
-tables under Known Limitations name every one.
-
 ## Purpose
 
 The directory composes the single Redux store for the browser application and owns two state trees, one for documents and one
@@ -219,7 +212,9 @@ Dispatching a document action uses the six creators exported at `documentSlice.t
 
 ```typescript
 import store from '../store';
-import { setCurrentDocument, addRecentDocument, setError } from '../store/documentSlice';
+import {
+  setCurrentDocument, addRecentDocument, setError,
+} from '../store/documentSlice';
 
 const doc = {
   id: 'doc-1', title: 'Quarterly report', content: '', owner_id: 'user-1',

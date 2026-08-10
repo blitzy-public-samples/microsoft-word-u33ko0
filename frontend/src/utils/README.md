@@ -1,4 +1,4 @@
-# `frontend/src/utils`
+# frontend/src/utils
 
 ## Purpose
 
@@ -188,7 +188,7 @@ import { EditorState } from 'draft-js';
 import { serializeDocument, deserializeDocument } from './documentUtils';
 
 const editorState = EditorState.createEmpty();
-const json = serializeDocument(editorState);   // pass the state, not its ContentState
+const json = serializeDocument(editorState);   // pass the state, not a ContentState
 const restored = deserializeDocument(json);    // bind the return as an EditorState
 ```
 

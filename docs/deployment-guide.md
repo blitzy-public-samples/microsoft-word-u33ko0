@@ -193,7 +193,7 @@ directory and the environment configuration.
 | `:L8` | `COPY package*.json ./` | Copies `package.json`. The glob matches no lockfile, because the repository commits none |
 | `:L11` | `RUN npm ci` | Stops the build. `npm ci` installs strictly from a lockfile |
 | `:L14` | `COPY . .` | Never runs |
-| `:L17` | `RUN npm run build` | Never runs. The script resolves to `react-scripts build` per `frontend/package.json:L33` |
+| `:L17` | `RUN npm run build` | Never runs. The script resolves to `react-scripts build` per `frontend/` `package.json:L33` |
 | `:L20` | `FROM nginx:alpine` | Serve stage |
 | `:L23` | `COPY --from=build /app/build /usr/share/nginx/html` | Copies the build output into the Nginx document root |
 | `:L29` | `EXPOSE 80` | Declares port 80 |
@@ -282,16 +282,16 @@ GCP fields at `:L45-L46` default to `None`. Compose injects `DATABASE_URL` only.
 | `SECRET_KEY` | `config.py:L42` | Yes | No | `ValidationError`. Signs and verifies every token |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | `config.py:L43` | Yes | No | `ValidationError`. Sets token lifetime |
 | `ALGORITHM` | `config.py:L44` | Yes | No | `ValidationError`. Names the JWT algorithm |
-| `GOOGLE_CLOUD_PROJECT` | `config.py:L45` | No, `Optional` | No | Resolves to `None`, and `backend/app/db/firestore.py:L20` passes it as the Firestore project |
+| `GOOGLE_CLOUD_PROJECT` | `config.py:L45` | No, `Optional` | No | Resolves to `None`, and `backend/app/db/` `firestore.py:L20` passes it as the Firestore project |
 | `GOOGLE_APPLICATION_CREDENTIALS` | `config.py:L46` | No, `Optional` | No | Resolves to `None`. No credential file is mounted into any container |
-| `DATABASE_URL` | `config.py:L47` | Yes | Yes, `docker-compose.yml:L24` | Satisfied. Read at `backend/app/db/sql.py:L16` |
+| `DATABASE_URL` | `config.py:L47` | Yes | Yes, `docker-compose.yml` `L24` | Satisfied. Read at `backend/app/db/` `sql.py:L16` |
 | `REDIS_URL` | `config.py:L48` | Yes | No | `ValidationError`. No Redis service exists to point it at |
-| `ALLOWED_ORIGINS` | Nowhere | n/a | No | `AttributeError` at `backend/app/main.py:L77` |
-| `PROJECT_ID` | Nowhere | n/a | No | `AttributeError` at `backend/app/services/collaboration_service.py:L69` |
-| `STORAGE_BUCKET_NAME` | Nowhere | n/a | No | `AttributeError` at `backend/app/services/export_service.py:L60` |
-| `SIGNED_URL_EXPIRATION` | Nowhere | n/a | No | `AttributeError` at `backend/app/services/export_service.py:L68` |
-| `EXPORT_BUCKET_NAME` | Nowhere | n/a | No | `AttributeError` at `backend/app/tasks/background_tasks.py:L62` |
-| `DOCUMENT_BUCKET_NAME` | Nowhere | n/a | No | `AttributeError` at `backend/app/tasks/background_tasks.py:L107` |
+| `ALLOWED_ORIGINS` | Nowhere | n/a | No | `AttributeError` at `backend/app/` `main.py:L77` |
+| `PROJECT_ID` | Nowhere | n/a | No | `AttributeError` at `backend/app/services/` `collaboration_service.py` `L69` |
+| `STORAGE_BUCKET_NAME` | Nowhere | n/a | No | `AttributeError` at `backend/app/services/` `export_service.py` `L60` |
+| `SIGNED_URL_EXPIRATION` | Nowhere | n/a | No | `AttributeError` at `backend/app/services/` `export_service.py` `L68` |
+| `EXPORT_BUCKET_NAME` | Nowhere | n/a | No | `AttributeError` at `backend/app/tasks/` `background_tasks.py` `L62` |
+| `DOCUMENT_BUCKET_NAME` | Nowhere | n/a | No | `AttributeError` at `backend/app/tasks/` `background_tasks.py` `L107` |
 
 Six required fields are absent, so `Settings()` cannot construct. Six further settings are read from
 `settings` and declared on no model, so no `.env` file and no Compose entry can supply them through
@@ -401,18 +401,18 @@ closes it. Every one is future work; this documentation pass changes no manifest
 
 | # | Risk | Committed evidence | Prerequisite |
 | --- | ------ | -------------------- | -------------- |
-| 1 | Python 3.9 receives no security fix | `infrastructure/docker/backend.Dockerfile:L2` names `python:3.9-slim`, and `../README.md:L23` states Python 3.8 or later. Python 3.9 reached end of support on 31 October 2025, per the [Python release cycle](https://devguide.python.org/versions/) | Move to a supported Python and pin it in one place, with a reviewed backend dependency manifest behind it |
-| 2 | Node.js 14 receives no security fix | `.github/workflows/ci.yml:L17` sets `node-version: '14'`, `infrastructure/docker/frontend.Dockerfile:L2` names `node:14-alpine`, and `../README.md:L22` states Node 14 or later. Node.js 14 left support on 30 April 2023, and its final release, 14.21.3, shipped on 16 February 2023, per [Node.js previous releases](https://nodejs.org/en/about/previous-releases) | Move to a supported Node major, declare it in `engines` and in the workflow, and add a lockfile so `npm ci` can run |
-| 3 | PostgreSQL 13 receives no security fix | `infrastructure/docker/docker-compose.yml:L31` names `image: postgres:13`. PostgreSQL 13 reached end of life on 13 November 2025, so the community ships no further fix for the 13 branch, per the [versioning policy](https://www.postgresql.org/support/versioning/) and the [release announcement](https://www.postgresql.org/about/news/postgresql-181-177-1611-1515-1420-and-1323-released-3171/) | Move to a supported major, and plan the upgrade path for any data already written |
-| 4 | Image references are mutable | Every `FROM` and every `image:` above names a tag. A tag can be repointed at different bytes by whoever publishes it, and `frontend.Dockerfile:L20` names `nginx:alpine`, which pins no minor version at all | Pin each image by digest, written `image@sha256:<hex>`, which is the only immutable form, and record the resolved version beside it |
+| 1 | Python 3.9 receives no security fix | `infrastructure/docker/` `backend.Dockerfile` `L2` names `python:3.9-slim`, and `../README.md:L23` states Python 3.8 or later. Python 3.9 reached end of support on 31 October 2025, per the [Python release cycle](https://devguide.python.org/versions/) | Move to a supported Python and pin it in one place, with a reviewed backend dependency manifest behind it |
+| 2 | Node.js 14 receives no security fix | `.github/workflows/` `ci.yml:L17` sets `node-version: '14'`, `infrastructure/docker/` `frontend.Dockerfile` `L2` names `node:14-alpine`, and `../README.md:L22` states Node 14 or later. Node.js 14 left support on 30 April 2023, and its final release, 14.21.3, shipped on 16 February 2023, per [Node.js previous releases](https://nodejs.org/en/about/previous-releases) | Move to a supported Node major, declare it in `engines` and in the workflow, and add a lockfile so `npm ci` can run |
+| 3 | PostgreSQL 13 receives no security fix | `infrastructure/docker/` `docker-compose.yml` `L31` names `image: postgres:13`. PostgreSQL 13 reached end of life on 13 November 2025, so the community ships no further fix for the 13 branch, per the [versioning policy](https://www.postgresql.org/support/versioning/) and the [release announcement](https://www.postgresql.org/about/news/postgresql-181-177-1611-1515-1420-and-1323-released-3171/) | Move to a supported major, and plan the upgrade path for any data already written |
+| 4 | Image references are mutable | Every `FROM` and every `image:` above names a tag. A tag can be repointed at different bytes by whoever publishes it, and `frontend.Dockerfile` `L20` names `nginx:alpine`, which pins no minor version at all | Pin each image by digest, written `image@sha256:<hex>`, which is the only immutable form, and record the resolved version beside it |
 | 5 | Action references are mutable | `ci.yml:L13`, `:L15` and `cd.yml:L11`, `:L13` name tags. Anyone with write access to an action repository can move or delete a tag. In the March 2025 `tj-actions/changed-files` compromise, tags v1 through v45.0.7 were repointed at a single malicious commit on 14 and 15 March 2025. The fix shipped in v46.0.1 ([CVE-2025-30066](https://github.com/advisories/GHSA-mrrh-fwg8-r2c3), [CISA alert](https://www.cisa.gov/news-events/alerts/2025/03/18/supply-chain-compromise-third-party-tj-actionschanged-files-cve-2025-30066-and-reviewdogaction)) | Replace each tag with a reviewed full-length commit SHA, which [GitHub documents](https://docs.github.com/en/actions/reference/security/secure-use) as the only immutable reference, and record the resolved version in a comment |
 | 6 | Neither job declares the token scope it needs | Neither workflow declares a `permissions:` block at workflow or job level, so each job receives the default `GITHUB_TOKEN` scope. What that default grants is **not determinable from this repository**. A repository or organization setting fixes it, and no committed file records that setting. Whether the scope is broader than the work requires therefore cannot be read off the committed files. [GitHub's guidance](https://docs.github.com/en/actions/reference/security/secure-use) is to declare it regardless | Declare the minimum explicitly: `contents: read` for `ci.yml`, and `contents: read` plus `id-token: write` for `cd.yml` under federated identity |
 | 7 | A service-account key authenticates the deploy, and nothing committed bounds it | `cd.yml:L16` passes `secrets.GCP_SA_KEY` to `setup-gcloud`. A user-managed service account key does not expire on its own, and grants its permissions to anyone who obtains it. The key's actual role, age and expiry are **not determinable from this repository**: no committed file records them, and an organization policy could bound them outside these files | Replace it with [Workload Identity Federation](https://docs.cloud.google.com/iam/docs/workload-identity-federation), which exchanges the OpenID Connect token GitHub issues for short-lived credentials and removes key handling entirely |
 | 8 | No federated identity is configured | Nothing in either workflow requests an OIDC token, and no workload identity pool or provider appears in `infrastructure/terraform/` | Create a pool and provider, request `id-token: write` on the job, and add an attribute condition restricting the provider to this repository, because an unconditioned provider lets any repository authenticate |
 | 9 | No credential rotation or audit exists | No committed file records which IAM role `GCP_SA_KEY` carries, when it was issued, or when it is next rotated. [Continuous delivery](#continuous-delivery) above records the same gap | Record the role, set a rotation schedule, and audit key use, until item 7 removes the key |
-| 10 | Neither build context is bounded, and the frontend build copies the whole of it | No `.dockerignore` is tracked anywhere in the repository, so each build uploads its whole named directory to the daemon as its [build context](https://docs.docker.com/build/concepts/context/). `infrastructure/docker/frontend.Dockerfile:L14` then runs `COPY . .`, writing that context into the build stage on top of the `node_modules` its own `npm ci` at `:L11` installed. A local `.env` or key file in the tree travels the same route. The final stage copies only `/app/build` at `:L23`, so the shipped image stays clean while the uploaded context and the build cache do not | Commit a reviewed `.dockerignore` excluding at least `node_modules`, a local virtual environment, `.env` and key material, and treat it as a prerequisite for either direct build |
-| 11 | The backend process and the Nginx master run as root | No `USER` instruction appears in `infrastructure/docker/backend.Dockerfile` or in either stage of `infrastructure/docker/frontend.Dockerfile`, and `python:3.9-slim`, `node:14-alpine` and `nginx:alpine` all default to root. Uvicorn at `backend.Dockerfile:L20` and the Nginx master at `frontend.Dockerfile:L32` therefore start as uid 0. Nginx workers are the one exception, because the `nginx:alpine` default configuration carries `user nginx;` and `frontend.Dockerfile:L26` leaves the override commented out, so the workers drop to an unprivileged user. An exploited backend process or Nginx master still begins with root inside the container | Add a `USER` with a non-root uid to each final stage, placed after the steps that need write access, and make the served paths readable by that uid |
-| 12 | No container is contained or resource bounded | `infrastructure/docker/docker-compose.yml` declares no `user:`, `read_only:`, `cap_drop:`, `security_opt:`, `pids_limit:`, `mem_limit:` or `cpus:`, and no `deploy.resources.limits` block. Each of the three services keeps the default Linux capability set, a writable root filesystem and unbounded CPU, memory and process count. One runaway container can then exhaust the host, and a compromised one can raise its own privileges | Drop all capabilities and add back only what each service needs, set `no-new-privileges`, and mount the root filesystem read-only with explicit writable `tmpfs` paths. Then give every service a CPU and memory limit |
+| 10 | Neither build context is bounded, and the frontend build copies the whole of it | No `.dockerignore` is tracked anywhere in the repository, so each build uploads its whole named directory to the daemon as its [build context](https://docs.docker.com/build/concepts/context/). `infrastructure/docker/` `frontend.Dockerfile` `L14` then runs `COPY . .`, writing that context into the build stage on top of the `node_modules` its own `npm ci` at `:L11` installed. A local `.env` or key file in the tree travels the same route. The final stage copies only `/app/build` at `:L23`, so the shipped image stays clean while the uploaded context and the build cache do not | Commit a reviewed `.dockerignore` excluding at least `node_modules`, a local virtual environment, `.env` and key material, and treat it as a prerequisite for either direct build |
+| 11 | The backend process and the Nginx master run as root | No `USER` instruction appears in `infrastructure/docker/` `backend.Dockerfile` or in either stage of `infrastructure/docker/` `frontend.Dockerfile`, and `python:3.9-slim`, `node:14-alpine` and `nginx:alpine` all default to root. Uvicorn at `backend.Dockerfile` `L20` and the Nginx master at `frontend.Dockerfile` `L32` therefore start as uid 0. Nginx workers are the one exception, because the `nginx:alpine` default configuration carries `user nginx;` and `frontend.Dockerfile` `L26` leaves the override commented out, so the workers drop to an unprivileged user. An exploited backend process or Nginx master still begins with root inside the container | Add a `USER` with a non-root uid to each final stage, placed after the steps that need write access, and make the served paths readable by that uid |
+| 12 | No container is contained or resource bounded | `infrastructure/docker/` `docker-compose.yml` declares no `user:`, `read_only:`, `cap_drop:`, `security_opt:`, `pids_limit:`, `mem_limit:` or `cpus:`, and no `deploy.resources.limits` block. Each of the three services keeps the default Linux capability set, a writable root filesystem and unbounded CPU, memory and process count. One runaway container can then exhaust the host, and a compromised one can raise its own privileges | Drop all capabilities and add back only what each service needs, set `no-new-privileges`, and mount the root filesystem read-only with explicit writable `tmpfs` paths. Then give every service a CPU and memory limit |
 
 [../.github/workflows/README.md](../.github/workflows/README.md) carries rows 5 through 8 against the
 workflow files, and [../infrastructure/docker/README.md](../infrastructure/docker/README.md) carries
@@ -447,7 +447,7 @@ graph TD
         D3["backend image<br/>COPY requirements.txt, backend.Dockerfile:L8"]
         D4["uvicorn on 8000,<br/>published 5000:5000"]
         D1 -.->|"stops: context names Dockerfile,<br/>docker-compose.yml:L6-L7"| D2
-        D1 -.->|"stops: context names Dockerfile,<br/>docker-compose.yml:L19-L20"| D3
+        D1 -.->|"stops: context names<br/>Dockerfile,<br/>docker-compose.yml<br/>:L19-L20"| D3
         D3 -.->|"app. prefix unresolvable,<br/>backend.Dockerfile:L14 and :L20"| D4
     end
 
@@ -468,7 +468,7 @@ graph TD
     subgraph CDJOB["Stage 4, delivery: .github/workflows/cd.yml"]
         direction TB
         B1["checkout@v2, :L11"]
-        B2["setup-gcloud v0.2.0, :L13-L16"]
+        B2["setup-gcloud v0.2.0,<br/>:L13-L16"]
         B3["gcloud app deploy app.yaml, :L19"]
         B4["gcloud app deploy dispatch.yaml, :L20<br/>LATENT: dispatch.yaml absent"]
         B1 --> B2 --> B3
@@ -618,7 +618,7 @@ table below groups them so a reader can tell what a run will actually say from w
 | Terraform | `terraform init` | Item 1, three unreadable module sources | The 14 outputs reading undeclared `aws_*` addresses, which block `apply` once `init` clears, and item 10, the absent App Engine resource |
 | Compose | `docker compose up --build` | Item 5, neither build context holds a `Dockerfile` | Items 3 and 4, the two image builds; then item 6, the port mapping; then item 7, the flattened package; then item 8, the absent broker |
 | Direct backend build | `docker build -f infrastructure/docker/backend.Dockerfile ./backend` | Item 4, `COPY requirements.txt` | Item 7, the `app.` prefix, which only surfaces once the image runs |
-| Direct frontend build | `docker build -f infrastructure/docker/frontend.Dockerfile ./frontend` | Item 3, `npm ci` with no lockfile | The `npm run build` at `frontend.Dockerfile:L17`, which fails on 76 TypeScript errors |
+| Direct frontend build | `docker build -f infrastructure/docker/frontend.Dockerfile ./frontend` | Item 3, `npm ci` with no lockfile | The `npm run build` at `frontend.Dockerfile` `L17`, which fails on 76 TypeScript errors |
 | Continuous integration | Push or pull request to `main` | Item 2, `npm ci` at the repository root | `npm run build` at `ci.yml:L23`, which fails on the same 76 errors |
 | Continuous delivery | Push to `main` | Item 9, `app.yaml` absent at `cd.yml:L19` | `cd.yml:L20`, the absent `dispatch.yaml`, which `bash -e` never reaches |
 | `deploy.sh` on a clean shell | `bash scripts/deploy.sh` | Item 11's guard, `:L4-L7` exits 1 at `:L6` because `GOOGLE_APPLICATION_CREDENTIALS` is unset | Every later stage. The guard is the script's only `exit`, so nothing behind it is attempted |
@@ -700,12 +700,12 @@ Google Cloud is the platform the code actually calls.
 
 | Evidence | Location |
 | ---------- | ---------- |
-| The only configured Terraform provider | `infrastructure/terraform/main.tf:L9-L12` |
+| The only configured Terraform provider | `infrastructure/terraform/` `main.tf:L9-L12` |
 | Four Google Cloud resources | `main.tf:L19`, `:L25`, `:L35`, `:L50` |
-| Firestore client, built at import time | `backend/app/db/firestore.py:L20`, importing at `:L14` |
-| Cloud Storage client, used by the export service | `backend/app/services/export_service.py:L14` |
-| Pub/Sub publisher and subscriber | `backend/app/services/collaboration_service.py:L16` |
-| `gcloud` in the delivery workflow | `.github/workflows/cd.yml:L13`, `:L19-L20` |
+| Firestore client, built at import time | `backend/app/db/` `firestore.py:L20`, importing at `:L14` |
+| Cloud Storage client, used by the export service | `backend/app/services/` `export_service.py` `L14` |
+| Pub/Sub publisher and subscriber | `backend/app/services/` `collaboration_service.py` `L16` |
+| `gcloud` in the delivery workflow | `.github/workflows/` `cd.yml:L13`, `:L19-L20` |
 | `gcloud` and `gsutil` in the deploy script | `scripts/deploy.sh:L23`, `:L27`, `:L31`, `:L35` |
 | The stack line in the root README | `../README.md:L18` |
 

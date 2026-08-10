@@ -30,11 +30,11 @@ verified across all fourteen, so every success returns HTTP 200 by FastAPI defau
 | --- | --- | --- | --- | --- | --- |
 | POST | `/token` | `auth.py:L66`, `login_for_access_token` at L67 | Public | 200 | No. `auth.py:L20` fails on import first. |
 | POST | `/register` | `auth.py:L103`, `register_user` at L104 | Public | 200 | No. Same import failure at `auth.py:L20`. |
-| POST | `/` | `documents.py:L24`, `create_document` at L25 | `Depends(get_current_user)` | 200 | No. `documents.py:L19` fails through `auth.py:L20`. |
-| GET | `/` | `documents.py:L49`, `get_documents` at L50 | `Depends(get_current_user)` | 200 | No. Same transitive failure at `documents.py:L19`. |
-| GET | `/{document_id}` | `documents.py:L68`, `get_document` at L69 | `Depends(get_current_user)` | 200 | No. Same transitive failure at `documents.py:L19`. |
-| PUT | `/{document_id}` | `documents.py:L98`, `update_document` at L99 | `Depends(get_current_user)` | 200 | No. Same transitive failure at `documents.py:L19`. |
-| DELETE | `/{document_id}` | `documents.py:L131`, `delete_document` at L132 | `Depends(get_current_user)` | 200 | No. Same transitive failure at `documents.py:L19`. |
+| POST | `/` | `documents.py:L24`, `create_document` at L25 | `Depends(get_current_user)` | 200 | No. `documents.py:L18` fails through `../services/document_service.py:L16` then `../db/firestore.py:L16`. |
+| GET | `/` | `documents.py:L49`, `get_documents` at L50 | `Depends(get_current_user)` | 200 | No. Same transitive failure at `documents.py:L18`. |
+| GET | `/{document_id}` | `documents.py:L68`, `get_document` at L69 | `Depends(get_current_user)` | 200 | No. Same transitive failure at `documents.py:L18`. |
+| PUT | `/{document_id}` | `documents.py:L98`, `update_document` at L99 | `Depends(get_current_user)` | 200 | No. Same transitive failure at `documents.py:L18`. |
+| DELETE | `/{document_id}` | `documents.py:L131`, `delete_document` at L132 | `Depends(get_current_user)` | 200 | No. Same transitive failure at `documents.py:L18`. |
 | GET | `/me` | `users.py:L19`, `get_current_user_info` at L20 | `Depends(get_current_user)` | 200 | No. `users.py:L14` requests an absent module, and `documents.py:L68` already holds this shape. |
 | PUT | `/me` | `users.py:L32`, `update_user` at L33 | `Depends(get_current_user)` | 200 | No. Same import failure at `users.py:L14`, and `documents.py:L98` already holds this shape. |
 | POST | `/` | `templates.py:L24`, `create_template` at L25 | `Depends(get_current_user)` | 200 | No. `templates.py:L17` requests an absent module, and `documents.py:L24` already holds this shape. |
@@ -97,7 +97,7 @@ package boundary belong to [../README.md](../README.md).
 | `TemplateService` from `app.services.template_service` | `templates.py:L18` | No | No file exists at `backend/app/services/template_service.py`. |
 | `User`, `UserCreate`, `UserUpdate` from `app.schema.user` | `auth.py:L21`, `documents.py:L20`, `templates.py:L20`, `users.py:L13` | Yes | `schema/user.py` declares `UserCreate` at L30 and the `User` read model at L56. |
 | `Document`, `DocumentCreate`, `DocumentUpdate` from `app.schema.document` | `documents.py:L17` | Yes | `schema/document.py` declares `DocumentBase` at L16 and `Document` at L52. |
-| `DocumentService` from `app.services.document_service` | `documents.py:L18` | Yes | `services/document_service.py` declares the class and four async methods. The module then fails at its own L17, which imports the absent `settings`. |
+| `DocumentService` from `app.services.document_service` | `documents.py:L18` | Yes | `services/document_service.py` declares the class and four async methods. The module then fails at its own L16, which loads `db/firestore.py`, whose own L16 requests the absent `settings`. |
 | `get_current_user` from `app.api.auth` | `documents.py:L19`, `templates.py:L19`, `users.py:L15` | Yes as a name | `auth.py:L28` defines the function. The import still fails, because loading `app.api.auth` runs its L20 first. |
 
 ### External
@@ -149,17 +149,17 @@ Both flows cross two boundaries that carry no implementation. The signing and de
 ```mermaid
 sequenceDiagram
     accTitle: Token issuance and protected-route validation in the auth router
-    accDescr: A client posts form credentials to the token route, which reaches for an absent UserService and an absent settings instance before it can sign a token. The protected-route path repeats both failures. Neither path is reached, because the module import fails at auth.py:L22.
+    accDescr: A client posts form credentials to the token route, which reaches for an absent UserService and an absent settings instance before it can sign a token. The protected-route path repeats both failures. Neither path is reached, because the module import fails at auth.py:L20.
     participant C as Client
     participant A as auth.py router
     participant S as settings<br/>absent name
     participant U as UserService<br/>absent module
 
-    C->>A: POST /token, L65
-    A--xU: authenticate_user, L90
+    C->>A: POST /token, L66
+    A--xU: authenticate_user, L91
     Note over A,U: BROKEN. app.services.user_service<br/>has no file. Requested at auth.py:L22.
     A--xS: reads expiry, L95
-    Note over A,S: Reads<br/>ACCESS_TOKEN_EXPIRE_MINUTES<br/>at L95. BROKEN. config.py<br/>declares Settings at L21 and<br/>no module-level instance.<br/>Requested at auth.py:L20.
+    Note over A,S: Reads<br/>ACCESS_TOKEN_EXPIRE_MINUTES<br/>at L95. BROKEN. config.py<br/>declares Settings at L20 and<br/>no module-level instance.<br/>Requested at auth.py:L20.
     A->>A: jwt.encode, L96
     A->>C: bearer token, L101
     C->>A: bearer header
@@ -167,7 +167,7 @@ sequenceDiagram
     A--xS: jwt.decode, L54
     A--xU: get_user_by_id, L61
     A->>C: 401 or 404
-    Note over C,U: POST /token carries form credentials at L66.<br/>jwt.encode signs sub and exp at L96-L100,<br/>and L101 returns access_token with<br/>token_type bearer. On the guarded path,<br/>L54 decodes with SECRET_KEY and ALGORITHM.<br/>401 at L57 and L59, 404 at L63.<br/>Neither path is reached: the module<br/>import fails at L22.
+    Note over C,U: POST /token carries form credentials at L66.<br/>jwt.encode signs sub and exp at L96-L100,<br/>and L101 returns access_token with<br/>token_type bearer. On the guarded path,<br/>L54 decodes with SECRET_KEY and ALGORITHM.<br/>401 at L57 and L59, 404 at L63.<br/>Neither path is reached: the module<br/>import fails at L20.
 ```
 
 Dispatch never begins, and two separate faults stop it. `main.py:L16-L19` requests four `*_router` names that no module
@@ -195,13 +195,13 @@ graph TD
 
     MAIN -.->|"L16-L19 request<br/>auth_router,<br/>documents_router,<br/>users_router,<br/>templates_router.<br/>No module<br/>exports them."| NAMES
 
-    MAIN --> D["documents<br/>router<br/>at L81"]
-    MAIN --> U["users router<br/>at L82"]
-    MAIN --> T["templates<br/>router<br/>at L83"]
+    MAIN --> D["documents<br/>router<br/>at L85"]
+    MAIN --> U["users router<br/>at L86"]
+    MAIN --> T["templates<br/>router<br/>at L87"]
 
-    D --> WIN["documents registers<br/>first, so it owns<br/>POST / L24,<br/>GET / L49 and the<br/>single-segment id<br/>shape at L68,<br/>L96 and L126"]
+    D --> WIN["documents registers<br/>first, so it owns<br/>POST / L24,<br/>GET / L49 and the<br/>single-segment id<br/>shape at L68,<br/>L98 and L131"]
     T -.->|"same method<br/>and path, or<br/>same shape with<br/>the parameter<br/>name ignored"| WIN
-    U -.->|"GET /me L29 and<br/>PUT /me L50 both<br/>match the<br/>single-segment<br/>id shape"| WIN
+    U -.->|"GET /me L19 and<br/>PUT /me L32 both<br/>match the<br/>single-segment<br/>id shape"| WIN
 
     WIN --> OUT["seven protected<br/>handlers unreachable:<br/>five template routes<br/>and both profile routes"]
 ```
@@ -238,7 +238,7 @@ handlers registers. Repository-wide defect evidence sits in
 
 ### Security controls absent from this directory
 
-Nine controls are absent from every handler here. Each is an absent control rather than a misconfiguration, none produces an
+Ten controls are absent from every handler here. Each is an absent control rather than a misconfiguration, none produces an
 error message, and each becomes live the moment the import failure is repaired.
 
 | # | Absent control | Evidence |
@@ -252,18 +252,19 @@ error message, and each becomes live the moment the import failure is repaired.
 | 7 | A `WWW-Authenticate: Bearer` header on an explicitly raised 401 | Three 401 sites in this directory set no `headers`: `auth.py:L56-L57`, `:L59` and `:L92-L93`. The duplicate dependency at `core/security.py:L147`, `:L149` and `:L154` behaves the same way. The scheme itself does send the challenge. `OAuth2PasswordBearer` at `auth.py:L24` keeps the default `auto_error`. A request with no `Authorization` header, or one that is not bearer, therefore receives 401 `Not authenticated` with the header attached and never reaches a handler |
 | 8 | Any constraint on the JWT secret, algorithm, lifetime or claim set | `core/config.py:L42`, `:L44` and `:L43` declare `SECRET_KEY`, `ALGORITHM` and `ACCESS_TOKEN_EXPIRE_MINUTES` as bare types with no validator or allowed-value list. `auth.py:L96-L100` encodes exactly `sub` and `exp`, so no issuer, audience or token identifier exists and no issued token can be revoked before `exp` |
 | 9 | Object-level authorization on any template route | `templates.py:L81`, `:L107` and `:L131` delegate to a `TemplateService` that no file defines. The 404 detail at `:L83` reads `Template not found`, while `:L109` and `:L133` read `Template not found or user not authorized`, so two of the three messages promise a check no committed code performs |
+| 10 | Any sanitisation of the document body these handlers accept | `documents.py:L25` and `:L99` accept `content` through `DocumentCreate` and `DocumentUpdate`, and `schema/document.py:L27` declares it as a bare `str`. No handler here filters or escapes the value, and `../services/document_service.py:L65` checks only that it is non-empty before `:L73` writes it unchanged. This is the register's entry 3a, and it is latent rather than live: the only committed render of the value is a Draft.js `Editor` fed a `ContentState`, which is not a raw-HTML sink |
 
 [../core/README.md](../core/README.md) carries the full token security contract, and
 [../../../docs/troubleshooting.md](../../../docs/troubleshooting.md) covers the same ground in repository-wide order,
-alongside the frontend and infrastructure gaps. Its backend register runs to twelve numbered entries rather than nine. The
-register splits this directory's entries 8 and 9, then adds a declared-CORS-origin entry and a handler-count entry that
-belong to the package rather than to these four routers.
+alongside the frontend and infrastructure gaps. Its backend register runs to thirteen numbered entries rather than ten. The
+register splits this directory's entry 8 into a secret-and-algorithm entry and a claim-set entry, then adds a
+declared-CORS-origin entry and a handler-count entry that belong to the package rather than to these four routers.
 
 `auth.py` limitations:
 
 - **The module cannot import.** `auth.py:L20` requests the `settings` name from `app.core.config`, which declares only the
-`Settings` class at `core/config.py:L20` and the `get_settings` factory at L63. L19 raises first. `auth.py:L22` requests
-`app.services.user_service`, a module with no file, and would raise next.
+`Settings` class at `core/config.py:L20` and the `get_settings` factory at L63. The import at `auth.py:L20` raises first.
+`auth.py:L22` requests `app.services.user_service`, a module with no file, and would raise next.
 - **A second `get_current_user` exists.** `auth.py:L28` defines one and `core/security.py:L110` defines another.
 `documents.py:L19`, `templates.py:L19` and `users.py:L15` import the local one, so the `auth.py` contract governs all twelve
 protected routes.

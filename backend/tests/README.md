@@ -16,16 +16,16 @@ comment lines in `test_api.py` and `test_db.py`. Documentation for this director
 
 | Component | Type | Location | Description |
 | --- | --- | --- | --- |
-| `test_api.py` | Test module, 77 lines | `backend/tests/test_api.py` | pytest tests over the HTTP surface, using `fastapi.testclient.TestClient` |
-| `test_db.py` | Test module, 58 lines | `backend/tests/test_db.py` | `unittest` tests over two persistence helper classes the repository never defines |
-| `test_services.py` | Test module, 80 lines | `backend/tests/test_services.py` | `unittest` tests over the three domain services |
+| `test_api.py` | Test module, 77 lines | `backend/tests/` `test_api.py` | pytest tests over the HTTP surface, using `fastapi.testclient.TestClient` |
+| `test_db.py` | Test module, 58 lines | `backend/tests/` `test_db.py` | `unittest` tests over two persistence helper classes the repository never defines |
+| `test_services.py` | Test module, 80 lines | `backend/tests/` `test_services.py` | `unittest` tests over the three domain services |
 | `client` | Module-level test client | `test_api.py:L8` | `TestClient(app)` built at import time and shared by all eight pytest tests |
 | `db` | pytest fixture, module scope | `test_api.py:L10-L14` | Declares a test database session. The body is two comment lines plus `pass` at `L14`, so the fixture yields `None` |
 | `test_user` | pytest fixture, module scope | `test_api.py:L16-L22` | Builds a `User`, calls `set_password` at `L19`, then `db.add` at `L20` and `db.commit` at `L21` |
 | The eight pytest tests | pytest tests | `test_api.py:L25`, `:L30`, `:L35`, `:L40`, `:L51`, `:L56`, `:L62`, `:L67` | Post credentials to `/auth/login` asserting 200 with an `access_token` then 401, and create through `POST /documents/`, `POST /users/` and `POST /templates/` asserting 201, reading each back by identifier. The request contract table under Known Limitations carries every path, body and assertion |
 | `TestDatabaseOperations` | `unittest.TestCase` | `test_db.py:L9` | `setUp` at `L11` starts two patches, `tearDown` at `L17` releases them at `L18`. Four tests at `L20`, `L30`, `L39` and `L47` add and read a Firestore document, then add and read a relational record |
 | `TestDocumentService`, `TestCollaborationService`, `TestExportService` | Three `unittest.TestCase` classes | `test_services.py:L9`, `:L37`, `:L59`, with `setUp` at `:L10`, `:L38` and `:L60` | Four document tests at `:L13`, `:L20`, `:L26` and `:L32` create, read, update and delete. Three collaboration tests at `:L41`, `:L47` and `:L53` add, remove and list collaborators. Two export tests at `:L64` and `:L72` patch `services.export_service.generate_pdf` and `generate_docx`, two module-level names the real module never defines, then assert the bytes the mock was told to return |
-| `__main__` guard | Entry point | `test_services.py:L79-L80` | Calls `unittest.main()`, which pytest ignores during collection |
+| `__main__` guard | Entry point | `test_services.py` `L79-L80` | Calls `unittest.main()`, which pytest ignores during collection |
 
 ## Architecture Fit
 
@@ -60,10 +60,10 @@ reference](../../docs/data-model.md). The integration guide covers its [Firestor
 | Import | Site | State |
 | --- | --- | --- |
 | `app.main.app` | `test_api.py:L3` | Present, path-dependent, and fails during import. `find_spec('app.main')` resolves to `backend/app/main.py` once `backend/` sits on `sys.path`, and importing it then raises through the application chain traced under Data Flows |
-| `services.document_service`, `services.collaboration_service`, `services.export_service` | `test_services.py:L3-L5` | Present and path-dependent, and locatable is not the same as importable. All three files exist, and `find_spec` resolves each once `backend/app/` sits on `sys.path`, because `services/` holds no `__init__.py` and so acts as a namespace package. Executing any of them additionally needs `backend/` on the path, because each opens with `app.*` imports, and each then stops at the absent `settings` name traced under Data Flows |
-| `app.models` for `User`, `Document`, `Template`, and `app.database` for `get_db` | `test_api.py:L4-L5` | Physically absent. None of `backend/app/models.py`, `backend/app/models/`, `backend/app/database.py` or `backend/app/database/` exists, and the `get_db` name is never used |
+| `services.document_service`, `services.collaboration_service`, `services.export_service` | `test_services.py` `L3-L5` | Present and path-dependent, and locatable is not the same as importable. All three files exist, and `find_spec` resolves each once `backend/app/` sits on `sys.path`, because `services/` holds no `__init__.py` and so acts as a namespace package. Executing any of them additionally needs `backend/` on the path, because each opens with `app.*` imports, and each then stops at the absent `settings` name traced under Data Flows |
+| `app.models` for `User`, `Document`, `Template`, and `app.database` for `get_db` | `test_api.py:L4-L5` | Physically absent. None of `backend/app/models.py`, `backend/app/models/`, `backend/app/` `database.py` or `backend/app/database/` exists, and the `get_db` name is never used |
 | `backend.db.firestore_operations` for `FirestoreOperations`, and `backend.db.sql_operations` for `SQLOperations` | `test_db.py:L6-L7` | Physically absent. `backend/` resolves from the repository root as a namespace package and `backend/db/` does not exist, so both fail with `No module named 'backend.db'`. Neither class exists anywhere |
-| `models.document`, `models.user` | `test_services.py:L6-L7` | Physically absent. No `models` package or module exists at any import root, including `backend/app/` |
+| `models.document`, `models.user` | `test_services.py` `L6-L7` | Physically absent. No `models` package or module exists at any import root, including `backend/app/` |
 
 ### External
 
@@ -72,7 +72,7 @@ reference](../../docs/data-model.md). The integration guide covers its [Firestor
 | `pytest`, `fastapi` | `pytest`, `fastapi.testclient.TestClient` | `test_api.py:L1-L2` |
 | `sqlalchemy` | `sqlalchemy.orm.Session`, then `create_engine` and `sqlalchemy.orm.sessionmaker` | `test_api.py:L6`, `test_db.py:L4-L5` |
 | `google-cloud-firestore` | `google.cloud.firestore` | `test_db.py:L3` |
-| Standard library | `unittest`, `unittest.mock` | `test_db.py:L1-L2`, `test_services.py:L1-L2` |
+| Standard library | `unittest`, `unittest.mock` | `test_db.py:L1-L2`, `test_services.py` `L1-L2` |
 
 No manifest declares any of these packages, because the repository contains no Python manifest. `requirements.txt`, `pyproject.toml`, `setup.py`, `setup.cfg`, `tox.ini`,
 `Pipfile` and `.python-version` are all absent, so no floor to quote.
@@ -83,7 +83,7 @@ Nothing in this directory is configured, so the table records the verified negat
 
 | Configuration input | Read by this suite | Status |
 | --- | --- | --- |
-| `Settings` fields from `backend/app/core/config.py:L20` | No. No module here imports `app.core.config` | DECLARED, unread by this suite |
+| `Settings` fields from `backend/app/core/` `config.py:L20` | No. No module here imports `app.core.config` | DECLARED, unread by this suite |
 | Environment variables | No. Neither `os.environ` nor `os.getenv` appears in any of the three modules | Neither declared nor read |
 | pytest configuration | No. `pytest.ini`, `conftest.py`, `tox.ini` and every `[tool.pytest]` host are absent | READ-BUT-NEVER-DECLARED |
 | Package roots through `__init__.py` | No. Zero `__init__.py` files exist under `backend/`. So `app`, `backend`, `services` and `backend.tests` resolve as implicit namespace packages when their parent directory sits on the path, and never as regular packages | READ-BUT-NEVER-DECLARED |
@@ -140,11 +140,11 @@ No single `sys.path` entry or working directory satisfies all three roots at onc
 
 | Defect | Evidence |
 | --- | --- |
-| Six imports name a module that no file provides | `app.models` and `app.database` (`test_api.py:L4-L5`), `backend.db.firestore_operations` and `backend.db.sql_operations` (`test_db.py:L6-L7`), and `models.document` with `models.user` (`test_services.py:L6-L7`). No `FirestoreOperations` or `SQLOperations` class exists either. The three `services.*` imports are a separate case: those files exist at `backend/app/services/`, so the wrong root blocks discovery and the absent `settings` name then blocks execution |
+| Six imports name a module that no file provides | `app.models` and `app.database` (`test_api.py:L4-L5`), `backend.db.firestore_operations` and `backend.db.sql_operations` (`test_db.py:L6-L7`), and `models.document` with `models.user` (`test_services.py` `L6-L7`). No `FirestoreOperations` or `SQLOperations` class exists either. The three `services.*` imports are a separate case: those files exist at `backend/app/services/`, so the wrong root blocks discovery and the absent `settings` name then blocks execution |
 | A fixture body that is a bare `pass` | The `db` fixture at `test_api.py:L10-L14` holds two comment lines plus `pass` at `L14`, so it yields `None`. `test_user` at `L17` accepts that value as `db: Session`, then calls `db.add(user)` at `L20` and `db.commit()` at `L21` against `None`. Four further tests take the same fixture, at `L35`, `L40`, `L62` and `L67` |
-| Methods that no contract declares | `user.set_password("testpassword")` at `test_api.py:L19`, and `test_user.get_token()` at `:L36`, `:L46`, `:L57`, `:L63` and `:L73`. The real `User` is a Pydantic model at `backend/app/schema/user.py:L56` and declares neither method |
-| Five required fields omitted | `User(id=1, username="testuser")` at `test_services.py:L14` supplies two of the seven required fields, and the five omissions raise the validation error. `backend/app/schema/user.py` requires `id` (`L68`), `created_at` (`L69`), `updated_at` (`L70`), `is_active` (`L71`) and `is_superuser` (`L72`), plus inherited `email` (`L26`) and `username` (`L27`). The integer `id` also mismatches the declared `str` hint, which Pydantic 1.x coerces |
-| A field that no contract declares | `document.owner` at `test_services.py:L18`. The `Document` contract declares `owner_id` at `backend/app/schema/document.py:L28` and no `owner`, while `DocumentService` writes `user_id` at `backend/app/services/document_service.py:L71`. The assertions on `document.title` (`L17`), `document.id` (`L24`) and `document.content` (`L30`) do resolve |
+| Methods that no contract declares | `user.set_password("testpassword")` at `test_api.py:L19`, and `test_user.get_token()` at `:L36`, `:L46`, `:L57`, `:L63` and `:L73`. The real `User` is a Pydantic model at `backend/app/schema/` `user.py:L56` and declares neither method |
+| Five required fields omitted | `User(id=1, username="testuser")` at `test_services.py` `L14` supplies two of the seven required fields, and the five omissions raise the validation error. `backend/app/schema/` `user.py` requires `id` (`L68`), `created_at` (`L69`), `updated_at` (`L70`), `is_active` (`L71`) and `is_superuser` (`L72`), plus inherited `email` (`L26`) and `username` (`L27`). The integer `id` also mismatches the declared `str` hint, which Pydantic 1.x coerces |
+| A field that no contract declares | `document.owner` at `test_services.py` `L18`. The `Document` contract declares `owner_id` at `backend/app/schema/` `document.py:L28` and no `owner`, while `DocumentService` writes `user_id` at `backend/app/services/` `document_service.py` `L71`. The assertions on `document.title` (`L17`), `document.id` (`L24`) and `document.content` (`L30`) do resolve |
 
 **The request contract, call by call.** `test_api.py` issues eight requests, and none reaches a server today, because the module fails at import. Column four names the closest
 committed endpoint, and column five names the first mismatch a reader would hit after correcting the ones before it.
@@ -154,13 +154,13 @@ anchor type throughout. Assertion lines are named in the Asserted column where t
 
 | Site | Request | Body and headers | Asserted | Closest committed endpoint | First mismatch |
 | --- | --- | --- | --- | --- | --- |
-| `L26` | `POST /auth/login` | JavaScript Object Notation (JSON) `username` and `password`, no header | 200 with `access_token`, at `L27-L28` | `POST /token`, `backend/app/api/auth.py:L66` | Path. No registered route carries two segments. Correct the path and the encoding still fails: `auth.py:L67` binds `OAuth2PasswordRequestForm`, which reads form fields, so request validation answers 422 before the 200 branch |
+| `L26` | `POST /auth/login` | JavaScript Object Notation (JSON) `username` and `password`, no header | 200 with `access_token`, at `L27-L28` | `POST /token`, `backend/app/api/` `auth.py:L66` | Path. No registered route carries two segments. Correct the path and the encoding still fails: `auth.py:L67` binds `OAuth2PasswordRequestForm`, which reads form fields, so request validation answers 422 before the 200 branch |
 | `L31` | `POST /auth/login` | JSON with a wrong password, no header | 401, at `L32` | `POST /token`, `auth.py:L66` | The same path miss, then the same 422 before the 401 branch at `auth.py:L93` |
 | `L36` | `POST /documents/` | JSON `title` and `content`, bearer header from `get_token()` | 201 with `title`, at `L37-L38` | `POST /`, `documents.py:L24` | Path. `main.py:L84-L87` mounts every router with no prefix, so the create route is `/`. The decorator sets no `status_code`, so a success answers 200 rather than 201 |
 | `L46` | `GET /documents/{id}` | Bearer header only | 200 with `title`, at `L47-L48` | `GET /{document_id}`, `documents.py:L68` | Path. The `documents` segment is not mounted, and `/{document_id}` collides with the template router's `/{template_id}` at `templates.py:L59` |
 | `L52` | `POST /users/` | JSON `username`, `email` and `password`, no header | 201 with `username`, at `L53-L54` | None. `users.py` registers `GET /me` at `L19` and `PUT /me` at `L32` only | No user-creation route exists on that router. Registration lives at `POST /register`, `auth.py:L103`, which answers 200 and takes `UserCreate` |
 | `L57` | `GET /users/{id}` | Bearer header only | 200 with `username`, at `L58-L59` | `GET /me`, `users.py:L19` | Contract shape. The server identifies the user from the token dependency, not from a path parameter, so no per-identifier user route exists |
-| `L63` | `POST /templates/` | JSON `name` and `content`, bearer header | 201 with `name`, at `L64-L65` | `POST /`, `templates.py:L24` | Path, as at `L36`, plus the same 200-versus-201 gap. The template router also fails to import, at `templates.py:L17-L18` |
+| `L63` | `POST /templates/` | JSON `name` and `content`, bearer header | 201 with `name`, at `L64-L65` | `POST /`, `templates.py:L24` | Path, as at `L36`, plus the same 200-versus-201 gap. The template router also fails to import, at `templates.py` `L17-L18` |
 | `L73` | `GET /templates/{id}` | Bearer header only | 200 with `name`, at `L74-L75` | `GET /{template_id}`, `templates.py:L59` | Path, plus the collision with `documents.py:L68` over the identical mounted pattern |
 
 Two consequences generalise across the table: not one asserted path matches a registered path. The three 201 assertions, at `test_api.py:L37`, `:L53` and `:L64`, face a 200 even after
@@ -170,17 +170,17 @@ every path is corrected, because no handler in the four routers sets `status_cod
 
 | Call site | Declared signature | What is wrong |
 | --- | --- | --- |
-| `create_document(user, "Test Document")`, `L15` | `create_document(self, document: DocumentCreate, user_id: str)`, `document_service.py:L42` | Both parameters bind, so nothing is omitted. The `User` binds to `document` and the string `"Test Document"` binds to `user_id`, so both arguments carry the wrong type |
+| `create_document(user, "Test Document")`, `L15` | `create_document(self, document: DocumentCreate, user_id: str)`, `document_service.py` `L42` | Both parameters bind, so nothing is omitted. The `User` binds to `document` and the string `"Test Document"` binds to `user_id`, so both arguments carry the wrong type |
 | `get_document(document_id)`, `L22` | `get_document(self, document_id: str, user_id: str)`, `:L78` | One argument against two, and the integer `1` against a `str` hint |
 | `update_document(document_id, new_content)`, `L29` | `update_document(self, document_id: str, document: DocumentUpdate, user_id: str)`, `:L116` | Two arguments against three, with a `str` where `DocumentUpdate` is declared |
 | `delete_document(document_id)`, `L34` | `delete_document(self, document_id: str, user_id: str)`, `:L159` | One argument against two |
-| `export_to_pdf(document_id)`, `L67` | `export_to_pdf(self, document: Document)`, `export_service.py:L40` | An integer where a `Document` is declared |
+| `export_to_pdf(document_id)`, `L67` | `export_to_pdf(self, document: Document)`, `export_service.py` `L40` | An integer where a `Document` is declared |
 | `export_to_docx(document_id)`, `L75` | `export_to_docx(self, document: Document)`, `:L74` | An integer where a `Document` is declared |
 
 | Defect | Evidence |
 | --- | --- |
-| Four coroutines are never awaited | All four `DocumentService` methods are declared `async def`, at `document_service.py:L42`, `:L78`, `:L116` and `:L159`, and all four calls at `test_services.py:L15`, `:L22`, `:L29` and `:L34` omit `await`. Each call therefore evaluates to a coroutine object. `assertIsInstance(document, Document)` at `L16` and every assertion after it would fail on the object's type, even after the imports and the argument shapes were corrected |
-| One return-type mismatch | Both export methods are annotated `-> str` and return a signed uniform resource locator (`export_service.py:L72`, `:L104`), while the tests assert bytes (`test_services.py:L68`, `:L76`) |
+| Four coroutines are never awaited | All four `DocumentService` methods are declared `async def`, at `document_service.py` `L42`, `:L78`, `:L116` and `:L159`, and all four calls at `test_services.py` `L15`, `:L22`, `:L29` and `:L34` omit `await`. Each call therefore evaluates to a coroutine object. `assertIsInstance(document, Document)` at `L16` and every assertion after it would fail on the object's type, even after the imports and the argument shapes were corrected |
+| One return-type mismatch | Both export methods are annotated `-> str` and return a signed uniform resource locator (`export_service.py` `L72`, `:L104`), while the tests assert bytes (`test_services.py` `L68`, `:L76`) |
 | Five unused imports | `get_db` (`test_api.py:L5`) and `Mock` (`test_services.py:L2`) are imported once and never referenced again. In `test_db.py`, `firestore` (`L3`), `create_engine` (`L4`) and `sessionmaker` (`L5`) are never referenced as names. The first two reappear only inside the patch target strings at `L12-L13`, which `patch` resolves itself |
 | No packaging and no test configuration | No `__init__.py`, no `conftest.py`, no `pytest.ini`, no `tox.ini`, no `[tool.pytest]` section, and no Python manifest of any kind |
 
@@ -195,9 +195,9 @@ between them, 15 in `test_api.py`, 7 in `test_db.py` and 15 in `test_services.py
 | Document routes | `test_api.py:L35`, `:L40` | `title` round-trips through create and read (`L38`, `L48`) | Ownership, the three router 403 branches at `documents.py:L95`, `:L127` and `:L155`, the service 404 paths, and the list, update and delete routes entirely |
 | User and template routes | `test_api.py:L51`, `:L56`, `:L62`, `:L67` | `username` appears in each user response (`L54`, `L59`) and `name` round-trips for templates (`L65`, `L75`) | The token dependency, the profile update route at `users.py:L32-L33`, every validation failure, the list, update and delete routes, and the template router's own import failure |
 | Firestore and relational | `test_db.py:L20`, `:L30`, `:L39`, `:L47` | `add` receives the payload (`L27`), a stored dictionary comes back (`L37`), and `execute` and `commit` are each called once (`L44`, `L45`, `L53`) | Which collection or document was addressed: the mock chains at `L22` and `L32` answer identically for any identifier, so `'test_collection'` and `'doc_id'` are never checked. Also the statement text, bound parameters, table name, rollback, and update and delete paths. `L37` and `L54` assert the values configured at `L33` and `L49` |
-| Document service | `test_services.py:L13`, `:L20`, `:L26`, `:L32` | Little. `L35` accepts any truthy value, and the attribute assertions target an object the calls never return | Every Firestore interaction, the ownership comparison, and the 403 and 404 paths |
-| Collaboration | `test_services.py:L41`, `:L47`, `:L53` | Little. `L45` and `L51` accept any truthy value, and `L57` wraps `all(...)`, which holds for an empty list | Every real method, so `connect`, `disconnect` and `broadcast_change` are untested. An empty collaborator list satisfies `L56-L57` |
-| Export | `test_services.py:L64`, `:L72` | The patched name was called once with the argument passed (`L69`, `L77`) | The real upload and signing behaviour. `L68` and `L76` assert the byte strings configured at `L66` and `L74`, so each test verifies its own mock |
+| Document service | `test_services.py` `L13`, `:L20`, `:L26`, `:L32` | Little. `L35` accepts any truthy value, and the attribute assertions target an object the calls never return | Every Firestore interaction, the ownership comparison, and the 403 and 404 paths |
+| Collaboration | `test_services.py` `L41`, `:L47`, `:L53` | Little. `L45` and `L51` accept any truthy value, and `L57` wraps `all(...)`, which holds for an empty list | Every real method, so `connect`, `disconnect` and `broadcast_change` are untested. An empty collaborator list satisfies `L56-L57` |
+| Export | `test_services.py` `L64`, `:L72` | The patched name was called once with the argument passed (`L69`, `L77`) | The real upload and signing behaviour. `L68` and `L76` assert the byte strings configured at `L66` and `L74`, so each test verifies its own mock |
 | Isolation and ordering | whole directory | Nothing about isolation, and nothing about a test standing alone. Five separate weaknesses carry that verdict, and the table below states each one with its evidence | Everything in the table below |
 
 | Isolation or ordering weakness | Evidence |
@@ -206,7 +206,7 @@ between them, 15 in `test_api.py`, 7 in `test_db.py` and 15 in `test_services.py
 | `test_login_invalid_credentials` requests no fixture | At `test_api.py:L30`, so it depends on an earlier test having created the user it names |
 | `patch.stopall()` stops every patch active in the process | At `test_db.py:L18`, not only the two started at `L12-L13` |
 | `test_services.py` declares no `tearDown` | The Pub/Sub and Cloud Storage clients its `setUp` methods open at `L39` and `L61` are never released |
-| The two patch targets in `test_db.py` would not isolate the committed adapters | `backend/app/db/firestore.py:L14` binds `Client` at import and `L20` constructs the client during import. `backend/app/db/sql.py:L12` binds `create_engine` with `L16` calling it during import. A patch started later in `setUp` therefore never reaches either binding |
+| The two patch targets in `test_db.py` would not isolate the committed adapters | `backend/app/db/` `firestore.py:L14` binds `Client` at import and `L20` constructs the client during import. `backend/app/db/` `sql.py:L12` binds `create_engine` with `L16` calling it during import. A patch started later in `setUp` therefore never reaches either binding |
 
 Do not run a repaired suite with production Application Default Credentials. Patch symbols at their use sites and point every client at an isolated test project.
 

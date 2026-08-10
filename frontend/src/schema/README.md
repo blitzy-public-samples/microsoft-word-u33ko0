@@ -1,14 +1,5 @@
 # frontend/src/schema
 
-`document.ts` exports no inferred type, and three modules fail on the omission. The module declares `DocumentSchema` at
-`document.ts:L23-L31` and `DocumentVersionSchema` at `document.ts:L39-L45`, and nothing else. Both siblings export theirs:
-`user.ts:L30` declares `export type User`, and `template.ts:L31` declares `export type Template`. The three importers that
-ask `document.ts` for a type sit at `store/documentSlice.ts:L15`, `services/api.ts:L19` and `services/collaboration.ts:L17`.
-
-Those three sites name five absent type references. `Document` is missing at all three, while `DocumentCreate` and `DocumentUpdate` are missing at
-`services/api.ts:L19` alone. All three imports use relative paths, so the module itself resolves and each import fails on the missing member
-rather than on the path.
-
 ## Purpose
 
 The directory declares the client-side contracts for the three records the browser application exchanges with the server: a document, a user and a
@@ -115,6 +106,15 @@ applies the pattern to neither of its schemas, which is what severs the type pat
 
 ## Known Limitations
 
+`document.ts` exports no inferred type, and three modules fail on the omission. The module declares `DocumentSchema` at
+`document.ts:L23-L31` and `DocumentVersionSchema` at `document.ts:L39-L45`, and nothing else. Both siblings export theirs:
+`user.ts:L30` declares `export type User`, and `template.ts:L31` declares `export type Template`. The three importers that
+ask `document.ts` for a type sit at `store/documentSlice.ts:L15`, `services/api.ts:L19` and `services/collaboration.ts:L17`.
+
+Those three sites name five absent type references. `Document` is missing at all three, while `DocumentCreate` and `DocumentUpdate` are missing at
+`services/api.ts:L19` alone. All three imports use relative paths, so the module itself resolves and each import fails on the missing member
+rather than on the path.
+
 No artifact keeps the two sides of the contract in agreement. The repository commits no OpenAPI document, generates no client and ships no shared
 schema package spanning TypeScript and Python. The Zod definitions here and the Pydantic definitions in `backend/app/schema/` are maintained by
 hand, so nothing detects a divergence and nothing prevents one.
@@ -179,7 +179,10 @@ Validating a user record uses the safe form, which returns a result object inste
 ```typescript
 import { UserSchema, User } from '../schema/user';
 
-const payload: unknown = { id: 'u-1', email: 'ana@example.com', username: 'ana', created_at: new Date(), is_active: true, is_superuser: false };
+const payload: unknown = {
+  id: 'u-1', email: 'ana@example.com', username: 'ana',
+  created_at: new Date(), is_active: true, is_superuser: false,
+};
 const result = UserSchema.safeParse(payload);
 const user: User | null = result.success ? result.data : null;
 if (!result.success) console.error(result.error.issues);

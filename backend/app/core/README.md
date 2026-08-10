@@ -197,9 +197,9 @@ sequenceDiagram
     C->>GCU: bearer token, L25
     GCU->>GCU: get_settings(), L142
     GCU->>GCU: jwt.decode, L144
-    Note over GCU: FastAPI resolves the dependency, and oauth2_scheme<br/>extracts the header at security.py:L25<br/>get_settings() resolves at config.py:L63<br/>jose.jwt.decode reads SECRET_KEY and ALGORITHM at L144<br/>sub claim read at L145<br/>401 at L147 if sub is None, 401 at L149 on jwt.JWTError
+    Note over GCU: FastAPI resolves the dependency, and oauth2_scheme<br/>extracts the header at security.py:L25<br/>get_settings() resolves at config.py:L63<br/>jose.jwt.decode reads SECRET_KEY and ALGORITHM at security.py:L144<br/>sub claim read at L145<br/>401 at L147 if sub is None, 401 at L149 on jwt.JWTError
     GCU--xUS: UserService(), L151
-    Note over GCU,US: BROKEN EDGE, drawn dashed with a cross:<br/>UserService is undefined, so L151 raises NameError,<br/>await get_user_by_id at L152 never runs,<br/>and the 401 at L154 is never reached
+    Note over GCU,US: BROKEN EDGE, drawn dashed with a cross:<br/>UserService is undefined, so L151 raises<br/>NameError, await get_user_by_id at L152<br/>never runs, and the 401 at L154 is never<br/>reached
 ```
 
 ## Design Patterns
@@ -241,6 +241,8 @@ actually import from `app.api.auth`. Every row is an absent control rather than 
 | Inactive-account rejection | Absent in the dependency routes use | `api/auth.py:L61` loads the user and `:L64` returns it with no check, while `app/schema/user.py:L71` declares `is_active`. `security.py:L151-L154` behaves the same way, so a deactivated account keeps access |
 | `WWW-Authenticate: Bearer` on an explicitly raised 401 | Absent | Six explicitly raised 401 responses set no `headers`: `api/auth.py:L56-L57`, `:L59`, `:L92-L93`, and `security.py:L147`, `:L149`, `:L154` |
 | `WWW-Authenticate: Bearer` on a missing-header 401 | Present, from the framework | `security.py:L25` and `api/auth.py:L24` construct `OAuth2PasswordBearer` without `auto_error=False`, so FastAPI answers a missing or non-bearer `Authorization` header itself, with 401 `Not authenticated` and the challenge attached. Only the raises inside the dependency bodies omit it |
+| Required `exp` claim on verification | Absent | Neither decode call passes an `options` argument, so `python-jose` verifies expiry only when the claim is present. A validly signed token carrying no `exp` is therefore accepted at `security.py:L144` and at `api/auth.py:L54`. Both issuing paths always set the claim, at `security.py:L55` and `api/auth.py:L97`, so the gap reaches only a token signed elsewhere with the same secret |
+| Constraint on the `sub` claim before the user lookup | Absent | `security.py:L146` and `api/auth.py:L56` reject only `None`. `python-jose` requires `sub` to be a string, and every string then passes, including the empty string. `security.py:L152` and `api/auth.py:L61` forward the value verbatim to `UserService.get_user_by_id`, which no committed module defines |
 | Reviewed cryptography dependency floor | Absent | Nothing pins `python-jose`, because no backend manifest or lock file is committed, and the [dated register](../../../docs/troubleshooting.md#the-dated-dependency-and-advisory-register) carries the full advisory set. Releases through 3.3.0 carry [CVE-2024-33663](https://github.com/advisories/GHSA-6c5p-j8vq-pqhj), an algorithm confusion weakness with OpenSSH ECDSA and other key formats, fixed in 3.4.0. The advisory concerns verification, so the calls it would reach are `jwt.decode` at `security.py:L144` and `api/auth.py:L54`. Exposure here is conditional and unestablished, needing an installed release at or below 3.3.0, a verification key in an affected format, and an algorithm list admitting the confused algorithm. Both decode calls pass `algorithms=[settings.ALGORITHM]` while `config.py:L42` and `:L44` declare neither value, so no precondition can be checked here |
 
 A safe floor cannot be asserted from this repository, because no committed file names a version. Establishing one
@@ -305,7 +307,7 @@ from datetime import timedelta
 
 from app.core.security import create_access_token
 
-# Default lifetime, taken from settings.ACCESS_TOKEN_EXPIRE_MINUTES at security.py:L54
+# Default lifetime from settings.ACCESS_TOKEN_EXPIRE_MINUTES, security.py:L54
 token = create_access_token({"sub": "user-123"})
 
 # Explicit lifetime, which skips the settings read at security.py:L54

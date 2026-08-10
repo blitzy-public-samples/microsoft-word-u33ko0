@@ -105,10 +105,10 @@ nowhere: Git, to obtain the code, and `zip`, which `scripts/deploy.sh:L19` calls
 
 | Tool | Version to install | Where it is declared | Conflict |
 | ------ | -------------------- | ---------------------- | ---------- |
-| Python | 3.9 | `infrastructure/docker/backend.Dockerfile:L2` pins `python:3.9-slim` | Declared three ways and enforced nowhere. `../README.md:L23` asks for 3.8 or later, and `scripts/setup_dev_environment.sh:L10` installs unpinned `apt-get` packages. No `.python-version` and no dependency manifest exists. 3.9 is also below the floor the current `google-cloud-firestore` release sets, covered below the table |
-| Node.js | 14 | `.github/workflows/ci.yml:L17` sets `node-version: '14'`, and `infrastructure/docker/frontend.Dockerfile:L2` pins `node:14-alpine` | Declared three ways and enforced nowhere. `../README.md:L22` asks for 14 or later. `frontend/package.json` declares no `engines` field, and no `.nvmrc` exists |
-| PostgreSQL | 13 | `infrastructure/docker/docker-compose.yml:L31` pins `postgres:13` | The database and user Compose provisions disagree with the ones `scripts/setup_dev_environment.sh:L31-L32` creates. [../infrastructure/docker/README.md](../infrastructure/docker/README.md) owns this citation |
-| Google Cloud SDK | Latest release from Google's own installer | `../README.md:L24` names the SDK and no version | The declaration pins nothing, and no pin is needed. The SDK is a host tool that ships its own bundled Python, so it takes no part in the resolution below. `backend/app/db/firestore.py:L20` constructs a Firestore client at import time, so Application Default Credentials, usually shortened to ADC, must already resolve before the module loads |
+| Python | 3.9 | `infrastructure/docker/` `backend.Dockerfile` `L2` pins `python:3.9-slim` | Declared three ways and enforced nowhere. `../README.md:L23` asks for 3.8 or later, and `scripts/` `setup_dev_environment.sh` `L10` installs unpinned `apt-get` packages. No `.python-version` and no dependency manifest exists. 3.9 is also below the floor the current `google-cloud-firestore` release sets, covered below the table |
+| Node.js | 14 | `.github/workflows/` `ci.yml:L17` sets `node-version: '14'`, and `infrastructure/docker/` `frontend.Dockerfile` `L2` pins `node:14-alpine` | Declared three ways and enforced nowhere. `../README.md:L22` asks for 14 or later. `frontend/package.json` declares no `engines` field, and no `.nvmrc` exists |
+| PostgreSQL | 13 | `infrastructure/docker/` `docker-compose.yml` `L31` pins `postgres:13` | The database and user Compose provisions disagree with the ones `scripts/` `setup_dev_environment.sh` `L31-L32` creates. [../infrastructure/docker/README.md](../infrastructure/docker/README.md) owns this citation |
+| Google Cloud SDK | Latest release from Google's own installer | `../README.md:L24` names the SDK and no version | The declaration pins nothing, and no pin is needed. The SDK is a host tool that ships its own bundled Python, so it takes no part in the resolution below. `backend/app/db/` `firestore.py:L20` constructs a Firestore client at import time, so Application Default Credentials, usually shortened to ADC, must already resolve before the module loads |
 
 **All three declared runtimes have passed end of life, often written EOL.** Python 3.9 ended support
 on 31 October 2025, with 3.9.25 as its final security release ([Python release
@@ -135,7 +135,7 @@ The commands below are the full prerequisite set for a Debian or Ubuntu machine,
 
 ```bash
 # 1. Packages the distribution still carries. zip is needed by scripts/deploy.sh:L19,
-# and the committed setup script never installs it. The libraries after it are pyenv's
+# and the committed setup script never installs it. The rest are pyenv's
 # suggested build environment; without them a 3.9 build either fails outright or
 # produces an interpreter missing ssl, sqlite3 or lzma.
 # https://github.com/pyenv/pyenv/wiki#suggested-build-environment
@@ -318,8 +318,8 @@ invocation in the repository fails, including both automated ones.
 | Invocation | Locator | Why it fails |
 | ------------ | --------- | -------------- |
 | By hand inside `frontend/` | run directly | No `package-lock.json` is committed, and `npm ci` needs one |
-| Continuous integration, shortened to CI | `.github/workflows/ci.yml:L19`, which sets no `working-directory` | The step runs at the repository root, where no `package.json` and no lockfile exist |
-| The frontend image build | `infrastructure/docker/frontend.Dockerfile:L11`, after `:L8` copies `package*.json` | The glob matches `package.json` alone |
+| Continuous integration, shortened to CI | `.github/workflows/` `ci.yml:L19`, which sets no `working-directory` | The step runs at the repository root, where no `package.json` and no lockfile exist |
+| The frontend image build | `infrastructure/docker/` `frontend.Dockerfile` `L11`, after `:L8` copies `package*.json` | The glob matches `package.json` alone |
 
 The CI job therefore stops at its install step, and `npm test` at `.github/workflows/ci.yml:L21` and
 `npm run build` at `:L23` never run. The frontend image stops at the same command.
@@ -338,12 +338,12 @@ The command reports **76 errors** and emits nothing, because `frontend/tsconfig.
 | Code | Count | Meaning | Concentrated in |
 | ------ | ------- | --------- | ----------------- |
 | `TS2307` | 57 | Cannot find module | 44 from the unmapped `@/` prefix, 13 from the five undeclared packages |
-| `TS2305` | 6 | Module has no exported member | 5 from the absent `Document` type family, 1 from `Switch` at `frontend/src/App.tsx:L12` |
-| `TS7006` | 5 | Parameter implicitly has an `any` type | Four sites in `frontend/src/services/api.ts`, one in `frontend/src/pages/Editor.tsx` |
-| `TS2322` | 4 | Type not assignable | The four `Route` elements at `frontend/src/App.tsx:L41-L44`, which pass the router version 5 `component` prop |
-| `TS2614` | 2 | No exported member, import form mismatch | `frontend/src/store/index.ts:L15` and `:L16` |
-| `TS2552` | 1 | Cannot find name | `frontend/src/services/api.ts:L40`, an undefined `store` |
-| `TS2339` | 1 | Property does not exist on type | `frontend/src/services/api.ts:L40`, reading `.auth` off the store state |
+| `TS2305` | 6 | Module has no exported member | 5 from the absent `Document` type family, 1 from `Switch` at `frontend/src/` `App.tsx:L12` |
+| `TS7006` | 5 | Parameter implicitly has an `any` type | Four sites in `frontend/src/services/` `api.ts`, one in `frontend/src/pages/` `Editor.tsx` |
+| `TS2322` | 4 | Type not assignable | The four `Route` elements at `frontend/src/` `App.tsx:L41-L44`, which pass the router version 5 `component` prop |
+| `TS2614` | 2 | No exported member, import form mismatch | `frontend/src/store/` `index.ts:L15` and `:L16` |
+| `TS2552` | 1 | Cannot find name | `frontend/src/services/` `api.ts:L40`, an undefined `store` |
+| `TS2339` | 1 | Property does not exist on type | `frontend/src/services/` `api.ts:L40`, reading `.auth` off the store state |
 
 [../frontend/src/README.md](../frontend/src/README.md) owns this profile.
 
@@ -356,10 +356,10 @@ findable by grep and reported by the type-checker.
 
 | Undeclared package | Where the code imports it |
 | -------------------- | --------------------------- |
-| `draft-js` | Six modules, including `frontend/src/utils/formatting.ts:L14` and `frontend/src/components/DocumentCanvas.tsx:L15` |
-| `zod` | Four modules: the three under `frontend/src/schema/`, for example `frontend/src/schema/document.ts:L13`, plus `frontend/src/utils/validation.ts:L13` |
-| `axios` | `frontend/src/services/api.ts:L17` and `frontend/src/services/auth.ts:L16` |
-| `socket.io-client` | `frontend/src/services/collaboration.ts:L15` |
+| `draft-js` | Six modules, including `frontend/src/utils/` `formatting.ts:L14` and `frontend/src/components/` `DocumentCanvas.tsx` `L15` |
+| `zod` | Four modules: the three under `frontend/src/schema/`, for example `frontend/src/schema/` `document.ts:L13`, plus `frontend/src/utils/` `validation.ts:L13` |
+| `axios` | `frontend/src/services/` `api.ts:L17` and `frontend/src/services/` `auth.ts:L16` |
+| `socket.io-client` | `frontend/src/services/` `collaboration.ts` `L15` |
 
 The fifth is a **required type package with no direct import**. `@types/draft-js` appears in zero
 import statements anywhere in `frontend/src/`, and the six `draft-js` importers need it to typecheck
@@ -486,10 +486,10 @@ committed, so that selection is already fixed, and only the file it names is mis
 
 | Distribution | The value that selects it | When it is needed |
 | --- | --- | --- |
-| A PostgreSQL driver, for example `psycopg2-binary` | The `postgresql://` scheme in `settings.DATABASE_URL`, supplied by `infrastructure/docker/docker-compose.yml:L24` and declared at `backend/app/core/config.py:L47` | `backend/app/db/sql.py:L16` builds an engine at import time, and SQLAlchemy resolves a driver from the scheme in the URL |
-| A Redis client | The `redis://` scheme in `settings.REDIS_URL`, declared at `backend/app/core/config.py:L48` | `backend/app/tasks/background_tasks.py:L22` hands Celery that broker URL, and a worker needs the client to attach. [../backend/app/tasks/README.md](../backend/app/tasks/README.md) records that no dependency manifest declares it |
-| `cryptography` | An RSA or ECDSA name in `settings.ALGORITHM`, declared as a bare `str` at `backend/app/core/config.py:L44` with no allowed-value check | `backend/app/core/security.py:L56` passes the value straight to `jwt.encode`. A symmetric algorithm such as HS256 needs nothing extra |
-| `python-dotenv` | `Config.env_file` at `backend/app/core/config.py:L60`, the one selecting value the repository does commit | Pydantic 1.x reads an `env_file` through `python-dotenv` and requires it as a separate install, either directly or as the `pydantic[dotenv]` extra ([Pydantic 1.10 settings documentation](https://docs.pydantic.dev/1.10/usage/settings/)). That read runs only when the named file is found, so the absent `.env` hides the absent distribution |
+| A PostgreSQL driver, for example `psycopg2-binary` | The `postgresql://` scheme in `settings.DATABASE_URL`, supplied by `infrastructure/docker/` `docker-compose.yml` `L24` and declared at `backend/app/core/` `config.py:L47` | `backend/app/db/` `sql.py:L16` builds an engine at import time, and SQLAlchemy resolves a driver from the scheme in the URL |
+| A Redis client | The `redis://` scheme in `settings.REDIS_URL`, declared at `backend/app/core/` `config.py:L48` | `backend/app/tasks/` `background_tasks.py` `L22` hands Celery that broker URL, and a worker needs the client to attach. [../backend/app/tasks/README.md](../backend/app/tasks/README.md) records that no dependency manifest declares it |
+| `cryptography` | An RSA or ECDSA name in `settings.ALGORITHM`, declared as a bare `str` at `backend/app/core/` `config.py:L44` with no allowed-value check | `backend/app/core/` `security.py:L56` passes the value straight to `jwt.encode`. A symmetric algorithm such as HS256 needs nothing extra |
+| `python-dotenv` | `Config.env_file` at `backend/app/core/` `config.py:L60`, the one selecting value the repository does commit | Pydantic 1.x reads an `env_file` through `python-dotenv` and requires it as a separate install, either directly or as the `pydantic[dotenv]` extra ([Pydantic 1.10 settings documentation](https://docs.pydantic.dev/1.10/usage/settings/)). That read runs only when the named file is found, so the absent `.env` hides the absent distribution |
 
 **Installing every one of them still leaves the backend unable to import.** Dependencies are
 third-party, and all four blockers here are first-party. Those four are the absent `settings`
@@ -541,10 +541,10 @@ sets out the mechanism, the pinning route and the two maintained replacements.
 
 `starlette` arrives as a `fastapi` dependency, so those seventeen names cover all seventeen
 distributions the import graph requires as well as the four that configuration selects. The command
-covers the application and nothing else. That command installs no test dependency, because pytest appears in
-no manifest and in no inventory this documentation set keeps. The
-[Testing subsection](#testing-what-exists-and-why-no-green-run-is-possible) below adds that one name and
-states what it does and does not buy.
+covers the application and nothing else. That command installs no test dependency, because neither pytest
+nor httpx appears in a manifest or in an inventory this documentation set keeps. The
+[Testing subsection](#testing-what-exists-and-why-no-green-run-is-possible) below adds those two names and
+states what they do and do not buy.
 
 Configuration needs a `.env` file the repository does not commit.
 `backend/app/core/config.py:L50-L61` points `Settings` at `.env`, and neither `.env` nor
@@ -610,21 +610,22 @@ invoke pytest, at `scripts/deploy.sh:L15`, and it runs `python -m pytest tests/`
 `ModuleNotFoundError: No module named 'pytest'` before it reaches a single application defect, and that
 error is not in the register below because no application file causes it.
 
-Four distributions stand between a clean machine and a collection attempt, and only pytest is test-only.
+Five distributions stand between a clean machine and a collection attempt, and two of them are test-only.
 
 | Distribution | What the suite needs it for | Import site |
 | --- | --- | --- |
-| `pytest` | The runner, plus both module-scoped fixtures | `backend/tests/test_api.py:L1`, `:L10`, `:L16` |
-| `fastapi` | `TestClient`, which wraps the application at `test_api.py:L8` | `backend/tests/test_api.py:L2` |
-| `SQLAlchemy` | The `Session` hint, plus `create_engine` and `sessionmaker` | `backend/tests/test_api.py:L6`, `test_db.py:L4-L5` |
-| `google-cloud-firestore` | The patch target `google.cloud.firestore.Client` used at `test_db.py:L12` | `backend/tests/test_db.py:L3` |
+| `pytest` | The runner, plus both module-scoped fixtures | `backend/tests/` `test_api.py:L1`, `:L10`, `:L16` |
+| `fastapi` | `TestClient`, which wraps the application at `test_api.py:L8` | `backend/tests/` `test_api.py:L2` |
+| `httpx` | The transport `TestClient` runs on. Starlette moved that client from `requests` to `httpx` at 0.21. FastAPI declares `httpx` as an optional extra rather than a hard dependency, so the application command above does not bring it | `backend/tests/` `test_api.py:L2`, reached through `fastapi.testclient` |
+| `SQLAlchemy` | The `Session` hint, plus `create_engine` and `sessionmaker` | `backend/tests/` `test_api.py:L6`, `test_db.py:L4-L5` |
+| `google-cloud-firestore` | The patch target `google.cloud.firestore.Client` used at `test_db.py:L12` | `backend/tests/` `test_db.py:L3` |
 
-The last three already appear in the application install command above, so `pytest` is the only name to
-add. `test_services.py` needs no third-party package of its own, because it imports `unittest` and
-`unittest.mock` from the standard library and nothing else.
+`fastapi`, `SQLAlchemy` and `google-cloud-firestore` already appear in the application install command
+above, so `pytest` and `httpx` are the two names to add. `test_services.py` needs no third-party package
+of its own, because it imports `unittest` and `unittest.mock` from the standard library and nothing else.
 
 ```bash
-pip install pytest
+pip install pytest httpx
 python -m pytest backend/tests -q
 ```
 
@@ -633,7 +634,7 @@ exits non-zero, one error per module, and each names a different import root:
 
 | Module | Stops at | Error |
 | --- | --- | --- |
-| `test_api.py` | `L3`, `from app.main import app` | `ModuleNotFoundError: No module named 'app'` |
+| `test_api.py` | `L3`, `from app.main import app` | `ModuleNotFoundError: No module named 'app'`. Leave `httpx` out and the module stops one line earlier, at `L2`, with `RuntimeError: The starlette.testclient module requires the httpx package to be installed.` |
 | `test_db.py` | `L6`, `from backend.db.firestore_operations import FirestoreOperations` | `ModuleNotFoundError: No module named 'backend.db'` |
 | `test_services.py` | `L3`, `from services.document_service import DocumentService` | `ModuleNotFoundError: No module named 'services'` |
 
@@ -667,7 +668,7 @@ stops.
 | Command | Working directory | Result | Exit status |
 | --- | --- | --- | --- |
 | `npm install` | `frontend/` | Succeeds. One observed run resolved 1,532 packages | Zero |
-| `npx tsc --noEmit` | `frontend/` | Completes and reports 76 errors. Emits nothing, per `frontend/tsconfig.json:L25` | Non-zero. The compiler exits non-zero whenever it reports an error, so any script chaining on success stops here |
+| `npx tsc --noEmit` | `frontend/` | Completes and reports 76 errors. Emits nothing, per `frontend/` `tsconfig.json:L25` | Non-zero. The compiler exits non-zero whenever it reports an error, so any script chaining on success stops here |
 | The parse check below | repository root | Succeeds. All 18 Python modules under `backend/` parse, so every file is syntactically valid | Zero |
 | `python -m pytest backend/tests -q` | repository root | Completes and reports three collection errors, one per module. Needs `pytest` installed first, per [the Testing subsection](#testing-what-exists-and-why-no-green-run-is-possible) | Non-zero. Collection is interrupted, so no test body runs |
 
@@ -679,7 +680,9 @@ the Exit status column separates the two that succeed from the two that report f
 Parse the backend without writing anything into the tree:
 
 ```bash
-python -c "import ast, pathlib; [ast.parse(p.read_text(encoding='utf-8'), str(p)) for p in sorted(pathlib.Path('backend').rglob('*.py'))]"
+python -c "import ast, pathlib
+for p in sorted(pathlib.Path('backend').rglob('*.py')):
+    ast.parse(p.read_text(encoding='utf-8'), str(p))"
 ```
 
 `python -m compileall backend` answers the same question and is not interchangeable with it, because
@@ -704,7 +707,7 @@ it.
 ```mermaid
 graph LR
     accTitle: What runs today and where each run stops
-    accDescr: A decision node fans out to nine tasks. Four run to completion and two of those succeed. Five stop, and each failure node cites a file and line where one exists or names the missing artifact or path. The test path stops until pytest is installed, then completes and reports three collection errors.
+    accDescr: A decision node fans out to nine tasks. Four run to completion and two of those succeed. Five stop, and each failure node cites a file and line where one exists or names the missing artifact or path. The test path stops until pytest is installed, then completes and reports three collection errors, and its completion node also names the first cause and what sits behind it.
     START{"What do you<br/>want to do?"}
 
     START --> A["Install client<br/>dependencies"]
@@ -717,25 +720,23 @@ graph LR
     START --> H["Run the<br/>test suite"]
     START --> I["Apply the<br/>Terraform"]
 
-    A -->|"runs"| AOK["Succeeds, exit 0<br/>npm install resolves the tree"]
-    B -->|"runs"| BOK["Completes, exit non-zero<br/>tsc --noEmit reports 76 errors"]
+    A -->|"runs"| AOK["Succeeds, exit 0<br/>npm install resolves<br/>the tree"]
+    B -->|"runs"| BOK["Completes, exit non-zero<br/>tsc --noEmit reports<br/>76 errors"]
     C -->|"runs"| COK["Succeeds, exit 0<br/>all 18 modules parse"]
 
-    D -.->|"stops"| DNO["frontend/tsconfig.json:L10-L16<br/>declares no '@/*' alias, and<br/>webpack ignores the paths block"]
-    E -.->|"stops"| ENO["backend/app/api/auth.py:L20,<br/>reached from main.py:L16<br/>ImportError: cannot import<br/>name 'settings'"]
+    D -.->|"stops"| DNO["frontend/tsconfig.json<br/>:L10-L16 declares no<br/>'@/*' alias, and webpack<br/>ignores the paths block"]
+    E -.->|"stops"| ENO["backend/app/api/<br/>auth.py:L20, reached<br/>from main.py:L16<br/>ImportError: cannot<br/>import name 'settings'"]
     F -.->|"stops"| ENO
     G -.->|"stops"| GNO1["infrastructure/docker/<br/>frontend.Dockerfile:L11<br/>npm ci with no lockfile"]
-    G -.->|"stops"| GNO2["infrastructure/docker/<br/>backend.Dockerfile:L8<br/>COPY of an absent requirements.txt"]
-    H -.->|"stops"| HNO0["No manifest declares pytest<br/>ModuleNotFoundError:<br/>No module named 'pytest'"]
-    HNO0 -->|"install pytest,<br/>then it completes"| HOK["Completes, exit non-zero<br/>3 collection errors, one per<br/>module, and no test body runs"]
-    HOK -.->|"first cause"| HNO1["backend/tests/test_api.py:L3<br/>'app' is not on sys.path from the<br/>repository root"]
-    HNO1 -.->|"then"| HNO2["With backend/ and backend/app/ on<br/>the path: 6 import targets name no<br/>file, and 3 services modules resolve<br/>only from backend/app/"]
-    I -.->|"stops"| INO["infrastructure/terraform/main.tf<br/>:L68, :L77, :L86<br/>three module sources absent"]
+    G -.->|"stops"| GNO2["infrastructure/docker/<br/>backend.Dockerfile:L8<br/>COPY of an absent<br/>requirements.txt"]
+    H -.->|"stops"| HNO0["No committed manifest<br/>declares pytest<br/>ModuleNotFoundError:<br/>No module named 'pytest'"]
+    H -->|"runs once<br/>pytest is<br/>installed"| HOK["Completes, exit non-zero<br/>3 collection errors, one<br/>per module, and no test<br/>body runs<br/>First cause:<br/>backend/tests/<br/>test_api.py:L3, 'app' is<br/>not on sys.path from the<br/>repository root<br/>Then, with backend/ and<br/>backend/app/ on the<br/>path: 6 import targets<br/>name no file, and 3<br/>services modules resolve<br/>only from backend/app/"]
+    I -.->|"stops"| INO["infrastructure/terraform/<br/>main.tf:L68, :L77, :L86<br/>three module sources<br/>are absent"]
 
 %% A solid edge marks a path that runs to completion, and its node states whether the run succeeded.
 %% A dashed edge marks a path that stops before completing. Failure nodes cite a file and line
-%% where one exists, and absence-only nodes name the missing artifact or path. A dashed edge
-%% leaving a completion node points at a cause of the failure that node reports.
+%% where one exists, and absence-only nodes name the missing artifact or path. The test path
+%% carries both edge kinds, because it stops until pytest is installed and then completes.
 ```
 
 ## Where a run stops, with evidence
@@ -775,13 +776,13 @@ surfaces only once every row above it is repaired.
 
 | Order | Cause | Locator | What a run reports now |
 | --- | --- | --- | --- |
-| First hit | No module-level `settings` instance | `backend/app/core/config.py`, which defines `Settings` at `L20` and `get_settings()` at `L63` and assigns `settings` at no line | `ImportError: cannot import name 'settings' from 'app.core.config'` |
-| Second | The absent `app.services.user_service` module | `backend/app/api/auth.py:L22` imports `UserService` from it, and `backend/app/api/users.py:L14` imports it too. No file exists at that path | Nothing. `ModuleNotFoundError` surfaces from the same file the row above stops in, before `main.py` evaluates any router name |
-| Third | Four router names that no module exports | `backend/app/main.py:L16-L19` imports `auth_router`, `documents_router`, `users_router` and `templates_router`, and all four modules export the bare name `router` | Nothing. The four `ImportError`s surface one at a time, because each import line stops `main.py` on its own |
-| Fourth | Two absent template modules | `backend/app/api/templates.py:L17` imports from `app.schema.template` and `:L18` from `app.services.template_service`, and neither file exists | Nothing. Reached when `backend/app/main.py:L19` executes `app.api.templates` |
-| Fifth | The absent `init_db` symbol | `backend/app/main.py:L22` imports `init_db` from `app.db.sql`, which defines `engine`, `SessionLocal`, `Base` and `get_db` and no `init_db` | Nothing. Reached once all four router imports resolve |
-| Latent, at definition time | Undefined names in a signature, which Python evaluates when it executes the `def` | Registered in [troubleshooting.md](troubleshooting.md#the-verified-import-census) | Nothing, and nothing above clears them. `Optional` at `backend/app/core/security.py:L27` and `User` at `:L110` both sit in signature annotations, so each raises `NameError` while the module is still being evaluated |
-| Latent, at execution time | Undefined names in a function body, which Python evaluates only on a call | Registered in [troubleshooting.md](troubleshooting.md#the-verified-import-census) | Nothing, and nothing above clears them. `UserService` at `backend/app/core/security.py:L151`, `asyncio` and `json` in `backend/app/services/collaboration_service.py`, and `datetime` in `backend/app/tasks/background_tasks.py` |
+| First hit | No module-level `settings` instance | `backend/app/core/` `config.py`, which defines `Settings` at `L20` and `get_settings()` at `L63` and assigns `settings` at no line | `ImportError: cannot import name 'settings' from 'app.core.config'` |
+| Second | The absent `app.services.user_service` module | `backend/app/api/` `auth.py:L22` imports `UserService` from it, and `backend/app/api/` `users.py:L14` imports it too. No file exists at that path | Nothing. `ModuleNotFoundError` surfaces from the same file the row above stops in, before `main.py` evaluates any router name |
+| Third | Four router names that no module exports | `backend/app/` `main.py:L16-L19` imports `auth_router`, `documents_router`, `users_router` and `templates_router`, and all four modules export the bare name `router` | Nothing. The four `ImportError`s surface one at a time, because each import line stops `main.py` on its own |
+| Fourth | Two absent template modules | `backend/app/api/` `templates.py:L17` imports from `app.schema.template` and `:L18` from `app.services.template_service`, and neither file exists | Nothing. Reached when `backend/app/` `main.py:L19` executes `app.api.templates` |
+| Fifth | The absent `init_db` symbol | `backend/app/` `main.py:L22` imports `init_db` from `app.db.sql`, which defines `engine`, `SessionLocal`, `Base` and `get_db` and no `init_db` | Nothing. Reached once all four router imports resolve |
+| Latent, at definition time | Undefined names in a signature, which Python evaluates when it executes the `def` | Registered in [troubleshooting.md](troubleshooting.md#the-verified-import-census) | Nothing, and nothing above clears them. `Optional` at `backend/app/core/` `security.py:L27` and `User` at `:L110` both sit in signature annotations, so each raises `NameError` while the module is still being evaluated |
+| Latent, at execution time | Undefined names in a function body, which Python evaluates only on a call | Registered in [troubleshooting.md](troubleshooting.md#the-verified-import-census) | Nothing, and nothing above clears them. `UserService` at `backend/app/core/` `security.py:L151`, `asyncio` and `json` in `backend/app/services/` `collaboration_service.py`, and `datetime` in `backend/app/tasks/` `background_tasks.py` |
 
 A future contributor cannot stop after two repairs. Adding the `settings` instance clears nine of
 the twelve failing modules, and the next error comes from the same file rather than from
@@ -839,8 +840,8 @@ problem and has a cause somewhere else.
 
 | Pitfall | What you see | Where the cause sits |
 | --------- | -------------- | ---------------------- |
-| The `@/` import prefix resolves nowhere | 44 of the 57 module-resolution errors, and a client that never bundles | `frontend/tsconfig.json:L10-L16` plus the `react-scripts` pin at `frontend/package.json:L29` |
-| `npm ci` cannot run anywhere | The CI job and the frontend image both stop at their install step | `.github/workflows/ci.yml:L19` and `infrastructure/docker/frontend.Dockerfile:L11` |
+| The `@/` import prefix resolves nowhere | 44 of the 57 module-resolution errors, and a client that never bundles | `frontend/` `tsconfig.json` `L10-L16` plus the `react-scripts` pin at `frontend/` `package.json:L29` |
+| `npm ci` cannot run anywhere | The CI job and the frontend image both stop at their install step | `.github/workflows/` `ci.yml:L19` and `infrastructure/docker/` `frontend.Dockerfile` `L11` |
 | Seven backend distributions have to be installed by name and appear in no import statement | The environment build fails again after each fix | [The backend setup section](#setting-up-the-backend) and [the authoritative inventory](../backend/app/README.md) |
 | Tailwind CSS never compiles | An interface with no styling at all | No `tailwind.config.js`, no `postcss.config.js` and no committed stylesheet |
 
@@ -891,11 +892,11 @@ table gives each one its destination and its trap.
 
 | What you are adding | Where it goes | What to watch |
 | --------------------- | --------------- | --------------- |
-| An HTTP endpoint | A router module under `backend/app/api/`, registered in `backend/app/main.py` | `backend/app/main.py:L84-L87` mounts every router with no prefix, so documents and templates already collide on identical paths. Give a new router a prefix or plan the collision |
-| Domain logic | A service class under `backend/app/services/` | 7 of the 9 public service methods are declared `async` and call the synchronous Firestore software development kit (SDK) inside, so the declaration promises concurrency the body does not deliver. The other 2 are the plain `def` export methods at `backend/app/services/export_service.py:L40` and `:L74`, which no caller can await. Pick one form deliberately, because the directory already uses both |
-| A persistence call | An adapter function under `backend/app/db/` | No service consumes the four Firestore helpers in `backend/app/db/firestore.py`. Services construct their own client instead, so pick one path deliberately |
+| An HTTP endpoint | A router module under `backend/app/api/`, registered in `backend/app/main.py` | `backend/app/` `main.py:L84-L87` mounts every router with no prefix, so documents and templates already collide on identical paths. Give a new router a prefix or plan the collision |
+| Domain logic | A service class under `backend/app/services/` | 7 of the 9 public service methods are declared `async` and call the synchronous Firestore software development kit (SDK) inside, so the declaration promises concurrency the body does not deliver. The other 2 are the plain `def` export methods at `backend/app/services/` `export_service.py` `L40` and `:L74`, which no caller can await. Pick one form deliberately, because the directory already uses both |
+| A persistence call | An adapter function under `backend/app/db/` | No service consumes the four Firestore helpers in `backend/app/db/` `firestore.py`. Services construct their own client instead, so pick one path deliberately |
 | A data contract | Both `backend/app/schema/` and `frontend/src/schema/` | Nothing generates either side from the other. See the trap below |
-| Client state | A slice under `frontend/src/store/`, registered in `frontend/src/store/index.ts` | The store registers two reducer keys, and `frontend/src/services/api.ts:L40` reads a third that does not exist |
+| Client state | A slice under `frontend/src/store/`, registered in `frontend/src/store/` `index.ts` | The store registers two reducer keys, and `frontend/src/services/` `api.ts:L40` reads a third that does not exist |
 | A page or a component | `frontend/src/pages/` for a routed screen, `frontend/src/components/` for a reusable piece | Routed pages are declared in `frontend/src/App.tsx`. Several links already target routes the router never declares |
 
 The contract trap deserves naming, because the repository already fell into it. No OpenAPI document

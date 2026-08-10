@@ -58,10 +58,10 @@ Four integrations, four labels, and no overlap between them. No integration earn
 
 | Integration | Client library | Reachability | Entry point | Configuration it reads |
 | ------------- | ---------------- | -------------- | ------------- | ------------------------ |
-| Google Cloud Firestore | `google-cloud-firestore` | **WIRED, BLOCKED AT IMPORT** | `DocumentService`, constructed by all five document handlers at `backend/app/api/documents.py:L45`, `:L64`, `:L92`, `:L124` and `:L152` | `GOOGLE_CLOUD_PROJECT`, declared at `backend/app/core/config.py:L45` |
-| Google Cloud Storage | `google-cloud-storage` | **NOT REACHABLE** | `ExportService.export_to_pdf` at `backend/app/services/export_service.py:L40` and `export_to_docx` at `:L74`, plus the export task at `backend/app/tasks/background_tasks.py:L62-L67`. No handler calls either method, and no producer enqueues the task | `STORAGE_BUCKET_NAME`, `SIGNED_URL_EXPIRATION`, `EXPORT_BUCKET_NAME` and `DOCUMENT_BUCKET_NAME`, none of them declared |
-| Google Cloud Pub/Sub | `google-cloud-pubsub` | **SCAFFOLDED ONLY** | `CollaborationService.connect` at `backend/app/services/collaboration_service.py:L44` and `broadcast_change` at `:L137`, and no route constructs that class | `PROJECT_ID`, not declared |
-| Redis, as the Celery broker | `celery` | **ABSENT** | `celery_app` at `backend/app/tasks/background_tasks.py:L22`, carrying three tasks | `REDIS_URL`, declared at `backend/app/core/config.py:L48` |
+| Google Cloud Firestore | `google-cloud-firestore` | **WIRED, BLOCKED AT IMPORT** | `DocumentService`, constructed by all five document handlers at `backend/app/api/` `documents.py:L45`, `:L64`, `:L92`, `:L124` and `:L152` | `GOOGLE_CLOUD_PROJECT`, declared at `backend/app/core/` `config.py:L45` |
+| Google Cloud Storage | `google-cloud-storage` | **NOT REACHABLE** | `ExportService.export_to_pdf` at `backend/app/services/` `export_service.py` `L40` and `export_to_docx` at `:L74`, plus the export task at `backend/app/tasks/` `background_tasks.py` `L62-L67`. No handler calls either method, and no producer enqueues the task | `STORAGE_BUCKET_NAME`, `SIGNED_URL_EXPIRATION`, `EXPORT_BUCKET_NAME` and `DOCUMENT_BUCKET_NAME`, none of them declared |
+| Google Cloud Pub/Sub | `google-cloud-pubsub` | **SCAFFOLDED ONLY** | `CollaborationService.connect` at `backend/app/services/` `collaboration_service.py` `L44` and `broadcast_change` at `:L137`, and no route constructs that class | `PROJECT_ID`, not declared |
+| Redis, as the Celery broker | `celery` | **ABSENT** | `celery_app` at `backend/app/tasks/` `background_tasks.py` `L22`, carrying three tasks | `REDIS_URL`, declared at `backend/app/core/` `config.py:L48` |
 
 Four labels carry one fixed meaning in this guide and in the rest of the documentation set.
 
@@ -82,10 +82,10 @@ by constructing a client or by reaching one through a service. Four construct a 
 
 | Module | `settings` import | Client it constructs |
 | -------- | ------------------- | ---------------------- |
-| `backend/app/db/firestore.py` | `:L16` | Firestore `Client` at `:L20` |
+| `backend/app/db/` `firestore.py` | `:L16` | Firestore `Client` at `:L20` |
 | `backend/app/db/sql.py` | `:L14` | SQLAlchemy `engine` at `:L16`, against `DATABASE_URL` |
-| `backend/app/services/export_service.py` | `:L16` | Cloud Storage `Client` at `:L36` |
-| `backend/app/tasks/background_tasks.py` | `:L16` | `Celery` on `REDIS_URL` at `:L22`, plus Cloud Storage clients at `:L53` and `:L106` |
+| `backend/app/services/` `export_service.py` | `:L16` | Cloud Storage `Client` at `:L36` |
+| `backend/app/tasks/` `background_tasks.py` | `:L16` | `Celery` on `REDIS_URL` at `:L22`, plus Cloud Storage clients at `:L53` and `:L106` |
 
 The other two reach an external system without constructing a client of their own.
 `backend/app/services/collaboration_service.py:L18` imports `settings` and builds Pub/Sub publisher
@@ -162,19 +162,19 @@ absence of a call rather than a call. No route anywhere constructs `Collaboratio
 
 | Seam | Edge | What the committed code writes | What stands in the way |
 | ------ | ------ | -------------------------------- | ------------------------ |
-| S1 | Browser to FastAPI application | REST over HTTP | Nothing completes. The application cannot import. Past that repair the client still reaches no intended route: `frontend/src/services/api.ts:L40` throws inside the request interceptor, and every document call carries a `/documents` prefix no route declares. `GET /documents` does match the protected single-segment read, so it answers 401 or 500 according to the credentials presented, while the other two calls are settled by routing alone |
-| S2 | Browser to socket.io-client | `io()` at `frontend/src/services/collaboration.ts:L37` | No module imports `collaboration.ts`, so nothing constructs the client class, and `io()` receives no URL |
-| S3 | Application to the four routers | `backend/app/main.py:L84-L87` would register four routers | `:L16-L19` import `auth_router`, `documents_router`, `users_router` and `templates_router`, and all four modules export the bare name `router` |
+| S1 | Browser to FastAPI application | REST over HTTP | Nothing completes. The application cannot import. Past that repair the client still reaches no intended route: `frontend/src/services/` `api.ts:L40` throws inside the request interceptor, and every document call carries a `/documents` prefix no route declares. `GET /documents` does match the protected single-segment read, so it answers 401 or 500 according to the credentials presented, while the other two calls are settled by routing alone |
+| S2 | Browser to socket.io-client | `io()` at `frontend/src/services/` `collaboration.ts` `L37` | No module imports `collaboration.ts`, so nothing constructs the client class, and `io()` receives no URL |
+| S3 | Application to the four routers | `backend/app/` `main.py:L84-L87` would register four routers | `:L16-L19` import `auth_router`, `documents_router`, `users_router` and `templates_router`, and all four modules export the bare name `router` |
 | S4 | socket.io-client to CollaborationService | a Socket.IO connection from the browser | No route joins Socket.IO to the FastAPI WebSocket signature the service declares |
-| S5 | CollaborationService to Pub/Sub | subscribe at `backend/app/services/collaboration_service.py:L99`, publish at `:L156` | Neither runs, because nothing constructs the class. `settings.PROJECT_ID` is undeclared at `:L69`, `:L70`, `:L128` and `:L153`. The subscription name at `:L70` identifies a document and user rather than a connection. A second session for one user would therefore answer `AlreadyExists` at `:L73`, and either session closing would delete the shared subscription at `:L130` |
-| S6 | Routers to DocumentService | constructed at `backend/app/api/documents.py:L45`, `:L64`, `:L92`, `:L124` and `:L152` | Every call breaks its signature. `:L46` hands a `User` where `user_id: str` is declared, so `set` at `backend/app/services/document_service.py:L73` raises while it builds the write and nothing is stored. `backend/app/api/documents.py:L93`, `:L125` and `:L153` pass one argument to a two-parameter `get_document`, and `:L65` calls `get_documents`, which the class never defines. All five handlers sit behind the token dependency, so a caller without valid credentials receives 401 and reaches none of these faults |
+| S5 | CollaborationService to Pub/Sub | subscribe at `backend/app/services/` `collaboration_service.py` `L99`, publish at `:L156` | Neither runs, because nothing constructs the class. `settings.PROJECT_ID` is undeclared at `:L69`, `:L70`, `:L128` and `:L153`. The subscription name at `:L70` identifies a document and user rather than a connection. A second session for one user would therefore answer `AlreadyExists` at `:L73`, and either session closing would delete the shared subscription at `:L130` |
+| S6 | Routers to DocumentService | constructed at `backend/app/api/` `documents.py:L45`, `:L64`, `:L92`, `:L124` and `:L152` | Every call breaks its signature. `:L46` hands a `User` where `user_id: str` is declared, so `set` at `backend/app/services/` `document_service.py` `L73` raises while it builds the write and nothing is stored. `backend/app/api/` `documents.py:L93`, `:L125` and `:L153` pass one argument to a two-parameter `get_document`, and `:L65` calls `get_documents`, which the class never defines. All five handlers sit behind the token dependency, so a caller without valid credentials receives 401 and reaches none of these faults |
 | S7 | Routers to the Celery tasks | nothing | No producer. Zero `.delay()` and zero `.apply_async()` call sites exist anywhere |
-| S8 | DocumentService to Firestore | set at `backend/app/services/document_service.py:L73`, get at `:L102`, update at `:L153`, delete at `:L188`, all written in full | Each read then builds `Document(**...)` against `created_at` and `updated_at`, required at `backend/app/schema/document.py:L64-L65` and written by nothing |
-| S9 | Celery tasks to Firestore | read at `backend/app/tasks/background_tasks.py:L96`, delete at `:L103`, update at `:L142` | No producer runs them |
-| S10 | Celery tasks to ExportService | constructed at `backend/app/tasks/background_tasks.py:L52`, then calls `convert_document` at `:L59` | `ExportService` never defines `convert_document` |
-| S11 | Celery tasks to the Redis broker | broker URL read at `backend/app/tasks/background_tasks.py:L22` | The URL resolves to no service. No committed infrastructure provisions a broker |
-| S12 | Celery tasks to Cloud Storage | upload at `backend/app/tasks/background_tasks.py:L64`, signed URL at `:L67` | Unreachable behind S10, and the signing call passes no version argument, so the client default applies |
-| S13 | ExportService to Cloud Storage | upload at `backend/app/services/export_service.py:L63`, V4 signing at `:L66-L70`, both written in full | No handler calls either export method |
+| S8 | DocumentService to Firestore | set at `backend/app/services/` `document_service.py` `L73`, get at `:L102`, update at `:L153`, delete at `:L188`, all written in full | Each read then builds `Document(**...)` against `created_at` and `updated_at`, required at `backend/app/schema/` `document.py:L64-L65` and written by nothing |
+| S9 | Celery tasks to Firestore | read at `backend/app/tasks/` `background_tasks.py` `L96`, delete at `:L103`, update at `:L142` | No producer runs them |
+| S10 | Celery tasks to ExportService | constructed at `backend/app/tasks/` `background_tasks.py` `L52`, then calls `convert_document` at `:L59` | `ExportService` never defines `convert_document` |
+| S11 | Celery tasks to the Redis broker | broker URL read at `backend/app/tasks/` `background_tasks.py` `L22` | The URL resolves to no service. No committed infrastructure provisions a broker |
+| S12 | Celery tasks to Cloud Storage | upload at `backend/app/tasks/` `background_tasks.py` `L64`, signed URL at `:L67` | Unreachable behind S10, and the signing call passes no version argument, so the client default applies |
+| S13 | ExportService to Cloud Storage | upload at `backend/app/services/` `export_service.py` `L63`, V4 signing at `:L66-L70`, both written in full | No handler calls either export method |
 
 ## Google Cloud Firestore
 
@@ -189,8 +189,8 @@ Two independent access paths exist, and only one of them has a caller.
 
 | Access path | Location | Callers |
 | ------------- | ---------- | --------- |
-| The adapter's four helpers | `backend/app/db/firestore.py:L22`, `:L45`, `:L64`, `:L81` | None. No module imports any of the four |
-| `DocumentService`, calling the client directly | `backend/app/services/document_service.py:L19` | Five document handlers, plus the task module. That module constructs the class three times, at `backend/app/tasks/background_tasks.py:L51`, `:L93` and `:L132`. The module calls a method on only two of the three, at `:L56` and `:L135`. The instance built at `:L93` is never used |
+| The adapter's four helpers | `backend/app/db/` `firestore.py:L22`, `:L45`, `:L64`, `:L81` | None. No module imports any of the four |
+| `DocumentService`, calling the client directly | `backend/app/services/` `document_service.py` `L19` | Five document handlers, plus the task module. That module constructs the class three times, at `backend/app/tasks/` `background_tasks.py` `L51`, `:L93` and `:L132`. The module calls a method on only two of the three, at `:L56` and `:L135`. The instance built at `:L93` is never used |
 
 ### The adapter, and why nothing uses it
 
@@ -318,9 +318,9 @@ fail in this order inside `export_to_pdf`.
 
 | Order | Statement | Locator | What it needs |
 | ------- | ----------- | --------- | --------------- |
-| 1 | `self.storage_client.bucket(settings.STORAGE_BUCKET_NAME)` | `export_service.py:L60` | A declared `STORAGE_BUCKET_NAME`. `Settings` declares nine fields at `backend/app/core/config.py:L40-L48` and this is not among them, so attribute access raises `AttributeError` before any network call |
-| 2 | `blob.upload_from_string(...)` | `export_service.py:L63` | Credentials that authenticate and carry write permission on the bucket. `export_service.py:L36` builds `Client()` with no arguments, so the Cloud Storage client runs its own Application Default Credentials lookup. That lookup is independent of the Firestore lookup at `backend/app/db/firestore.py:L19`, the repository's only explicit `default()` call. ADC consults several sources in turn, among them `GOOGLE_APPLICATION_CREDENTIALS`, a `gcloud` user credential in the well-known configuration file, and the metadata server on a Google Cloud instance. No committed file supplies any of them, so what this client resolves is a property of the host |
-| 3 | `blob.generate_signed_url(version="v4", ...)` | `export_service.py:L66-L70` | Sign-capable credentials, and an expiry inside the version 4 limit |
+| 1 | `self.storage_client` `.bucket(settings.STORAGE_BUCKET_NAME)` | `export_service.py` `L60` | A declared `STORAGE_BUCKET_NAME`. `Settings` declares nine fields at `backend/app/core/` `config.py:L40-L48` and this is not among them, so attribute access raises `AttributeError` before any network call |
+| 2 | `blob.upload_from_string(...)` | `export_service.py` `L63` | Credentials that authenticate and carry write permission on the bucket. `export_service.py` `L36` builds `Client()` with no arguments, so the Cloud Storage client runs its own Application Default Credentials lookup. That lookup is independent of the Firestore lookup at `backend/app/db/` `firestore.py:L19`, the repository's only explicit `default()` call. ADC consults several sources in turn, among them `GOOGLE_APPLICATION_CREDENTIALS`, a `gcloud` user credential in the well-known configuration file, and the metadata server on a Google Cloud instance. No committed file supplies any of them, so what this client resolves is a property of the host |
+| 3 | `blob.generate_signed_url(version="v4", ...)` | `export_service.py` `L66-L70` | Sign-capable credentials, and an expiry inside the version 4 limit |
 
 Signing is the prerequisite most easily missed, because it needs more than authentication. A version 4
 signature is computed locally, so the credentials must be able to sign bytes. Two credential shapes
@@ -360,17 +360,17 @@ calls `export_service.convert_document(document, export_format)` at `:L59`. `Exp
 defines `convert_document`, so the task raises `AttributeError` at that line and reaches none of the
 upload work below it, even if something enqueued the task.
 
-The two paths sign links differently. `:L67` calls
+The two paths sign links differently. `background_tasks.py:L67` calls
 `generate_signed_url(expiration=timedelta(hours=1))` with no `version` argument, while the service
-passes `version="v4"` at `:L67` and `:L99`. A caller consuming both paths receives links signed
-under two different schemes.
+passes `version="v4"` at `export_service.py:L67` and `:L99`. A caller consuming both paths receives
+links signed under two different schemes.
 
 Three object-key layouts appear in the committed code, and no two of them agree.
 
 | Path | Object key | Locators |
 | ------ | ----------- | ---------- |
 | `ExportService` | `exports/{document.id}.pdf` and `exports/{document.id}.docx` | `:L61`, `:L93` |
-| `process_document_export` | `exports/{user_id}/{document_id}.{export_format}` | `:L63` |
+| `process_document_export` | `exports/{user_id}/` `{document_id}.{export_format}` | `:L63` |
 
 The two writers disagree with each other. The service layout omits the owner and encodes the format
 in the file extension. The task layout partitions by owner and takes the format from a
@@ -394,10 +394,10 @@ the four.
 
 | Field | Read at | Status |
 | ------- | --------- | -------- |
-| `STORAGE_BUCKET_NAME` | `export_service.py:L60`, `:L92` | Read but never declared |
-| `SIGNED_URL_EXPIRATION` | `export_service.py:L68`, `:L100` | Read but never declared |
-| `EXPORT_BUCKET_NAME` | `background_tasks.py:L62` | Read but never declared |
-| `DOCUMENT_BUCKET_NAME` | `background_tasks.py:L107` | Read but never declared |
+| `STORAGE_BUCKET_NAME` | `export_service.py` `L60`, `:L92` | Read but never declared |
+| `SIGNED_URL_EXPIRATION` | `export_service.py` `L68`, `:L100` | Read but never declared |
+| `EXPORT_BUCKET_NAME` | `background_tasks.py` `L62` | Read but never declared |
+| `DOCUMENT_BUCKET_NAME` | `background_tasks.py` `L107` | Read but never declared |
 
 `backend/app/core/config.py:L40-L48` declares nine fields, and the four above appear in none of
 them. Attribute access on a Pydantic model raises `AttributeError` for an undeclared field, so each
@@ -454,12 +454,12 @@ committed code and become prerequisites the moment a caller reaches the signing 
 
 | # | Constraint | Committed state |
 | --- | ------------ | ----------------- |
-| 1 | A reviewed expiry, short enough to bound exposure | `export_service.py:L68` and `:L100` read `settings.SIGNED_URL_EXPIRATION`, which `Settings` never declares, so no value and no ceiling exists in the repository. `background_tasks.py:L67` hard-codes `timedelta(hours=1)` instead, so the two paths would expire differently even once the field exists |
-| 2 | One signing scheme | The service passes `version="v4"` at `:L67` and `:L99`. The task passes no `version` argument at `:L67`. A consumer of both paths receives links signed under two different schemes |
-| 3 | An authorization check before a link is minted | Neither export method takes a caller identity. `export_to_pdf` at `export_service.py:L40` and `export_to_docx` at `:L74` accept a `Document` and sign a link for it, and nothing compares a requesting user against the document's owner first. `process_document_export` at `background_tasks.py:L25` takes `user_id` and puts it to two uses. `:L56` passes it to `document_service.get_document(document_id, user_id)`, an ownership handoff with the right arity that no `await` drives, so the coroutine is created, never executed and discarded. `:L63` then builds the object key from the same value |
+| 1 | A reviewed expiry, short enough to bound exposure | `export_service.py` `L68` and `:L100` read `settings.SIGNED_URL_EXPIRATION`, which `Settings` never declares, so no value and no ceiling exists in the repository. `background_tasks.py` `L67` hard-codes `timedelta(hours=1)` instead, so the two paths would expire differently even once the field exists |
+| 2 | One signing scheme | The service passes `version="v4"` at `export_service.py` `L67` and `:L99`. The task passes no `version` argument at `background_tasks.py` `L67`. A consumer of both paths receives links signed under two different schemes |
+| 3 | An authorization check before a link is minted | Neither export method takes a caller identity. `export_to_pdf` at `export_service.py` `L40` and `export_to_docx` at `:L74` accept a `Document` and sign a link for it, and nothing compares a requesting user against the document's owner first. `process_document_export` at `background_tasks.py` `L25` takes `user_id` and puts it to two uses. `:L56` passes it to `document_service.get_document(document_id, user_id)`, an ownership handoff with the right arity that no `await` drives, so the coroutine is created, never executed and discarded. `:L63` then builds the object key from the same value |
 | 4 | A signing credential held as a secret | Signing needs a private key or an IAM SignBlob delegation. No committed file supplies either, and `scripts/deploy.sh:L19` would archive a service-account key JSON file sitting in the working tree and `:L23` would upload it. [../scripts/README.md](../scripts/README.md) carries that path |
-| 5 | No link in a log or an error | No traced exposure exists today. No committed caller reaches either export method, so no signed URL is produced, and no logging path in the repository receives one. The constraint stands as a prerequisite rather than a finding. `frontend/src/services/api.ts` and the page handlers log whole error objects, so a link returned through either would land in the console with the rest of the response. [../frontend/src/pages/README.md](../frontend/src/pages/README.md) records that logging behaviour |
-| 6 | Object-level access control that the link cannot bypass | `infrastructure/terraform/main.tf:L54` sets `uniform_bucket_level_access = true`, which is the right default. `:L56-L58` enables versioning with no `lifecycle_rule`, so a delete or an overwrite on that bucket archives the current generation and leaves it addressable to anyone able to name it. Whether an export ever lands there is undetermined, because both upload sites read `settings.STORAGE_BUCKET_NAME` (`backend/app/services/export_service.py:L60`, `:L92`) and `Settings` does not declare that field. [../infrastructure/terraform/README.md](../infrastructure/terraform/README.md) carries the bucket detail |
+| 5 | No link in a log or an error | No traced exposure exists today. No committed caller reaches either export method, so no signed URL is produced, and no logging path in the repository receives one. The constraint stands as a prerequisite rather than a finding. `frontend/src/services/` `api.ts` and the page handlers log whole error objects, so a link returned through either would land in the console with the rest of the response. [../frontend/src/pages/README.md](../frontend/src/pages/README.md) records that logging behaviour |
+| 6 | Object-level access control that the link cannot bypass | `infrastructure/terraform/` `main.tf:L54` sets `uniform_bucket_level_access = true`, which is the right default. `:L56-L58` enables versioning with no `lifecycle_rule`, so a delete or an overwrite on that bucket archives the current generation and leaves it addressable to anyone able to name it. Whether an export ever lands there is undetermined, because both upload sites read `settings.STORAGE_BUCKET_NAME` (`backend/app/services/` `export_service.py` `L60`, `:L92`) and `Settings` does not declare that field. [../infrastructure/terraform/README.md](../infrastructure/terraform/README.md) carries the bucket detail |
 
 None of the six is changed here. Each is recorded so that whoever makes this path reachable knows what
 has to land with it.
@@ -513,11 +513,11 @@ same topic path at `:L153`.
 
 ### The topic must already exist, and nothing creates it
 
-Two of the four Pub/Sub calls name a topic and require it to exist. `create_subscription` at `:L73`
-passes `topic=topic_name`, and Pub/Sub answers `NotFound` when that topic is absent. `publish` at
-`:L152` addresses the same path and fails the same way. Neither call creates a topic, and no
-`create_topic` call exists anywhere in the repository. The module's own docstring records the gap at
-`backend/app/services/collaboration_service.py:L8-L12`.
+Two of the four Pub/Sub calls name a topic and require it to exist. `create_subscription` at
+`collaboration_service.py:L73` passes `topic=topic_name`, and Pub/Sub answers `NotFound` when that
+topic is absent. `publish` at `:L156` addresses the same path and fails the same way. Neither call
+creates a topic, and no `create_topic` call exists anywhere in the repository. The module's own
+docstring records the gap at `backend/app/services/collaboration_service.py:L8-L12`.
 
 No committed infrastructure supplies the topic either. Searching all of `infrastructure/` for
 `pubsub`, `topic` and `subscription` returns nothing, and `infrastructure/terraform/main.tf` declares
@@ -527,10 +527,10 @@ need one topic per document identifier, created outside this repository before a
 
 | Call | Locator | Needs a topic | Status without a pre-created topic |
 | ------ | --------- | --------------- | ------------------------------------- |
-| `create_subscription` | `collaboration_service.py:L73` | Yes, as the `topic` argument | **BLOCKED.** `NotFound`, caught at `:L74`, printed at `:L76`, then `:L77` returns |
-| `subscribe` | `collaboration_service.py:L99` | No, it names the subscription | Never reached, because `:L77` returned first |
-| `delete_subscription` | `collaboration_service.py:L130` | No, it names the subscription | `NotFound` for a subscription that was never created, caught at `:L131` and printed at `:L133` |
-| `publish` | `collaboration_service.py:L156` | Yes, as the destination path | **BLOCKED.** `NotFound`, caught at `:L158`, printed at `:L160`, and the method returns normally |
+| `create_subscription` | `collaboration_service.py` `L73` | Yes, as the `topic` argument | **BLOCKED.** `NotFound`, caught at `:L74`, printed at `:L76`, then `:L77` returns |
+| `subscribe` | `collaboration_service.py` `L99` | No, it names the subscription | Never reached, because `:L77` returned first |
+| `delete_subscription` | `collaboration_service.py` `L130` | No, it names the subscription | `NotFound` for a subscription that was never created, caught at `:L131` and printed at `:L133` |
+| `publish` | `collaboration_service.py` `L156` | Yes, as the destination path | **BLOCKED.** `NotFound`, caught at `:L158`, printed at `:L160`, and the method returns normally |
 
 Creating the topic outside the repository is therefore a prerequisite for the collaboration path.
 The prerequisite sits behind the earlier blockers rather than in front of them: no route constructs the class, and
@@ -597,9 +597,9 @@ route that authenticated the socket and authorized the pair before calling would
 
 | # | Control | Committed state |
 | --- | --------- | ----------------- |
-| 1 | Authenticate the connection | `connect` at `:L44` takes `websocket`, `document_id` and `user_id`. The method accepts no token, reads no header and calls no dependency, so nothing establishes who is connecting. Every other protected surface in the backend goes through `get_current_user` at `backend/app/api/auth.py:L28`, and this path does not |
-| 2 | Authorize the identity against the document | Nothing compares `user_id` against the document's stored owner. `backend/app/services/collaboration_service.py:L64-L66` registers the socket straight from the two string arguments. The document handlers at least attempt an owner check, at `backend/app/api/documents.py:L94`, `:L126` and `:L154` |
-| 3 | Validate `document_id` before it names a resource | `backend/app/services/collaboration_service.py:L69`, `:L70` and `:L153` interpolate `document_id` directly into Pub/Sub topic and subscription paths, with no allow-list, no format check and no membership check. Whichever string the method receives selects the topic it publishes to and the subscription it creates, so a caller that forwarded a client-supplied value would let the client choose both |
+| 1 | Authenticate the connection | `connect` at `:L44` takes `websocket`, `document_id` and `user_id`. The method accepts no token, reads no header and calls no dependency, so nothing establishes who is connecting. Every other protected surface in the backend goes through `get_current_user` at `backend/app/api/` `auth.py:L28`, and this path does not |
+| 2 | Authorize the identity against the document | Nothing compares `user_id` against the document's stored owner. `backend/app/services/` `collaboration_service.py` `L64-L66` registers the socket straight from the two string arguments. The document handlers at least attempt an owner check, at `backend/app/api/` `documents.py:L94`, `:L126` and `:L154` |
+| 3 | Validate `document_id` before it names a resource | `backend/app/services/` `collaboration_service.py` `L69`, `:L70` and `:L153` interpolate `document_id` directly into Pub/Sub topic and subscription paths, with no allow-list, no format check and no membership check. Whichever string the method receives selects the topic it publishes to and the subscription it creates, so a caller that forwarded a client-supplied value would let the client choose both |
 | 4 | Authorize a disconnect | `disconnect` at `:L107` takes the same two strings, removes the entry at `:L123` and `:L125`, then deletes the subscription at `:L130`. The method verifies neither argument, so a caller that did not check them would let one user's identifiers drop another user's connection |
 | 5 | Validate the event payload | `broadcast_change` at `:L137` declares `change: dict` and publishes it unchanged at `:L156`. No schema constrains the keys, no field is bounded, and no type is checked |
 | 6 | Bound the payload size | Nothing limits the size of `change`. A large object is serialized and published as one message, and Pub/Sub rejects a message above its own limit rather than the application refusing it first |
@@ -618,9 +618,9 @@ can be enqueued. The chain is three links long and every link is verifiable.
 
 | Link | Evidence |
 | ------ | ---------- |
-| Configuration declares the broker URL | `backend/app/core/config.py:L48` declares `REDIS_URL: str` with no default, so the field is required |
-| Code wires Celery to that value | `backend/app/tasks/background_tasks.py:L22` builds `Celery('microsoft_word', broker=settings.REDIS_URL)` at module scope |
-| No infrastructure provisions Redis | `infrastructure/docker/docker-compose.yml:L3-L39` defines exactly three services, `frontend` at `:L4`, `backend` at `:L17` and `db` at `:L30`. `infrastructure/terraform/main.tf` declares one provider and four Google Cloud resources: a network at `:L19`, a subnetwork at `:L25`, a firewall rule at `:L35` and a storage bucket at `:L50`. The file declares no cache resource. Searching all of `infrastructure/` for `redis` or `memorystore` returns nothing |
+| Configuration declares the broker URL | `backend/app/core/` `config.py:L48` declares `REDIS_URL: str` with no default, so the field is required |
+| Code wires Celery to that value | `backend/app/tasks/` `background_tasks.py` `L22` builds `Celery('microsoft_word', broker=settings.REDIS_URL)` at module scope |
+| No infrastructure provisions Redis | `infrastructure/docker/` `docker-compose.yml` `L3-L39` defines exactly three services, `frontend` at `:L4`, `backend` at `:L17` and `db` at `:L30`. `infrastructure/terraform/` `main.tf` declares one provider and four Google Cloud resources: a network at `:L19`, a subnetwork at `:L25`, a firewall rule at `:L35` and a storage bucket at `:L50`. The file declares no cache resource. Searching all of `infrastructure/` for `redis` or `memorystore` returns nothing |
 
 Declared intent names the missing piece directly. `documentation/Technical Specifications.md:L584`,
 under the DATABASES heading at `L563`, lists Redis on Google Cloud Memorystore in the stack. The
@@ -680,10 +680,10 @@ Four surfaces supply credentials, and they do not agree on a single source.
 
 | Surface | What it supplies | Locator |
 | --------- | ------------------ | --------- |
-| `Settings` | `GOOGLE_CLOUD_PROJECT` and `GOOGLE_APPLICATION_CREDENTIALS`, both `Optional[str]` | `backend/app/core/config.py:L45-L46` |
-| The nested `Config` class | An `.env` file as the fallback source, with UTF-8 encoding | `backend/app/core/config.py:L50-L61`, naming `.env` at `:L60` |
-| `scripts/deploy.sh` | A guard that exits 1 when `GOOGLE_APPLICATION_CREDENTIALS` is empty, and nothing more. See the note below | `scripts/deploy.sh:L4-L7` |
-| `.github/workflows/cd.yml` | A project identifier and a service-account key, both from repository secrets named `GCP_PROJECT_ID` and `GCP_SA_KEY`, passed to `google-github-actions/setup-gcloud`, which does authenticate the CLI | `.github/workflows/cd.yml:L13-L16` |
+| `Settings` | `GOOGLE_CLOUD_PROJECT` and `GOOGLE_APPLICATION_CREDENTIALS`, both `Optional[str]` | `backend/app/core/` `config.py:L45-L46` |
+| The nested `Config` class | An `.env` file as the fallback source, with UTF-8 encoding | `backend/app/core/` `config.py:L50-L61`, naming `.env` at `:L60` |
+| `scripts/deploy.sh` | A guard that exits 1 when `GOOGLE_APPLICATION_CREDENTIALS` is empty, and nothing more. See the note below | `scripts/` `deploy.sh:L4-L7` |
+| `.github/workflows/` `cd.yml` | A project identifier and a service-account key, both from repository secrets named `GCP_PROJECT_ID` and `GCP_SA_KEY`, passed to `google-github-actions/setup-gcloud`, which does authenticate the CLI | `.github/workflows/` `cd.yml:L13-L16` |
 
 `scripts/deploy.sh` supplies no credential to any tool. Two credential mechanisms exist and the
 script conflates them. `GOOGLE_APPLICATION_CREDENTIALS` configures Application Default Credentials,
@@ -748,9 +748,9 @@ dispatch actually happens:
 
 | Client call | Locator | What the server does with it |
 | ------------- | --------- | ------------------------------ |
-| `GET /documents` | `frontend/src/services/api.ts:L70` | Matches `GET /{document_id}` at `backend/app/api/documents.py:L68`, because `/documents` is a single path segment, so `document_id` binds to the string `documents` and no body follows. That route is protected at `:L69`, so its dependency resolves before the body, and without a valid token the response is **401**. For an authenticated caller whose user record resolves, `:L93` passes one argument to the two-parameter `get_document` signature at `backend/app/services/document_service.py:L78`. A `TypeError` then propagates out of the handler and the response is a **500**. The declared `Document[]` never meets a document object on either path |
-| `POST /documents` | `frontend/src/services/api.ts:L83` | The single-segment shape matches `GET`, `PUT` and `DELETE` at `backend/app/api/documents.py:L68`, `:L98` and `:L131`, and no router declares `POST /{document_id}`. Starlette answers **405 Method Not Allowed** rather than 404. Routing settles that before any dependency runs, so no credential affects it |
-| `PUT /documents/${documentId}` | `frontend/src/services/api.ts:L96` | Two path segments, and no two-segment route is registered anywhere in the four routers. The response is **404**, again settled by routing before any dependency runs, so no credential affects it either |
+| `GET /documents` | `frontend/src/services/` `api.ts:L70` | Matches `GET /{document_id}` at `backend/app/api/` `documents.py:L68`, because `/documents` is a single path segment, so `document_id` binds to the string `documents` and no body follows. That route is protected at `:L69`, so its dependency resolves before the body, and without a valid token the response is **401**. For an authenticated caller whose user record resolves, `:L93` passes one argument to the two-parameter `get_document` signature at `backend/app/services/` `document_service.py` `L78`. A `TypeError` then propagates out of the handler and the response is a **500**. The declared `Document[]` never meets a document object on either path |
+| `POST /documents` | `frontend/src/services/` `api.ts:L83` | The single-segment shape matches `GET`, `PUT` and `DELETE` at `backend/app/api/` `documents.py:L68`, `:L98` and `:L131`, and no router declares `POST /{document_id}`. Starlette answers **405 Method Not Allowed** rather than 404. Routing settles that before any dependency runs, so no credential affects it |
+| `PUT /documents/${documentId}` | `frontend/src/services/` `api.ts:L96` | Two path segments, and no two-segment route is registered anywhere in the four routers. The response is **404**, again settled by routing before any dependency runs, so no credential affects it either |
 
 Every one of the three sits behind earlier blockers, so none is observable today.
 [troubleshooting.md](troubleshooting.md#the-client-calls-six-routes-and-no-server-route-matches-any-of-them) carries the
@@ -764,28 +764,28 @@ sets the two sides against each other dimension by dimension, and
 [../frontend/src/services/README.md](../frontend/src/services/README.md) carries the same comparison
 for all six client call sites.
 
-| Dimension | Client, `login` at `frontend/src/services/auth.ts:L35` | Server, `POST /token` at `backend/app/api/auth.py:L66` |
+| Dimension | Client, `login` at `frontend/src/services/` `auth.ts:L35` | Server, `POST /token` at `backend/app/api/` `auth.py:L66` |
 | --- | --- | --- |
 | Method | `POST` | `POST` |
-| Path | `/auth/login` | `/token`, since `backend/app/main.py:L84` mounts the router with no prefix |
+| Path | `/auth/login` | `/token`, since `backend/app/` `main.py:L84` mounts the router with no prefix |
 | Origin | Page origin. `auth.ts:L16` imports the default `axios` export, which carries no `baseURL` | Wherever the service is served |
 | Encoding | JSON. Axios serializes the object literal at `:L37` | `application/x-www-form-urlencoded`, because `:L67` declares `OAuth2PasswordRequestForm` |
 | Credential fields | `email` and `password` | `username` and `password` |
 | Request headers | No `Authorization` header. `auth.ts` never reaches the interceptor at `api.ts:L38-L44` | The route is public and reads none |
-| Response fields | Reads `response.data.accessToken` at `:L38` | Returns `{"access_token": ..., "token_type": "bearer"}` at `backend/app/api/auth.py:L101` |
-| State handoff | Writes the read value to `localStorage` under `accessToken` at `frontend/src/services/auth.ts:L39` | None. The server holds no session |
+| Response fields | Reads `response.data.accessToken` at `:L38` | Returns `{"access_token": ..., "token_type": "bearer"}` at `backend/app/api/` `auth.py:L101` |
+| State handoff | Writes the read value to `localStorage` under `accessToken` at `frontend/src/services/` `auth.ts:L39` | None. The server holds no session |
 
 The other two calls in the same module have no working counterpart either.
 
 | Side | What runs | Locator |
 | ------ | ----------- | --------- |
-| Client | `login` posts to `/auth/login` | `frontend/src/services/auth.ts:L37` |
+| Client | `login` posts to `/auth/login` | `frontend/src/services/` `auth.ts:L37` |
 | Client | Reads `response.data.accessToken` | `:L38` |
 | Client | Stores the value under `accessToken` in `localStorage` | `:L39` |
 | Client | `logout` posts to `/auth/logout` | `:L55` |
 | Client | `getCurrentUser` gets `/auth/me`, then casts with `as User` and no check | `:L72`, `:L73` |
-| Server | `POST /register` creates the user, taking a JSON `UserCreate` body | `backend/app/api/auth.py:L104`, decorator at `:L103` |
-| Server | `GET /me` returns the caller, behind `get_current_user` | `backend/app/api/users.py:L20`, decorator at `:L19` |
+| Server | `POST /register` creates the user, taking a JSON `UserCreate` body | `backend/app/api/` `auth.py:L104`, decorator at `:L103` |
+| Server | `GET /me` returns the caller, behind `get_current_user` | `backend/app/api/` `users.py:L20`, decorator at `:L19` |
 
 Five mismatches, each of which breaks the workflow on its own:
 
@@ -825,12 +825,12 @@ form, so a user cannot reach either server route through the interface.
 
 | Side | What runs | Locator |
 | ------ | ----------- | --------- |
-| Client | Imports `getDocument` and `updateDocument` from the API module | `frontend/src/pages/Editor.tsx:L16` |
+| Client | Imports `getDocument` and `updateDocument` from the API module | `frontend/src/pages/` `Editor.tsx:L16` |
 | Client | Loads the document inside an effect, guarded on the identifier | `:L37-L61`, guard at `:L58`, call at `:L49` |
 | Client | Auto-saves inside a second effect | `:L70-L93` |
 | Client | Calls `updateDocument(currentDocument.id, { content })` | `:L84` |
 | Client | Arms a five-second timer and clears it on cleanup | `:L91`, `:L92` |
-| Server | `GET /{document_id}` reads the document | `backend/app/api/documents.py:L69`, decorator at `:L68` |
+| Server | `GET /{document_id}` reads the document | `backend/app/api/` `documents.py:L69`, decorator at `:L68` |
 | Server | `PUT /{document_id}` updates it | `:L99`, decorator at `:L98` |
 
 Four mismatches:
@@ -869,10 +869,10 @@ this path. The reader of the page sees nothing either way.
 
 | Side | What runs | Locator |
 | ------ | ----------- | --------- |
-| Client | Imports `getTemplates` from the API module | `frontend/src/pages/Templates.tsx:L14` |
+| Client | Imports `getTemplates` from the API module | `frontend/src/pages/` `Templates.tsx:L14` |
 | Client | Calls it inside a load effect | `:L60` |
 | Client | Declares a local `Template` interface | `:L25-L30` |
-| Server | Five template handlers | `backend/app/api/templates.py:L25`, `:L43`, `:L60`, `:L87`, `:L113` |
+| Server | Five template handlers | `backend/app/api/` `templates.py:L25`, `:L43`, `:L60`, `:L87`, `:L113` |
 
 Four mismatches:
 
@@ -903,10 +903,10 @@ Four mismatches:
 
 | Side | What runs | Locator |
 | ------ | ----------- | --------- |
-| Client | Imports `updateUserSettings` from the API module | `frontend/src/pages/Settings.tsx:L14` |
+| Client | Imports `updateUserSettings` from the API module | `frontend/src/pages/` `Settings.tsx:L14` |
 | Client | Initialises the form from `currentUser?.name` | `:L36` |
 | Client | Submits `{ name, email }` | `:L50`, handler at `:L47` |
-| Server | `GET /me` returns the caller | `backend/app/api/users.py:L20`, decorator at `:L19` |
+| Server | `GET /me` returns the caller | `backend/app/api/` `users.py:L20`, decorator at `:L19` |
 | Server | `PUT /me` applies the update | `:L33`, decorator at `:L32` |
 
 Four mismatches:
@@ -939,8 +939,8 @@ differ and no handler bridges them.
 
 | End | Transport | Locator |
 | ----- | ----------- | --------- |
-| Client | `socket.io-client`, with `io()` called with no URL | `frontend/src/services/collaboration.ts:L15`, call at `:L37` |
-| Server | `fastapi.WebSocket` as the first parameter of `connect` | `backend/app/services/collaboration_service.py:L15`, signature at `:L44` |
+| Client | `socket.io-client`, with `io()` called with no URL | `frontend/src/services/` `collaboration.ts` `L15`, call at `:L37` |
+| Server | `fastapi.WebSocket` as the first parameter of `connect` | `backend/app/services/` `collaboration_service.py` `L15`, signature at `:L44` |
 | Between them | Nothing. No `@app.websocket` route and no `@router.websocket` route exists anywhere | Searched all four routers and `backend/app/main.py` |
 
 The client emits three events, and each has a server method that was clearly meant to receive it.
@@ -948,9 +948,9 @@ None of the three pairs can meet, and the reason differs per row.
 
 | Client event | Emitted payload | Nearest server counterpart | Why the pair cannot meet |
 | -------------- | ----------------- | ---------------------------- | -------------------------- |
-| `join_document` | the bare `documentId` string, at `frontend/src/services/collaboration.ts:L65` | `CollaborationService.connect` at `backend/app/services/collaboration_service.py:L44` | `connect` declares a `WebSocket`, a `document_id` and a `user_id`. The emit carries one string, no socket object and no user identity, and no route delivers it |
-| `leave_document` | the bare `currentDocumentId` string, at `frontend/src/services/collaboration.ts:L78` | `CollaborationService.disconnect` at `backend/app/services/collaboration_service.py:L107` | `disconnect` declares `document_id` and `user_id`. The emit carries the identifier alone, and `frontend/src/services/collaboration.ts:L79` clears it straight afterwards with nothing confirming the emit |
-| `document_changes` | the envelope `{ documentId, changes }`, at `frontend/src/services/collaboration.ts:L98-L101` | `CollaborationService.broadcast_change` at `backend/app/services/collaboration_service.py:L137` | `broadcast_change` declares `document_id` and a `change` dictionary and publishes `json.dumps(change)` at `:L156`. The client nests the change inside an envelope, so the shapes differ even with a route in place |
+| `join_document` | the bare `documentId` string, at `frontend/src/services/` `collaboration.ts` `L65` | `CollaborationService.connect` at `backend/app/services/` `collaboration_service.py` `L44` | `connect` declares a `WebSocket`, a `document_id` and a `user_id`. The emit carries one string, no socket object and no user identity, and no route delivers it |
+| `leave_document` | the bare `currentDocumentId` string, at `frontend/src/services/` `collaboration.ts` `L78` | `CollaborationService.disconnect` at `backend/app/services/` `collaboration_service.py` `L107` | `disconnect` declares `document_id` and `user_id`. The emit carries the identifier alone, and `frontend/src/services/` `collaboration.ts` `L79` clears it straight afterwards with nothing confirming the emit |
+| `document_changes` | the envelope `{ documentId, changes }`, at `frontend/src/services/` `collaboration.ts` `L98-L101` | `CollaborationService.broadcast_change` at `backend/app/services/` `collaboration_service.py` `L137` | `broadcast_change` declares `document_id` and a `change` dictionary and publishes `json.dumps(change)` at `:L156`. The client nests the change inside an envelope, so the shapes differ even with a route in place |
 
 Four further facts complete the picture:
 

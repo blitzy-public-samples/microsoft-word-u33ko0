@@ -161,9 +161,9 @@ graph TD
     accDescr: Dashed edges mark a relationship that cannot resolve, including the three named imports of default exports the page uses, the store read through an absent hook, and the two inverse type errors on the outbound and inbound halves of one round trip. The thick edge marks the one helper call supplying both declared arguments. A solid edge downstream of a dashed one describes intended shape only, because nothing past the first dashed edge runs. Every node names its own file.
     PAGE["pages/Editor.tsx<br/>renders at<br/>Editor.tsx:L109-L112"]
     STORE["Redux store<br/>currentDocument<br/>.content"]
-    PAGE -.->|"named import of a<br/>default export,<br/>Editor.tsx:L13"| TB["Toolbar<br/>Toolbar.tsx:L34"]
-    PAGE -.->|"named import of a<br/>default export,<br/>Editor.tsx:L15"| SB["Sidebar<br/>Sidebar.tsx:L22"]
-    PAGE -.->|"named import of a<br/>default export,<br/>Editor.tsx:L14, and<br/>two props to a<br/>propless component"| DC["DocumentCanvas<br/>DocumentCanvas.tsx:L34"]
+    PAGE -.->|"named import<br/>of a default<br/>export,<br/>Editor.tsx:L13"| TB["Toolbar<br/>Toolbar.tsx:L34"]
+    PAGE -.->|"named import<br/>of a default<br/>export,<br/>Editor.tsx:L15"| SB["Sidebar<br/>Sidebar.tsx:L22"]
+    PAGE -.->|"named import<br/>of a default<br/>export,<br/>Editor.tsx:L14"| DC["DocumentCanvas<br/>DocumentCanvas.tsx:L34<br/>takes no props, yet<br/>Editor.tsx passes two"]
     STORE -.->|"read through<br/>useAppSelector, which<br/>the store folder does<br/>not export"| DC
     DC --> DES["deserializeDocument<br/>documentUtils.ts:L49,<br/>returns an EditorState"]
     DES -.->|"FIRST INVERSION:<br/>DocumentCanvas.tsx:L42<br/>and :L43 send an<br/>EditorState where a<br/>ContentState belongs"| CWC["EditorState<br/>.createWithContent<br/>DocumentCanvas.tsx:L43"]
@@ -374,7 +374,8 @@ The two formatting-helper call sites read most clearly side by side. Both helper
 newState = applyInlineStyle(editorState, command);
 newState = applyBlockStyle(editorState, command);
 
-// Toolbar.tsx:L45 and L56 supply one, so the style string lands in the editorState position.
+// Toolbar.tsx:L45 and L56 supply one, so the style string lands
+// in the editorState position.
 const updatedContent = applyInlineStyle(style);
 ```
 

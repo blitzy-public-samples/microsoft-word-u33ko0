@@ -1,7 +1,4 @@
-# `frontend/src/pages`
-
-Line citations name the current committed source. Every `Lnn` locator below is the physical line number in the file at
-`HEAD`, counting the file-header and per-construct comment blocks that the inline documentation pass added.
+# frontend/src/pages
 
 ## Purpose
 
@@ -9,7 +6,8 @@ Four routed pages live in this directory. `frontend/src/App.tsx:L41-L44` binds e
 `/editor`, `Templates` to `/templates` and `Settings` to `/settings`. Each page composes shell components from
 `frontend/src/components` and reads client state through store hooks. Three of the four also call a REST function, and
 `Home.tsx:L28` reads the store and calls none. Every page carries at least one contract defect, and the `Known Limitations`
-heading below cites each one.
+heading below cites each one. Every `Lnn` locator below numbers the file as committed at `HEAD`, counting the comment blocks
+the inline documentation pass added.
 
 ## Key Components
 
@@ -134,14 +132,13 @@ sequenceDiagram
     User--xPage: open /editor
     Note over User,Store: TERMINAL. Three boundaries stop the<br/>mount: App.tsx:L17 reaches this page<br/>through the unmapped @/ prefix, and<br/>App.tsx:L12 and :L42 use the Switch<br/>element and component prop that<br/>react-router-dom 6 removed.
     Page--xStore: read currentDocument
-    Note over Page,API: TERMINAL. Editor.tsx:L30 calls<br/>useAppSelector, which store/index.ts<br/>never exports. Were it exported, the<br/>read returns null at L30.
-    Page--xPage: guard at L58
+    Note over Page,API: TERMINAL. Editor.tsx:L30 calls<br/>useAppSelector, which store/index.ts<br/>never exports. Were it exported, the<br/>read returns null at Editor.tsx:L30.
+    Page--xStore: guard at L58
     Note over Page,API: TERMINAL. The guard on<br/>currentDocument?.id at L58 never<br/>passes, so getDocument at L49 never<br/>runs and neither do L50 and L51.
     User--xPage: edit the canvas
     Note over User,Store: TERMINAL. DocumentCanvas takes<br/>no props, so the Editor.tsx:L101<br/>change callback is never called.
-    Page->>Page: setTimeout at L91
     Note over Page,API: setTimeout(autoSave, 5000) at L91<br/>fires once on mount, five seconds<br/>after the page loads, with no null<br/>guard and no empty-content guard.
-    Page--xPage: read id at L84
+    Page--xStore: read id at L84
     Note over Page,API: currentDocument.id at L84 raises a<br/>TypeError, caught at L85 and logged<br/>at L86, so updateDocument is<br/>never reached.
 ```
 

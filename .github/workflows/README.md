@@ -1,4 +1,4 @@
-# GitHub Actions Workflows (`.github/workflows/`)
+# GitHub Actions Workflows (.github/workflows/)
 
 ## Purpose
 

@@ -1,15 +1,12 @@
 # backend/app/tasks
 
-The Celery task tier. One module, `background_tasks.py`, holding 157 physical lines, one Celery application, three task functions and
-no classes, documented as committed.
-
-*Citation convention: an unqualified `:Lnnn` locator continues the file named most recently before it. Every locator numbers the
-current branch head, which includes the docstrings this pass added.*
-
 ## Purpose
 
 `backend/app/tasks` moves three jobs off the request path and onto a Celery queue. The three are exporting a document to a file,
-deleting documents past their retention date, and recounting a document's words and pages.
+deleting documents past their retention date, and recounting a document's words and pages. One module, `background_tasks.py`, holds
+157 physical lines, one Celery application, three task functions and no classes, documented as committed. An unqualified `:Lnnn`
+locator below continues the file named most recently before it, and every locator numbers the current branch head, which includes
+the docstrings this pass added.
 
 `background_tasks.py` builds the Celery application at `background_tasks.py:L22` and registers the three tasks with the
 `@celery_app.task` decorator at `:L24`, `:L71` and `:L115`. Four `@celery_app` decorators sit across those three functions, because
@@ -48,8 +45,8 @@ The committed repository provisions no worker and no broker, and no committed fi
 [../../../docs/deployment-guide.md](../../../docs/deployment-guide.md) carries the infrastructure evidence.
 
 The specification's export path differs from the committed one in two ways.
-`documentation/Technical Specifications.md, SYSTEM ARCHITECTURE > SEQUENCE DIAGRAMS > Export Document Sequence (L148)` diagrams six
-participants at `:L152-L157`: User, Frontend, API Gateway, ExportService, DocumentService and Storage. No queue participant and no
+`documentation/Technical Specifications.md, SYSTEM ARCHITECTURE > SEQUENCE DIAGRAMS > Export Document Sequence (L241)` diagrams six
+participants at `:L245-L250`: User, Frontend, API Gateway, ExportService, DocumentService and Storage. No queue participant and no
 worker participant appears there. The diagrammed flow is synchronous, with `A->>E: Process export` at `:L254` followed by
 `E->>D: Fetch document` at `:L255`.
 
@@ -309,7 +306,8 @@ here runs today: the module raises `ImportError` at `background_tasks.py:L16`, s
 celery_app = Celery('microsoft_word', broker=settings.REDIS_URL)
 
 # background_tasks.py:L25, decorated at L24
-def process_document_export(document_id: str, export_format: str, user_id: str) -> str: ...
+def process_document_export(document_id: str, export_format: str,
+                            user_id: str) -> str: ...
 
 # background_tasks.py:L73, decorated at L71 and L72
 def cleanup_expired_documents(): ...
