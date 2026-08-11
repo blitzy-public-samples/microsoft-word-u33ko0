@@ -1,7 +1,37 @@
+/**
+ * Sign in, sign out and read the current user over HTTP.
+ *
+ * All three calls use the default `axios` export rather than the configured instance in
+ * `./api.ts`, so none of them carries the base URL or the bearer interceptor.
+ * `RootState` is imported and never used.
+ *
+ * None of the three paths matches a committed server route. The server exposes
+ * `POST /token`, `POST /register` and `GET /me`, and this module calls
+ * `/auth/login`, `/auth/logout` and `/auth/me`.
+ *
+ * `axios` is imported and `frontend/package.json` does not declare it.
+ *
+ * @see ./README.md
+ */
 import axios from 'axios';
 import { RootState } from '../store';
 import { User } from '../schema/user';
 
+/**
+ * Exchange an email address and password for an access token.
+ *
+ * The response field read below is `accessToken`, and the server answers
+ * `access_token`, so the stored value would be `undefined`. The token is written to
+ * `localStorage`, which is readable by any script on the origin.
+ *
+ * @param email - The submitted address. The server's token route expects a form
+ * body with `username`, not a JSON body with `email`.
+ * @param password - The submitted password.
+ * @returns The declared type is `Promise<string>`, and the mismatched response field
+ * would yield `undefined` if the call were reached.
+ * @throws Error with the message `Login failed`, which replaces the server's own
+ * status and detail.
+ */
 export const login = async (email: string, password: string): Promise<string> => {
   try {
     const response = await axios.post('/auth/login', { email, password });
@@ -13,6 +43,13 @@ export const login = async (email: string, password: string): Promise<string> =>
   }
 };
 
+/**
+ * Sign out and clear the stored token.
+ *
+ * @returns A promise that resolves once the request settles. A failure is logged
+ * and swallowed, and the stored value under `accessToken` is left unchanged, so an
+ * apparently completed sign-out clears nothing.
+ */
 export const logout = async (): Promise<void> => {
   try {
     await axios.post('/auth/logout');
@@ -22,6 +59,14 @@ export const logout = async (): Promise<void> => {
   }
 };
 
+/**
+ * Read the signed-in user's profile.
+ *
+ * @returns A promise for the profile. The response body is cast to `User` with no
+ * runtime check, so a mismatched shape passes silently even though
+ * `schema/user.ts` declares a schema that could parse it.
+ * @throws Error with the message `Failed to fetch current user`.
+ */
 export const getCurrentUser = async (): Promise<User> => {
   try {
     const response = await axios.get('/auth/me');

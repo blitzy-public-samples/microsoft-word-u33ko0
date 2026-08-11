@@ -1,8 +1,31 @@
+/**
+ * Render the top navigation bar and the signed-in user's identity.
+ *
+ * `useAppSelector` and `selectCurrentUser` are both imported and neither exists in
+ * the store folder, so this component cannot compile. The `@/` prefix on both
+ * imports raises TS2307 as well.
+ *
+ * @see ./README.md
+ */
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAppSelector } from '@/store';
 import { selectCurrentUser } from '@/store/userSlice';
 
+/**
+ * Render the brand mark, three navigation links and the user block.
+ *
+ * The logo file is not committed, so the image renders as broken alt text. Of the two
+ * resource links, `/templates` is declared and `/documents` is not, so `/documents`
+ * matches no route in `App.tsx`. The signed-in block reads `currentUser.avatar` and
+ * `currentUser.name`, and no user contract on either side of the boundary declares
+ * either field. The client schema has `username` and `full_name` instead.
+ *
+ * `App.tsx` and three pages each render this component, so a route paints it twice
+ * and produces two navigation landmarks with the same accessible name.
+ *
+ * @returns The header element.
+ */
 const Header: React.FC = () => {
   const currentUser = useAppSelector(selectCurrentUser);
 

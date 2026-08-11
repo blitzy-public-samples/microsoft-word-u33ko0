@@ -1,3 +1,16 @@
+"""Declare the Celery application and its three background tasks.
+
+The broker URL comes from `settings.REDIS_URL`, and no committed environment
+runs a broker: the Compose file declares no Redis service and the Terraform
+configuration declares no managed instance. No route, service or script
+enqueues any of these tasks, and no worker or beat process is defined
+anywhere, so none of them runs as committed.
+
+`datetime` is used twice below and only `timedelta` is imported, so both uses
+raise `NameError`. `settings` is imported from `app.core.config`, which never
+creates it, and `EXPORT_BUCKET_NAME` and `DOCUMENT_BUCKET_NAME` are declared
+nowhere. See ./README.md for the task table.
+"""
 from celery import Celery
 from google.cloud.storage import Client
 from app.core.config import settings
@@ -10,6 +23,29 @@ celery_app = Celery('microsoft_word', broker=settings.REDIS_URL)
 
 @celery_app.task
 def process_document_export(document_id: str, export_format: str, user_id: str) -> str:
+    """Export one document to the requested format and return a signed link.
+
+    The task reads the document through `DocumentService`, converts it
+    through `ExportService.convert_document`, uploads the result under
+    `exports/{user_id}/{document_id}.{export_format}` and signs a one-hour
+    link. Three steps cannot run: the read is not awaited on an `async`
+    method, `ExportService` declares no `convert_document`, and the signing
+    call passes no `version`. That last omission signs under the client
+    default rather than the version 4 scheme the service methods request.
+    See the HUMAN ASSISTANCE NEEDED marker below.
+
+    The key here carries a user segment, and the two `ExportService` methods
+    write `exports/{document.id}.{ext}` instead, so the same artifact has two
+    layouts.
+
+    Args:
+        document_id: Document to export.
+        export_format: Target format, used as the object extension.
+        user_id: Owning user, used in the object key and passed to the read.
+
+    Returns:
+        A signed URL string for the uploaded object.
+    """
     # HUMAN ASSISTANCE NEEDED
     # This function needs review for production readiness and error handling
     document_service = DocumentService()
@@ -35,6 +71,23 @@ def process_document_export(document_id: str, export_format: str, user_id: str) 
 @celery_app.task
 @celery_app.periodic_task(run_every=timedelta(days=1))
 def cleanup_expired_documents():
+    """Delete documents whose retention period has passed.
+
+    For each expired record the task removes the Firestore document, the
+    Cloud Storage object at `{user_id}/{doc_id}`, the permission records and
+    the metadata record. Deletion is not transactional, so a failure part
+    way through leaves the remaining artifacts in place.
+
+    Three things stop it running. The stacked `@celery_app.periodic_task`
+    decorator is not part of the Celery API, and `datetime` is never imported.
+    The permission cleanup calls `.delete()` on the list that a query returns
+    rather than on a document reference. No beat schedule exists, so nothing
+    would trigger the daily run either. See the HUMAN ASSISTANCE NEEDED marker
+    below.
+
+    Returns:
+        None.
+    """
     # HUMAN ASSISTANCE NEEDED
     # This function needs review for production readiness, error handling, and optimization
     document_service = DocumentService()
@@ -61,6 +114,21 @@ def cleanup_expired_documents():
 
 @celery_app.task
 def update_document_statistics(document_id: str):
+    """Recount a document's words and pages and store the result.
+
+    The read at L135 omits the `user_id` the service declares, so the call
+    raises `TypeError` before anything else runs. Supplying it would return a
+    coroutine that is never awaited, so `document.content` at L138 would raise
+    `AttributeError` next, then `document.pages` at L139, which no schema
+    declares. `datetime` is never imported, so L146 would raise last.
+
+    Args:
+        document_id: Document to recount.
+
+    Returns:
+        None. The statistics are merged into the Firestore record under a
+        `statistics` key.
+    """
     document_service = DocumentService()
 
     # Retrieve document from DocumentService

@@ -1,3 +1,13 @@
+/**
+ * Render the template gallery and handle template selection.
+ *
+ * `Header` and `Footer` are imported by name and both are default exports.
+ * `getTemplates` is imported from `@/services/api`, which does not export it, and
+ * `useAppSelector` and `selectCurrentUser` do not exist in the store folder. See
+ * the two HUMAN ASSISTANCE NEEDED markers below.
+ *
+ * @see ./README.md
+ */
 import React, { useState, useEffect } from 'react';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
@@ -5,6 +15,13 @@ import { getTemplates } from '@/services/api';
 import { useAppSelector } from '@/store';
 import { selectCurrentUser } from '@/store/userSlice';
 
+/**
+ * The template shape this page uses, declared locally rather than imported.
+ *
+ * @remarks `schema/template.ts` declares a different shape for the same concept:
+ * it carries `content`, `owner_id`, `created_at` and `updated_at`, and this one
+ * carries `description` and `thumbnail`. The two share only `id` and `name`.
+ */
 interface Template {
   id: string;
   name: string;
@@ -12,12 +29,32 @@ interface Template {
   thumbnail: string;
 }
 
+/**
+ * Render the gallery, one card per template.
+ *
+ * `selectedTemplate` is written and never read, and `currentUser` is read and never
+ * used, so a card click changes state that nothing renders. This file mixes both
+ * styling conventions in the tree: Tailwind utilities on the inner markup and a
+ * bespoke class name on the wrapper.
+ *
+ * @returns The templates page element.
+ */
 const Templates: React.FC = () => {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const currentUser = useAppSelector(selectCurrentUser);
 
   useEffect(() => {
+    /**
+     * Fetch the template list and store it in page state.
+     *
+     * Takes no argument. `getTemplates` is imported from `@/services/api`, which
+     * declares no such export, so the call cannot resolve as committed.
+     *
+     * @returns A promise that resolves once the fetch settles. A failure is
+     * caught and written to the console, so the promise never rejects. See the
+     * HUMAN ASSISTANCE NEEDED marker inside the catch block.
+     */
     const fetchTemplates = async () => {
       try {
         const fetchedTemplates = await getTemplates();
@@ -32,6 +69,13 @@ const Templates: React.FC = () => {
     fetchTemplates();
   }, []);
 
+  /**
+   * Record which template the reader picked.
+   *
+   * @param templateId - Identifier of the clicked template.
+   * @returns Nothing. Selection is terminal: no navigation follows and no other
+   * line reads the stored value. See the TODO marker inside.
+   */
   const handleTemplateSelection = (templateId: string) => {
     setSelectedTemplate(templateId);
     // HUMAN ASSISTANCE NEEDED
