@@ -77,7 +77,7 @@ behaviour anyone can observe today.
 
 The adapter exposes four synchronous helpers. Two of them are `get_document` at `:L22` and
 `create_document` at `:L45`. The others are `update_document` at `:L64` and `delete_document` at
-`:L79`.
+`:L81`.
 
 **No service consumes any of them.**
 Three modules import the adapter, and all three import only the `db` client:

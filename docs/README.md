@@ -106,12 +106,32 @@ complete register lives in [troubleshooting.md](troubleshooting.md).
 
 ### 3. Diagram style
 
-Diagrams are Mermaid fenced blocks, which GitHub renders with no build step. A diagram depicting a
+Diagrams are Mermaid fenced blocks, which GitHub renders with no build step. A flowchart depicting a
 broken relationship draws the broken edge dashed and labels it, so intent and reality stay
-distinguishable at a glance. A solid edge means the relationship holds in the committed code. A
-dashed edge means the code states the relationship and cannot satisfy it, and the edge label says
-why. One example reads as a dashed edge from `main.py` to `core/config.py` labelled "imports
-`settings`, which nothing defines".
+distinguishable at a glance. A dashed edge means the code states the relationship and cannot satisfy
+it, and the edge label says why. The dashed reading holds across every flowchart in this set. One
+example reads as a dashed edge from `main.py` to `core/config.py` labelled "imports `settings`, which
+nothing defines".
+
+What a solid edge means depends on what the flowchart maps, and four readings cover the 18 flowcharts
+here. Each diagram's `accDescr`, and any source comment above its closing fence, carries the
+specifics for that diagram.
+
+- A relationship map is the default. A solid edge there resolves in the committed code, as
+  [frontend/src](../frontend/src/README.md) and
+  [infrastructure/terraform](../infrastructure/terraform/README.md) both state.
+- An intended map draws every edge solid and verifies none of them. The intended interaction map in
+  [architecture-overview.md](architecture-overview.md) is the only one, and the section under it
+  names the twelve places that map breaks.
+- A path carrying a break reads a solid edge downstream of a dashed one as intended shape only,
+  because nothing past the first break runs. The flows in [data-model.md](data-model.md) and
+  [frontend/src/components](../frontend/src/components/README.md) say so in the source.
+- A step or decision flow reads a solid edge as declared step order, or as a path that reaches a
+  result. [.github/workflows](../.github/workflows/README.md), [scripts](../scripts/README.md),
+  [deployment-guide.md](deployment-guide.md) and [onboarding.md](onboarding.md) each carry one.
+
+The five sequence diagrams use Mermaid's own message vocabulary, where a crossed arrow marks a step
+that cannot happen. The one entity-relationship diagram carries no edge-state convention.
 
 Every diagram in the set carries `accTitle` and `accDescr` metadata, so a reader using a screen
 reader gets the same content as the rendered picture.

@@ -69,9 +69,9 @@ scored, and a finding against it still appears in the register.
 | A10 | Respect the Reader's Intelligence | Full |
 
 A finding on V1 or V5 would carry less consequence than one on V2, V3, V6 or V7. The Technical class
-reduces the first pair and raises the second four. Of the 44 measured findings this validation
-charged, 30 fell on V3 with A2 and 14 fell on V2. All four are highest-weight principles, so the
-weighting raised the consequence of every one.
+reduces the first pair and raises the second four. Of the 60 measured findings this validation
+charged, 42 fell on V3 with A2 and 18 fell on V2. The remaining 34 charges fell on V7, so all 94 sit
+on principles this class raises rather than reduces.
 
 ### Severity levels and verdict thresholds
 
@@ -127,8 +127,8 @@ Five counting details decide reproducibility, and all five follow Rule 3's Speci
   paragraph.
 - A table cell is scored as its own unit against both heuristics. An earlier draft exempted cells
   from the paragraph heuristic, and the exemption was dropped, because a six-sentence cell rambles
-  in a narrow column exactly as a six-sentence paragraph does. Six of the 14 paragraph findings in
-  the register sit in cells and would have gone uncharged under the old exemption.
+  in a narrow column exactly as a six-sentence paragraph does. Seven of the 18 paragraph findings
+  in the register sit in cells and would have gone uncharged under the old exemption.
 - A block-quoted line is not scored, which is how the quoted evidence in the register stays out of
   this file's own measurements.
 
@@ -174,8 +174,8 @@ the five apply here anyway as house conventions, and B4 does not.
 | Rule | Convention | Result across the 28 committed deliverables |
 | --- | --- | --- |
 | B1 | No em dashes | Clean. Zero em dash and zero en dash characters in any file, counted with fenced blocks included |
-| B2 | No bare "It" or "This" as a sentence subject | Clean. Zero bare instances in 17,476 prose sentences, and all 18 sentence-initial uses of "This" carry a noun head |
-| B3 | Active voice | 829 of 17,476 prose sentences match a passive pattern, 4.7 percent. Only 77 of the 829 name an agent with `by`. The four commonest forms are `is committed` at 54, `is declared` at 35, `is tracked` at 19 and `are declared` at 17. Each puts a file or a value in focus, which is B3's own exception |
+| B2 | No bare "It" or "This" as a sentence subject | Clean. Zero bare instances in 17,488 prose sentences, and all 18 sentence-initial uses of "This" carry a noun head |
+| B3 | Active voice | 829 of 17,488 prose sentences match a passive pattern, 4.7 percent. Only 77 of the 829 name an agent with `by`. The four commonest forms are `is committed` at 54, `is declared` at 35, `is tracked` at 19 and `are declared` at 17. Each puts a file or a value in focus, which is B3's own exception |
 | B5 | Cite sources | Clean. Every factual claim carries a `path:Lnn` locator or a heading-plus-line citation, checked claim by claim rather than by sample |
 
 Blog-rule results do not enter the verdict table. Rule 3 computes a verdict from the principles, so
@@ -236,8 +236,8 @@ Eleven checks produced the numbers in this record. A reviewer can re-run every o
 
 | Check | What it measured | Result |
 | --- | --- | --- |
-| Physical line count | Every deliverable, counting the file's last line | 19 module READMEs from 196 to 399 lines; 9 `docs/` files from 187 to 1,850 |
-| Sentence length | Prose words per sentence, inline code counted as one word | 17,476 prose sentences, none over 30 words |
+| Physical line count | Every deliverable, counting the file's last line | 19 module READMEs from 196 to 399 lines; 9 `docs/` files from 207 to 1,850 |
+| Sentence length | Prose words per sentence, inline code counted as one word | 17,488 prose sentences, none over 30 words |
 | Paragraph length | Sentences per paragraph, list items and cells counted separately | No paragraph or cell over 5 sentences; 227 sit at exactly 5 |
 | Em dash and en dash | Whole file, fenced blocks included | Zero |
 | Sentence-initial "It" and bare "This" | Bare pronoun as grammatical subject | Zero. All 18 sentence-initial uses of "This" carry a noun head |
@@ -245,7 +245,7 @@ Eleven checks produced the numbers in this record. A reviewer can re-run every o
 | Softener scan | The eight anti-neutrality patterns named above | Zero |
 | Dignity scan | `stakeholder`, `headcount`, `bandwidth`, `learnings` and similar machinery language | Zero |
 | Fence integrity | Fence parity and language tag per fenced block | 89 fences, all balanced, all tagged |
-| Charged-finding count | The same heuristics applied to the corpus at commit `1803114`, then again at the current head | 41 findings at `1803114`, and 16 more introduced after it, all 57 cleared |
+| Charged-finding count | The same heuristics applied to the corpus at commit `1803114`, then again at the current head | 41 findings at `1803114`, and 16 more on the second run, all 57 cleared |
 | Inline-pass finding count | The same heuristics applied to the 191 documentation blocks | 3 findings, all cleared |
 
 Two further checks ran against the inline documentation pass. Marker preservation compared the
@@ -325,7 +325,7 @@ rather than as a test.
 
 | Deliverable | Lines | Prose sentences | Longest sentence | Longest paragraph | Charged | Verdict |
 | --- | --- | --- | --- | --- | --- | --- |
-| [README.md](README.md) | 187 | 102 | 29 | 5 | 1 | CLEAN |
+| [README.md](README.md) | 207 | 114 | 29 | 5 | 1 | CLEAN |
 | [architecture-overview.md](architecture-overview.md) | 372 | 347 | 30 | 5 | 1 | CLEAN |
 | [data-model.md](data-model.md) | 654 | 599 | 30 | 5 | 3 | CLEAN |
 | [integration-guide.md](integration-guide.md) | 1,009 | 1,020 | 30 | 5 | 4 | CLEAN |
@@ -527,7 +527,7 @@ considered rather than dropped.
 B1, B2, B3 and B5 read Pass on all 29 deliverables, and no deliverable carried a charge against any
 of the four at commit `1803114`. The counts behind that are corpus-wide and per-rule rather than
 per-file. B1 and B2 return zero: no em dash or en dash appears in any of the 28 files, and no bare
-"It" or "This" subject appears across 17,476 sentences. B3 measures 4.7 percent passive by pattern,
+"It" or "This" subject appears across 17,488 sentences. B3 measures 4.7 percent passive by pattern,
 of which 77 sentences name an agent, and B5 finds a `path:Lnn` locator or a heading-plus-line
 citation on every factual claim.
 
@@ -634,11 +634,11 @@ longer sat where it said, which is register entry 62.
 
 | # | Principle | Result | Closest passage found |
 | --- | --- | --- | --- |
-| V1 | Find a subject you care about | Pass, all 29. Reduced weight | Zero author-distancing hedges in 17,476 prose sentences. The corpus states its own limits instead of hedging them, as at `../backend/app/core/` `README.md:L246`, where an exposure is called conditional and unestablished and the three preconditions are then named |
+| V1 | Find a subject you care about | Pass, all 29. Reduced weight | Zero author-distancing hedges in 17,488 prose sentences. The corpus states its own limits instead of hedging them, as at `../backend/app/core/` `README.md:L246`, where an exposure is called conditional and unestablished and the three preconditions are then named |
 | V2 | Do not ramble | Pass, all 29. 18 charges cleared | The longest paragraph, list item or cell in the corpus now runs 5 sentences, and 227 sit at exactly that. The charged worst case ran 8 sentences twice, at `../.github/workflows/` `README.md:L181` and at `onboarding.md:L66`, cleared as entries 11 and 26 |
 | V3 | Keep it simple | Pass, all 29. 42 charges cleared | The longest sentence in the corpus now runs 30 words, and 63 sit at exactly that. The charged worst case ran 46 words in decision row 19 of [decision-log.md](decision-log.md), cleared as entry 29 |
 | V4 | Have the guts to cut | Pass, all 29. Normal weight | A repeated-sentence scan across the 28 committed files found 166 repeat groups, and 112 of them span more than one file. The cross-file majority is the shared citation-convention wording the READMEs carry by design. Only 7 groups repeat inside one file and touch a prose paragraph, and each states one defect twice, once in a summary and once in the detail. The strongest is the bold lead-in "The backend port mapping misses the served port.", at `deployment-guide.md` `L233` and again as failure item 6 at `:L653` |
-| V5 | Sound like yourself | Pass, all 29. Reduced weight | Zero hits against a 30-word buzzword list across 17,476 sentences. The closest candidate is heading style rather than prose: the 19 module READMEs title themselves five different ways, and `../frontend/src/pages/` `README.md:L1` wraps its path in backticks where siblings do not. A heading is not prose and no reader is misled, so the observation is recorded rather than charged |
+| V5 | Sound like yourself | Pass, all 29. Reduced weight | Zero hits against a 30-word buzzword list across 17,488 sentences. The closest candidate is heading style rather than prose: the 19 module READMEs title themselves five different ways, and `../frontend/src/pages/` `README.md:L1` wraps its path in backticks where siblings do not. A heading is not prose and no reader is misled, so the observation is recorded rather than charged |
 | V6 | Say what you mean | Pass, all 29 | Zero softener hits, so [the anti-neutrality test](#the-anti-neutrality-test) passes everywhere. The model pass reads "The backend cannot import, and only 3 of the 15 modules under `backend/app/` load." at `troubleshooting.md` `L3-L4` |
 | V7 | Pity the reader | Pass, all 29. 34 charges cleared | Thirty-four claims contradicted the committed tree and every one was corrected, as register entries 34 through 67. The largest group is [onboarding.md](onboarding.md) with 10, where a setup path told a reader to install a disabled formula and to run two unresolved placeholder tags |
 | V8 | Start close to the end | Pass, all 29. Normal weight | Four module READMEs open with a citation-convention note before the Purpose heading, the longest being three lines at `../backend/app/db/` `README.md:L3-L5`. Each one still leads with substance in its subtitle, and no thesis waits past the second paragraph anywhere in the corpus |
@@ -660,7 +660,7 @@ longer sat where it said, which is register entry 62.
 | A2 | Short Words, Simple Structures | Pass, all 29. 42 charges cleared | A2 shares the over-30-word heuristic with V3, so every long-sentence charge registered against both. On its own ground A2 passes cleanly: the corpus expands each acronym at first use, including "Continuous Integration (CI)" at `../.github/workflows/` `README.md:L6` and "create, read, update and delete (CRUD)" at `../backend/app/schema/` `README.md:L7` |
 | A3 | Logical Sequence | Pass, all 29 | All 19 module READMEs carry the nine required headings in the required order, verified heading by heading and stated at `architecture-overview.md` `L332-L334`. Inside the Python docstrings, a prose paragraph sometimes follows a Google section header where Google style puts extended description first. A blank line separates each such paragraph, so a reader sees a new movement start |
 | A4 | Ideas Carry the Weight | Pass, all 29 | No passage in the corpus builds mood or ornaments an idea. A figurative-language scan across all 28 committed files returned two hits and no third, and both introduce a concrete point rather than decorate one. Every paragraph read advances a claim and cites it |
-| A5 | Conversational Informality | Pass, all 29 | Passive constructions account for 829 of 17,476 prose sentences, 4.7 percent by pattern. Only 77 of the 829 name an agent. The commonest forms are `is committed`, `is declared`, `is tracked` and `are declared`, which put a file or a value in focus, inside blog rule B3's stated exception. The densest example sits at `deployment-guide.md` `L154`: "No apply happens, and no resource is created, until every output either points at a declared resource or is removed." Terraform is the unnamed actor there and the resource is the focus |
+| A5 | Conversational Informality | Pass, all 29 | Passive constructions account for 829 of 17,488 prose sentences, 4.7 percent by pattern. Only 77 of the 829 name an agent. The commonest forms are `is committed`, `is declared`, `is tracked` and `are declared`, which put a file or a value in focus, inside blog rule B3's stated exception. The densest example sits at `deployment-guide.md` `L154`: "No apply happens, and no resource is created, until every output either points at a declared resource or is removed." Terraform is the unnamed actor there and the resource is the focus |
 | A6 | No Ornamental Language | Pass, all 29 | The figurative-language scan returned exactly two hits, both mild. The stronger is "Each one looks like a local problem and has a cause somewhere else." at `onboarding.md:L838-L839`, which introduces a concrete point about four traps. The second is at `troubleshooting.md` `L1845-L1846`, where a divergence is called out precisely because it looks like a defect and is not one |
 | A7 | Functional Dialogue | Not applicable, all 29 | Not applicable rather than unexamined: A7 scores dialogue, and technical documentation contains no dialogue. No deliverable in this corpus carries a spoken exchange, a quoted speaker or a character, so the principle has no surface to score. The row stays in place so its absence reads as a finding rather than an oversight |
 | A8 | Anticipate Reader Questions | Pass, all 29 | Blog rule B5 came back clean, so no claim arrived without its locator. One question recurred against the drafted corpus: why a document stated a count that the file it described no longer carried. Every instance of that is cleared under V7 |
@@ -1482,16 +1482,16 @@ were rewritten. Fourteen were introduced by edits made in this checkpoint, and t
 | 75 | `decision-log.md` `L111` | V3, 45 words | The currency caveat split from the npm scope caveat | Two independent limits were sharing one sentence |
 | 76 | `../backend/app/services/` `README.md:L330` | V3, 36 words | The signing-credential requirement split from the bearer-credential consequence | What signing needs and what possession authorises are different claims |
 | 77 | `../infrastructure/docker/` `README.md:L202` | V2, 7 sentences | The worker-privilege account was condensed and the two exploit consequences merged | The cell stated the master and worker split twice over |
-| 78 | This set's index, `README.md:L109-L114`, with the split-off paragraph at `:L116-L117` | V2, 6 sentences | The accessibility metadata note became its own paragraph | Edge semantics and screen-reader metadata are separate subjects |
+| 78 | This set's index, `README.md:L109-L114`, with the split-off paragraph at `:L136-L137` | V2, 6 sentences | The accessibility metadata note became its own paragraph | Edge semantics and screen-reader metadata are separate subjects |
 | 79 | `architecture-overview.md` `L101-L103` | V3, 35 words | The three updated line counts split across two sentences in a new paragraph | Three counts in one clause forced a reader to hold all three at once |
 | 80 | `deployment-guide.md` `L675` | V2, 6 sentences | The `deploy.sh` step list broke into a second paragraph after the bucket finding | The bucket qualification and the remaining steps are separate readings |
 | 81 | `prose-validation.md` `L714-L717` | V3, 32 words | The register composition split from the entry and charge totals | Totals are checkable only when stated on their own |
 | 82 | `prose-validation.md` `L844-L845` | V3, 34 words | The entry 22a ownership note split from what the pattern note keeps | Ownership and residue are two facts |
 | 83 | `../infrastructure/terraform/` `README.md:L204-L207` | V2, 6 sentences | Two dead-variable sentences merged into one | The count and its qualification belong in the same sentence |
 
-Entries 68 to 77 and 80 to 82 record violations this checkpoint introduced, which is why they are
-charged here rather than excused. Entries 79 and 83 pre-dated it, and both sat in table cells and a
-list item that the earlier pass scored as prose only.
+Entries 68 to 78 and 80 to 82 record violations this checkpoint introduced, which is why they are
+charged here rather than excused. Entries 79 and 83 pre-dated it, sitting in a paragraph and in a
+list item that the earlier pass did not charge.
 
 ### Rewrites made under an earlier check implementation
 
